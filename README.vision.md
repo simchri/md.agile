@@ -359,7 +359,7 @@ Subtasks that are required by a property are counted in exactly the same way as 
 
 ### Users And Roles
 
-You can assign tasks to specific people or groups with the `@person` marker.
+You can assign tasks to specific people or groups with the assignment marker: `@someone`
 
 ```
 - [ ] implement feature X @markus
