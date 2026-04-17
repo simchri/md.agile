@@ -117,11 +117,13 @@ Recommendation: Keep all files near the top level in a common folder. Everything
 
 By default all subtasks are mandatory. A parent task may only be marked complete, when all subtasks are done.
 ```md
-- [ ] some mandatory subtask
+- [ ] a task
+  - [ ] some mandatory subtask
 ```
 **Optional subtasks** are not required for completion of the parent task. They are prefixed with the special marker `#OPT` (all caps) after the checkbox:
 ```md
-- [ ] #OPT some optional subtask
+- [ ] a task
+  - [ ] #OPT some optional subtask
 ```
 
 ### Properties (Basics)
