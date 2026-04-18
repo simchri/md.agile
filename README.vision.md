@@ -1,6 +1,6 @@
 # md.Agile
 
-[[[[ This file states the project's vision from a user POV – nothing here is currently implemented ]]]]
+> This file states the project's vision from a user POV – nothing here is currently implemented
 
 Simple, collaborative task management using Markdown (plain text) and Git.
 
