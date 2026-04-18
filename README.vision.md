@@ -1,4 +1,4 @@
-# md.Agile
+# Md.Agile
 
 > This file states the project's vision from a user POV – nothing here is currently implemented
 
