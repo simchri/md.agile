@@ -1,10 +1,10 @@
 # md.Agile
 
-[[[[ This file states the project's vision from a user POV - nothing here is currently implemented ]]]]
+[[[[ This file states the project's vision from a user POV – nothing here is currently implemented ]]]]
 
-Simple, collaborative task management using markdown (plain text) and git.
+Simple, collaborative task management using Markdown (plain text) and Git.
 
-Your tasks live forever in a simple text file, version controlled directly next to your code (ideally in the same repository) - Not a web app!:
+Your tasks live forever in a simple text file, version-controlled directly alongside your code (ideally in the same repository) – not a web app!
 
 **tasks.md:**
 
@@ -22,32 +22,32 @@ Both inside and outside of tasks, you can just use normal markdown syntax
   - [ ] "3. regression test"
 ```
 
-Tasks follow a syntax. You will get direct feedback in your text editor if you do something wrong (via Language Server). Add mandatory subtasks via "hash-tag" markers - Fully configurable, recursive. Use the language servers auto-fix feature to make this ergonomic. Use the cli-tool to add hard checks as pre-commit hooks or to your pipeline - Your task list is always consistent. Everything is designed with a "command line first" approach, text files and CLI tools are the primary interface. Optional graphical clients aim to make adoption for non technical colleagues easy.
+Tasks follow a specific syntax. You will receive immediate feedback in your text editor if you make a mistake (via Language Server). Add mandatory subtasks using "hash-tag" markers – fully configurable and recursive. Use the language server's auto-fix feature for an ergonomic experience. Use the CLI tool to add strict checks as pre-commit hooks or in your pipeline – your task list is always consistent. Everything is designed with a "command line first" approach: text files and CLI tools are the primary interface. Optional graphical clients aim to make adoption easy for non-technical colleagues.
 
 ```
 agile
 ```
-Show me my next tasks in interactive viewer
+Show me my next tasks in an interactive viewer
 
 ```
 agile check
 ```
-Check if all rules are satisfied. Return non-zero and print errors otherwise.
+Check if all rules are satisfied. Returns non-zero and prints errors otherwise.
 
 ```
 agile task new
 ```
-Drop into interactive mask (TUI), create a new task. You can decide if the task goes to the bottom or top of your backlog.
+Drop into an interactive mask (TUI) to create a new task. You can decide whether the task goes to the bottom or top of your backlog.
 
 ```
 agile when
 ```
-Get estimated time until next milestone
+Get an estimated time until the next milestone
 
 
 ## Basic Syntax
 
-Tasks must follow the Markdown standard, subtasks must be correctly indented. A task that is "done" is marked with lower case `x`.
+Tasks must follow the Markdown standard, and subtasks must be correctly indented. A task that is "done" is marked with a lowercase `x`.
 
 Correct:
 ```md
@@ -66,7 +66,7 @@ Incorrect:
   - [ ] is this a subtask or a task? Nobody knows.
 ```
 
-Other content is ignored. You can therefore freely complement your task lists with other notes. A newline separates tasks from tasks or other content.
+Other content is ignored. You can therefore freely complement your task lists with other notes. A newline separates tasks from other tasks or content.
 
 ```md
 - [x] a task
@@ -79,7 +79,7 @@ And some further notes
 ```
 
 mdagile uses the following symbols for syntax: `# @ \` 
-If necessary escape these with `\`
+If necessary, escape these with `\`
 
 ```md
 - [ ] a task with a hashtag \#not_a_property
@@ -88,34 +88,36 @@ If necessary escape these with `\`
 
 
 ## Prioritization
+
 Prioritization is fully reflected by the order of tasks in your tasks file(s). The most important task is at the top, the least important at the bottom.
 
-**No Swim Lanes**
-Some task management tools define "swim-lanes", where each swim-lane constitutes an independent priority list. Mdagile does not have a swim-lanes feature, but you can
-- strictly assign tasks to teams with assignment markers  (`@...`).
+**No Swim Lanes**  
+Some task management tools define "swim-lanes", where each swim-lane constitutes an independent priority list. mdagile does not have a swim-lanes feature, but you can:
+- strictly assign tasks to teams with assignment markers (`@...`).
 - loosely assign tasks to teams with property markers (`#...`).
-There are no swim-lanes, because this does not play well with milestones - you still have to ultimately decide for each individual task, whether it is part of a milestone or not.
 
-If you have multiple truly independent teams, each doing their own prioritization, you can use multiple subdirectories (and multiple `mdagile.toml` and `tasks.md` files). Note that these teams will not work towards the same milestones (c.f. "Milestones").
+There are no swim-lanes, because this does not work well with milestones—you still have to ultimately decide for each individual task whether it is part of a milestone or not.
 
-**No "High Priority" Markers**
-There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are dishonest.
+If you have multiple truly independent teams, each doing their own prioritization, you can use multiple subdirectories (and multiple `mdagile.toml` and `tasks.md` files). Note that these teams will not work towards the same milestones (see "Milestones").
+
+**No "High Priority" Markers**  
+There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading.
 
 ## Multiple files
 
 As your project grows, you may want to split your task list over multiple files. If you want to use more than one file, files must follow the naming convention `<some name>.agile.md`
-- by default any file in any sub directory to the root is picked up by the tool
+- by default, any file in any subdirectory to the root is picked up by the tool
 - other markdown files (e.g. your `README.md`s) are ignored, even if they contain syntactically valid tasks.
 - all found files are then brought into a global order, alphabetically (TODO: spec details), using only the file name, not its location (path).
 - The order of tasks in this aggregated file determines the priority order.
 
-Recommendation: Keep all files near the top level in a common folder. Everything else just makes understanding priorities confusing.
+Recommendation: Keep all files near the top level in a common folder. Anything else just makes understanding priorities confusing.
 
 ## More Features
 
 ### Optional and Mandatory Subtasks
 
-By default all subtasks are mandatory. A parent task may only be marked complete, when all subtasks are done.
+By default, all subtasks are mandatory. A parent task may only be marked complete when all subtasks are done.
 ```md
 - [ ] a task
   - [ ] some mandatory subtask
@@ -128,7 +130,7 @@ By default all subtasks are mandatory. A parent task may only be marked complete
 
 ### Properties (Basics)
 
-You specify available properties globally for your project in the `mdagile.toml` (or `.mdagile.toml`) file. Property names can not contain spaces, but you can use `-` and `_`. Properties can then be added to tasks with `#<property_name>`.
+You specify available properties globally for your project in the `mdagile.toml` (or `.mdagile.toml`) file. Property names cannot contain spaces, but you can use `-` and `_`. Properties can then be added to tasks with `#<property_name>`.
 
 E.g. to declare a property `#feature`:
 
@@ -143,7 +145,7 @@ To use the property, place it anywhere in the task:
 ```md
 - [ ] #feature: add item to basket
 ```
-You are not allowed to use a property that is not defined in the `mdagile.toml`. This is to keep things orderly - no proliferation of random meaningless hashtags, and no duplication (`#Feature #feature #feat`). The tool will issue an error, if you use undefined properties. Otherwise an "empty" property doesn't do much. It just marks a task as part of some group - But you can do much more with them ...!
+You are not allowed to use a property that is not defined in the `mdagile.toml`. This is to keep things orderly—no proliferation of random meaningless hashtags, and no duplication (`#Feature #feature #feat`). The tool will issue an error if you use undefined properties. Otherwise, an "empty" property doesn't do much. It just marks a task as part of some group—but you can do much more with them ...!
 
 Properties are the essential building blocks of your team's task management strategy - you can keep things simple or get really sophisticated - it is up to you!
 
@@ -166,7 +168,7 @@ Properties are added to tasks with a `#` followed by the property name. This mak
 ```
 As you type out property marker, the language server will give you a hint - use the autofix feature of your text editor to quickly add the required subtasks.
 
-Subtasks that are required by a property are quoted `""`. If a property tag is followed by a single punctuation symbol (`:;,.` etc.), that symbol is ignored (it is not considered a part of the property name, nor the task name).
+Subtasks that are required by a property are quoted `""`. If a property tag is followed by a single punctuation symbol (`:;,.` etc.), that symbol is ignored (it is not considered part of the property name, nor the task name).
 
 Properties can also be added to subtasks! Note how `'#feature'` is quoted in the example above - the ticks prevent the tag from being interpreted as a property of the subtask. Otherwise you get the following:
 ```md
@@ -229,7 +231,7 @@ A valid task then looks like this:
 
 ### Required Properties
 
-You can define properties as mandatory for each task in a file. Useful, if you want to apply some properties by default for a certain part of the project.
+You can define properties as mandatory for each task in a file. This is useful if you want to apply some properties by default for a certain part of the project.
 
 **tasks.md:**
 ```md
@@ -248,12 +250,12 @@ You can define an order in which tasks have to be done:
   - [ ] 3 run UI tests
   - [ ] discuss further steps
 ```
-Ordering numbers have to follow the checkbox after a single space character, can optionally be followed by a `.` and must be separated by the next word with at least one space. The subtasks do not have to be arranged in order (note how 3 and 4 are mixed up).
+Ordering numbers have to follow the checkbox after a single space character, can optionally be followed by a `.` and must be separated from the next word by at least one space. The subtasks do not have to be arranged in order (note how 3 and 4 are mixed up).
 
 When an order is defined, the following rules apply:
 
 - Unordered tasks ("discuss further steps") can be marked complete at any point.
-- Ordered tasks can be marked complete at the earliest when all previous tasks are complete.
+- Ordered tasks can be marked complete only when all previous tasks are complete.
 
 Meaning the following is not allowed:
 ```md
@@ -313,7 +315,7 @@ A milestone is simply a marker between tasks, identified by the special tag `#MI
 - [ ] gather first user feedback
 
 ```
-Punctuation directly behind the tag is ignored (`#MILESTONE` is equivalent to `#MILESTONE:`, `#MILESTONE!` etc.). A milestone name must be provided and milestones must be unique across the project.
+Punctuation directly behind the tag is ignored (`#MILESTONE` is equivalent to `#MILESTONE:`, `#MILESTONE!` etc.). A milestone name must be provided, and milestones must be unique across the project.
 
 You can then get
 
@@ -338,7 +340,7 @@ Remaining: 12
 
 ### ETA - Task Weights
 
-For the purpose of ETA estimation only, the tool assigns different weights to tasks and subtasks. The total weight of a task is the sum of the weights of its subtask, plus 1 (the task itself). The weight of a subtask is 1/"subtask level" E.g.:
+For the purpose of ETA estimation only, the tool assigns different weights to tasks and subtasks. The total weight of a task is the sum of the weights of its subtasks, plus 1 (the task itself). The weight of a subtask is 1/"subtask level". E.g.:
 
 ```md
 - [ ] A simple task: Weight = **1**
@@ -365,11 +367,11 @@ You can assign tasks to specific people or groups with the assignment marker: `@
 - [ ] implement feature X @markus
   - [ ] Review the feature @QA
 ```
-The implementation can only be marked complete by Markus. The review may be checked by any QA person. mdagile checks this by comparing the current users email, as provided in the git config, against the assigned users and groups. You can alternatively inject an identity explicitly via arguments or env variables. Use this in pipelines, where the user's `.gitconfig` is not available.
+The implementation can only be marked complete by Markus. The review may be checked by any QA person. mdagile checks this by comparing the current user's email, as provided in the git config, against the assigned users and groups. You can alternatively inject an identity explicitly via arguments or environment variables. Use this in pipelines, where the user's `.gitconfig` is not available.
 
 This feature requires that groups and users are first identified in the configuration.
 
-Consider this feature only "automation", not "access control". This is not secure in any way! The mechanism can easily be sidestepped! We assume that our colleagues use this responsibly and do not impersonate others. (However, you can always check in your git history, if someone cheated). (c.f. MANIFESTO.md "Trust but Control")
+Consider this feature only "automation", not "access control". This is not secure in any way! The mechanism can easily be sidestepped! We assume that our colleagues use this responsibly and do not impersonate others. (However, you can always check in your git history if someone cheated). (c.f. MANIFESTO.md "Trust but Control")
 
 ```toml
 [Users]
