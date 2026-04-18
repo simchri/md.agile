@@ -399,6 +399,29 @@ You can tag multiple people or groups on the same task. In this case any person 
 ```
 If you want an AND connection instead, create subtasks for each person!
 
+## Neighbor Tasks (`neighbortasks`)
+
+Neighbor Tasks are tasks that must be present on the same level as the task with the property. Neighbor Tasks are mainly useful in combination with Branch Properties.
+
+You define Neighbor Tasks with the `neighbortasks` key:
+
+**mdagile.toml:**
+```toml
+[Properties.frontend-implementation]
+neighbortasks = ["do the back end implementation also!"]
+```
+
+**tasks.agile.md:**
+```md
+- [ ] let's build a feature and
+  - [ ] ..first do the #frontend-implementation
+  - [ ] do the back end implementation also!
+```
+
+Neighbor tasks can themselves have their own properties and subtasks. This mechanism helps ensure that important follow-up steps are not forgotten and are tracked explicitly in your workflow. You can also use this to couple certain properties together.
+
+**Properties with Neighbor Tasks can not be set at the top level (only on subtask level 1 and lower).** Neighbor tasks at the top level don't make sense, because the feature would only be usable exactly once for the entire project.
+
 ## Branch Properties
 
 Branch Properties allow you to implement branching workflows depending on the outcomes of tasks. The following config snippet defines a property `#review...` with two branches `#review:passed` and `#review:failed`:
@@ -416,20 +439,23 @@ A Branching Workflow property is written in its incomplete form (e.g., `#review.
 
 While task in progress:
 ```md
-- [ ] perform #review...
-  - [ ] "document review findings"
+- [ ] build something
+  - [ ] perform #review...
+    - [ ] "document review findings"
 ```
 Review passed:
 ```md
-- [x] perform #review:passed
-  - [x] "document review findings"
-- [ ] "publish feature"
+- [ ] build something
+  - [x] perform #review:passed
+    - [x] "document review findings"
+  - [ ] "publish feature"
 ```
 Review failed:
 ```md
-- [x] perform #review:failed
-  - [x] "document review findings"
-- [ ] "create follow up task for fixes"
+- [ ] build something
+  - [x] perform #review:failed
+    - [x] "document review findings"
+  - [ ] "create follow up task for fixes"
 ```
 
 It is not allowed to mark the task as complete without updating the property to one of its defined outcomes. The following will be marked with an error:
