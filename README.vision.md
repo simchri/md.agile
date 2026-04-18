@@ -92,6 +92,7 @@ If necessary, escape these with `\`
 Prioritization is fully reflected by the order of tasks in your tasks file(s). The most important task is at the top, the least important at the bottom.
 
 **No Swim Lanes**
+
 Some task management tools define "swim-lanes", where each swim-lane constitutes an independent priority list. mdagile does not have a swim-lanes feature, but you can:
 - strictly assign tasks to teams with assignment markers (`@...`).
 - loosely assign tasks to teams with property markers (`#...`).
@@ -101,6 +102,7 @@ There are no swim-lanes, because this does not work well with milestones—you s
 If you have multiple truly independent teams, each doing their own prioritization, you can use multiple subdirectories (and multiple `mdagile.toml` and `tasks.md` files). Note that these teams will not work towards the same milestones (see "Milestones").
 
 **No "High Priority" Markers**
+
 There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading.
 
 ## Multiple files
