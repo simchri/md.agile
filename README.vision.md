@@ -401,7 +401,7 @@ You can tag multiple people or groups on the same task. In this case any person 
 ```
 If you want an AND connection instead, create subtasks for each person!
 
-## Neighbor Tasks (`neighbortasks`)
+## Neighbor Tasks
 
 Neighbor Tasks are tasks that must be present on the same level as the task with the property. Neighbor Tasks are mainly useful in combination with Branch Properties.
 
