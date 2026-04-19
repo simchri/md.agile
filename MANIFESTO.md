@@ -17,7 +17,7 @@ Nobody needs to be taught how to work with a file that looks like this:
 ```
 The moment you have seen this example, you know how to work with it.
 
-# Living in the Real World
+## Living in the Real World
 We want to build an agile task management tool from developers for developers. We want to live in a better world. This, however, also requires seeing and understanding the current state of the real world. We have to offer an on-ramp for all the other people on the project who are not developers. It must be easy to interact with the task list, even without understanding the intricacies of a version control system. Otherwise, this will never be adopted and we will be stuck with Jira.
 
 It must be possible to easily attach a GUI. This GUI should handle git pull and push automatically, and it must run on Windows also.
@@ -48,7 +48,7 @@ Tasks' life cycles are defined in a version-controlled file. The team decides to
 The team agrees on a workflow; programmers translate it into specific, enforceable rules. Have you ever seen a well-configured Jira project? The lifecycle states made sense, the mandatory fields for each transition were just right? You could provide feedback and the project managers actually considered it and implemented it?
 Yeah, me neither.
 
-# Configurable - From Simple to Enterprise
+## Configurable - From Simple to Enterprise
 Mdagile should encourage very simple, minimal task workflows, but also allow larger organizations to actually use this as a major collaboration tool. Users should be able to define "enterprise"-ready workflows via configuration.
 
 ## Be Strict, No Bike Shedding
