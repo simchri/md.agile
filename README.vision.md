@@ -186,6 +186,25 @@ Properties can also be added to subtasks! Note how `'#feature'` is quoted in the
     - [ ] "test"
 ```
 
+### Cancelled Tasks
+
+You can mark a task as cancelled with a `-`
+
+```md
+- [-] this task is cancelled
+```
+Sometimes your team may plan something and later decide, that it's not necessary after all. Marking tasks as cancelled makes things transparent (This was considered, but discarded).
+
+By default you can also cancel subtasks that are required by properties, but this can be adjusted in the configuration.
+
+```toml
+[Properties.feature]
+subtasks = ["PO review", "dev implementation", "dev documentation", "test"]
+subtasks_allow_cancel = [true, true, true, false]
+# testing can not be cancelled
+```
+Why make subtasks "mandatory" by default, but also allow to cancel them? Properties allow you to define general default workflows. But sometimes a step just doesn't make sense in a specific case. You would then be tempted to just mark the task "done", even though that is a lie. You may add a note, but such notes are non standard and easily misinterpreted. Cancelling a subtask provides an idiomatic way to communicate that a step was skipped. It is honest, transparent and conventional.
+
 ### Multiple Properties
 
 Tasks can have multiple properties. The placement of the property in the task is not relevant. The order of the subtasks is not relevant.
@@ -195,7 +214,7 @@ Tasks can have multiple properties. The placement of the property in the task is
 subtasks = ["UI / UX concept", "UI review"]
 ```
 
-```
+```md
 - [ ] We want to develop a #feature (add item to basket) that will have a very nice #UI!
   - [ ] "UI / UX concept"
   - [ ] "PO review"
