@@ -1,0 +1,153 @@
+services:
+  dev-container:
+    build:
+      context: ./
+      dockerfile: ./docker/Dockerfile
+      args:
+        USER: ${USER:?error}
+        UID: ${UID:?error}
+    image: mdagile-dev-env
+    tty: true # docker run -t
+    stdin_open: true # docker run -i
+    user: "${UID:?error}:${UID:?error}" # map user id of current user into container ("be yourself" in the container). If this variable is not seen by docker compose, do "export UID" (add to .bashrc, launch clion from a terminal!)
+    privileged: true
+    network_mode: "host" # (4)
+    ipc: "host" # (4)
+    pid: "host" # (4)
+    group_add:
+      - dialout
+      - sudo
+    working_dir: ${PWD:?error}
+    environment:
+      - DISPLAY=${DISPLAY:?error} # (1) set container env-variable DISPLAY to host's value of DISPLAY (forward GUIs to host's display!)
+      - NVIDIA_DRIVER_CAPABILITIES=all # (3)
+      - USER=${USER}
+    ulimits:
+      core: -1 # (2)
+    deploy:
+      resources:
+        limits:
+          memory: 16gb # (5) Limits container memory usage
+        reservations:
+          devices:
+            - driver: nvidia # (3)
+              count: all
+              capabilities:
+                - gpu
+    volumes:
+
+       - /tmp/.X11-unix:/tmp/.X11-unix # (1)
+
+       - type: bind
+         source: /etc/passwd
+         target: /etc/passwd
+         read_only: true
+
+       # allow to "sudo" with normal password
+       - type: bind
+         source: /etc/shadow
+         target: /etc/shadow
+         read_only: true
+
+       - type: bind
+         source: /etc/group
+         target: /etc/group
+         read_only: true
+
+       - type: bind
+         source: /home/${USER:?error}/.gitconfig
+         target: /home/${USER:?error}/.gitconfig
+         read_only: false
+         bind:
+           create_host_path: false
+
+       - type: bind
+         source: /home/${USER:?error}/.ssh
+         target: /home/${USER:?error}/.ssh
+         read_only: false
+         bind:
+           create_host_path: false
+
+       - type: bind
+         source: .
+         target: ${PWD:?error}
+         read_only: false
+         bind:
+           create_host_path: false
+
+  dev-container-no-gpu:
+    build:
+      context: ./
+      dockerfile: ./docker/Dockerfile
+      args:
+        USER: ${USER:?error}
+        UID: ${UID:?error}
+    image: mdagile-dev-env
+    tty: true # docker run -t
+    stdin_open: true # docker run -i
+    user: "${UID:?error}:${UID:?error}" # map user id of current user into container ("be yourself" in the container). If this variable is not seen by docker compose, do "export UID" (add to .bashrc, launch clion from a terminal!)
+    privileged: true
+    network_mode: "host" # (4)
+    ipc: "host" # (4)
+    pid: "host" # (4)
+    group_add:
+      - dialout
+      - sudo
+    working_dir: ${PWD:?error}
+    environment:
+      - DISPLAY=${DISPLAY:?error} # (1) set container env-variable DISPLAY to host's value of DISPLAY (forward GUIs to host's display!)
+      - USER=${USER}
+    ulimits:
+      core: -1 # (2)
+    deploy:
+      resources:
+        limits:
+          memory: 16gb # (5) Limits container memory usage
+    volumes:
+
+       - /tmp/.X11-unix:/tmp/.X11-unix # (1)
+
+       - type: bind
+         source: /etc/passwd
+         target: /etc/passwd
+         read_only: true
+
+       # allow to "sudo" with normal password
+       - type: bind
+         source: /etc/shadow
+         target: /etc/shadow
+         read_only: true
+
+       - type: bind
+         source: /etc/group
+         target: /etc/group
+         read_only: true
+
+       - type: bind
+         source: /home/${USER:?error}/.gitconfig
+         target: /home/${USER:?error}/.gitconfig
+         read_only: false
+         bind:
+           create_host_path: false
+
+       - type: bind
+         source: /home/${USER:?error}/.ssh
+         target: /home/${USER:?error}/.ssh
+         read_only: false
+         bind:
+           create_host_path: false
+
+       - type: bind
+         source: .
+         target: ${PWD:?error}
+         read_only: false
+         bind:
+           create_host_path: false
+
+# (1) Allow forwarding of GUIs to host display. Allows to execute graphical applications in the container and see the GUI as if run on the host.
+# This involves making the X11 server of the host available to the container by mounting the .X11-unix file and setting DISPLAY env variable.
+# On the host do: `xhost +local:docker` to allow local unauthorized connections to the xserver for docker, or authenticate with token.
+# (2) Enable core dumps. If you need core-dumps, set the core-dump location on the *host* (container inherits this setting from the host).
+# (3) use GPU graphics acceleration.
+# (4) Enable host network stack, IPC and PID namespace sharing.
+# (5) Limit container memory. Will slow-down/freeze/crash processes in container instead of freezing host (e.g. during parallel compilation)
