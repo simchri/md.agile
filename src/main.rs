@@ -32,6 +32,10 @@ enum Command {
         #[arg(short = 'n', long, value_name = "COUNT")]
         next: Option<usize>,
 
+        /// Show only the last COUNT entries
+        #[arg(long, value_name = "COUNT")]
+        last: Option<usize>,
+
         #[command(subcommand)]
         what: Option<ListWhat>,
     },
@@ -55,6 +59,10 @@ enum ListWhat {
         /// Show only the first COUNT files
         #[arg(short = 'n', long, value_name = "COUNT")]
         next: Option<usize>,
+
+        /// Show only the last COUNT files
+        #[arg(long, value_name = "COUNT")]
+        last: Option<usize>,
     },
 }
 
@@ -71,25 +79,27 @@ enum TaskAction {
 
 fn main() {
     let root = Path::new(".");
-    match Cli::parse().command.unwrap_or(Command::List { what: None, next: None }) {
-        Command::List { what: None, next } => {
+    match Cli::parse().command.unwrap_or(Command::List { what: None, next: None, last: None }) {
+        Command::List { what: None, next, last } => {
             let blocks = mdagile::list_task_blocks(&mdagile::read_task_files(root));
-            let result: String = match next {
-                Some(n) => blocks.into_iter().take(n).collect(),
-                None    => blocks.into_iter().collect(),
-            };
+            let result: String = apply_limit(blocks, next, last).into_iter().collect();
             print!("{result}");
         }
-        Command::List { what: Some(ListWhat::Files { next }), .. } => {
+        Command::List { what: Some(ListWhat::Files { next, last }), .. } => {
             let paths = mdagile::find_task_files(root);
-            let limited: Vec<_> = match next {
-                Some(n) => paths.into_iter().take(n).collect(),
-                None    => paths,
-            };
+            let limited = apply_limit(paths, next, last);
             print!("{}", mdagile::format_file_list(&limited));
         }
         Command::Task { action: TaskAction::Next } => {
             print!("{}", mdagile::next_task(&mdagile::read_task_files(root)));
         }
+    }
+}
+
+fn apply_limit<T>(items: Vec<T>, next: Option<usize>, last: Option<usize>) -> Vec<T> {
+    match (next, last) {
+        (Some(n), _) => items.into_iter().take(n).collect(),
+        (_, Some(n)) => { let skip = items.len().saturating_sub(n); items.into_iter().skip(skip).collect() }
+        (None, None) => items,
     }
 }

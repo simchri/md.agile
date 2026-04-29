@@ -1,4 +1,60 @@
 use mdagile::{find_task_files, format_file_list, list_task_blocks};
+
+// ── --last on task list ───────────────────────────────────────────────────────
+
+#[test]
+fn last_n_tasks_returns_trailing_blocks() {
+    let input = "\
+- [ ] task one
+  - [ ] subtask
+- [x] task two
+- [ ] task three
+";
+    let expected = "\
+[x] task two
+[ ] task three
+";
+    let blocks = list_task_blocks(input);
+    let skip = blocks.len().saturating_sub(2);
+    let result: String = blocks.into_iter().skip(skip).collect();
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn last_n_larger_than_total_returns_all() {
+    let input = "\
+- [ ] task one
+- [ ] task two
+";
+    let expected = "\
+[ ] task one
+[ ] task two
+";
+    let blocks = list_task_blocks(input);
+    let skip = blocks.len().saturating_sub(99);
+    let result: String = blocks.into_iter().skip(skip).collect();
+    assert_eq!(result, expected);
+}
+
+// ── --last on file list ───────────────────────────────────────────────────────
+
+#[test]
+fn last_n_files_returns_trailing_entries() {
+    let dir = tempdir().unwrap();
+    fs::write(dir.path().join("a.agile.md"), "").unwrap();
+    fs::write(dir.path().join("b.agile.md"), "").unwrap();
+    fs::write(dir.path().join("c.agile.md"), "").unwrap();
+
+    let paths = find_task_files(dir.path());
+    let skip = paths.len().saturating_sub(2);
+    let result = format_file_list(&paths[skip..]);
+    let expected = format!(
+        "b.agile.md  {}\nc.agile.md  {}\n",
+        dir.path().join("b.agile.md").display(),
+        dir.path().join("c.agile.md").display(),
+    );
+    assert_eq!(result, expected);
+}
 use std::fs;
 use tempfile::tempdir;
 
