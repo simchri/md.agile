@@ -1,8 +1,8 @@
 use mdagile::list_tasks;
 
-// ── basic task listing ────────────────────────────────────────────────────────
-
-const BASIC_INPUT: &str = "\
+#[test]
+fn list_tasks_basic() {
+    let input = "\
 - [ ] implement feature X
   - [x] subtask one
   - [ ] subtask two
@@ -10,23 +10,19 @@ const BASIC_INPUT: &str = "\
 - [x] another task
 - [-] a cancelled task
 ";
-
-const BASIC_EXPECTED: &str = "\
+    let expected = "\
 [ ] implement feature X
   [x] subtask one
   [ ] subtask two
 [x] another task
 [-] a cancelled task
 ";
-
-#[test]
-fn list_tasks_basic() {
-    assert_eq!(list_tasks(BASIC_INPUT), BASIC_EXPECTED);
+    assert_eq!(list_tasks(input), expected);
 }
 
-// ── other content (headings, paragraphs) is ignored ──────────────────────────
-
-const OTHER_CONTENT_INPUT: &str = "\
+#[test]
+fn other_content_is_ignored() {
+    let input = "\
 # Sprint backlog
 
 Some notes about the project.
@@ -40,21 +36,17 @@ Nice work everyone.
 
 - [-] third task (cancelled)
 ";
-
-const OTHER_CONTENT_EXPECTED: &str = "\
+    let expected = "\
 [ ] first task
 [x] second task
 [-] third task (cancelled)
 ";
-
-#[test]
-fn other_content_is_ignored() {
-    assert_eq!(list_tasks(OTHER_CONTENT_INPUT), OTHER_CONTENT_EXPECTED);
+    assert_eq!(list_tasks(input), expected);
 }
 
-// ── task body text is not listed ─────────────────────────────────────────────
-
-const BODY_TEXT_INPUT: &str = "\
+#[test]
+fn task_body_text_not_listed() {
+    let input = "\
 - [ ] implement feature X
   This is the task body. Some details about the task.
   More detail on another line.
@@ -63,14 +55,10 @@ const BODY_TEXT_INPUT: &str = "\
 - [x] another task
   Body text here too.
 ";
-
-const BODY_TEXT_EXPECTED: &str = "\
+    let expected = "\
 [ ] implement feature X
   [ ] a subtask
 [x] another task
 ";
-
-#[test]
-fn task_body_text_not_listed() {
-    assert_eq!(list_tasks(BODY_TEXT_INPUT), BODY_TEXT_EXPECTED);
+    assert_eq!(list_tasks(input), expected);
 }
