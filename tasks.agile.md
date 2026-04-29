@@ -1,4 +1,10 @@
 - [x] post initial vision!
-- [ ] refine and clean up
+- [x] refine and clean up
 
-- [ ] implement ..
+# More Cli stuff
+- [x] for any "list" command, add arguments "--next <count>" / "-n <count>"  show only the first <count> entries of whatever is listed.
+- [x] idem "--last" ...
+
+- [x] add subcommand (alias) "agile list tasks" should do the same as "agile list"
+
+- [ ] 

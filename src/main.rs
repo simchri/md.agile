@@ -49,6 +49,17 @@ enum Command {
 
 #[derive(Subcommand)]
 enum ListWhat {
+    /// List all tasks (same as agile list with no subcommand)
+    Tasks {
+        /// Show only the first COUNT tasks
+        #[arg(short = 'n', long, value_name = "COUNT")]
+        next: Option<usize>,
+
+        /// Show only the last COUNT tasks
+        #[arg(long, value_name = "COUNT")]
+        last: Option<usize>,
+    },
+
     /// Show recognised task files in priority order
     ///
     /// Prints one line per file: filename followed by its path relative
@@ -80,7 +91,8 @@ enum TaskAction {
 fn main() {
     let root = Path::new(".");
     match Cli::parse().command.unwrap_or(Command::List { what: None, next: None, last: None }) {
-        Command::List { what: None, next, last } => {
+        Command::List { what: None, next, last }
+        | Command::List { what: Some(ListWhat::Tasks { next, last }), .. } => {
             let blocks = mdagile::list_task_blocks(&mdagile::read_task_files(root));
             let result: String = apply_limit(blocks, next, last).into_iter().collect();
             print!("{result}");
