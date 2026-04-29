@@ -22,7 +22,12 @@
       "Bash(cargo build *)",
       "Bash(agile --help)",
       "Bash(agile list *)",
-      "Bash(agile task *)"
+      "Bash(agile task *)",
+      "Bash(git -C /home/simon/ws/md.agile add src/lib.rs src/main.rs tests/list_limits.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add src/main.rs tests/list_limits.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add src/main.rs tests/list_limits.rs tasks.agile.md)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
