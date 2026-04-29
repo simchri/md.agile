@@ -41,10 +41,7 @@ fn main() {
             print!("{}", mdagile::list_tasks(&mdagile::read_task_files(root)));
         }
         Command::List { what: Some(ListWhat::Files) } => {
-            for path in mdagile::find_task_files(root) {
-                let name = path.file_name().unwrap_or_default().to_string_lossy();
-                println!("{name}  {}", path.display());
-            }
+            print!("{}", mdagile::format_file_list(&mdagile::find_task_files(root)));
         }
         Command::Task { action: TaskAction::Next } => {
             print!("{}", mdagile::next_task(&mdagile::read_task_files(root)));

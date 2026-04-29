@@ -1,4 +1,4 @@
-use mdagile::find_task_files;
+use mdagile::{find_task_files, format_file_list};
 use std::fs;
 use tempfile::tempdir;
 
@@ -45,6 +45,28 @@ fn finds_files_in_subdirectories() {
 
     let files = find_task_files(dir.path());
     assert_eq!(filenames(&files), vec!["nested.agile.md", "root.agile.md"]);
+}
+
+#[test]
+fn format_file_list_shows_filename_and_full_path() {
+    let dir = tempdir().unwrap();
+    let sub = dir.path().join("subdir");
+    fs::create_dir(&sub).unwrap();
+    fs::write(dir.path().join("beta.agile.md"), "").unwrap();
+    fs::write(sub.join("alpha.agile.md"), "").unwrap();
+
+    let paths = find_task_files(dir.path());
+    let expected = format!(
+        "alpha.agile.md  {}\nbeta.agile.md  {}\n",
+        sub.join("alpha.agile.md").display(),
+        dir.path().join("beta.agile.md").display(),
+    );
+    assert_eq!(format_file_list(&paths), expected);
+}
+
+#[test]
+fn format_file_list_empty() {
+    assert_eq!(format_file_list(&[]), "".to_string());
 }
 
 #[test]

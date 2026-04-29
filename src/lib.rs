@@ -2,6 +2,16 @@ use ignore::WalkBuilder;
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use std::path::{Path, PathBuf};
 
+pub fn format_file_list(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|p| {
+            let name = p.file_name().unwrap_or_default().to_string_lossy();
+            format!("{name}  {}\n", p.display())
+        })
+        .collect()
+}
+
 pub fn read_task_files(root: &Path) -> String {
     find_task_files(root)
         .iter()
