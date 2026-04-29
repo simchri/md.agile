@@ -1,6 +1,30 @@
 use mdagile::next_task;
 
 #[test]
+fn empty_input_produces_no_output() {
+    assert_eq!(next_task(""), "".to_string());
+}
+
+#[test]
+fn file_with_no_tasks_produces_no_output() {
+    let input = "\
+# Just a heading
+
+Some notes, no tasks here.
+";
+    assert_eq!(next_task(input), "".to_string());
+}
+
+#[test]
+fn all_cancelled_produces_no_output() {
+    let input = "\
+- [-] cancelled one
+- [-] cancelled two
+";
+    assert_eq!(next_task(input), "".to_string());
+}
+
+#[test]
 fn next_task_skips_done_and_returns_first_todo() {
     let input = "\
 - [x] already done

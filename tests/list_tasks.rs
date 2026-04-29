@@ -1,6 +1,36 @@
 use mdagile::list_tasks;
 
 #[test]
+fn empty_input_produces_no_output() {
+    assert_eq!(list_tasks(""), "".to_string());
+}
+
+#[test]
+fn file_with_no_tasks_produces_no_output() {
+    let input = "\
+# Just a heading
+
+Some notes, no tasks here.
+";
+    assert_eq!(list_tasks(input), "".to_string());
+}
+
+#[test]
+fn deeply_nested_tasks() {
+    let input = "\
+- [ ] top level
+  - [ ] level two
+    - [x] level three
+";
+    let expected = "\
+[ ] top level
+  [ ] level two
+    [x] level three
+";
+    assert_eq!(list_tasks(input), expected);
+}
+
+#[test]
 fn list_tasks_basic() {
     let input = "\
 - [ ] implement feature X
