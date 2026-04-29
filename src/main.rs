@@ -96,14 +96,15 @@ enum TaskAction {
     Next,
 }
 
-fn open_editor(path: &std::path::Path) {
+fn open_editor(path: &std::path::Path, line: usize) {
     let editor = std::env::var("VISUAL")
         .or_else(|_| std::env::var("EDITOR"))
         .unwrap_or_else(|_| {
             eprintln!("agile: neither $VISUAL nor $EDITOR is set");
             std::process::exit(1);
         });
-    let status = std::process::Command::new(&editor).arg(path).status();
+    let args = editor_open_args(&editor, path, line);
+    let status = std::process::Command::new(&editor).args(&args).status();
     if let Err(e) = status {
         eprintln!("agile: failed to launch editor '{editor}': {e}");
         std::process::exit(1);
@@ -114,7 +115,10 @@ fn main() {
     let root = Path::new(".");
     match Cli::parse().command {
         None => match mdagile::find_file_with_next_task(root) {
-            Some(path) => open_editor(&path),
+            Some(path) => {
+                let line = mdagile::find_next_task_line(&path).unwrap_or(1);
+                open_editor(&path, line);
+            }
             None => eprintln!("agile: no active tasks found"),
         },
         Some(Command::List { what: None, next, last, all })
@@ -139,10 +143,77 @@ fn main() {
     }
 }
 
+fn editor_open_args(editor: &str, path: &std::path::Path, line: usize) -> Vec<std::ffi::OsString> {
+    use std::ffi::OsString;
+    let bin_name = std::path::Path::new(editor)
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy();
+    match bin_name.as_ref() {
+        "vim" | "vi" | "nvim" | "nano" | "emacs" => {
+            vec![OsString::from(format!("+{line}")), path.into()]
+        }
+        "code" => vec![
+            OsString::from("--goto"),
+            OsString::from(format!("{}:{line}", path.display())),
+        ],
+        _ => vec![path.into()],
+    }
+}
+
 fn apply_limit<T>(items: Vec<T>, next: Option<usize>, last: Option<usize>) -> Vec<T> {
     match (next, last) {
         (Some(n), _) => items.into_iter().take(n).collect(),
         (_, Some(n)) => { let skip = items.len().saturating_sub(n); items.into_iter().skip(skip).collect() }
         (None, None) => items,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsString;
+    use std::path::Path;
+
+    fn s(v: &str) -> OsString { OsString::from(v) }
+
+    #[test]
+    fn vim_uses_plus_line() {
+        assert_eq!(editor_open_args("vim", Path::new("f.agile.md"), 5), vec![s("+5"), s("f.agile.md")]);
+    }
+
+    #[test]
+    fn vi_uses_plus_line() {
+        assert_eq!(editor_open_args("vi", Path::new("f.agile.md"), 1), vec![s("+1"), s("f.agile.md")]);
+    }
+
+    #[test]
+    fn nvim_uses_plus_line() {
+        assert_eq!(editor_open_args("nvim", Path::new("f.agile.md"), 3), vec![s("+3"), s("f.agile.md")]);
+    }
+
+    #[test]
+    fn nano_uses_plus_line() {
+        assert_eq!(editor_open_args("nano", Path::new("f.agile.md"), 7), vec![s("+7"), s("f.agile.md")]);
+    }
+
+    #[test]
+    fn emacs_uses_plus_line() {
+        assert_eq!(editor_open_args("emacs", Path::new("f.agile.md"), 2), vec![s("+2"), s("f.agile.md")]);
+    }
+
+    #[test]
+    fn code_uses_goto_flag() {
+        assert_eq!(editor_open_args("code", Path::new("f.agile.md"), 4), vec![s("--goto"), s("f.agile.md:4")]);
+    }
+
+    #[test]
+    fn full_path_uses_basename_for_matching() {
+        assert_eq!(editor_open_args("/usr/bin/nvim", Path::new("f.agile.md"), 9), vec![s("+9"), s("f.agile.md")]);
+    }
+
+    #[test]
+    fn unknown_editor_omits_line_number() {
+        assert_eq!(editor_open_args("gedit", Path::new("f.agile.md"), 6), vec![s("f.agile.md")]);
     }
 }

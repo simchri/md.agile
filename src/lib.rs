@@ -151,6 +151,17 @@ pub fn list_tasks(input: &str) -> String {
     list_task_blocks(input).into_iter().collect()
 }
 
+/// Returns the 1-based line number of the first incomplete top-level task in `path`.
+///
+/// Scans for lines starting with `- [ ]` (top-level tasks are never indented). Returns
+/// `None` if the file cannot be read or contains no incomplete top-level tasks.
+pub fn find_next_task_line(path: &Path) -> Option<usize> {
+    let content = std::fs::read_to_string(path).ok()?;
+    content.lines().enumerate().find_map(|(i, line)| {
+        if line.starts_with("- [ ]") { Some(i + 1) } else { None }
+    })
+}
+
 /// Returns the path of the highest-priority task file that contains at least one active task.
 ///
 /// Files are evaluated in priority order (alphabetical by filename). Returns `None` if no
