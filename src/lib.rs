@@ -84,7 +84,7 @@ pub fn list_tasks(input: &str) -> String {
     out
 }
 
-pub fn next_task(input: &str) -> Option<String> {
+pub fn next_task(input: &str) -> String {
     let mut out = String::new();
     let mut list_depth: usize = 0;
     let mut stack: Vec<ItemState> = Vec::new();
@@ -99,7 +99,7 @@ pub fn next_task(input: &str) -> Option<String> {
                 let at_top = list_depth == 1 && stack.len() == 1;
                 stack.pop();
                 if capturing && at_top {
-                    return Some(out);
+                    return out;
                 }
             }
             Event::TaskListMarker(checked) => {
@@ -121,5 +121,5 @@ pub fn next_task(input: &str) -> Option<String> {
         }
     }
 
-    None
+    out
 }
