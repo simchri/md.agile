@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /home/simon/ws/md.agile status)",
+      "Bash(git -C /home/simon/ws/md.agile log --oneline -3)",
+      "Bash(git -C /home/simon/ws/md.agile add doc/architecture.md)",
+      "Bash(git -C /home/simon/ws/md.agile commit -m ' *)",
+      "Bash(cargo search *)",
+      "Bash(cargo test *)",
+      "Bash(git -C /home/simon/ws/md.agile add src/lib.rs Cargo.toml Cargo.lock tests/list_tasks.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add tests/list_tasks.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add src/lib.rs tests/next_task.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add tests/next_task.rs)",
+      "Bash(cargo run *)",
+      "Bash(git -C /home/simon/ws/md.agile add src/main.rs Cargo.toml Cargo.lock)",
+      "Bash(git -C /home/simon/ws/md.agile add tests/list_tasks.rs tests/next_task.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add src/lib.rs src/main.rs Cargo.toml Cargo.lock tests/find_task_files.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add src/main.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add src/lib.rs src/main.rs tests/priority_ordering.rs memory/)",
+      "Bash(git -C /home/simon/ws/md.agile add tests/priority_ordering.rs)"
+    ]
+  }
+}
