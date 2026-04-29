@@ -28,6 +28,10 @@ enum Command {
     /// ([ ] todo, [x] done, [-] cancelled) and subtasks indented by two
     /// spaces per level.
     List {
+        /// Show only the first COUNT entries
+        #[arg(short = 'n', long, value_name = "COUNT")]
+        next: Option<usize>,
+
         #[command(subcommand)]
         what: Option<ListWhat>,
     },
@@ -47,7 +51,11 @@ enum ListWhat {
     /// to the current directory. Files are sorted alphabetically by
     /// filename only — their directory path does not affect ordering.
     /// This sort order is the global task priority order across files.
-    Files,
+    Files {
+        /// Show only the first COUNT files
+        #[arg(short = 'n', long, value_name = "COUNT")]
+        next: Option<usize>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -63,12 +71,22 @@ enum TaskAction {
 
 fn main() {
     let root = Path::new(".");
-    match Cli::parse().command.unwrap_or(Command::List { what: None }) {
-        Command::List { what: None } => {
-            print!("{}", mdagile::list_tasks(&mdagile::read_task_files(root)));
+    match Cli::parse().command.unwrap_or(Command::List { what: None, next: None }) {
+        Command::List { what: None, next } => {
+            let blocks = mdagile::list_task_blocks(&mdagile::read_task_files(root));
+            let result: String = match next {
+                Some(n) => blocks.into_iter().take(n).collect(),
+                None    => blocks.into_iter().collect(),
+            };
+            print!("{result}");
         }
-        Command::List { what: Some(ListWhat::Files) } => {
-            print!("{}", mdagile::format_file_list(&mdagile::find_task_files(root)));
+        Command::List { what: Some(ListWhat::Files { next }), .. } => {
+            let paths = mdagile::find_task_files(root);
+            let limited: Vec<_> = match next {
+                Some(n) => paths.into_iter().take(n).collect(),
+                None    => paths,
+            };
+            print!("{}", mdagile::format_file_list(&limited));
         }
         Command::Task { action: TaskAction::Next } => {
             print!("{}", mdagile::next_task(&mdagile::read_task_files(root)));

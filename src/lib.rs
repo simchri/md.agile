@@ -91,8 +91,9 @@ fn make_parser(input: &str) -> Parser<'_> {
     Parser::new_ext(input, opts)
 }
 
-pub fn list_tasks(input: &str) -> String {
-    let mut out = String::new();
+pub fn list_task_blocks(input: &str) -> Vec<String> {
+    let mut blocks: Vec<String> = Vec::new();
+    let mut current = String::new();
     let mut list_depth: usize = 0;
     let mut stack: Vec<ItemState> = Vec::new();
 
@@ -101,7 +102,13 @@ pub fn list_tasks(input: &str) -> String {
             Event::Start(Tag::List(_)) => list_depth += 1,
             Event::End(TagEnd::List(_)) => list_depth -= 1,
             Event::Start(Tag::Item) => stack.push(ItemState::new()),
-            Event::End(TagEnd::Item) => { stack.pop(); }
+            Event::End(TagEnd::Item) => {
+                let at_top = list_depth == 1 && stack.len() == 1;
+                stack.pop();
+                if at_top && !current.is_empty() {
+                    blocks.push(std::mem::take(&mut current));
+                }
+            }
             Event::TaskListMarker(checked) => {
                 if let Some(item) = stack.last_mut() {
                     item.kind = if checked { ItemKind::Done } else { ItemKind::Todo };
@@ -109,14 +116,18 @@ pub fn list_tasks(input: &str) -> String {
             }
             Event::Text(text) => {
                 if let Some(item) = stack.last_mut() {
-                    write_task_text(&mut out, item, &text, list_depth);
+                    write_task_text(&mut current, item, &text, list_depth);
                 }
             }
             _ => {}
         }
     }
 
-    out
+    blocks
+}
+
+pub fn list_tasks(input: &str) -> String {
+    list_task_blocks(input).into_iter().collect()
 }
 
 pub fn next_task(input: &str) -> String {
