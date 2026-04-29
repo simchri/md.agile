@@ -17,7 +17,12 @@
       "Bash(git -C /home/simon/ws/md.agile add src/lib.rs src/main.rs Cargo.toml Cargo.lock tests/find_task_files.rs)",
       "Bash(git -C /home/simon/ws/md.agile add src/main.rs)",
       "Bash(git -C /home/simon/ws/md.agile add src/lib.rs src/main.rs tests/priority_ordering.rs memory/)",
-      "Bash(git -C /home/simon/ws/md.agile add tests/priority_ordering.rs)"
+      "Bash(git -C /home/simon/ws/md.agile add tests/priority_ordering.rs)",
+      "Bash(git -C /home/simon/ws/md.agile add src/lib.rs src/main.rs tests/find_task_files.rs)",
+      "Bash(cargo build *)",
+      "Bash(agile --help)",
+      "Bash(agile list *)",
+      "Bash(agile task *)"
     ]
   }
 }
