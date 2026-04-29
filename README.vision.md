@@ -324,6 +324,7 @@ If you want to be able to easily distinguish short form properties from full pro
 ```toml
 short = "feat_"
 ```
+(N.B. The short form markers do not actually have to be shorter than the respective full form, nor do they have to be linguistically similar - they can be any unique identifier, adhering to the naming rules for markers.)
 
 ### Milestones and ETA to Milestone
 
@@ -342,7 +343,7 @@ A milestone is simply a marker between tasks, identified by the special tag `#MI
 ```
 Punctuation directly behind the tag is ignored (`#MILESTONE` is equivalent to `#MILESTONE:`, `#MILESTONE!` etc.). A milestone name must be provided, and milestones must be unique across the project.
 
-You can then get
+You can then get ...
 
 - count of remaining tasks (and subtasks) to milestones
 - estimate average time per task for past tasks
