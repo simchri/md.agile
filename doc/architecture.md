@@ -4,9 +4,24 @@ Rough architecture for the `mdagile` / `agile` CLI tool.
 
 ---
 
+## Crate Stack
+
+| Concern | Crate | Notes |
+|---|---|---|
+| Markdown structure | `pulldown-cmark` | GFM task lists, nesting, escaping — ~500 MB/s |
+| File discovery | `ignore` | ripgrep's walker: parallel, `.gitignore`-aware |
+| CLI args | `clap` | |
+| TUI | `ratatui` + `crossterm` | |
+| Fuzzy matching | `nucleo` | Used by Helix; faster than skim |
+| LSP protocol | `lsp-server` | Sync stdio scaffold (from rust-analyzer team) |
+| Config | `toml` + `serde` | |
+| Git history (ETA) | `git2` | Walk commits for velocity; fallback: shell `git log` |
+
+---
+
 ## Processing Pipeline
 
-Every command follows the same five-step pipeline:
+Every command follows the same pipeline:
 
 ```
 mdagile.toml  ──►  Config
@@ -14,13 +29,22 @@ mdagile.toml  ──►  Config
 ```
 
 1. **Config** — load and validate `mdagile.toml` (properties, users, groups)
-2. **Discover** — find all `*.agile.md` files from project root, sort by filename
-3. **Parse** — convert each file into a typed AST (`TaskFile`)
+2. **Discover** — `ignore::WalkBuilder` finds all `*.agile.md` files; sort by filename
+3. **Parse** — `pulldown-cmark` handles list structure + nesting; a small inline scanner
+   extracts mdagile-specific tokens (`#marker`, `@user`, `1.` order prefix) from item text
 4. **Aggregate** — merge all `TaskFile`s into a single ordered task list
 5. **Check / Query** — run rules against the aggregated list; commands read the result
 
-The checker and rules are always run — even for read commands — so that the tool can
-warn about invalid state.
+The checker is always run — even for read-only commands — so the tool can warn about
+invalid state.
+
+### Parser: two layers
+
+`pulldown-cmark` is not replaced with a custom lexer. It owns everything structural:
+indentation, nesting, checkbox state, escaped characters (`\#`, `\@`). The custom layer
+is a ~50-line inline scanner that runs on the *text content* of each list item to extract
+`Marker`s and the optional order prefix. This keeps parsing correct and fast while
+staying minimal.
 
 ---
 
@@ -29,30 +53,25 @@ warn about invalid state.
 ```
 src/
 ├── main.rs            # CLI entry point; dispatches subcommands
-├── config.rs          # mdagile.toml loading and Config types
-├── discovery.rs       # file-finding logic
+├── config.rs          # mdagile.toml loading and Config types (serde + toml)
+├── discovery.rs       # thin wrapper around ignore::WalkBuilder
 ├── parser/            # *.agile.md → AST
-│   ├── mod.rs
-│   ├── lexer.rs       # tokenise lines into Tokens
+│   ├── mod.rs         # drives pulldown-cmark; feeds items through inline_scan
+│   ├── inline_scan.rs # ~50-line scanner: extracts Markers and order prefix from text
 │   └── ast.rs         # TaskFile, Task, Marker, Milestone … types
-├── checker/           # validate AST against rules
+├── checker/           # validate AST against Config + rules
 │   ├── mod.rs         # orchestrates rule passes; collects Diagnostics
-│   └── diagnostic.rs  # Diagnostic { span, message, severity }
-├── rules/             # all business logic (pure functions, fully testable)
+│   └── diagnostic.rs  # Diagnostic { file, line, severity, code, message }
+├── rules.rs           # all business logic (pure functions, fully testable)
+│                      # split into submodules only if it exceeds ~300 lines
+├── eta.rs             # task weight calculation + milestone ETA (reads git2 velocity)
+├── ui/                # TUI components — business-logic-free
 │   ├── mod.rs
-│   ├── completion.rs  # can a task be marked done?
-│   ├── ordering.rs    # ordered-subtask constraints
-│   ├── properties.rs  # required subtasks, short form, nested/branch props
-│   ├── assignments.rs # @user / @group resolution and enforcement
-│   ├── milestones.rs  # milestone reachability
-│   └── eta.rs         # task weights and ETA calculation
-├── ui/                # TUI components (business-logic-free)
-│   ├── mod.rs
-│   ├── task_list.rs   # interactive task viewer (agile)
-│   └── task_new.rs    # new-task creation mask (agile task new)
+│   ├── task_list.rs   # interactive viewer (agile): ratatui + nucleo fuzzy filter
+│   └── task_new.rs    # new-task creation mask (agile task new): ratatui-textarea
 └── lsp/               # Language Server Protocol
     ├── mod.rs
-    ├── server.rs      # LSP message loop
+    ├── server.rs      # lsp-server message loop + file-cache (see below)
     └── capabilities.rs# diagnostics, completions, code-actions (autofix)
 ```
 
@@ -70,19 +89,16 @@ struct Config {
 }
 
 struct PropertyConfig {
-    subtasks:             Vec<String>,          // may include "#nested_prop" references
+    subtasks:              Vec<String>,   // may include "#nested_prop" references
     subtasks_allow_cancel: Vec<bool>,
-    short:                Option<String>,       // short-form alias
-    branches:             HashMap<String, BranchConfig>,
-    neighbortasks:        Vec<String>,
+    short:                 Option<String>,
+    branches:              HashMap<String, BranchConfig>,
+    neighbortasks:         Vec<String>,
 }
 
-struct BranchConfig {
-    neighbortasks: Vec<String>,
-}
-
-struct UserConfig  { full_name: String, email: String }
-struct GroupConfig { members: Vec<String> }
+struct BranchConfig   { neighbortasks: Vec<String> }
+struct UserConfig     { full_name: String, email: String }
+struct GroupConfig    { members: Vec<String> }
 ```
 
 ### AST (from parser)
@@ -90,38 +106,36 @@ struct GroupConfig { members: Vec<String> }
 ```rust
 struct TaskFile {
     path:  PathBuf,
-    items: Vec<FileItem>,       // ordered: tasks, milestones, other content
+    items: Vec<FileItem>,
 }
 
 enum FileItem {
     Task(Task),
     Milestone(Milestone),
-    Directive(FileDirective),   // e.g. #MDAGILE.file.mandatory_property=…
-    OtherContent(String),
+    Directive(FileDirective),  // e.g. #MDAGILE.file.mandatory_property=…
+    OtherContent,
 }
 
 struct Task {
-    status:   TaskStatus,       // Todo | Done | Cancelled
-    title:    String,           // raw text after "- [ ] "
-    body:     String,           // free-text lines before next blank
+    status:   TaskStatus,      // Todo | Done | Cancelled
+    title:    String,          // raw text of the checkbox line
+    body:     String,          // free-text lines before next blank line
     subtasks: Vec<Task>,
-    markers:  Vec<Marker>,      // parsed from title
-    order:    Option<u32>,      // Some(n) if prefixed "n. "
+    markers:  Vec<Marker>,     // from inline_scan
+    order:    Option<u32>,     // Some(n) if title starts with "n. "
 }
 
 enum TaskStatus { Todo, Done, Cancelled }
 
 enum Marker {
-    Property(String),           // #name  (resolved against Config)
-    PropertyShort(String),      // short-form alias
-    BranchProperty { name: String, branch: Option<String> }, // #review... / #review:passed
-    Assignment(String),         // @name
+    Property(String),
+    PropertyShort(String),
+    BranchProperty { name: String, branch: Option<String> },  // #review... / #review:passed
+    Assignment(String),
     Special(SpecialMarker),
 }
 
 enum SpecialMarker { Opt, Milestone, MdAgile }
-
-struct Milestone { name: String }
 ```
 
 ### Diagnostics
@@ -130,7 +144,7 @@ struct Milestone { name: String }
 struct Diagnostic {
     file:     PathBuf,
     line:     usize,
-    severity: Severity,   // Error | Warning | Info
+    severity: Severity,        // Error | Warning | Info
     code:     &'static str,
     message:  String,
 }
@@ -140,37 +154,75 @@ struct Diagnostic {
 
 ## CLI Commands
 
-| Invocation         | Action                                              |
-|--------------------|-----------------------------------------------------|
-| `agile`            | Interactive TUI task viewer (next tasks)            |
-| `agile check`      | Run checker; print diagnostics; exit non-zero on error |
+| Invocation         | Action |
+|--------------------|--------|
+| `agile`            | Interactive TUI task viewer; plain-text output when stdout is not a TTY (pipe-friendly) |
+| `agile check`      | Run checker; print diagnostics; exit non-zero on error — use in pre-commit / CI |
 | `agile task new`   | TUI mask to create a new task (top or bottom of backlog) |
-| `agile when`       | ETA to each milestone (uses task weights + velocity) |
-| `agile fix`        | Auto-fix common issues (add missing required subtasks, etc.) |
+| `agile when`       | ETA to each milestone (task weights + git velocity) |
+| `agile fix`        | Auto-fix common issues: add missing required subtasks, resolve short-form markers |
 
-`agile check` is the only command intended for use in pre-commit hooks and CI.
+### TTY / pipe composability
+
+`agile` detects whether stdout is a TTY. In a TTY it renders the `ratatui` interactive
+viewer with `nucleo` fuzzy search. When piped it prints plain text, so users can compose
+with external tools they already have:
+
+```sh
+agile | fzf
+agile | grep "#bug"
+```
 
 ---
 
 ## LSP
 
-The LSP server wraps the same pipeline:
+The LSP server wraps the same pipeline. It uses `lsp-server` for JSON-RPC over stdio —
+no async runtime needed since the client drives all I/O timing.
 
-- **Diagnostics** — re-runs checker on file save; publishes `textDocument/publishDiagnostics`
-- **Completions** — suggests `#property` and `@user` tokens from `Config`
-- **Code actions** — "autofix" actions: add missing required subtasks, resolve short-form markers
+- **Diagnostics** — re-check on `textDocument/didChange`; publish `textDocument/publishDiagnostics`
+- **Completions** — suggest `#property` and `@user` tokens from `Config`
+- **Code actions** — autofix: add missing required subtasks, resolve branch-property outcomes
 
-The LSP does not share state with the CLI at runtime; both are thin shells over the same
-`parser`, `checker`, and `rules` crates.
+### Incremental parsing
+
+Re-parsing the entire project on every keystroke is not acceptable. The LSP server
+maintains a file cache:
+
+```
+HashMap<PathBuf, (FileHash, TaskFile)>
+```
+
+On `didChange`, only the modified file is re-parsed. The checker re-runs over the cached
+ASTs of all files. A change to `mdagile.toml` invalidates the full cache.
+
+---
+
+## ETA and Velocity
+
+`agile when` computes ETA as:
+
+```
+remaining_weight / velocity  →  date
+```
+
+- **Remaining weight** — sum of `task_weight(t)` for all incomplete tasks before each milestone
+- **Velocity** — average weight completed per day, derived from git history
+
+Velocity is read from the git log via `git2`: walk commits, diff task files, count weight
+of tasks that transitioned to `[x]`. This avoids shelling out and works in any environment
+where a `.git` directory is present.
+
+Task weight: a task itself is weight 1; a subtask at nesting level `n` has weight `1/n`.
 
 ---
 
 ## Identity Resolution
 
 `agile` resolves the current user by:
-1. CLI flag `--user`
+1. CLI flag `--user <key>`
 2. Env var `MDAGILE_USER`
-3. `git config user.email` (matched against `[Users]` in `mdagile.toml`)
+3. `git config user.email` matched against `[Users]` in `mdagile.toml`
 
 Assignment enforcement is convention, not access control (see MANIFESTO.md).
 
@@ -178,7 +230,7 @@ Assignment enforcement is convention, not access control (see MANIFESTO.md).
 
 ## File Ordering and Priority
 
-Multiple `*.agile.md` files are sorted **alphabetically by filename** (not path). The
-order of tasks within this merged list is the global priority order — topmost = highest
-priority. The `tasks.agile.md` file at the project root is a conventional "main" backlog
-but has no special status beyond its sort position.
+`ignore::WalkBuilder` finds all `*.agile.md` files. They are sorted **alphabetically by
+filename** (basename only, not full path). The merged task list order is the global
+priority — topmost = highest priority. `tasks.agile.md` at the project root has no
+special status beyond its sort position.
