@@ -10,22 +10,42 @@ The philosophy for this project is defined in [MANIFESTO.md](MANIFESTO.md). AI a
 
 ### Run / develop
 ```bash
-...
+cargo run
 ```
 
 ### Test
 ```bash
-...
+cargo test                                                            # full suite
+cargo test --lib -- <test_name>                                       # single unit test
+cargo test --test acceptance-tests -- --name "<scenario name>"        # acceptance test
 ```
-
 
 ### Docker dev environment
 
 The project is configured for development in a docker container, where the project sources are mounted.
-This is usually not very relevant to Claude - because we run Claude inside of this container. However the AI agent can only see container file + mounted sources and may have only limited access to the host's resources.
+Claude runs inside this container, so host resources are not accessible.
+
+```bash
+docker compose run dev-container-no-gpu    # start dev container (no GPU needed)
+docker compose build                       # rebuild after Dockerfile changes
+```
+
+## Toolchain
+
+Rust nightly (pinned in `docker/Dockerfile` by digest). Edition 2024.
 
 ## Architecture
-...
+
+Planned module layout (not all exist yet):
+- `src/parser/` — parse `.agile.md` files into an AST
+- `src/checker/` — validate parsed tasks against rules (used by `agile check`)
+- `src/rules/` — business logic; all testable logic lives here, not in components
+- `src/ui/` — TUI/GUI components; business-logic-free
+- `src/lsp/` — Language Server Protocol implementation
+
+The CLI binary is `agile`. It reads `*.agile.md` files at any depth from the project root. The project's own backlog is `tasks.agile.md`, written in the mdagile syntax defined in `README.vision.md`.
+
+Project-level configuration (properties, users, groups) lives in `mdagile.toml`.
 
 ## Development rules
 
@@ -41,7 +61,7 @@ Follow red-green cycle strictly:
 
 Never write production code without a failing test that justifies it.
 
-**Exception**: `src/components/` is exempt — GUI changes are hard to unit-test and do not require a failing test first. However, keep business logic out of components: any logic that can be tested belongs in `src/bucket/` (or another non-UI module), not in a component. Components should only read state and dispatch actions.
+**Exception**: `src/components/` is exempt — GUI changes are hard to unit-test and do not require a failing test first. However, keep business logic out of components: any logic that can be tested belongs in `src/rules/` (or another non-UI module), not in a component. Components should only read state and dispatch actions.
 
 ### Auto-commit on vibe branches
 
@@ -57,14 +77,24 @@ Example:
 ```
 (Claude) add confetti animation to Done button
 
-Added CSS confetti animation that plays when the user clicks "Done!" to complete a workout.
+Added CSS confetti animation that plays when the user clicks "Done!" to complete a task.
 - Created assets/confetti.css with particle animation (2.5s duration)
 - Updated home.rs to trigger animation on button click
 - Integrated CSS into app.rs stylesheet list
 
 User prompt:
-> add a simple css confetti animation to the "Done" button (when completing a workout)
+> add a simple css confetti animation to the "Done" button (when completing a task)
 ```
+
+## Terminology
+
+See `GLOSSARY.md` for precise definitions. Key terms used throughout the codebase and vision docs:
+- **Marker** — any `#word` or `@word` token
+- **Property** — a user-defined `#marker` declared in `mdagile.toml`
+- **Assignment** — a `@marker` assigning a task to a user or group
+- **Special Marker** — an ALL-CAPS built-in keyword (e.g. `#OPT`, `#MILESTONE`, `#MDAGILE`)
+
+Do not use these terms interchangeably.
 
 ## Known issues / gotchas
 ...
