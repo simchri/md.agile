@@ -2,22 +2,36 @@
 
 - Md.Agile (alt: Mdagile): The project name. The preferred spelling in text is "Mdagile" (intra-word punctuation is confusing)
 
-## Core Syntax
+## Core Concepts
 
 - Task: A top-level checklist item (`- [ ] ...`). Distinct from a Subtask.
 - Subtask: A nested Task, indented under a parent Task or Subtask.
 - Subtask Level: The nesting depth of a Subtask, starting at 2 for direct children of a Task. A Task can also be considered a Subtask with Subtask Level 1.
 - Sibling (Task): A Subtask on the same Subtask Level as the current Task.
+
+- Cancelled Task: A Task marked `- [-]`. Explicitly skipped — distinct from done.
+- Done Task: A Task marked `- [x]`. Completed successfully.
+
+## Basic Task Syntax
+
 - Task Title: The text on the checkbox line itself.
 - Task Body: Free-text lines immediately following a Task (before the next blank line).
-- Cancelled Task: A Task marked `- [-]`. Explicitly skipped — distinct from done.
+- Other Content: Any text that is not part of a Task or Subtask, such as free-form notes, comments, or descriptions. Not associated with any Task.
 
-## Syntax Related to Markers & Properties
+## Markers
 
 - Marker: Word prefixed by a "#" or "@", e.g. user defined properties are identified with markers `#my_property`.
-- Property: User defined "#" markers
-- Assignment: User defined "@" marker
 - Special Marker: ALL CAPS word prefixed by a hash tag, recognized by plaintask as a keyword ( e.g. `#MANIFEST, #OPT`)
+
+## Properties
+
+- Property: A named workflow rule declared in `mdagile.toml`. Defines optional Subtasks, a Short Form alias, ordering constraints, and other rules. Applied to a Task via a Property Marker. Using a `#name` token without a corresponding `[Properties.name]` declaration is an error.
+- Property Marker: A `#name` token in a task file that applies a declared Property to a Task.
+
+## Assignments
+
+- Assignment: The association of a Task with a declared User or Group. When a Task has an Assignment, only the assigned User(s) or Group member(s) may mark it complete. Users and Groups must be declared in `mdagile.toml`. Using `@name` without a corresponding `[Users.name]` or `[Groups.name]` declaration is an error.
+- Assignment Marker: A `@name` token in a task file that creates an Assignment to a declared User or Group.
 
 ## Subtask Flavours
 
