@@ -267,15 +267,18 @@ You can define an order in which tasks have to be done:
 - [ ] make app more responsive
   - [ ] 1. add performance UI test
   - [ ] 2. refactor signals
-  - [ ] 4 document learnings
-  - [ ] 3 run UI tests
+  - [ ] 4. document learnings
+  - [ ] 3. run UI tests
+  - [ ] 2 or more test users agree that performance is sufficient
   - [ ] discuss further steps
 ```
-Ordering numbers have to follow the checkbox after a single space character, can optionally be followed by a `.` and must be separated from the next word by at least one space. The subtasks do not have to be arranged in order (note how 3 and 4 are mixed up).
+Ordering numbers have to follow the checkbox after a single space character, must be followed by a `.` and must be separated from the next word by at least one space. The subtasks do not have to be arranged in order (note how 3 and 4 are mixed up).
+
+If there is no `.` after the number, it is not interpreted in any way. There can not be two tasks with the same rank.
 
 When an order is defined, the following rules apply:
 
-- Unordered tasks ("discuss further steps") can be marked complete at any point.
+- Unordered tasks ("discuss further steps", "2 or more test users ..") can be marked complete at any point.
 - Ordered tasks can be marked complete only when all previous tasks are complete.
 
 Meaning the following is not allowed:
@@ -283,8 +286,9 @@ Meaning the following is not allowed:
 - [ ] make app more responsive
   - [ ] 1. add performance UI test
   - [x] 2. refactor signals
-  - [ ] 4 document learnings
-  - [ ] 3 run UI tests
+  - [ ] 4. document learnings
+  - [ ] 3. run UI tests
+  - [ ] 2 or more test users agree that performance is sufficient
   - [ ] discuss further steps
 ```
 
