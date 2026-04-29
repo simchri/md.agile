@@ -38,7 +38,7 @@ fn main() {
     let root = Path::new(".");
     match Cli::parse().command.unwrap_or(Command::List { what: None }) {
         Command::List { what: None } => {
-            print!("{}", mdagile::list_tasks(&read_task_files(root)));
+            print!("{}", mdagile::list_tasks(&mdagile::read_task_files(root)));
         }
         Command::List { what: Some(ListWhat::Files) } => {
             for path in mdagile::find_task_files(root) {
@@ -48,15 +48,7 @@ fn main() {
             }
         }
         Command::Task { action: TaskAction::Next } => {
-            print!("{}", mdagile::next_task(&read_task_files(root)));
+            print!("{}", mdagile::next_task(&mdagile::read_task_files(root)));
         }
     }
-}
-
-fn read_task_files(root: &Path) -> String {
-    mdagile::find_task_files(root)
-        .iter()
-        .filter_map(|p| std::fs::read_to_string(p).ok())
-        .collect::<Vec<_>>()
-        .join("\n")
 }
