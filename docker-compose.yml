@@ -69,6 +69,13 @@ services:
            create_host_path: false
 
        - type: bind
+         source: /home/${USER:?error}/.claude
+         target: /home/${USER:?error}/.claude
+         read_only: false
+         bind:
+           create_host_path: false
+
+       - type: bind
          source: .
          target: ${PWD:?error}
          read_only: false
@@ -133,6 +140,13 @@ services:
        - type: bind
          source: /home/${USER:?error}/.ssh
          target: /home/${USER:?error}/.ssh
+         read_only: false
+         bind:
+           create_host_path: false
+
+       - type: bind
+         source: /home/${USER:?error}/.claude
+         target: /home/${USER:?error}/.claude
          read_only: false
          bind:
            create_host_path: false
