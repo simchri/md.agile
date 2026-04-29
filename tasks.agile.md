@@ -7,4 +7,3 @@
 
 - [x] add subcommand (alias) "agile list tasks" should do the same as "agile list"
 
-- [ ] 
