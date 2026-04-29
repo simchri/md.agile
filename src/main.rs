@@ -12,7 +12,7 @@ Reads all *.agile.md files found anywhere under the current directory.
 Files are prioritised alphabetically by filename (path is ignored), so
 tasks in a_current.agile.md outrank tasks in b_backlog.agile.md.
 
-Run without a subcommand to list all tasks.",
+Run without a subcommand to open the next task in $VISUAL / $EDITOR.",
 )]
 struct Cli {
     #[command(subcommand)]
@@ -96,11 +96,29 @@ enum TaskAction {
     Next,
 }
 
+fn open_editor(path: &std::path::Path) {
+    let editor = std::env::var("VISUAL")
+        .or_else(|_| std::env::var("EDITOR"))
+        .unwrap_or_else(|_| {
+            eprintln!("agile: neither $VISUAL nor $EDITOR is set");
+            std::process::exit(1);
+        });
+    let status = std::process::Command::new(&editor).arg(path).status();
+    if let Err(e) = status {
+        eprintln!("agile: failed to launch editor '{editor}': {e}");
+        std::process::exit(1);
+    }
+}
+
 fn main() {
     let root = Path::new(".");
-    match Cli::parse().command.unwrap_or(Command::List { what: None, next: None, last: None, all: false }) {
-        Command::List { what: None, next, last, all }
-        | Command::List { what: Some(ListWhat::Tasks { next, last, all }), .. } => {
+    match Cli::parse().command {
+        None => match mdagile::find_file_with_next_task(root) {
+            Some(path) => open_editor(&path),
+            None => eprintln!("agile: no active tasks found"),
+        },
+        Some(Command::List { what: None, next, last, all })
+        | Some(Command::List { what: Some(ListWhat::Tasks { next, last, all }), .. }) => {
             let content = mdagile::read_task_files(root);
             let blocks = if all {
                 mdagile::list_task_blocks(&content)
@@ -110,12 +128,12 @@ fn main() {
             let result: String = apply_limit(blocks, next, last).into_iter().collect();
             print!("{result}");
         }
-        Command::List { what: Some(ListWhat::Files { next, last }), .. } => {
+        Some(Command::List { what: Some(ListWhat::Files { next, last }), .. }) => {
             let paths = mdagile::find_task_files(root);
             let limited = apply_limit(paths, next, last);
             print!("{}", mdagile::format_file_list(&limited));
         }
-        Command::Task { action: TaskAction::Next } => {
+        Some(Command::Task { action: TaskAction::Next }) => {
             print!("{}", mdagile::next_task(&mdagile::read_task_files(root)));
         }
     }

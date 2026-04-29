@@ -151,6 +151,18 @@ pub fn list_tasks(input: &str) -> String {
     list_task_blocks(input).into_iter().collect()
 }
 
+/// Returns the path of the highest-priority task file that contains at least one active task.
+///
+/// Files are evaluated in priority order (alphabetical by filename). Returns `None` if no
+/// file has any incomplete `[ ]` top-level tasks, or if no task files exist under `root`.
+pub fn find_file_with_next_task(root: &Path) -> Option<PathBuf> {
+    find_task_files(root).into_iter().find(|p| {
+        std::fs::read_to_string(p)
+            .map(|content| !active_task_blocks(&content).is_empty())
+            .unwrap_or(false)
+    })
+}
+
 /// Returns only the top-level task blocks whose top-level status is todo (`[ ]`).
 ///
 /// Done (`[x]`) and cancelled (`[-]`) top-level tasks are excluded entirely, even
