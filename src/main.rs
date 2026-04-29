@@ -2,7 +2,18 @@ use clap::{Parser, Subcommand};
 use std::path::Path;
 
 #[derive(Parser)]
-#[command(name = "agile", about = "Mdagile task management")]
+#[command(
+    name = "agile",
+    about = "Plain-text, version-controlled task management",
+    long_about = "\
+Plain-text, version-controlled task management.
+
+Reads all *.agile.md files found anywhere under the current directory.
+Files are prioritised alphabetically by filename (path is ignored), so
+tasks in a_current.agile.md outrank tasks in b_backlog.agile.md.
+
+Run without a subcommand to list all tasks.",
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -10,12 +21,18 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// List tasks or files
+    /// List tasks or files (default: tasks)
+    ///
+    /// Without a subcommand, prints every task from all *.agile.md files
+    /// in priority order. Each task is shown with its status marker
+    /// ([ ] todo, [x] done, [-] cancelled) and subtasks indented by two
+    /// spaces per level.
     List {
         #[command(subcommand)]
         what: Option<ListWhat>,
     },
-    /// Task subcommands
+
+    /// Task operations
     Task {
         #[command(subcommand)]
         action: TaskAction,
@@ -24,13 +41,23 @@ enum Command {
 
 #[derive(Subcommand)]
 enum ListWhat {
-    /// Show recognized task files in priority order
+    /// Show recognised task files in priority order
+    ///
+    /// Prints one line per file: filename followed by its path relative
+    /// to the current directory. Files are sorted alphabetically by
+    /// filename only — their directory path does not affect ordering.
+    /// This sort order is the global task priority order across files.
     Files,
 }
 
 #[derive(Subcommand)]
 enum TaskAction {
     /// Show the next highest-priority incomplete task
+    ///
+    /// Returns the first incomplete ([ ]) top-level task across all task
+    /// files in priority order, including its full subtask tree. Skips
+    /// done ([x]) and cancelled ([-]) tasks. Prints nothing if every
+    /// task is complete or cancelled.
     Next,
 }
 
