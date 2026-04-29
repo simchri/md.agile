@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use ignore::WalkBuilder;
 use std::path::Path;
 
 #[derive(Parser)]
@@ -11,13 +10,22 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Show all tasks
-    List,
+    /// List tasks or files
+    List {
+        #[command(subcommand)]
+        what: Option<ListWhat>,
+    },
     /// Task subcommands
     Task {
         #[command(subcommand)]
         action: TaskAction,
     },
+}
+
+#[derive(Subcommand)]
+enum ListWhat {
+    /// Show recognized task files in priority order
+    Files,
 }
 
 #[derive(Subcommand)]
@@ -27,31 +35,24 @@ enum TaskAction {
 }
 
 fn main() {
-    let cli = Cli::parse();
-    let input = collect_task_files(".");
-    let output = match cli.command.unwrap_or(Command::List) {
-        Command::List => mdagile::list_tasks(&input),
-        Command::Task { action: TaskAction::Next } => mdagile::next_task(&input),
-    };
-    print!("{output}");
+    let root = Path::new(".");
+    match Cli::parse().command.unwrap_or(Command::List { what: None }) {
+        Command::List { what: None } => {
+            print!("{}", mdagile::list_tasks(&read_task_files(root)));
+        }
+        Command::List { what: Some(ListWhat::Files) } => {
+            for path in mdagile::find_task_files(root) {
+                println!("{}", path.strip_prefix("./").unwrap_or(&path).display());
+            }
+        }
+        Command::Task { action: TaskAction::Next } => {
+            print!("{}", mdagile::next_task(&read_task_files(root)));
+        }
+    }
 }
 
-fn collect_task_files(root: impl AsRef<Path>) -> String {
-    let mut paths: Vec<_> = WalkBuilder::new(root)
-        .build()
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.file_type().map(|t| t.is_file()).unwrap_or(false)
-                && e.file_name().to_string_lossy().ends_with(".agile.md")
-        })
-        .map(|e| e.into_path())
-        .collect();
-
-    paths.sort_by(|a, b| {
-        a.file_name().cmp(&b.file_name())
-    });
-
-    paths
+fn read_task_files(root: &Path) -> String {
+    mdagile::find_task_files(root)
         .iter()
         .filter_map(|p| std::fs::read_to_string(p).ok())
         .collect::<Vec<_>>()

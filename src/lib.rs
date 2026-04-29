@@ -1,4 +1,21 @@
+use ignore::WalkBuilder;
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
+use std::path::{Path, PathBuf};
+
+pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
+    let mut paths: Vec<PathBuf> = WalkBuilder::new(root)
+        .build()
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.file_type().map(|t| t.is_file()).unwrap_or(false)
+                && e.file_name().to_string_lossy().ends_with(".agile.md")
+        })
+        .map(|e| e.into_path())
+        .collect();
+
+    paths.sort_by_key(|p| p.file_name().map(|n| n.to_os_string()));
+    paths
+}
 
 #[derive(Clone, Copy, PartialEq)]
 enum ItemKind {
