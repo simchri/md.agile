@@ -10,67 +10,73 @@ enum ItemKind {
 struct ItemState {
     kind: ItemKind,
     title_written: bool,
-    buf: String, // accumulates text fragments for MaybeCancel items
+    buf: String,
+}
+
+impl ItemState {
+    fn new() -> Self {
+        Self { kind: ItemKind::MaybeCancel, title_written: false, buf: String::new() }
+    }
+}
+
+// Returns true if `s` could still be the start of "[-] "
+fn is_cancel_prefix(s: &str) -> bool {
+    "[-] ".starts_with(s)
+}
+
+fn write_task_text(out: &mut String, item: &mut ItemState, text: &str, list_depth: usize) {
+    if item.title_written {
+        return;
+    }
+    let indent = "  ".repeat(list_depth - 1);
+    match item.kind {
+        ItemKind::Todo => {
+            out.push_str(&format!("{}[ ] {}\n", indent, text));
+            item.title_written = true;
+        }
+        ItemKind::Done => {
+            out.push_str(&format!("{}[x] {}\n", indent, text));
+            item.title_written = true;
+        }
+        ItemKind::MaybeCancel => {
+            item.buf.push_str(text);
+            if let Some(rest) = item.buf.strip_prefix("[-] ") {
+                out.push_str(&format!("{}[-] {}\n", indent, rest));
+                item.title_written = true;
+            } else if !is_cancel_prefix(&item.buf) {
+                item.title_written = true;
+            }
+        }
+    }
+}
+
+fn make_parser(input: &str) -> Parser<'_> {
+    let mut opts = Options::empty();
+    opts.insert(Options::ENABLE_TASKLISTS);
+    Parser::new_ext(input, opts)
 }
 
 pub fn list_tasks(input: &str) -> String {
-    let mut opts = Options::empty();
-    opts.insert(Options::ENABLE_TASKLISTS);
-
     let mut out = String::new();
     let mut list_depth: usize = 0;
     let mut stack: Vec<ItemState> = Vec::new();
 
-    for event in Parser::new_ext(input, opts) {
+    for event in make_parser(input) {
         match event {
             Event::Start(Tag::List(_)) => list_depth += 1,
             Event::End(TagEnd::List(_)) => list_depth -= 1,
-
-            Event::Start(Tag::Item) => stack.push(ItemState {
-                kind: ItemKind::MaybeCancel,
-                title_written: false,
-                buf: String::new(),
-            }),
-
-            Event::End(TagEnd::Item) => {
-                stack.pop();
-            }
-
+            Event::Start(Tag::Item) => stack.push(ItemState::new()),
+            Event::End(TagEnd::Item) => { stack.pop(); }
             Event::TaskListMarker(checked) => {
                 if let Some(item) = stack.last_mut() {
                     item.kind = if checked { ItemKind::Done } else { ItemKind::Todo };
                 }
             }
-
             Event::Text(text) => {
                 if let Some(item) = stack.last_mut() {
-                    if item.title_written {
-                        continue;
-                    }
-                    let indent = "  ".repeat(list_depth - 1);
-                    match item.kind {
-                        ItemKind::Todo => {
-                            out.push_str(&format!("{}[ ] {}\n", indent, text));
-                            item.title_written = true;
-                        }
-                        ItemKind::Done => {
-                            out.push_str(&format!("{}[x] {}\n", indent, text));
-                            item.title_written = true;
-                        }
-                        ItemKind::MaybeCancel => {
-                            item.buf.push_str(&text);
-                            if let Some(rest) = item.buf.strip_prefix("[-] ") {
-                                out.push_str(&format!("{}[-] {}\n", indent, rest));
-                                item.title_written = true;
-                            } else if !is_cancel_prefix(&item.buf) {
-                                // Not a cancelled task — skip the whole item
-                                item.title_written = true;
-                            }
-                        }
-                    }
+                    write_task_text(&mut out, item, &text, list_depth);
                 }
             }
-
             _ => {}
         }
     }
@@ -78,7 +84,42 @@ pub fn list_tasks(input: &str) -> String {
     out
 }
 
-// Returns true if `s` could still be the beginning of "[-] "
-fn is_cancel_prefix(s: &str) -> bool {
-    "[-] ".starts_with(s)
+pub fn next_task(input: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut list_depth: usize = 0;
+    let mut stack: Vec<ItemState> = Vec::new();
+    let mut capturing = false;
+
+    for event in make_parser(input) {
+        match event {
+            Event::Start(Tag::List(_)) => list_depth += 1,
+            Event::End(TagEnd::List(_)) => list_depth -= 1,
+            Event::Start(Tag::Item) => stack.push(ItemState::new()),
+            Event::End(TagEnd::Item) => {
+                let at_top = list_depth == 1 && stack.len() == 1;
+                stack.pop();
+                if capturing && at_top {
+                    return Some(out);
+                }
+            }
+            Event::TaskListMarker(checked) => {
+                if let Some(item) = stack.last_mut() {
+                    item.kind = if checked { ItemKind::Done } else { ItemKind::Todo };
+                }
+                if !capturing && !checked && list_depth == 1 && stack.len() == 1 {
+                    capturing = true;
+                }
+            }
+            Event::Text(text) => {
+                if capturing {
+                    if let Some(item) = stack.last_mut() {
+                        write_task_text(&mut out, item, &text, list_depth);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }
