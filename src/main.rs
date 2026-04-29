@@ -42,7 +42,9 @@ fn main() {
         }
         Command::List { what: Some(ListWhat::Files) } => {
             for path in mdagile::find_task_files(root) {
-                println!("{}", path.strip_prefix("./").unwrap_or(&path).display());
+                let rel = path.strip_prefix("./").unwrap_or(&path);
+                let name = rel.file_name().unwrap_or_default().to_string_lossy();
+                println!("{name}  {}", rel.display());
             }
         }
         Command::Task { action: TaskAction::Next } => {
