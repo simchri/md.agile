@@ -1,4 +1,40 @@
-use mdagile::list_tasks;
+use mdagile::{active_task_blocks, list_tasks};
+
+#[test]
+fn active_excludes_done_and_cancelled() {
+    let input = "\
+- [x] done task
+- [ ] active task
+- [-] cancelled task
+- [ ] another active task
+";
+    let expected = "\
+[ ] active task
+[ ] another active task
+";
+    assert_eq!(active_task_blocks(input).into_iter().collect::<String>(), expected);
+}
+
+#[test]
+fn active_includes_todo_parent_with_done_subtasks() {
+    let input = "\
+- [x] done parent
+  - [ ] subtask under done
+- [ ] active parent
+  - [x] done subtask
+";
+    let expected = "[ ] active parent\n  [x] done subtask\n";
+    assert_eq!(active_task_blocks(input).into_iter().collect::<String>(), expected);
+}
+
+#[test]
+fn active_empty_when_nothing_todo() {
+    let input = "\
+- [x] done one
+- [-] cancelled one
+";
+    assert_eq!(active_task_blocks(input).into_iter().collect::<String>(), "".to_string());
+}
 
 #[test]
 fn empty_input_produces_no_output() {

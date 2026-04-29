@@ -36,6 +36,10 @@ enum Command {
         #[arg(long, value_name = "COUNT")]
         last: Option<usize>,
 
+        /// Show all tasks including done and cancelled
+        #[arg(short = 'a', long)]
+        all: bool,
+
         #[command(subcommand)]
         what: Option<ListWhat>,
     },
@@ -58,6 +62,10 @@ enum ListWhat {
         /// Show only the last COUNT tasks
         #[arg(long, value_name = "COUNT")]
         last: Option<usize>,
+
+        /// Show all tasks including done and cancelled
+        #[arg(short = 'a', long)]
+        all: bool,
     },
 
     /// Show recognised task files in priority order
@@ -90,10 +98,15 @@ enum TaskAction {
 
 fn main() {
     let root = Path::new(".");
-    match Cli::parse().command.unwrap_or(Command::List { what: None, next: None, last: None }) {
-        Command::List { what: None, next, last }
-        | Command::List { what: Some(ListWhat::Tasks { next, last }), .. } => {
-            let blocks = mdagile::list_task_blocks(&mdagile::read_task_files(root));
+    match Cli::parse().command.unwrap_or(Command::List { what: None, next: None, last: None, all: false }) {
+        Command::List { what: None, next, last, all }
+        | Command::List { what: Some(ListWhat::Tasks { next, last, all }), .. } => {
+            let content = mdagile::read_task_files(root);
+            let blocks = if all {
+                mdagile::list_task_blocks(&content)
+            } else {
+                mdagile::active_task_blocks(&content)
+            };
             let result: String = apply_limit(blocks, next, last).into_iter().collect();
             print!("{result}");
         }

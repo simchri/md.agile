@@ -2,6 +2,10 @@ use ignore::WalkBuilder;
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use std::path::{Path, PathBuf};
 
+/// Formats a list of task file paths into a display string.
+///
+/// Each line is `<filename>  <full-path>`, terminated with a newline.
+/// Files are shown in the order provided; sorting is the caller's responsibility.
 pub fn format_file_list(paths: &[PathBuf]) -> String {
     paths
         .iter()
@@ -12,6 +16,10 @@ pub fn format_file_list(paths: &[PathBuf]) -> String {
         .collect()
 }
 
+/// Reads and concatenates the content of all task files found under `root`.
+///
+/// Files are discovered by `find_task_files` (priority order) and joined with a
+/// newline separator so tasks from different files remain on separate lines.
 pub fn read_task_files(root: &Path) -> String {
     find_task_files(root)
         .iter()
@@ -20,6 +28,10 @@ pub fn read_task_files(root: &Path) -> String {
         .join("\n")
 }
 
+/// Finds all `*.agile.md` files anywhere under `root`, respecting `.gitignore`.
+///
+/// Results are sorted alphabetically by filename only; directory path does not
+/// affect ordering. This sort order defines the global task priority across files.
 pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
     let mut paths: Vec<PathBuf> = WalkBuilder::new(root)
         .build()
@@ -91,6 +103,11 @@ fn make_parser(input: &str) -> Parser<'_> {
     Parser::new_ext(input, opts)
 }
 
+/// Parses `input` and returns one `String` per top-level task block.
+///
+/// Each block contains the task's own line followed by all indented subtask lines
+/// (body text is omitted). Blocks include tasks of every status: todo `[ ]`,
+/// done `[x]`, and cancelled `[-]`. Non-task content (headings, prose) is ignored.
 pub fn list_task_blocks(input: &str) -> Vec<String> {
     let mut blocks: Vec<String> = Vec::new();
     let mut current = String::new();
@@ -126,10 +143,31 @@ pub fn list_task_blocks(input: &str) -> Vec<String> {
     blocks
 }
 
+/// Formats all task blocks from `input` as a single string.
+///
+/// Convenience wrapper around `list_task_blocks` that concatenates all blocks.
+/// Includes tasks of every status; use `active_task_blocks` to filter to todo only.
 pub fn list_tasks(input: &str) -> String {
     list_task_blocks(input).into_iter().collect()
 }
 
+/// Returns only the top-level task blocks whose top-level status is todo (`[ ]`).
+///
+/// Done (`[x]`) and cancelled (`[-]`) top-level tasks are excluded entirely, even
+/// if they contain active subtasks. A todo parent is included with all its subtasks
+/// regardless of the subtasks' individual statuses.
+pub fn active_task_blocks(input: &str) -> Vec<String> {
+    list_task_blocks(input)
+        .into_iter()
+        .filter(|b| b.starts_with("[ ]"))
+        .collect()
+}
+
+/// Returns the first incomplete top-level task block from `input`.
+///
+/// Scans tasks in document order and returns the subtree of the first task whose
+/// top-level marker is todo (`[ ]`). Done and cancelled tasks are skipped. Returns
+/// an empty string if every task is complete or cancelled, or if there are no tasks.
 pub fn next_task(input: &str) -> String {
     let mut out = String::new();
     let mut list_depth: usize = 0;
