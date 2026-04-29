@@ -27,7 +27,7 @@ Tasks follow a specific syntax. You will receive immediate feedback in your text
 ```
 agile
 ```
-Show me my next tasks in an interactive viewer
+Show me my next task in my default text editor
 
 ```
 agile check
