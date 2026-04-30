@@ -62,8 +62,8 @@ pub enum SubtaskKind {
     PropertyRequired, // quoted "", mandated by a Property declaration
 }
 
-// Subtask is recursive: children can themselves have children, markers, and
-// ordering. Task and Subtask are kept as separate types so the compiler
+// Subtask is recursive: both Task and Subtask use `children: Vec<Subtask>`
+// for consistency. Task and Subtask are kept as separate types so the compiler
 // prevents putting Order/SubtaskKind on a top-level Task where they have no
 // meaning.
 #[derive(Debug, Clone, PartialEq)]
@@ -85,7 +85,7 @@ pub struct Task {
     pub title:    String,
     pub body:     Vec<String>,
     pub markers:  Vec<Marker>,
-    pub subtasks: Vec<Subtask>,
+    pub children: Vec<Subtask>,
 }
 
 // ── File-level items ──────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ mod tests {
                 name: "feature".to_string(),
                 form: PropertyForm::Full,
             })],
-            subtasks: vec![
+            children: vec![
                 Subtask {
                     status: Status::Todo,
                     order: Order::None,
@@ -171,7 +171,7 @@ mod tests {
             ],
         };
         assert_eq!(task.status, Status::Todo);
-        assert_eq!(task.subtasks.len(), 4);
+        assert_eq!(task.children.len(), 4);
     }
 
     #[test]
@@ -182,7 +182,7 @@ mod tests {
                 title: "ship MVP".to_string(),
                 body: vec![],
                 markers: vec![],
-                subtasks: vec![],
+                children: vec![],
             }),
             FileItem::Milestone(Milestone {
                 name: "Release of MVP".to_string(),
@@ -192,7 +192,7 @@ mod tests {
                 title: "gather feedback".to_string(),
                 body: vec![],
                 markers: vec![],
-                subtasks: vec![],
+                children: vec![],
             }),
         ];
         assert_eq!(items.len(), 3);
