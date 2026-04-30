@@ -7,6 +7,5 @@ edition = "2024"
 tempfile = "3"
 
 [dependencies]
-pulldown-cmark = "0.13"
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"

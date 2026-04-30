@@ -1,5 +1,4 @@
 use ignore::WalkBuilder;
-use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use std::path::{Path, PathBuf};
 
 pub mod parser;
@@ -51,100 +50,24 @@ pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
     paths
 }
 
-#[derive(Clone, Copy, PartialEq)]
-enum ItemKind {
-    Todo,
-    Done,
-    MaybeCancel,
-}
-
-struct ItemState {
-    kind: ItemKind,
-    title_written: bool,
-    buf: String,
-}
-
-impl ItemState {
-    fn new() -> Self {
-        Self { kind: ItemKind::MaybeCancel, title_written: false, buf: String::new() }
-    }
-}
-
-// Returns true if `s` could still be the start of "[-] "
-fn is_cancel_prefix(s: &str) -> bool {
-    "[-] ".starts_with(s)
-}
-
-fn write_task_text(out: &mut String, item: &mut ItemState, text: &str, list_depth: usize) {
-    if item.title_written {
-        return;
-    }
-    let indent = "  ".repeat(list_depth - 1);
-    match item.kind {
-        ItemKind::Todo => {
-            out.push_str(&format!("{}[ ] {}\n", indent, text));
-            item.title_written = true;
-        }
-        ItemKind::Done => {
-            out.push_str(&format!("{}[x] {}\n", indent, text));
-            item.title_written = true;
-        }
-        ItemKind::MaybeCancel => {
-            item.buf.push_str(text);
-            if let Some(rest) = item.buf.strip_prefix("[-] ") {
-                out.push_str(&format!("{}[-] {}\n", indent, rest));
-                item.title_written = true;
-            } else if !is_cancel_prefix(&item.buf) {
-                item.title_written = true;
-            }
-        }
-    }
-}
-
-fn make_parser(input: &str) -> Parser<'_> {
-    let mut opts = Options::empty();
-    opts.insert(Options::ENABLE_TASKLISTS);
-    Parser::new_ext(input, opts)
-}
-
 /// Parses `input` and returns one `String` per top-level task block.
 ///
 /// Each block contains the task's own line followed by all indented subtask lines
 /// (body text is omitted). Blocks include tasks of every status: todo `[ ]`,
-/// done `[x]`, and cancelled `[-]`. Non-task content (headings, prose) is ignored.
+/// done `[x]`, and cancelled `[-]`. Non-task content (headings, prose, milestones)
+/// is ignored.
 pub fn list_task_blocks(input: &str) -> Vec<String> {
-    let mut blocks: Vec<String> = Vec::new();
-    let mut current = String::new();
-    let mut list_depth: usize = 0;
-    let mut stack: Vec<ItemState> = Vec::new();
-
-    for event in make_parser(input) {
-        match event {
-            Event::Start(Tag::List(_)) => list_depth += 1,
-            Event::End(TagEnd::List(_)) => list_depth -= 1,
-            Event::Start(Tag::Item) => stack.push(ItemState::new()),
-            Event::End(TagEnd::Item) => {
-                let at_top = list_depth == 1 && stack.len() == 1;
-                stack.pop();
-                if at_top && !current.is_empty() {
-                    blocks.push(std::mem::take(&mut current));
-                }
+    parser::parse(input)
+        .into_iter()
+        .filter_map(|item| match item {
+            parser::FileItem::Task(task) => {
+                let mut s = String::new();
+                render_task(&task, &mut s);
+                Some(s)
             }
-            Event::TaskListMarker(checked) => {
-                if let Some(item) = stack.last_mut() {
-                    item.kind = if checked { ItemKind::Done } else { ItemKind::Todo };
-                }
-            }
-            Event::Text(text) => {
-                if let Some(item) = stack.last_mut() {
-                    write_task_text(&mut current, item, &text, list_depth);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    blocks
+            parser::FileItem::Milestone(_) => None,
+        })
+        .collect()
 }
 
 /// Formats all task blocks from `input` as a single string.
@@ -184,9 +107,16 @@ pub fn find_file_with_next_task(root: &Path) -> Option<PathBuf> {
 /// if they contain active subtasks. A todo parent is included with all its subtasks
 /// regardless of the subtasks' individual statuses.
 pub fn active_task_blocks(input: &str) -> Vec<String> {
-    list_task_blocks(input)
+    parser::parse(input)
         .into_iter()
-        .filter(|b| b.starts_with("[ ]"))
+        .filter_map(|item| match item {
+            parser::FileItem::Task(task) if task.status == parser::Status::Todo => {
+                let mut s = String::new();
+                render_task(&task, &mut s);
+                Some(s)
+            }
+            _ => None,
+        })
         .collect()
 }
 
@@ -209,6 +139,13 @@ pub fn next_task(input: &str) -> String {
     String::new()
 }
 
+/// Renders a top-level task and its subtree to `out` as `[<status>] <title>` lines.
+///
+/// The task itself is written without indentation; each successive level of
+/// children is indented by two more spaces. Body text and markers are omitted —
+/// only the rendered title is emitted. The output line for the task itself is
+/// always terminated with a newline, so concatenating multiple rendered tasks
+/// yields one task per line group.
 fn render_task(task: &parser::Task, out: &mut String) {
     out.push_str(status_marker(&task.status));
     out.push(' ');
@@ -219,6 +156,11 @@ fn render_task(task: &parser::Task, out: &mut String) {
     }
 }
 
+/// Renders a subtask and its descendants, indented by `depth * 2` spaces.
+///
+/// `depth` is the subtask's nesting level relative to its top-level task: the
+/// immediate children of a [`parser::Task`] have depth 1, their children depth
+/// 2, and so on. Used by [`render_task`] to render the recursive children.
 fn render_subtask(sub: &parser::Subtask, depth: usize, out: &mut String) {
     for _ in 0..depth {
         out.push_str("  ");
@@ -232,6 +174,7 @@ fn render_subtask(sub: &parser::Subtask, depth: usize, out: &mut String) {
     }
 }
 
+/// Returns the textual checkbox for a [`parser::Status`]: `[ ]`, `[x]`, or `[-]`.
 fn status_marker(status: &parser::Status) -> &'static str {
     match status {
         parser::Status::Todo      => "[ ]",
