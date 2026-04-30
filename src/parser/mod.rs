@@ -80,6 +80,7 @@ pub enum SubtaskKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Subtask {
     pub location: Location,
+    pub indent:   usize, // leading spaces in the source line; encodes nesting
     pub status:   Status,
     pub order:    Order,
     pub kind:     SubtaskKind,
@@ -94,6 +95,11 @@ pub struct Subtask {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Task {
     pub location: Location,
+    // Leading spaces in the source line. Tasks are top-level by definition, so
+    // a non-zero value means the line was indented like a subtask but had no
+    // live parent (e.g. orphaned by a preceding blank line). The checker uses
+    // this to flag the `wrong_indent` issue.
+    pub indent:   usize,
     pub status:   Status,
     pub title:    String,
     pub body:     Vec<String>,
@@ -128,6 +134,7 @@ pub struct TaskFile {
 // Task or Subtask when popped. Keeps a single code path for both node kinds.
 struct PartialItem {
     depth:    usize,
+    indent:   usize,
     location: Location,
     status:   Status,
     order:    Order,
@@ -140,13 +147,14 @@ struct PartialItem {
 
 impl PartialItem {
     fn into_task(self) -> Task {
-        Task { location: self.location, status: self.status, title: self.title,
-               body: self.body, markers: self.markers, children: self.children }
+        Task { location: self.location, indent: self.indent, status: self.status,
+               title: self.title, body: self.body, markers: self.markers,
+               children: self.children }
     }
     fn into_subtask(self) -> Subtask {
-        Subtask { location: self.location, status: self.status, order: self.order,
-                  kind: self.kind, title: self.title, body: self.body,
-                  markers: self.markers, children: self.children }
+        Subtask { location: self.location, indent: self.indent, status: self.status,
+                  order: self.order, kind: self.kind, title: self.title,
+                  body: self.body, markers: self.markers, children: self.children }
     }
 }
 
@@ -175,7 +183,7 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             continue;
         }
 
-        if let Some((depth, status, rest)) = parse_task_line(line) {
+        if let Some((depth, indent, status, rest)) = parse_task_line(line) {
             // Close any open siblings and their descendants before pushing the
             // new item. Popping depth >= current depth means a sibling at the
             // same level is finalized before the new one takes its place.
@@ -186,7 +194,7 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             let (kind, rest)  = parse_subtask_kind(rest);
             let (markers, title) = parse_markers(rest);
             stack.push(PartialItem {
-                depth,
+                depth, indent,
                 location: Location { path: path.clone(), line: line_no },
                 status, order, kind,
                 title, body: Vec::new(), markers, children: Vec::new(),
@@ -221,9 +229,10 @@ fn flush_stack(stack: &mut Vec<PartialItem>, items: &mut Vec<FileItem>) {
     }
 }
 
-// Returns (depth, status, rest-of-title) for a task line, or None.
-// Depth is leading-spaces / 2; status comes from the checkbox character.
-fn parse_task_line(line: &str) -> Option<(usize, Status, String)> {
+// Returns (depth, indent, status, rest-of-title) for a task line, or None.
+// Indent is leading-space count; depth is indent / 2; status comes from the
+// checkbox character.
+fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String)> {
     let indent = line.len() - line.trim_start_matches(' ').len();
     let depth  = indent / 2;
     let trimmed = &line[indent..];
@@ -236,7 +245,7 @@ fn parse_task_line(line: &str) -> Option<(usize, Status, String)> {
     } else {
         return None;
     };
-    Some((depth, status, rest.trim_end().to_string()))
+    Some((depth, indent, status, rest.trim_end().to_string()))
 }
 
 // Recognises a standalone `#MILESTONE: name` line and returns the name.
@@ -361,6 +370,7 @@ mod tests {
     fn can_construct_task_with_all_node_kinds() {
         let task = Task {
             location: loc(1),
+            indent: 0,
             status: Status::Todo,
             title: "add item to basket".to_string(),
             body: vec![],
@@ -371,6 +381,7 @@ mod tests {
             children: vec![
                 Subtask {
                     location: loc(2),
+                    indent: 2,
                     status: Status::Todo,
                     order: Order::None,
                     kind: SubtaskKind::PropertyRequired,
@@ -381,6 +392,7 @@ mod tests {
                 },
                 Subtask {
                     location: loc(3),
+                    indent: 2,
                     status: Status::Todo,
                     order: Order::None,
                     kind: SubtaskKind::Custom,
@@ -391,6 +403,7 @@ mod tests {
                 },
                 Subtask {
                     location: loc(4),
+                    indent: 2,
                     status: Status::Todo,
                     order: Order::Ranked(1),
                     kind: SubtaskKind::Custom,
@@ -401,6 +414,7 @@ mod tests {
                 },
                 Subtask {
                     location: loc(5),
+                    indent: 2,
                     status: Status::Todo,
                     order: Order::None,
                     kind: SubtaskKind::Custom,
@@ -420,6 +434,7 @@ mod tests {
         let items = vec![
             FileItem::Task(Task {
                 location: loc(1),
+                indent: 0,
                 status: Status::Done,
                 title: "ship MVP".to_string(),
                 body: vec![],
@@ -431,6 +446,7 @@ mod tests {
             }),
             FileItem::Task(Task {
                 location: loc(5),
+                indent: 0,
                 status: Status::Todo,
                 title: "gather feedback".to_string(),
                 body: vec![],
@@ -678,5 +694,37 @@ more info
         assert_eq!(t0.location, Location { path: path.clone(), line: 3 });
         assert_eq!(t1.location, Location { path: path.clone(), line: 4 });
         assert_eq!(t1.children[0].location, Location { path, line: 5 });
+    }
+
+    #[test]
+    fn parse_records_source_indent() {
+        let input = "\
+- [ ] top
+  - [ ] sub
+    - [ ] deeper
+";
+        let items = p(input);
+        let t = task(&items, 0);
+        assert_eq!(t.indent, 0);
+        assert_eq!(t.children[0].indent, 2);
+        assert_eq!(t.children[0].children[0].indent, 4);
+    }
+
+    #[test]
+    fn parse_keeps_indent_for_orphaned_indented_task() {
+        // The `- [ ] orphan` line is indented like a subtask, but the
+        // preceding blank line breaks the parent-child chain, so the
+        // parser produces it as a top-level Task with indent > 0 — that
+        // is exactly the "wrongly indented" case the checker will flag.
+        let input = "\
+- [ ] real top level
+
+  - [ ] orphan indented
+";
+        let items = p(input);
+        assert_eq!(items.len(), 2);
+        let orphan = task(&items, 1);
+        assert_eq!(orphan.indent, 2);
+        assert_eq!(orphan.title, "orphan indented");
     }
 }

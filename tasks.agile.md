@@ -18,7 +18,15 @@
 ## First basic checks
 - [ ] agile check subcommand created
 - [ ] Check for wrongly indented task (task that is surrounded by newlines but indented like a subtaks)
-- [ ] iterate on the errors
+any operation that parses tasks lists should immediately stop on encountering this error. The error should be printed, including file path and line number
+
+- [ ] iterate on the first error message
+  - [ ] proper coloring
+  - [ ] indenting
+  - [ ] other highlighting
+  Bottom Line: It should be a really ergonomic, nicely readable error message, but which could also be parsed (machine readable)
+  
+  - [ ] foo bad task
 
 
 ## More CLI features

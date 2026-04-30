@@ -1,9 +1,13 @@
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
+pub mod checker;
+pub mod formatter;
 pub mod parser;
+pub mod rules;
 
 use parser::{FileItem, Status};
+use rules::Issue;
 
 /// Formats a list of task file paths into a display string.
 ///
@@ -193,4 +197,12 @@ fn status_marker(status: &parser::Status) -> &'static str {
         parser::Status::Done      => "[x]",
         parser::Status::Cancelled => "[-]",
     }
+}
+
+/// Formats an Issue into ESLint-style output with source context.
+///
+/// Reads the source file, extracts the relevant lines, and formats the output
+/// with color codes (for terminals that support them) and helpful context.
+pub fn format_issue(issue: &Issue) -> String {
+    formatter::format_issue(issue)
 }

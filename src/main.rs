@@ -50,6 +50,13 @@ enum Command {
         #[command(subcommand)]
         action: TaskAction,
     },
+
+    /// Validate task files against the built-in rule set
+    ///
+    /// Parses every *.agile.md file under the current directory and reports
+    /// each issue as `<path>:<line>: <message>` on stdout. Exits with status 1
+    /// if any issue is found, 0 if the project is clean.
+    Check,
 }
 
 #[derive(Subcommand)]
@@ -141,6 +148,16 @@ fn main() {
         Some(Command::Task { action: TaskAction::Next }) => {
             let items = mdagile::parse_files(&mdagile::find_task_files(root));
             print!("{}", mdagile::next_task(&items));
+        }
+        Some(Command::Check) => {
+            let items = mdagile::parse_files(&mdagile::find_task_files(root));
+            let issues = mdagile::checker::run(&items);
+            for issue in &issues {
+                print!("{}", mdagile::format_issue(issue));
+            }
+            if !issues.is_empty() {
+                std::process::exit(1);
+            }
         }
     }
 }

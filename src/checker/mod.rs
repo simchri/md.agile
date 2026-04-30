@@ -1,0 +1,47 @@
+//! Orchestrator for `agile check`.
+//!
+//! Runs every rule defined in [`crate::rules`] against the parsed
+//! `&[FileItem]` and concatenates the results into a single `Vec<Issue>`.
+//! New rules are added by appending to [`run`].
+
+use crate::parser::FileItem;
+use crate::rules::{self, Issue};
+
+/// Runs all checker rules over `items` and returns the collected issues.
+///
+/// Issues are returned in the order their producing rule emits them. An empty
+/// result means the input is clean.
+pub fn run(items: &[FileItem]) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    issues.extend(rules::wrong_indent(items));
+    issues
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::parse;
+    use std::path::PathBuf;
+
+    #[test]
+    fn run_returns_no_issues_for_clean_input() {
+        let input = "\
+- [ ] top
+  - [ ] sub
+";
+        let items = parse(input, PathBuf::from("test.agile.md"));
+        assert!(run(&items).is_empty());
+    }
+
+    #[test]
+    fn run_aggregates_rule_issues() {
+        let input = "\
+- [ ] top
+
+  - [ ] orphan
+";
+        let items = parse(input, PathBuf::from("test.agile.md"));
+        let issues = run(&items);
+        assert_eq!(issues.len(), 1);
+    }
+}

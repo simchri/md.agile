@@ -41,3 +41,6 @@ ENV PATH="/home/${USER}/.local/bin:${PATH}"
 # Claude
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/${USER}/.local/bin:${PATH}"
+
+# Copilot Cli
+RUN curl -fsSL https://gh.io/copilot-install | bash
