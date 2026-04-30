@@ -20,11 +20,12 @@ fn run_check(cwd: &Path) -> Output {
 #[test]
 fn clean_project_exits_zero_with_no_output() {
     let dir = tempdir().unwrap();
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "- [ ] top\n  - [ ] proper sub\n- [x] done\n",
-    )
-    .unwrap();
+    let content = "\
+- [ ] top
+  - [ ] proper sub
+- [x] done
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -45,11 +46,12 @@ fn empty_project_exits_zero() {
 #[test]
 fn flags_orphaned_indented_top_level_task() {
     let dir = tempdir().unwrap();
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "- [ ] proper top\n\n  - [ ] orphan indented\n",
-    )
-    .unwrap();
+    let content = "\
+- [ ] proper top
+
+  - [ ] orphan indented
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -65,16 +67,18 @@ fn flags_orphaned_indented_top_level_task() {
 #[test]
 fn aggregates_issues_across_multiple_files() {
     let dir = tempdir().unwrap();
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "- [ ] top\n\n  - [ ] orphan a\n",
-    )
-    .unwrap();
-    fs::write(
-        dir.path().join("b.agile.md"),
-        "- [ ] top\n\n    - [ ] orphan b\n",
-    )
-    .unwrap();
+    let file_a = "\
+- [ ] top
+
+  - [ ] orphan a
+";
+    let file_b = "\
+- [ ] top
+
+    - [ ] orphan b
+";
+    fs::write(dir.path().join("a.agile.md"), file_a).unwrap();
+    fs::write(dir.path().join("b.agile.md"), file_b).unwrap();
 
     let out = run_check(dir.path());
 
@@ -90,11 +94,12 @@ fn aggregates_issues_across_multiple_files() {
 #[test]
 fn does_not_flag_proper_subtask_under_a_real_parent() {
     let dir = tempdir().unwrap();
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "- [ ] parent\n  - [ ] real subtask\n    - [ ] grandchild\n",
-    )
-    .unwrap();
+    let content = "\
+- [ ] parent
+  - [ ] real subtask
+    - [ ] grandchild
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
     assert!(
