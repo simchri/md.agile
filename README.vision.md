@@ -115,6 +115,51 @@ As your project grows, you may want to split your task list over multiple files.
 
 Recommendation: Keep all files near the top level in a common folder. Anything else just makes understanding priorities confusing.
 
+## File Structure for Large Projects & Archiving
+
+When you initialize task management in a directory with `agile init --large`, the tool automatically creates the following file structure:
+
+TODO: full path of files should be relevant for task priority - because filenames alone are not guaranteed to be unique!
+
+```
+tasks/
+  00_archive/
+    ...
+    2026-04-06_003.agile.md
+    2026-04-13_001.agile.md
+
+  50_current/
+    001.agile.md
+    002.agile.md
+    ...
+
+  60_backlog/
+    001.agile.md
+    002.agile.md
+    ...
+
+  80_inbox/
+    inbox.agile.md
+```
+
+Files in `50_current` and `60_backlog` are numbered sequentially. The numbers establish priority order between files — lower numbers come first. You create new files by incrementing the counter; you never rename existing ones.
+
+You can place new tasks in any of the files, but you are discouraged from touching the archive.
+
+If this file structure is present, the command `agile archive` will move any file in `50_current` or `60_backlog` that contains only completed or cancelled tasks to `00_archive`, prefixing it with today's date (e.g. `001.agile.md` → `2026-04-27_001.agile.md`). The archive is a plain record of when the file was closed out; the timestamp carries no scheduling meaning.
+
+Tasks in `inbox` are never moved automatically.
+
+The following configurations are available
+
+```toml
+[Archive]
+archive_path = "tasks/00_archive/"
+current_path = "tasks/50_current/"
+backlog_path = "tasks/60_backlog/"
+inbox_path = "tasks/80_inbox/"
+```
+
 ## More Features
 
 ### Optional and Mandatory Subtasks
