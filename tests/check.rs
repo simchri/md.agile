@@ -10,7 +10,7 @@ use std::process::{Command, Output};
 use tempfile::tempdir;
 
 fn run_check(cwd: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_mdagile"))
+    Command::new(env!("CARGO_BIN_EXE_agile"))
         .arg("check")
         .current_dir(cwd)
         .output()
