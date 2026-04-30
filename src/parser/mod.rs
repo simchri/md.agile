@@ -31,16 +31,16 @@ pub struct PropertyRef {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PropertyForm {
     Full,
-    Short,                    // #feat_  — brainstorm mode; task cannot be marked Done
-    BranchPending,            // #review...  — outcome not yet chosen
-    BranchResolved(String),   // #review:passed  — branch name in the String
+    Short,                    // #feat_  -- brainstorm mode; task cannot be marked Done
+    BranchPending,            // #review...  -- outcome not yet chosen
+    BranchResolved(String),   // #review:passed  -- branch name in the String
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SpecialMarker {
-    Opt,       // #OPT — subtask does not block parent completion
-    Milestone, // #MILESTONE — file-level divider; see FileItem
-    MdAgile,   // #MDAGILE — file-level directive
+    Opt,       // #OPT -- subtask does not block parent completion
+    Milestone, // #MILESTONE -- file-level divider; see FileItem
+    MdAgile,   // #MDAGILE -- file-level directive
 }
 
 // ── Ordering ──────────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ pub struct Task {
 // ── File-level items ──────────────────────────────────────────────────────────
 
 // Milestones sit positionally *between* tasks in the file, so a flat
-// Vec<FileItem> is the natural representation — no separate index needed.
+// Vec<FileItem> is the natural representation -- no separate index needed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Milestone {
     pub name: String,
@@ -250,7 +250,7 @@ fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str) {
     }
 }
 
-// Splits whitespace-delimited tokens into markers (`#…`, `@…`) and plain
+// Splits whitespace-delimited tokens into markers (`#...`, `@...`) and plain
 // title words, then re-joins the plain words.
 fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
@@ -279,13 +279,13 @@ fn parse_hash_token(name: &str) -> Option<Marker> {
     // Known ALL-CAPS special markers checked explicitly; avoids misidentifying
     // a user property whose name happens to be all-caps.
     match name {
-        "OPT"      => return Some(Marker::Special(SpecialMarker::Opt)),
+        "OPT"       => return Some(Marker::Special(SpecialMarker::Opt)),
         "MILESTONE" => return Some(Marker::Special(SpecialMarker::Milestone)),
-        "MDAGILE"  => return Some(Marker::Special(SpecialMarker::MdAgile)),
+        "MDAGILE"   => return Some(Marker::Special(SpecialMarker::MdAgile)),
         _ => {}
     }
 
-    // `#review...`  — branch outcome not yet chosen
+    // `#review...`  -- branch outcome not yet chosen
     if let Some(base) = name.strip_suffix("...") {
         if !base.is_empty() {
             return Some(Marker::Property(PropertyRef {
@@ -294,7 +294,7 @@ fn parse_hash_token(name: &str) -> Option<Marker> {
         }
     }
 
-    // `#review:passed`  — branch outcome resolved; colon + non-empty suffix
+    // `#review:passed`  -- branch outcome resolved; colon + non-empty suffix
     if let Some(pos) = name.find(':') {
         let (base, branch) = (&name[..pos], &name[pos + 1..]);
         if !base.is_empty() && !branch.is_empty() {
@@ -321,10 +321,10 @@ mod tests {
 
     // Constructs the canonical vision-doc example:
     //   - [ ] #feature: add item to basket
-    //     - [ ] "PO review"          ← property-required, mandatory
-    //     - [ ] #OPT extra polish    ← optional subtask
-    //     - [ ] 1. first step        ← ordered
-    //     - [ ] implement @markus    ← assigned
+    //     - [ ] "PO review"          <- property-required, mandatory
+    //     - [ ] #OPT extra polish    <- optional subtask
+    //     - [ ] 1. first step        <- ordered
+    //     - [ ] implement @markus    <- assigned
     #[test]
     fn can_construct_task_with_all_node_kinds() {
         let task = Task {
@@ -414,7 +414,7 @@ mod tests {
         }
     }
 
-    // ── parse() tests ──────────────────────────────────────────────────────────
+    // ── parse() tests ─────────────────────────────────────────────────────────
 
     fn task(items: &[FileItem], i: usize) -> &Task {
         if let FileItem::Task(t) = &items[i] { t } else { panic!("item {i} is not a Task") }
@@ -422,7 +422,10 @@ mod tests {
 
     #[test]
     fn parse_todo_task() {
-        let items = parse("- [ ] do the thing\n");
+        let input = "\
+- [ ] do the thing
+";
+        let items = parse(input);
         assert_eq!(items.len(), 1);
         assert_eq!(task(&items, 0).status, Status::Todo);
         assert_eq!(task(&items, 0).title, "do the thing");
@@ -430,20 +433,29 @@ mod tests {
 
     #[test]
     fn parse_done_task() {
-        let items = parse("- [x] finished\n");
+        let input = "\
+- [x] finished
+";
+        let items = parse(input);
         assert_eq!(task(&items, 0).status, Status::Done);
     }
 
     #[test]
     fn parse_cancelled_task() {
-        let items = parse("- [-] won't do\n");
+        let input = "\
+- [-] won't do
+";
+        let items = parse(input);
         assert_eq!(task(&items, 0).status, Status::Cancelled);
         assert_eq!(task(&items, 0).title, "won't do");
     }
 
     #[test]
     fn parse_task_with_subtask() {
-        let input = "- [ ] parent\n  - [x] child\n";
+        let input = "\
+- [ ] parent
+  - [x] child
+";
         let items = parse(input);
         assert_eq!(items.len(), 1);
         let t = task(&items, 0);
@@ -454,7 +466,11 @@ mod tests {
 
     #[test]
     fn parse_deeply_nested_subtasks() {
-        let input = "- [ ] root\n  - [ ] level1\n    - [ ] level2\n";
+        let input = "\
+- [ ] root
+  - [ ] level1
+    - [ ] level2
+";
         let items = parse(input);
         let root = task(&items, 0);
         assert_eq!(root.children.len(), 1);
@@ -465,7 +481,11 @@ mod tests {
 
     #[test]
     fn parse_multiple_consecutive_tasks() {
-        let input = "- [ ] task a\n- [ ] task b\n- [x] task c\n";
+        let input = "\
+- [ ] task a
+- [ ] task b
+- [x] task c
+";
         let items = parse(input);
         assert_eq!(items.len(), 3);
         assert_eq!(task(&items, 0).title, "task a");
@@ -475,7 +495,10 @@ mod tests {
 
     #[test]
     fn parse_property_marker_in_title() {
-        let items = parse("- [ ] #feature: add basket\n");
+        let input = "\
+- [ ] #feature: add basket
+";
+        let items = parse(input);
         let t = task(&items, 0);
         assert_eq!(t.title, "add basket");
         assert_eq!(t.markers, vec![Marker::Property(PropertyRef {
@@ -486,7 +509,10 @@ mod tests {
 
     #[test]
     fn parse_assignment_marker_in_title() {
-        let items = parse("- [ ] implement @markus\n");
+        let input = "\
+- [ ] implement @markus
+";
+        let items = parse(input);
         let t = task(&items, 0);
         assert_eq!(t.title, "implement");
         assert_eq!(t.markers, vec![Marker::Assignment("markus".to_string())]);
@@ -494,7 +520,10 @@ mod tests {
 
     #[test]
     fn parse_opt_subtask() {
-        let input = "- [ ] parent\n  - [ ] #OPT optional thing\n";
+        let input = "\
+- [ ] parent
+  - [ ] #OPT optional thing
+";
         let items = parse(input);
         let sub = &task(&items, 0).children[0];
         assert_eq!(sub.title, "optional thing");
@@ -503,7 +532,11 @@ mod tests {
 
     #[test]
     fn parse_ordered_subtask() {
-        let input = "- [ ] parent\n  - [ ] 1. first step\n  - [ ] 2. second step\n";
+        let input = "\
+- [ ] parent
+  - [ ] 1. first step
+  - [ ] 2. second step
+";
         let items = parse(input);
         let children = &task(&items, 0).children;
         assert_eq!(children[0].order, Order::Ranked(1));
@@ -513,7 +546,10 @@ mod tests {
 
     #[test]
     fn parse_property_required_subtask() {
-        let input = "- [ ] parent\n  - [ ] \"PO review\"\n";
+        let input = "\
+- [ ] parent
+  - [ ] \"PO review\"
+";
         let items = parse(input);
         let sub = &task(&items, 0).children[0];
         assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
@@ -522,14 +558,23 @@ mod tests {
 
     #[test]
     fn parse_milestone() {
-        let items = parse("#MILESTONE: Release of MVP\n");
+        let input = "\
+#MILESTONE: Release of MVP
+";
+        let items = parse(input);
         assert_eq!(items.len(), 1);
         assert!(matches!(&items[0], FileItem::Milestone(m) if m.name == "Release of MVP"));
     }
 
     #[test]
     fn parse_tasks_with_milestone_between() {
-        let input = "- [x] ship MVP\n\n#MILESTONE: Release of MVP\n\n- [ ] gather feedback\n";
+        let input = "\
+- [x] ship MVP
+
+#MILESTONE: Release of MVP
+
+- [ ] gather feedback
+";
         let items = parse(input);
         assert_eq!(items.len(), 3);
         assert!(matches!(&items[0], FileItem::Task(_)));
@@ -539,7 +584,10 @@ mod tests {
 
     #[test]
     fn parse_branch_pending_marker() {
-        let items = parse("- [ ] perform #review...\n");
+        let input = "\
+- [ ] perform #review...
+";
+        let items = parse(input);
         let markers = &task(&items, 0).markers;
         assert_eq!(markers, &vec![Marker::Property(PropertyRef {
             name: "review".to_string(),
@@ -549,7 +597,10 @@ mod tests {
 
     #[test]
     fn parse_branch_resolved_marker() {
-        let items = parse("- [x] perform #review:passed\n");
+        let input = "\
+- [x] perform #review:passed
+";
+        let items = parse(input);
         let markers = &task(&items, 0).markers;
         assert_eq!(markers, &vec![Marker::Property(PropertyRef {
             name: "review".to_string(),
@@ -559,7 +610,13 @@ mod tests {
 
     #[test]
     fn parse_task_body_lines() {
-        let input = "- [ ] do the thing\nsome details here\nmore info\n\n- [ ] next task\n";
+        let input = "\
+- [ ] do the thing
+some details here
+more info
+
+- [ ] next task
+";
         let items = parse(input);
         assert_eq!(items.len(), 2);
         assert_eq!(task(&items, 0).body, vec!["some details here", "more info"]);
