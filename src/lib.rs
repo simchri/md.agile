@@ -2,6 +2,8 @@ use ignore::WalkBuilder;
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use std::path::{Path, PathBuf};
 
+pub mod parser;
+
 /// Formats a list of task file paths into a display string.
 ///
 /// Each line is `<filename>  <full-path>`, terminated with a newline.
