@@ -44,3 +44,5 @@ ENV PATH="/home/${USER}/.local/bin:${PATH}"
 
 # Copilot Cli
 RUN curl -fsSL https://gh.io/copilot-install | bash
+
+ENV VISUAL=vim
