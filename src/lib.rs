@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 pub mod checker;
 pub mod formatter;
+pub mod lsp;
 pub mod parser;
 pub mod rules;
 

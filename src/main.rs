@@ -57,6 +57,14 @@ enum Command {
     /// each issue as `<path>:<line>: <message>` on stdout. Exits with status 1
     /// if any issue is found, 0 if the project is clean.
     Check,
+
+    /// Start Language Server Protocol (LSP) mode
+    ///
+    /// Runs a JSON-RPC 2.0 language server on stdin/stdout. This allows IDEs
+    /// (VS Code, Vim, Neovim, etc.) to get real-time validation of .agile.md files
+    /// as the user edits them. The server processes messages according to the
+    /// LSP specification.
+    Lsp,
 }
 
 #[derive(Subcommand)]
@@ -156,6 +164,12 @@ fn main() {
                 print!("{}", mdagile::format_issue(issue));
             }
             if !issues.is_empty() {
+                std::process::exit(1);
+            }
+        }
+        Some(Command::Lsp) => {
+            if let Err(e) = mdagile::lsp::run() {
+                eprintln!("LSP server error: {}", e);
                 std::process::exit(1);
             }
         }

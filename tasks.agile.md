@@ -74,5 +74,54 @@ any operation that parses tasks lists should immediately stop on encountering th
   - [ ] most important flags to each subcommand
 
 
+## Language Server Protocol (LSP) Support
+
+- [ ] LSP Phase 1: Core Foundation (Hello World)
+  Entry point: `agile lsp` (stdin/stdout JSON-RPC)
+  - [ ] Create src/lsp/protocol.rs — LSP message types (serde)
+    - [ ] InitializeRequest/Response
+    - [ ] DidOpenTextDocument / DidChangeTextDocument notifications
+    - [ ] PublishDiagnosticsNotification
+    - [ ] JsonRpc message wrapper
+  - [ ] Create src/lsp/mod.rs — Main server loop
+    - [ ] Read JSON-RPC from stdin
+    - [ ] Dispatch to handlers
+    - [ ] Write responses to stdout
+  - [ ] Create src/lsp/handler.rs — Request handlers
+    - [ ] handle_initialize() — respond with server capabilities
+    - [ ] handle_did_open() — track opened documents
+    - [ ] handle_did_change() — re-validate on content changes
+    - [ ] handle_shutdown() — cleanup
+  - [ ] Wire up Command::Lsp in src/main.rs
+  - [ ] Create tests/lsp_basic.rs — acceptance tests
+    - [ ] initialize request/response
+    - [ ] document open/change/close tracking
+  - [ ] All tests pass
+
+- [ ] LSP Phase 2: Real-time Validation
+  - [ ] Create src/lsp/diagnostics.rs — Convert Issue → LSP Diagnostic
+    - [ ] Map error codes to severity
+    - [ ] Include error message, code, help text
+  - [ ] Integrate with existing checker::run()
+  - [ ] Validate on textDocument/didOpen and didChange
+  - [ ] Publish diagnostics for all errors (E001, E002, E003, etc.)
+  - [ ] Create tests/lsp_diagnostics.rs — validation tests
+    - [ ] E001 errors generate correct diagnostics
+    - [ ] Multiple errors aggregated
+    - [ ] Clean files produce no diagnostics
+  - [ ] Test with real .agile.md files
+
+- [ ] LSP Phase 3: IDE Integration
+  - [ ] Document VS Code setup (.vscode/settings.json)
+  - [ ] Document Vim/Neovim setup (init.lua example)
+  - [ ] Add LSP section to README.md
+  - [ ] Provide troubleshooting guide
+
+- [ ] LSP Phase 4: Enhanced Features (Optional)
+  - [ ] textDocument/hover — show property definitions
+  - [ ] textDocument/codeAction — quick fixes for common errors
+  - [ ] textDocument/completion — suggest properties, users, groups
+  - [ ] File diagnostics on save with `agile check --fix`
 
 
+## More CLI features
