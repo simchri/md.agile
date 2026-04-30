@@ -1,5 +1,16 @@
 use std::path::PathBuf;
 
+// ── Location ──────────────────────────────────────────────────────────────────
+
+// Every Task and Subtask carries the file path and 1-based line number where
+// its `- [...] ...` row appears. Locations are populated by `parse()` from the
+// path argument and the source line index.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Location {
+    pub path: PathBuf,
+    pub line: usize,
+}
+
 // ── Status ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,6 +79,7 @@ pub enum SubtaskKind {
 // meaning.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Subtask {
+    pub location: Location,
     pub status:   Status,
     pub order:    Order,
     pub kind:     SubtaskKind,
@@ -81,6 +93,7 @@ pub struct Subtask {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Task {
+    pub location: Location,
     pub status:   Status,
     pub title:    String,
     pub body:     Vec<String>,
@@ -115,6 +128,7 @@ pub struct TaskFile {
 // Task or Subtask when popped. Keeps a single code path for both node kinds.
 struct PartialItem {
     depth:    usize,
+    location: Location,
     status:   Status,
     order:    Order,
     kind:     SubtaskKind,
@@ -126,24 +140,30 @@ struct PartialItem {
 
 impl PartialItem {
     fn into_task(self) -> Task {
-        Task { status: self.status, title: self.title, body: self.body,
-               markers: self.markers, children: self.children }
+        Task { location: self.location, status: self.status, title: self.title,
+               body: self.body, markers: self.markers, children: self.children }
     }
     fn into_subtask(self) -> Subtask {
-        Subtask { status: self.status, order: self.order, kind: self.kind,
-                  title: self.title, body: self.body,
+        Subtask { location: self.location, status: self.status, order: self.order,
+                  kind: self.kind, title: self.title, body: self.body,
                   markers: self.markers, children: self.children }
     }
 }
 
 /// Parses a single `.agile.md` file's text into a sequence of [`FileItem`]s.
 ///
+/// `path` is the source file path; it is recorded into every parsed Task and
+/// Subtask via [`Location`] so callers (editor jump, LSP, error messages) can
+/// trace each node back to its origin. Pass `PathBuf::new()` only if no real
+/// path exists (e.g. unit tests that don't care about location).
+///
 /// Non-task content (headings, prose outside a task block) is silently ignored.
-pub fn parse(input: &str) -> Vec<FileItem> {
+pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
     let mut items: Vec<FileItem> = Vec::new();
     let mut stack: Vec<PartialItem> = Vec::new();
 
-    for line in input.lines() {
+    for (idx, line) in input.lines().enumerate() {
+        let line_no = idx + 1;
         if line.trim().is_empty() {
             flush_stack(&mut stack, &mut items);
             continue;
@@ -166,7 +186,9 @@ pub fn parse(input: &str) -> Vec<FileItem> {
             let (kind, rest)  = parse_subtask_kind(rest);
             let (markers, title) = parse_markers(rest);
             stack.push(PartialItem {
-                depth, status, order, kind,
+                depth,
+                location: Location { path: path.clone(), line: line_no },
+                status, order, kind,
                 title, body: Vec::new(), markers, children: Vec::new(),
             });
             continue;
@@ -319,6 +341,16 @@ fn parse_hash_token(name: &str) -> Option<Marker> {
 mod tests {
     use super::*;
 
+    // Tests that don't care about source location share this dummy path.
+    fn loc(line: usize) -> Location {
+        Location { path: PathBuf::from("test.agile.md"), line }
+    }
+
+    // Wrapper around `parse` so tests don't have to repeat the dummy path.
+    fn p(input: &str) -> Vec<FileItem> {
+        parse(input, PathBuf::from("test.agile.md"))
+    }
+
     // Constructs the canonical vision-doc example:
     //   - [ ] #feature: add item to basket
     //     - [ ] "PO review"          <- property-required, mandatory
@@ -328,6 +360,7 @@ mod tests {
     #[test]
     fn can_construct_task_with_all_node_kinds() {
         let task = Task {
+            location: loc(1),
             status: Status::Todo,
             title: "add item to basket".to_string(),
             body: vec![],
@@ -337,6 +370,7 @@ mod tests {
             })],
             children: vec![
                 Subtask {
+                    location: loc(2),
                     status: Status::Todo,
                     order: Order::None,
                     kind: SubtaskKind::PropertyRequired,
@@ -346,6 +380,7 @@ mod tests {
                     children: vec![],
                 },
                 Subtask {
+                    location: loc(3),
                     status: Status::Todo,
                     order: Order::None,
                     kind: SubtaskKind::Custom,
@@ -355,6 +390,7 @@ mod tests {
                     children: vec![],
                 },
                 Subtask {
+                    location: loc(4),
                     status: Status::Todo,
                     order: Order::Ranked(1),
                     kind: SubtaskKind::Custom,
@@ -364,6 +400,7 @@ mod tests {
                     children: vec![],
                 },
                 Subtask {
+                    location: loc(5),
                     status: Status::Todo,
                     order: Order::None,
                     kind: SubtaskKind::Custom,
@@ -382,6 +419,7 @@ mod tests {
     fn file_items_interleave_tasks_and_milestones() {
         let items = vec![
             FileItem::Task(Task {
+                location: loc(1),
                 status: Status::Done,
                 title: "ship MVP".to_string(),
                 body: vec![],
@@ -392,6 +430,7 @@ mod tests {
                 name: "Release of MVP".to_string(),
             }),
             FileItem::Task(Task {
+                location: loc(5),
                 status: Status::Todo,
                 title: "gather feedback".to_string(),
                 body: vec![],
@@ -425,7 +464,7 @@ mod tests {
         let input = "\
 - [ ] do the thing
 ";
-        let items = parse(input);
+        let items = p(input);
         assert_eq!(items.len(), 1);
         assert_eq!(task(&items, 0).status, Status::Todo);
         assert_eq!(task(&items, 0).title, "do the thing");
@@ -436,7 +475,7 @@ mod tests {
         let input = "\
 - [x] finished
 ";
-        let items = parse(input);
+        let items = p(input);
         assert_eq!(task(&items, 0).status, Status::Done);
     }
 
@@ -445,7 +484,7 @@ mod tests {
         let input = "\
 - [-] won't do
 ";
-        let items = parse(input);
+        let items = p(input);
         assert_eq!(task(&items, 0).status, Status::Cancelled);
         assert_eq!(task(&items, 0).title, "won't do");
     }
@@ -456,7 +495,7 @@ mod tests {
 - [ ] parent
   - [x] child
 ";
-        let items = parse(input);
+        let items = p(input);
         assert_eq!(items.len(), 1);
         let t = task(&items, 0);
         assert_eq!(t.children.len(), 1);
@@ -471,7 +510,7 @@ mod tests {
   - [ ] level1
     - [ ] level2
 ";
-        let items = parse(input);
+        let items = p(input);
         let root = task(&items, 0);
         assert_eq!(root.children.len(), 1);
         assert_eq!(root.children[0].title, "level1");
@@ -486,7 +525,7 @@ mod tests {
 - [ ] task b
 - [x] task c
 ";
-        let items = parse(input);
+        let items = p(input);
         assert_eq!(items.len(), 3);
         assert_eq!(task(&items, 0).title, "task a");
         assert_eq!(task(&items, 1).title, "task b");
@@ -498,7 +537,7 @@ mod tests {
         let input = "\
 - [ ] #feature: add basket
 ";
-        let items = parse(input);
+        let items = p(input);
         let t = task(&items, 0);
         assert_eq!(t.title, "add basket");
         assert_eq!(t.markers, vec![Marker::Property(PropertyRef {
@@ -512,7 +551,7 @@ mod tests {
         let input = "\
 - [ ] implement @markus
 ";
-        let items = parse(input);
+        let items = p(input);
         let t = task(&items, 0);
         assert_eq!(t.title, "implement");
         assert_eq!(t.markers, vec![Marker::Assignment("markus".to_string())]);
@@ -524,7 +563,7 @@ mod tests {
 - [ ] parent
   - [ ] #OPT optional thing
 ";
-        let items = parse(input);
+        let items = p(input);
         let sub = &task(&items, 0).children[0];
         assert_eq!(sub.title, "optional thing");
         assert_eq!(sub.markers, vec![Marker::Special(SpecialMarker::Opt)]);
@@ -537,7 +576,7 @@ mod tests {
   - [ ] 1. first step
   - [ ] 2. second step
 ";
-        let items = parse(input);
+        let items = p(input);
         let children = &task(&items, 0).children;
         assert_eq!(children[0].order, Order::Ranked(1));
         assert_eq!(children[0].title, "first step");
@@ -550,7 +589,7 @@ mod tests {
 - [ ] parent
   - [ ] \"PO review\"
 ";
-        let items = parse(input);
+        let items = p(input);
         let sub = &task(&items, 0).children[0];
         assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
         assert_eq!(sub.title, "PO review");
@@ -561,7 +600,7 @@ mod tests {
         let input = "\
 #MILESTONE: Release of MVP
 ";
-        let items = parse(input);
+        let items = p(input);
         assert_eq!(items.len(), 1);
         assert!(matches!(&items[0], FileItem::Milestone(m) if m.name == "Release of MVP"));
     }
@@ -575,7 +614,7 @@ mod tests {
 
 - [ ] gather feedback
 ";
-        let items = parse(input);
+        let items = p(input);
         assert_eq!(items.len(), 3);
         assert!(matches!(&items[0], FileItem::Task(_)));
         assert!(matches!(&items[1], FileItem::Milestone(_)));
@@ -587,7 +626,7 @@ mod tests {
         let input = "\
 - [ ] perform #review...
 ";
-        let items = parse(input);
+        let items = p(input);
         let markers = &task(&items, 0).markers;
         assert_eq!(markers, &vec![Marker::Property(PropertyRef {
             name: "review".to_string(),
@@ -600,7 +639,7 @@ mod tests {
         let input = "\
 - [x] perform #review:passed
 ";
-        let items = parse(input);
+        let items = p(input);
         let markers = &task(&items, 0).markers;
         assert_eq!(markers, &vec![Marker::Property(PropertyRef {
             name: "review".to_string(),
@@ -617,9 +656,27 @@ more info
 
 - [ ] next task
 ";
-        let items = parse(input);
+        let items = p(input);
         assert_eq!(items.len(), 2);
         assert_eq!(task(&items, 0).body, vec!["some details here", "more info"]);
         assert!(task(&items, 1).body.is_empty());
+    }
+
+    #[test]
+    fn parse_records_task_locations() {
+        let input = "\
+# heading
+
+- [x] done
+- [ ] active
+  - [ ] sub
+";
+        let path = PathBuf::from("/abs/file.agile.md");
+        let items = parse(input, path.clone());
+        let t0 = task(&items, 0);
+        let t1 = task(&items, 1);
+        assert_eq!(t0.location, Location { path: path.clone(), line: 3 });
+        assert_eq!(t1.location, Location { path: path.clone(), line: 4 });
+        assert_eq!(t1.children[0].location, Location { path, line: 5 });
     }
 }

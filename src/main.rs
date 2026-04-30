@@ -123,11 +123,11 @@ fn main() {
         },
         Some(Command::List { what: None, next, last, all })
         | Some(Command::List { what: Some(ListWhat::Tasks { next, last, all }), .. }) => {
-            let content = mdagile::read_task_files(root);
+            let items = mdagile::parse_files(&mdagile::find_task_files(root));
             let blocks = if all {
-                mdagile::list_task_blocks(&content)
+                mdagile::list_task_blocks(&items)
             } else {
-                mdagile::active_task_blocks(&content)
+                mdagile::active_task_blocks(&items)
             };
             let result: String = apply_limit(blocks, next, last).into_iter().collect();
             print!("{result}");
@@ -138,7 +138,8 @@ fn main() {
             print!("{}", mdagile::format_file_list(&limited));
         }
         Some(Command::Task { action: TaskAction::Next }) => {
-            print!("{}", mdagile::next_task(&mdagile::read_task_files(root)));
+            let items = mdagile::parse_files(&mdagile::find_task_files(root));
+            print!("{}", mdagile::next_task(&items));
         }
     }
 }

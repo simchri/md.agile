@@ -1,4 +1,4 @@
-use mdagile::{find_task_files, list_tasks, next_task, read_task_files};
+use mdagile::{find_task_files, list_tasks, next_task, parse_files};
 use std::fs;
 use tempfile::tempdir;
 
@@ -32,7 +32,8 @@ fn current_tasks_listed_before_backlog_before_inbox() {
 [ ] inbox task one
 [ ] inbox task two
 ";
-    assert_eq!(list_tasks(&read_task_files(dir.path())), expected);
+    let items = parse_files(&find_task_files(dir.path()));
+    assert_eq!(list_tasks(&items), expected);
 }
 
 #[test]
@@ -58,7 +59,8 @@ fn next_task_comes_from_current_not_backlog() {
     fs::write(tasks.join("c_inbox.agile.md"), inbox).unwrap();
 
     let expected = "[ ] current task one\n".to_string();
-    assert_eq!(next_task(&read_task_files(dir.path())), expected);
+    let items = parse_files(&find_task_files(dir.path()));
+    assert_eq!(next_task(&items), expected);
 }
 
 #[test]
@@ -78,7 +80,8 @@ fn next_task_falls_through_to_backlog_when_current_is_done() {
     fs::write(tasks.join("c_inbox.agile.md"), inbox).unwrap();
 
     let expected = "[ ] backlog task one\n".to_string();
-    assert_eq!(next_task(&read_task_files(dir.path())), expected);
+    let items = parse_files(&find_task_files(dir.path()));
+    assert_eq!(next_task(&items), expected);
 }
 
 #[test]
@@ -102,5 +105,6 @@ fn identical_filenames_ordered_by_directory_path() {
     );
 
     let expected = "[ ] current task\n[ ] backlog task\n";
-    assert_eq!(list_tasks(&read_task_files(dir.path())), expected);
+    let items = parse_files(&find_task_files(dir.path()));
+    assert_eq!(list_tasks(&items), expected);
 }

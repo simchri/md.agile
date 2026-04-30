@@ -1,4 +1,10 @@
+use mdagile::parser::{self, FileItem};
 use mdagile::{active_task_blocks, list_tasks};
+use std::path::PathBuf;
+
+fn p(input: &str) -> Vec<FileItem> {
+    parser::parse(input, PathBuf::from("test.agile.md"))
+}
 
 #[test]
 fn active_excludes_done_and_cancelled() {
@@ -12,7 +18,7 @@ fn active_excludes_done_and_cancelled() {
 [ ] active task
 [ ] another active task
 ";
-    assert_eq!(active_task_blocks(input).into_iter().collect::<String>(), expected);
+    assert_eq!(active_task_blocks(&p(input)).into_iter().collect::<String>(), expected);
 }
 
 #[test]
@@ -24,7 +30,7 @@ fn active_includes_todo_parent_with_done_subtasks() {
   - [x] done subtask
 ";
     let expected = "[ ] active parent\n  [x] done subtask\n";
-    assert_eq!(active_task_blocks(input).into_iter().collect::<String>(), expected);
+    assert_eq!(active_task_blocks(&p(input)).into_iter().collect::<String>(), expected);
 }
 
 #[test]
@@ -33,12 +39,12 @@ fn active_empty_when_nothing_todo() {
 - [x] done one
 - [-] cancelled one
 ";
-    assert_eq!(active_task_blocks(input).into_iter().collect::<String>(), "".to_string());
+    assert_eq!(active_task_blocks(&p(input)).into_iter().collect::<String>(), "".to_string());
 }
 
 #[test]
 fn empty_input_produces_no_output() {
-    assert_eq!(list_tasks(""), "".to_string());
+    assert_eq!(list_tasks(&p("")), "".to_string());
 }
 
 #[test]
@@ -48,7 +54,7 @@ fn file_with_no_tasks_produces_no_output() {
 
 Some notes, no tasks here.
 ";
-    assert_eq!(list_tasks(input), "".to_string());
+    assert_eq!(list_tasks(&p(input)), "".to_string());
 }
 
 #[test]
@@ -63,7 +69,7 @@ fn deeply_nested_tasks() {
   [ ] level two
     [x] level three
 ";
-    assert_eq!(list_tasks(input), expected);
+    assert_eq!(list_tasks(&p(input)), expected);
 }
 
 #[test]
@@ -83,7 +89,7 @@ fn list_tasks_basic() {
 [x] another task
 [-] a cancelled task
 ";
-    assert_eq!(list_tasks(input), expected);
+    assert_eq!(list_tasks(&p(input)), expected);
 }
 
 #[test]
@@ -107,7 +113,7 @@ Nice work everyone.
 [x] second task
 [-] third task (cancelled)
 ";
-    assert_eq!(list_tasks(input), expected);
+    assert_eq!(list_tasks(&p(input)), expected);
 }
 
 #[test]
@@ -126,5 +132,5 @@ fn task_body_text_not_listed() {
   [ ] a subtask
 [x] another task
 ";
-    assert_eq!(list_tasks(input), expected);
+    assert_eq!(list_tasks(&p(input)), expected);
 }
