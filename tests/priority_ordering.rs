@@ -1,4 +1,4 @@
-use mdagile::{list_tasks, next_task, read_task_files};
+use mdagile::{find_task_files, list_tasks, next_task, read_task_files};
 use std::fs;
 use tempfile::tempdir;
 
@@ -79,4 +79,28 @@ fn next_task_falls_through_to_backlog_when_current_is_done() {
 
     let expected = "[ ] backlog task one\n".to_string();
     assert_eq!(next_task(&read_task_files(dir.path())), expected);
+}
+
+#[test]
+fn identical_filenames_ordered_by_directory_path() {
+    // Two files both named 001.agile.md; priority must come from directory prefix
+    let dir = tempdir().unwrap();
+    let tasks = dir.path().join("tasks");
+    let current = tasks.join("50_current");
+    let backlog = tasks.join("60_backlog");
+    fs::create_dir_all(&current).unwrap();
+    fs::create_dir_all(&backlog).unwrap();
+
+    fs::write(current.join("001.agile.md"), "- [ ] current task\n").unwrap();
+    fs::write(backlog.join("001.agile.md"), "- [ ] backlog task\n").unwrap();
+
+    let paths = find_task_files(dir.path());
+    assert!(
+        paths[0].ends_with("50_current/001.agile.md"),
+        "50_current should come first, got {:?}",
+        paths
+    );
+
+    let expected = "[ ] current task\n[ ] backlog task\n";
+    assert_eq!(list_tasks(&read_task_files(dir.path())), expected);
 }

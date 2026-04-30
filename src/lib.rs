@@ -30,8 +30,10 @@ pub fn read_task_files(root: &Path) -> String {
 
 /// Finds all `*.agile.md` files anywhere under `root`, respecting `.gitignore`.
 ///
-/// Results are sorted alphabetically by filename only; directory path does not
-/// affect ordering. This sort order defines the global task priority across files.
+/// Results are sorted by their path relative to `root`. This means directory
+/// components participate in the sort: `50_current/001.agile.md` outranks
+/// `60_backlog/001.agile.md` even though both filenames are identical.
+/// This sort order defines the global task priority across files.
 pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
     let mut paths: Vec<PathBuf> = WalkBuilder::new(root)
         .build()
@@ -43,7 +45,7 @@ pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
         .map(|e| e.into_path())
         .collect();
 
-    paths.sort_by_key(|p| p.file_name().map(|n| n.to_os_string()));
+    paths.sort_by_key(|p| p.strip_prefix(root).map(|r| r.to_path_buf()).unwrap_or_else(|_| p.clone()));
     paths
 }
 
@@ -164,7 +166,7 @@ pub fn find_next_task_line(path: &Path) -> Option<usize> {
 
 /// Returns the path of the highest-priority task file that contains at least one active task.
 ///
-/// Files are evaluated in priority order (alphabetical by filename). Returns `None` if no
+/// Files are evaluated in priority order (alphabetical by relative path). Returns `None` if no
 /// file has any incomplete `[ ]` top-level tasks, or if no task files exist under `root`.
 pub fn find_file_with_next_task(root: &Path) -> Option<PathBuf> {
     find_task_files(root).into_iter().find(|p| {

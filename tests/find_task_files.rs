@@ -21,17 +21,18 @@ fn returns_only_agile_md_files() {
 }
 
 #[test]
-fn sorted_by_filename_ignoring_path() {
+fn directory_prefix_determines_order() {
     let dir = tempdir().unwrap();
     let sub = dir.path().join("zzz-subdir");
     fs::create_dir(&sub).unwrap();
 
     fs::write(dir.path().join("charlie.agile.md"), "").unwrap();
-    fs::write(sub.join("alpha.agile.md"), "").unwrap();    // deep path but 'a' sorts first
+    fs::write(sub.join("alpha.agile.md"), "").unwrap(); // 'z' subdir sorts after root files
     fs::write(dir.path().join("bravo.agile.md"), "").unwrap();
 
     let files = find_task_files(dir.path());
-    assert_eq!(filenames(&files), vec!["alpha.agile.md", "bravo.agile.md", "charlie.agile.md"]);
+    // root-level files (bravo, charlie) sort before zzz-subdir/alpha
+    assert_eq!(filenames(&files), vec!["bravo.agile.md", "charlie.agile.md", "alpha.agile.md"]);
 }
 
 #[test]
@@ -44,7 +45,8 @@ fn finds_files_in_subdirectories() {
     fs::write(sub.join("nested.agile.md"), "").unwrap();
 
     let files = find_task_files(dir.path());
-    assert_eq!(filenames(&files), vec!["nested.agile.md", "root.agile.md"]);
+    // root.agile.md sorts before subdir/nested.agile.md ('r' < 's')
+    assert_eq!(filenames(&files), vec!["root.agile.md", "nested.agile.md"]);
 }
 
 #[test]
@@ -56,10 +58,11 @@ fn format_file_list_shows_filename_and_full_path() {
     fs::write(sub.join("alpha.agile.md"), "").unwrap();
 
     let paths = find_task_files(dir.path());
+    // beta.agile.md is at root ('b' < 's'), so it comes before subdir/alpha.agile.md
     let expected = format!(
-        "alpha.agile.md  {}\nbeta.agile.md  {}\n",
-        sub.join("alpha.agile.md").display(),
+        "beta.agile.md  {}\nalpha.agile.md  {}\n",
         dir.path().join("beta.agile.md").display(),
+        sub.join("alpha.agile.md").display(),
     );
     assert_eq!(format_file_list(&paths), expected);
 }
