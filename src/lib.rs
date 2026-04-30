@@ -196,41 +196,46 @@ pub fn active_task_blocks(input: &str) -> Vec<String> {
 /// top-level marker is todo (`[ ]`). Done and cancelled tasks are skipped. Returns
 /// an empty string if every task is complete or cancelled, or if there are no tasks.
 pub fn next_task(input: &str) -> String {
-    let mut out = String::new();
-    let mut list_depth: usize = 0;
-    let mut stack: Vec<ItemState> = Vec::new();
-    let mut capturing = false;
-
-    for event in make_parser(input) {
-        match event {
-            Event::Start(Tag::List(_)) => list_depth += 1,
-            Event::End(TagEnd::List(_)) => list_depth -= 1,
-            Event::Start(Tag::Item) => stack.push(ItemState::new()),
-            Event::End(TagEnd::Item) => {
-                let at_top = list_depth == 1 && stack.len() == 1;
-                stack.pop();
-                if capturing && at_top {
-                    return out;
-                }
+    use parser::{FileItem, Status};
+    for item in parser::parse(input) {
+        if let FileItem::Task(task) = item {
+            if task.status == Status::Todo {
+                let mut out = String::new();
+                render_task(&task, &mut out);
+                return out;
             }
-            Event::TaskListMarker(checked) => {
-                if let Some(item) = stack.last_mut() {
-                    item.kind = if checked { ItemKind::Done } else { ItemKind::Todo };
-                }
-                if !capturing && !checked && list_depth == 1 && stack.len() == 1 {
-                    capturing = true;
-                }
-            }
-            Event::Text(text) => {
-                if capturing {
-                    if let Some(item) = stack.last_mut() {
-                        write_task_text(&mut out, item, &text, list_depth);
-                    }
-                }
-            }
-            _ => {}
         }
     }
+    String::new()
+}
 
-    out
+fn render_task(task: &parser::Task, out: &mut String) {
+    out.push_str(status_marker(&task.status));
+    out.push(' ');
+    out.push_str(&task.title);
+    out.push('\n');
+    for child in &task.children {
+        render_subtask(child, 1, out);
+    }
+}
+
+fn render_subtask(sub: &parser::Subtask, depth: usize, out: &mut String) {
+    for _ in 0..depth {
+        out.push_str("  ");
+    }
+    out.push_str(status_marker(&sub.status));
+    out.push(' ');
+    out.push_str(&sub.title);
+    out.push('\n');
+    for child in &sub.children {
+        render_subtask(child, depth + 1, out);
+    }
+}
+
+fn status_marker(status: &parser::Status) -> &'static str {
+    match status {
+        parser::Status::Todo      => "[ ]",
+        parser::Status::Done      => "[x]",
+        parser::Status::Cancelled => "[-]",
+    }
 }
