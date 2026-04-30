@@ -7,6 +7,10 @@ edition = "2024"
 name = "agile"
 path = "src/main.rs"
 
+[[bin]]
+name = "agilels"
+path = "src/bin/agilels.rs"
+
 [dev-dependencies]
 tempfile = "3"
 

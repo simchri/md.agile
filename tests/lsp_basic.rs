@@ -7,13 +7,12 @@ use std::process::{Command, Stdio};
 use std::io::{Write, BufRead, BufReader};
 
 fn start_lsp_server() -> (std::process::Child, BufReader<std::process::ChildStdout>) {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_agile"))
-        .arg("lsp")
+    let mut child = Command::new(env!("CARGO_BIN_EXE_agilels"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("failed to spawn `agile lsp`");
+        .expect("failed to spawn `agilels`");
 
     let stdout = child.stdout.take().expect("stdout");
     let reader = BufReader::new(stdout);

@@ -26,6 +26,7 @@ any operation that parses tasks lists should immediately stop on encountering th
   - [x] other highlighting
   Bottom Line: It should be a really ergonomic, nicely readable error message, but which could also be parsed (machine readable)
 
+
 ## Fixes
 - [x] clarify the command name - is it "agile" or "mdagile". The produced binary seems to be "mdagile". Check again what is says in the "vision" file, then fix accordingly
   Binary is now explicitly named "agile" via [[bin]] in Cargo.toml, matching vision.md
@@ -67,6 +68,12 @@ any operation that parses tasks lists should immediately stop on encountering th
   - [ ] Decide: warning (exit 0) vs error (exit 1)?
   - [ ] Consider: add --strict flag to promote warnings to errors
 
+
+  - [ ]  wrong task
+
+...nt_nvimVdIwvV/usr/share/nvim/runtime/lua/vim/lsp/rpc.lua:800: Spawning language server with cmd: `{ "agile", "lsp" }` failed. The language server is either not installed, missing from PATH, or not executable.
+
+Client agile quit with exit code 1 and signal 0. Check log for errors: /home/simon/.local/state/nvim/lsp.log
 
 ## More CLI features
 - [ ] create a global overview of the CLI structure

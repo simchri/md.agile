@@ -1,9 +1,13 @@
 //! LSP request and notification handlers.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::io::Write;
 use serde_json::json;
 
-use crate::lsp::protocol::JsonRpcMessage;
+use crate::lsp::protocol::{JsonRpcMessage, PublishDiagnosticsParams, Diagnostic, Range, Position, JsonRpcResponse};
+use crate::parser::parse;
+use crate::checker;
 
 /// State manager for the LSP server.
 ///
@@ -47,7 +51,7 @@ impl Handler {
 
     /// Handle `textDocument/didOpen` notification.
     ///
-    /// Stores the document and could trigger initial validation.
+    /// Stores the document and validates it.
     pub fn did_open(&mut self, msg: &JsonRpcMessage) {
         if let Some(params) = &msg.params {
             if let Ok(doc_uri) = params.get("textDocument")
@@ -61,7 +65,7 @@ impl Handler {
                     .ok_or(())
                 {
                     self.documents.insert(doc_uri.to_string(), text.to_string());
-                    // Could validate here and publish diagnostics
+                    self.validate_and_publish(doc_uri, text);
                 }
             }
         }
@@ -86,7 +90,7 @@ impl Handler {
                             .ok_or(())
                         {
                             self.documents.insert(doc_uri.to_string(), text.to_string());
-                            // Could validate here and publish diagnostics
+                            self.validate_and_publish(doc_uri, text);
                         }
                     }
                 }
@@ -122,6 +126,61 @@ impl Handler {
 
     pub fn is_shutdown(&self) -> bool {
         self.shutdown
+    }
+
+    /// Validate document and publish diagnostics to the client.
+    ///
+    /// Parses the document, runs the checker, and sends `textDocument/publishDiagnostics`
+    /// notification with any issues found.
+    fn validate_and_publish(&self, doc_uri: &str, text: &str) {
+        // Extract filename from URI for parser (expects a path)
+        let filename = doc_uri.split('/').last().unwrap_or("unknown.agile.md");
+        let path = PathBuf::from(filename);
+        
+        // Parse and check
+        let items = parse(text, path);
+        let issues = checker::run(&items);
+        
+        // Convert issues to LSP diagnostics
+        let diagnostics: Vec<Diagnostic> = issues.into_iter().map(|issue| {
+            // Convert 1-based line/column to 0-based
+            let line = (issue.location.line as i32 - 1).max(0);
+            let character = (issue.column as i32 - 1).max(0);
+            
+            Diagnostic {
+                range: Range {
+                    start: Position { line, character },
+                    end: Position { line, character: character + 1 },
+                },
+                severity: 1, // Error
+                code: issue.code,
+                source: "agile".to_string(),
+                message: issue.message,
+                related_information: issue.help.map(|help| vec![
+                    crate::lsp::protocol::DiagnosticRelatedInformation {
+                        location: crate::lsp::protocol::Location {
+                            uri: doc_uri.to_string(),
+                            range: Range {
+                                start: Position { line, character },
+                                end: Position { line, character: character + 1 },
+                            },
+                        },
+                        message: help,
+                    },
+                ]),
+            }
+        }).collect();
+        
+        // Publish diagnostics
+        let params = PublishDiagnosticsParams {
+            uri: doc_uri.to_string(),
+            diagnostics,
+        };
+        let notification = JsonRpcResponse::notification(
+            "textDocument/publishDiagnostics",
+            serde_json::to_value(&params).unwrap_or(json!({})),
+        );
+        let _ = writeln!(std::io::stdout().lock(), "{}", notification);
     }
 }
 
