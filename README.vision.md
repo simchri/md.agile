@@ -110,16 +110,12 @@ There are also no priority categories for tasks ( ~~!prio:high~~ ). There is onl
 As your project grows, you may want to split your task list over multiple files. If you want to use more than one file, files must follow the naming convention `<some name>.agile.md`
 - by default, any file in any subdirectory to the root is picked up by the tool
 - other markdown files (e.g. your `README.md`s) are ignored, even if they contain syntactically valid tasks.
-- all found files are then brought into a global order, alphabetically (TODO: spec details), using only the file name, not its location (path).
+- all found files are then brought into a global order, sorted alphabetically by their path relative to the project root (directory components first, then filename). For example, `tasks/50_current/001.agile.md` outranks `tasks/60_backlog/001.agile.md`.
 - The order of tasks in this aggregated file determines the priority order.
-
-Recommendation: Keep all files near the top level in a common folder. Anything else just makes understanding priorities confusing.
 
 ## File Structure for Large Projects & Archiving
 
 When you initialize task management in a directory with `agile init --large`, the tool automatically creates the following file structure:
-
-TODO: full path of files should be relevant for task priority - because filenames alone are not guaranteed to be unique!
 
 ```
 tasks/
