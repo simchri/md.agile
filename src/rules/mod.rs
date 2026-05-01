@@ -94,6 +94,14 @@ pub fn wrong_indentation(items: &[FileItem]) -> Vec<Issue> {
     issues
 }
 
+/// Runs all lint rules and returns a concatenated list of issues.
+pub fn check_all(items: &[FileItem]) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    issues.extend(orphaned_subtask(items));
+    issues.extend(wrong_indentation(items));
+    issues
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,7 +119,7 @@ mod tests {
 
   - [ ] orphan indented
 ";
-        let issues = orphaned_subtask(&p(input));
+        let issues = check_all(&p(input));
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].location.line, 3);
         assert_eq!(issues[0].code, "E001");
@@ -125,7 +133,7 @@ mod tests {
   - [ ] proper sub
 - [x] another top
 ";
-        let issues = orphaned_subtask(&p(input));
+        let issues = check_all(&p(input));
         assert!(issues.is_empty());
     }
 
@@ -140,7 +148,7 @@ mod tests {
 
     - [ ] orphan b
 ";
-        let issues = orphaned_subtask(&p(input));
+        let issues = check_all(&p(input));
         assert_eq!(issues.len(), 2);
         assert_eq!(issues[0].location.line, 3);
         assert_eq!(issues[1].location.line, 7);
@@ -154,7 +162,7 @@ mod tests {
 - [ ] top
    - [ ] sub with 3 spaces instead of 2
 ";
-        let issues = wrong_indentation(&p(input));
+        let issues = check_all(&p(input));
         let wrong_indent_issues: Vec<_> = issues.iter().filter(|i| i.code == "E002").collect();
         assert_eq!(wrong_indent_issues.len(), 1);
         assert_eq!(wrong_indent_issues[0].message, "Wrong Indentation");
@@ -168,12 +176,20 @@ mod tests {
     - [ ] depth 2
       - [ ] depth 3
 ";
-        let issues = wrong_indentation(&p(input));
+        let issues = check_all(&p(input));
         assert!(issues.is_empty());
     }
 
     #[test]
-    fn wrong_indentation_vs_orphan_distinction() {
+    fn wrong_indentation_vs_orphan_distinction_1() {
+        // An Orphan task is:
+        // - task that is separated by an empty line from previous elements
+        // - AND has any indentation other than zero.
+        //
+        // Wrong indentation
+        // - a sub task / task that is attached to a parent task (no empty line between other element)
+        // - AND that has an indentation that does not match the subtask level
+
         let input = "\
 - [ ] testing
   - [ ] subtask -> OK
