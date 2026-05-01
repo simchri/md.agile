@@ -36,7 +36,16 @@ any operation that parses tasks lists should immediately stop on encountering th
 - [x] wrongly indented task check is working in lsp
 - [x] testing for first lsp feature
 - [x] refactor and understand
- - [ ] asdf
+
+- [ ] testing
+  - [ ] subtask -> OK
+  - [ ] another subtask -> OK
+   - [ ] subtask WRONG INDENT
+ - [ ] subtask WRONG INDENT
+
+ - [ ] ORPHAN (also incorrect indent, but message should be orphan)
+
+  - [ ] ORPHAN
 
 
 ## More basic checks (recommended next: E002 & E003)
