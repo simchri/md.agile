@@ -248,3 +248,75 @@ fn lsp_code_action_returns_quickfix_for_e002() {
     drop(stdin);
     let _ = child.kill();
 }
+
+#[test]
+fn lsp_code_action_works_when_client_strips_data_field() {
+    // Neovim does not round-trip the `data` field from publishDiagnostics back
+    // in codeAction context.diagnostics. The server must not rely on it.
+    let (mut child, mut reader) = start_lsp_server();
+    let mut stdin = child.stdin.take().unwrap();
+
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootUri":null,"capabilities":{}}}"#;
+    send_lsp_message(&mut stdin, init).unwrap();
+    let _init_response = read_lsp_response(&mut reader).unwrap();
+
+    let initialized = r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#;
+    send_lsp_message(&mut stdin, initialized).unwrap();
+
+    let uri = "file:///tmp/test_quickfix_no_data.agile.md";
+    let did_open = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "textDocument/didOpen",
+        "params": {
+            "textDocument": {
+                "uri": uri,
+                "languageId": "markdown",
+                "version": 1,
+                "text": "\
+- [ ] top
+   - [ ] sub
+"
+            }
+        }
+    });
+    send_lsp_message(&mut stdin, &did_open.to_string()).unwrap();
+
+    let diag_notification = read_notification(&mut reader, "textDocument/publishDiagnostics");
+    let mut diagnostics = diag_notification["params"]["diagnostics"].clone();
+
+    // Strip `data` from every diagnostic — simulating what Neovim does.
+    for d in diagnostics.as_array_mut().unwrap() {
+        d.as_object_mut().unwrap().remove("data");
+    }
+
+    let code_action_request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "textDocument/codeAction",
+        "params": {
+            "textDocument": { "uri": uri },
+            "range": {
+                "start": { "line": 1, "character": 0 },
+                "end":   { "line": 1, "character": 3 }
+            },
+            "context": {
+                "diagnostics": diagnostics,
+                "triggerKind": 1
+            }
+        }
+    });
+    send_lsp_message(&mut stdin, &code_action_request.to_string()).unwrap();
+
+    let response = read_response(&mut reader, 2);
+
+    assert!(!response["result"].is_null(), "expected a result, got: {response}");
+    let actions = response["result"].as_array().expect("result should be an array");
+    assert!(!actions.is_empty(), "expected at least one code action");
+    assert!(
+        actions.iter().any(|a| a["kind"].as_str() == Some("quickfix")),
+        "expected a quickfix action, got: {response}"
+    );
+
+    drop(stdin);
+    let _ = child.kill();
+}

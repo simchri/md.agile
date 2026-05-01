@@ -20,10 +20,12 @@ use crate::{checker, parser, rules::{Issue, IssueData}};
 
 struct Backend {
     client: Client,
-    /// Latest text of every open document, keyed by URI. Populated on
-    /// did_open / did_change so the code-action handler can build edits
-    /// without re-reading the file from disk.
+    /// Latest text of every open document, keyed by URI.
     docs: Arc<RwLock<HashMap<Url, String>>>,
+    /// Last diagnostics published for each URI, keyed by URI. Stored
+    /// server-side so code_action can look them up without relying on the
+    /// client echoing the `data` field back (Neovim strips it).
+    diagnostics: Arc<RwLock<HashMap<Url, Vec<Diagnostic>>>>,
 }
 
 impl Backend {
@@ -36,6 +38,7 @@ impl Backend {
             .into_iter()
             .map(issue_to_diagnostic)
             .collect();
+        self.diagnostics.write().await.insert(uri.clone(), diagnostics.clone());
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;
@@ -180,17 +183,24 @@ impl LanguageServer for Backend {
         &self,
         params: CodeActionParams,
     ) -> Result<Option<CodeActionResponse>> {
-        let docs = self.docs.read().await;
-        let doc_text = match docs.get(&params.text_document.uri) {
+        let doc_text = match self.docs.read().await.get(&params.text_document.uri) {
             Some(t) => t.clone(),
             None => return Ok(None),
         };
-        drop(docs);
 
-        let actions: Vec<CodeActionOrCommand> = params
-            .context
-            .diagnostics
+        // Use the server's own stored diagnostics rather than what the client
+        // echoes back in context.diagnostics — clients like Neovim strip the
+        // `data` field, which build_quickfix requires.
+        let stored = self.diagnostics.read().await;
+        let diags = stored
+            .get(&params.text_document.uri)
+            .cloned()
+            .unwrap_or_default();
+        drop(stored);
+
+        let actions: Vec<CodeActionOrCommand> = diags
             .iter()
+            .filter(|d| ranges_overlap(&d.range, &params.range))
             .filter_map(|d| build_quickfix(d, &doc_text, &params.text_document.uri))
             .map(CodeActionOrCommand::CodeAction)
             .collect();
@@ -223,12 +233,17 @@ pub fn run() -> std::io::Result<()> {
         let (service, socket) = LspService::new(|client| Backend {
             client,
             docs: Arc::new(RwLock::new(HashMap::new())),
+            diagnostics: Arc::new(RwLock::new(HashMap::new())),
         });
         Server::new(stdin, stdout, socket).serve(service).await;
     });
 
     info!("LSP server stopped");
     Ok(())
+}
+
+fn ranges_overlap(a: &Range, b: &Range) -> bool {
+    a.start <= b.end && b.start <= a.end
 }
 
 fn format_message(msg: String) -> String {
