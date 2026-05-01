@@ -3,6 +3,9 @@ name = "mdagile"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+path = "src/api.rs"
+
 [[bin]]
 name = "agile"
 path = "src/main.rs"
