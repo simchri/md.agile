@@ -61,6 +61,27 @@ fn read_lsp_response<R: BufRead>(reader: &mut R) -> std::io::Result<String> {
 }
 
 #[test]
+fn lsp_initialize_advertises_code_action_provider() {
+    let (mut child, mut reader) = start_lsp_server();
+    let mut stdin = child.stdin.take().unwrap();
+
+    let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootUri":null,"capabilities":{}}}"#;
+    send_lsp_message(&mut stdin, init_request).unwrap();
+
+    let response = read_lsp_response(&mut reader).unwrap();
+    let v: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(
+        v["result"]["capabilities"]["codeActionProvider"],
+        serde_json::json!(true),
+        "response: {response}"
+    );
+
+    drop(stdin);
+    let _ = child.kill();
+}
+
+#[test]
 fn lsp_initialize_request_returns_capabilities() {
     let (mut child, mut reader) = start_lsp_server();
     let mut stdin = child.stdin.take().unwrap();
