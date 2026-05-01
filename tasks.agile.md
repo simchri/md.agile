@@ -35,6 +35,7 @@ any operation that parses tasks lists should immediately stop on encountering th
 - [x] hello world language server mode implemented into cli tool, command `agile `
 - [x] wrongly indented task check is working in lsp
 - [ ] testing for first lsp feature
+
 - [ ] refactor and understand
 
 

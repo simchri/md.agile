@@ -16,10 +16,10 @@ use crate::parser::{FileItem, Location};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Issue {
     pub location: Location,
-    pub code:     String,
-    pub message:  String,
-    pub column:   usize,
-    pub help:     Option<String>,
+    pub code: String,
+    pub message: String,
+    pub column: usize,
+    pub help: Option<String>,
 }
 
 /// Flags top-level tasks whose source line was indented like a subtask.
@@ -35,11 +35,10 @@ pub fn wrong_indent(items: &[FileItem]) -> Vec<Issue> {
             FileItem::Task(t) if t.indent > 0 => Some(Issue {
                 location: t.location.clone(),
                 code:     "E001".to_string(),
-                message:  "orphaned indented task".to_string(),
+                message:  "orphaned subtask".to_string(),
                 column:   t.indent + 1, // 1-based column where the dash starts
                 help:     Some(
-                    "Remove the leading spaces, or attach this task to a parent task \
-                     that ends on the preceding line (without a blank line in between)."
+                    "Remove leading spaces (make this a task), or delete preceeding empty lines if the element above is a task (make this a subtask)."
                         .to_string()
                 ),
             }),
