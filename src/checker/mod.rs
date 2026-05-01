@@ -13,6 +13,7 @@ use crate::rules::{self, Issue};
 /// result means the input is clean.
 pub fn run(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
+    issues.extend(rules::incorrect_indent(items));
     issues.extend(rules::wrong_indent(items));
     issues
 }
