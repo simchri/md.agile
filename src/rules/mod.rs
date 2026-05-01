@@ -4,8 +4,17 @@
 //! can call all rules with the same shape and concatenate the results. Issues
 //! carry a [`Location`] (file path + line number) so `agile check` can print
 //! them in ESLint-style form.
+//!
+//! Each rule lives in its own submodule and is re-exported from this module
+//! for convenience.
 
-use crate::parser::{FileItem, Location, Subtask};
+mod orphaned_subtask;
+mod wrong_indentation;
+
+pub use orphaned_subtask::orphaned_subtask;
+pub use wrong_indentation::wrong_indentation;
+
+use crate::parser::{FileItem, Location};
 
 /// A single problem found by a rule.
 ///
@@ -20,104 +29,6 @@ pub struct Issue {
     pub message: String,
     pub column: usize,
     pub help: Option<String>,
-}
-
-/// Flags top-level tasks that look like indented subtasks but are separated
-/// from the previous element by a blank line (so they have no parent).
-///
-/// A task is "orphaned" when:
-/// - It has non-zero indentation, AND
-/// - It is preceded by a blank line (or appears at file start).
-///
-/// If a top-level task with non-zero indentation is *not* preceded by a blank
-/// line, it was attached to a previous element but became top-level due to
-/// wrong indentation — that is reported by `wrong_indentation` (E002) instead.
-pub fn orphaned_subtask(items: &[FileItem]) -> Vec<Issue> {
-    items
-        .iter()
-        .filter_map(|item| match item {
-            FileItem::Task(t) if t.indent > 0 && t.preceded_by_blank => Some(Issue {
-                location: t.location.clone(),
-                code:     "E001".to_string(),
-                message:  "Orphaned Subtask".to_string(),
-                column:   t.indent + 1, // 1-based column where the dash starts
-                help:     Some(
-                    "Remove leading spaces (make this a task), or delete preceeding empty lines if the element above is a task (make this a subtask)."
-                        .to_string()
-                ),
-            }),
-            _ => None,
-        })
-        .collect()
-}
-
-/// Flags subtasks with indentation that doesn't match their nesting depth.
-///
-/// Valid indentation is `depth * 2` spaces (2 for depth 1, 4 for depth 2, etc).
-/// Any deviation signals a typo in spacing.
-fn check_wrong_indent_recursive(
-    subtask: &Subtask,
-    depth: usize,
-    mut issues: Vec<Issue>,
-) -> Vec<Issue> {
-    let expected_indent = depth * 2;
-    if subtask.indent != expected_indent {
-        issues.push(Issue {
-            location: subtask.location.clone(),
-            code: "E002".to_string(),
-            message: "Wrong Indentation".to_string(),
-            column: subtask.indent + 1,
-            help: Some(format!(
-                "Expected {} space{} for depth {}, but got {}.",
-                expected_indent,
-                if expected_indent == 1 { "" } else { "s" },
-                depth,
-                subtask.indent
-            )),
-        });
-    }
-
-    for child in &subtask.children {
-        issues = check_wrong_indent_recursive(child, depth + 1, issues);
-    }
-
-    issues
-}
-
-/// Flags wrong-indentation issues:
-/// - Subtasks where `indent != depth * 2`.
-/// - Top-level tasks with non-zero indentation that are *attached* to the
-///   previous element (no preceding blank line). These were intended as
-///   subtasks but got pushed to top-level by the parser due to bad spacing.
-pub fn wrong_indentation(items: &[FileItem]) -> Vec<Issue> {
-    let mut issues = Vec::new();
-
-    for item in items {
-        if let FileItem::Task(task) = item {
-            // Top-level task with indent > 0 that was *attached* (not preceded
-            // by a blank line) is wrong indentation, not an orphan.
-            if task.indent > 0 && !task.preceded_by_blank {
-                issues.push(Issue {
-                    location: task.location.clone(),
-                    code: "E002".to_string(),
-                    message: "Wrong Indentation".to_string(),
-                    column: task.indent + 1,
-                    help: Some(format!(
-                        "Indentation does not match a valid subtask level. Got {} space{}.",
-                        task.indent,
-                        if task.indent == 1 { "" } else { "s" }
-                    )),
-                });
-            }
-
-            // Recurse into subtasks.
-            for subtask in &task.children {
-                issues = check_wrong_indent_recursive(subtask, 1, issues);
-            }
-        }
-    }
-
-    issues
 }
 
 /// Runs all lint rules and returns a concatenated list of issues.
@@ -136,74 +47,6 @@ mod tests {
 
     fn p(input: &str) -> Vec<FileItem> {
         parse(input, PathBuf::from("test.agile.md"))
-    }
-
-    #[test]
-    fn orphaned_subtask_flags_task_with_indent() {
-        let input = "\
-- [ ] real top level
-
-  - [ ] orphan indented
-";
-        let issues = check_all(&p(input));
-        assert_eq!(issues.len(), 1);
-        assert_eq!(issues[0].location.line, 3);
-        assert_eq!(issues[0].code, "E001");
-        assert!(issues[0].message.contains("Orphaned"));
-    }
-
-    #[test]
-    fn orphaned_subtask_passes_clean_file() {
-        let input = "\
-- [ ] top
-  - [ ] proper sub
-- [x] another top
-";
-        let issues = check_all(&p(input));
-        assert!(issues.is_empty());
-    }
-
-    #[test]
-    fn orphaned_subtask_flags_multiple() {
-        let input = "\
-- [ ] top one
-
-  - [ ] orphan a
-
-- [ ] top two
-
-    - [ ] orphan b
-";
-        let issues = check_all(&p(input));
-        assert_eq!(issues.len(), 2);
-        assert_eq!(issues[0].location.line, 3);
-        assert_eq!(issues[1].location.line, 7);
-    }
-
-    #[test]
-    fn wrong_indentation_flags_any_mismatched_indent() {
-        // Create a subtask with wrong indent (3 spaces instead of 2)
-        // The parser will parse it as depth 1 (3 / 2 = 1), but indent will be 3
-        let input = "\
-- [ ] top
-   - [ ] sub with 3 spaces instead of 2
-";
-        let issues = check_all(&p(input));
-        let wrong_indent_issues: Vec<_> = issues.iter().filter(|i| i.code == "E002").collect();
-        assert_eq!(wrong_indent_issues.len(), 1);
-        assert_eq!(wrong_indent_issues[0].message, "Wrong Indentation");
-    }
-
-    #[test]
-    fn wrong_indentation_passes_correctly_indented() {
-        let input = "\
-- [ ] top
-  - [ ] depth 1
-    - [ ] depth 2
-      - [ ] depth 3
-";
-        let issues = check_all(&p(input));
-        assert!(issues.is_empty());
     }
 
     #[test]
@@ -228,23 +71,8 @@ mod tests {
   - [ ] ORPHAN
 ";
 
-        let mut issues = Vec::new();
-        issues.extend(orphaned_subtask(&p(input)));
-        issues.extend(wrong_indentation(&p(input)));
-
-        // sort issues by location (first line index 0):
+        let mut issues = check_all(&p(input));
         issues.sort_by_key(|i| i.location.line);
-
-        // (debugging) print all received issues:
-        for issue in &issues {
-            println!(
-                "{}:{}: {}: {}",
-                issue.location.path.display(),
-                issue.location.line,
-                issue.code,
-                issue.message
-            );
-        }
 
         assert_eq!(issues[0].code, "E002");
         assert_eq!(issues[1].code, "E002");
