@@ -59,18 +59,16 @@ fn check_wrong_indent_recursive(
     if subtask.indent != expected_indent {
         issues.push(Issue {
             location: subtask.location.clone(),
-            code:     "E002".to_string(),
-            message:  "Wrong Indentation".to_string(),
-            column:   subtask.indent + 1,
-            help:     Some(
-                format!(
-                    "Expected {} space{} for depth {}, but got {}.",
-                    expected_indent,
-                    if expected_indent == 1 { "" } else { "s" },
-                    depth,
-                    subtask.indent
-                )
-            ),
+            code: "E002".to_string(),
+            message: "Wrong Indentation".to_string(),
+            column: subtask.indent + 1,
+            help: Some(format!(
+                "Expected {} space{} for depth {}, but got {}.",
+                expected_indent,
+                if expected_indent == 1 { "" } else { "s" },
+                depth,
+                subtask.indent
+            )),
         });
     }
 
@@ -172,5 +170,43 @@ mod tests {
 ";
         let issues = wrong_indentation(&p(input));
         assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn wrong_indentation_vs_orphan_distinction() {
+        let input = "\
+- [ ] testing
+  - [ ] subtask -> OK
+  - [ ] another subtask -> OK
+   - [ ] subtask WRONG INDENT
+ - [ ] subtask WRONG INDENT
+
+ - [ ] ORPHAN (also incorrect indent, but message should be orphan)
+
+  - [ ] ORPHAN
+";
+
+        let mut issues = Vec::new();
+        issues.extend(orphaned_subtask(&p(input)));
+        issues.extend(wrong_indentation(&p(input)));
+
+        // sort issues by location (first line index 0):
+        issues.sort_by_key(|i| i.location.line);
+
+        // (debugging) print all received issues:
+        for issue in &issues {
+            println!(
+                "{}:{}: {}: {}",
+                issue.location.path.display(),
+                issue.location.line,
+                issue.code,
+                issue.message
+            );
+        }
+
+        assert_eq!(issues[0].code, "E002");
+        assert_eq!(issues[1].code, "E002");
+        assert_eq!(issues[2].code, "E001");
+        assert_eq!(issues[3].code, "E001");
     }
 }
