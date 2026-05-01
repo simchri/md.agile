@@ -243,7 +243,7 @@ pub fn run() -> std::io::Result<()> {
 }
 
 fn ranges_overlap(a: &Range, b: &Range) -> bool {
-    a.start <= b.end && b.start <= a.end
+    a.start.line <= b.end.line && b.start.line <= a.end.line
 }
 
 fn format_message(msg: String) -> String {

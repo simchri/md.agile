@@ -320,3 +320,60 @@ fn lsp_code_action_works_when_client_strips_data_field() {
     drop(stdin);
     let _ = child.kill();
 }
+
+#[test]
+fn lsp_code_action_available_anywhere_on_the_line() {
+    // The quickfix for E002 should be offered regardless of where the cursor
+    // sits on the offending line, not only when it is in the leading whitespace.
+    let (mut child, mut reader) = start_lsp_server();
+    let mut stdin = child.stdin.take().unwrap();
+
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootUri":null,"capabilities":{}}}"#;
+    send_lsp_message(&mut stdin, init).unwrap();
+    let _init_response = read_lsp_response(&mut reader).unwrap();
+    send_lsp_message(&mut stdin, r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#).unwrap();
+
+    let uri = "file:///tmp/test_quickfix_cursor.agile.md";
+    let did_open = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "textDocument/didOpen",
+        "params": {
+            "textDocument": {
+                "uri": uri,
+                "languageId": "markdown",
+                "version": 1,
+                "text": "- [ ] top\n   - [ ] sub\n"
+            }
+        }
+    });
+    send_lsp_message(&mut stdin, &did_open.to_string()).unwrap();
+    read_notification(&mut reader, "textDocument/publishDiagnostics");
+
+    // Cursor is at the end of the line, well past the 3-space indent region.
+    let code_action_request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "textDocument/codeAction",
+        "params": {
+            "textDocument": { "uri": uri },
+            "range": {
+                "start": { "line": 1, "character": 14 },
+                "end":   { "line": 1, "character": 14 }
+            },
+            "context": { "diagnostics": [], "triggerKind": 1 }
+        }
+    });
+    send_lsp_message(&mut stdin, &code_action_request.to_string()).unwrap();
+
+    let response = read_response(&mut reader, 2);
+
+    assert!(!response["result"].is_null(), "expected a result, got: {response}");
+    let actions = response["result"].as_array().expect("result should be an array");
+    assert!(
+        actions.iter().any(|a| a["kind"].as_str() == Some("quickfix")),
+        "expected a quickfix action, got: {response}"
+    );
+
+    drop(stdin);
+    let _ = child.kill();
+}
