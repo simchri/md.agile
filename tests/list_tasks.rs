@@ -1,5 +1,5 @@
+use mdagile::cli::subcommands::list::{active_task_blocks, list_tasks};
 use mdagile::parser::{self, FileItem};
-use mdagile::{active_task_blocks, list_tasks};
 use std::path::PathBuf;
 
 fn p(input: &str) -> Vec<FileItem> {

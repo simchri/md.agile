@@ -1,4 +1,4 @@
-use mdagile::next_task;
+use mdagile::cli::subcommands::task::next_task;
 use mdagile::parser::{self, FileItem};
 use std::path::PathBuf;
 

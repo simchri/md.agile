@@ -1,4 +1,4 @@
-use mdagile::{find_file_with_next_task, find_next_task_line};
+use mdagile::cli::subcommands::default::{find_file_with_next_task, find_next_task_line};
 use std::fs;
 use tempfile::tempdir;
 

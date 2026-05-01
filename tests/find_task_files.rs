@@ -1,4 +1,5 @@
-use mdagile::{find_task_files, format_file_list};
+use mdagile::cli::common::find_task_files;
+use mdagile::cli::subcommands::list::format_file_list;
 use std::fs;
 use tempfile::tempdir;
 

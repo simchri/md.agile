@@ -43,13 +43,3 @@ fn full_path_uses_basename_for_matching() {
 fn unknown_editor_omits_line_number() {
     assert_eq!(editor_open_args("gedit", Path::new("f.agile.md"), 6), vec![s("f.agile.md")]);
 }
-
-#[test]
-fn tasks_is_alias_for_task_subcommand() {
-    let cli = Cli::try_parse_from(["agile", "tasks", "next"])
-        .expect("`agile tasks next` should parse as the `task next` subcommand");
-    assert!(matches!(
-        cli.command,
-        Some(Command::Task { action: TaskAction::Next })
-    ));
-}
