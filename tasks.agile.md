@@ -41,7 +41,6 @@ any operation that parses tasks lists should immediately stop on encountering th
   - [ ] subtask -> OK
   - [ ] another subtask -> OK
    - [ ] subtask WRONG INDENT
-
  - [ ] subtask WRONG INDENT
 
  - [ ] ORPHAN (also incorrect indent, but message should be orphan)

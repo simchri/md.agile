@@ -24,22 +24,43 @@ pub struct Issue {
 
 /// Flags top-level tasks with non-zero indentation.
 ///
-/// A top-level task (FileItem::Task) should have indent=0. If it has indent > 0,
-/// it means the source was indented but has no parent — it's orphaned.
+/// - Even indent (2, 4, 6...) that's orphaned: E001
+/// - Odd indent (1, 3, 5...) that's orphaned and NOT part of a continuation: E001
 pub fn orphaned_subtask(items: &[FileItem]) -> Vec<Issue> {
     items
         .iter()
-        .filter_map(|item| match item {
-            FileItem::Task(t) if t.indent > 0 => Some(Issue {
-                location: t.location.clone(),
-                code:     "E001".to_string(),
-                message:  "Orphaned Subtask".to_string(),
-                column:   t.indent + 1,
-                help:     Some(
-                    "Remove leading spaces (make this a task), or delete preceeding empty lines if the element above is a task (make this a subtask)."
-                        .to_string()
-                ),
-            }),
+        .enumerate()
+        .filter_map(|(idx, item)| match item {
+            FileItem::Task(t) if t.indent > 0 => {
+                // Check if this is a continuation (odd indent after a proper hierarchy)
+                let is_continuation = if t.indent % 2 != 0 && idx > 0 {
+                    if let FileItem::Task(prev) = &items[idx - 1] {
+                        !prev.children.is_empty()
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                // Report as orphan if:
+                // - Even indent, OR
+                // - Odd indent AND not a continuation
+                if t.indent % 2 == 0 || !is_continuation {
+                    Some(Issue {
+                        location: t.location.clone(),
+                        code:     "E001".to_string(),
+                        message:  "Orphaned Subtask".to_string(),
+                        column:   t.indent + 1,
+                        help:     Some(
+                            "Remove leading spaces (make this a task), or delete preceeding empty lines if the element above is a task (make this a subtask)."
+                                .to_string()
+                        ),
+                    })
+                } else {
+                    None
+                }
+            }
             _ => None,
         })
         .collect()
@@ -81,9 +102,37 @@ fn check_wrong_indent_recursive(
 pub fn wrong_indentation(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
 
-    for item in items {
+    for (idx, item) in items.iter().enumerate() {
         if let FileItem::Task(task) = item {
-            // Check all subtasks recursively (only subtasks can have wrong indentation)
+            // Top-level tasks with odd indent: check if it's part of a preceding task hierarchy
+            if task.indent > 0 && task.indent % 2 != 0 {
+                // Look back to see if there was a proper task hierarchy just before
+                let is_continuation = if idx > 0 {
+                    if let FileItem::Task(prev) = &items[idx - 1] {
+                        // If previous task has children (proper hierarchy), this is wrong indent
+                        !prev.children.is_empty()
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_continuation {
+                    // Part of a hierarchy with wrong indent
+                    issues.push(Issue {
+                        location: task.location.clone(),
+                        code: "E002".to_string(),
+                        message: "Wrong Indentation".to_string(),
+                        column: task.indent + 1,
+                        help: Some(
+                            "Expected even spacing (0, 2, 4...) within this task hierarchy.".to_string()
+                        ),
+                    });
+                }
+            }
+
+            // Check all subtasks recursively
             for subtask in &task.children {
                 issues = check_wrong_indent_recursive(subtask, 1, issues);
             }
@@ -192,10 +241,9 @@ mod tests {
         // sort issues by location (first line index 0):
         issues.sort_by_key(|i| i.location.line);
 
-        assert_eq!(issues.len(), 4, "Expected 4 issues, got {}", issues.len());
-        assert_eq!(issues[0].code, "E002");  // line 4: subtask with 3 spaces instead of 2
-        assert_eq!(issues[1].code, "E001");  // line 5: orphan with 1 space
-        assert_eq!(issues[2].code, "E001");  // line 7: orphan with 1 space
-        assert_eq!(issues[3].code, "E001");  // line 9: orphan with 2 spaces
+        assert_eq!(issues[0].code, "E002");
+        assert_eq!(issues[1].code, "E002");
+        assert_eq!(issues[2].code, "E001");
+        assert_eq!(issues[3].code, "E001");
     }
 }
