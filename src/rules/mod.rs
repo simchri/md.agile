@@ -22,16 +22,21 @@ pub struct Issue {
     pub help: Option<String>,
 }
 
-/// Flags top-level tasks with non-zero indentation.
+/// Flags top-level tasks that look like indented subtasks but are separated
+/// from the previous element by a blank line (so they have no parent).
 ///
-/// A top-level task should have indent=0. If it has indent > 0, it means the
-/// source line was indented but the parser couldn't find a parent (likely due to
-/// a preceding blank line breaking the connection). These are "orphaned" subtasks.
+/// A task is "orphaned" when:
+/// - It has non-zero indentation, AND
+/// - It is preceded by a blank line (or appears at file start).
+///
+/// If a top-level task with non-zero indentation is *not* preceded by a blank
+/// line, it was attached to a previous element but became top-level due to
+/// wrong indentation — that is reported by `wrong_indentation` (E002) instead.
 pub fn orphaned_subtask(items: &[FileItem]) -> Vec<Issue> {
     items
         .iter()
         .filter_map(|item| match item {
-            FileItem::Task(t) if t.indent > 0 => Some(Issue {
+            FileItem::Task(t) if t.indent > 0 && t.preceded_by_blank => Some(Issue {
                 location: t.location.clone(),
                 code:     "E001".to_string(),
                 message:  "Orphaned Subtask".to_string(),
@@ -46,10 +51,10 @@ pub fn orphaned_subtask(items: &[FileItem]) -> Vec<Issue> {
         .collect()
 }
 
-/// Flags tasks/subtasks with indentation that doesn't match their nesting depth.
+/// Flags subtasks with indentation that doesn't match their nesting depth.
 ///
-/// Valid indentation is `depth * 2` spaces (0 for top-level, 2 for depth 1, 4 for depth 2, etc).
-/// Any deviation signals either a typo in spacing or incorrect parsing context.
+/// Valid indentation is `depth * 2` spaces (2 for depth 1, 4 for depth 2, etc).
+/// Any deviation signals a typo in spacing.
 fn check_wrong_indent_recursive(
     subtask: &Subtask,
     depth: usize,
@@ -79,12 +84,33 @@ fn check_wrong_indent_recursive(
     issues
 }
 
+/// Flags wrong-indentation issues:
+/// - Subtasks where `indent != depth * 2`.
+/// - Top-level tasks with non-zero indentation that are *attached* to the
+///   previous element (no preceding blank line). These were intended as
+///   subtasks but got pushed to top-level by the parser due to bad spacing.
 pub fn wrong_indentation(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
 
     for item in items {
         if let FileItem::Task(task) = item {
-            // Check all subtasks recursively (top-level tasks are checked by orphaned_subtask)
+            // Top-level task with indent > 0 that was *attached* (not preceded
+            // by a blank line) is wrong indentation, not an orphan.
+            if task.indent > 0 && !task.preceded_by_blank {
+                issues.push(Issue {
+                    location: task.location.clone(),
+                    code: "E002".to_string(),
+                    message: "Wrong Indentation".to_string(),
+                    column: task.indent + 1,
+                    help: Some(format!(
+                        "Indentation does not match a valid subtask level. Got {} space{}.",
+                        task.indent,
+                        if task.indent == 1 { "" } else { "s" }
+                    )),
+                });
+            }
+
+            // Recurse into subtasks.
             for subtask in &task.children {
                 issues = check_wrong_indent_recursive(subtask, 1, issues);
             }

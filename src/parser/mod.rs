@@ -97,9 +97,14 @@ pub struct Task {
     pub location: Location,
     // Leading spaces in the source line. Tasks are top-level by definition, so
     // a non-zero value means the line was indented like a subtask but had no
-    // live parent (e.g. orphaned by a preceding blank line). The checker uses
-    // this to flag the `wrong_indent` issue.
+    // live parent. Combined with `preceded_by_blank`, this lets the checker
+    // distinguish orphans (blank line before) from wrong indentation (attached
+    // to previous element).
     pub indent:   usize,
+    // True if the immediately preceding line was blank (or the task is the very
+    // first non-empty content in the file). When `indent > 0`, this disambiguates
+    // orphaned subtasks (true) from wrongly-indented attached tasks (false).
+    pub preceded_by_blank: bool,
     pub status:   Status,
     pub title:    String,
     pub body:     Vec<String>,
@@ -135,6 +140,7 @@ pub struct TaskFile {
 struct PartialItem {
     depth:    usize,
     indent:   usize,
+    preceded_by_blank: bool,
     location: Location,
     status:   Status,
     order:    Order,
@@ -147,7 +153,9 @@ struct PartialItem {
 
 impl PartialItem {
     fn into_task(self) -> Task {
-        Task { location: self.location, indent: self.indent, status: self.status,
+        Task { location: self.location, indent: self.indent,
+               preceded_by_blank: self.preceded_by_blank,
+               status: self.status,
                title: self.title, body: self.body, markers: self.markers,
                children: self.children }
     }
@@ -169,17 +177,22 @@ impl PartialItem {
 pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
     let mut items: Vec<FileItem> = Vec::new();
     let mut stack: Vec<PartialItem> = Vec::new();
+    // True if the previous line was blank (or we're at the start of the file).
+    // Used to mark each task with whether its source was preceded by a blank line.
+    let mut prev_was_blank = true;
 
     for (idx, line) in input.lines().enumerate() {
         let line_no = idx + 1;
         if line.trim().is_empty() {
             flush_stack(&mut stack, &mut items);
+            prev_was_blank = true;
             continue;
         }
 
         if let Some(name) = parse_milestone_name(line) {
             flush_stack(&mut stack, &mut items);
             items.push(FileItem::Milestone(Milestone { name }));
+            prev_was_blank = false;
             continue;
         }
 
@@ -195,10 +208,12 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             let (markers, title) = parse_markers(rest);
             stack.push(PartialItem {
                 depth, indent,
+                preceded_by_blank: prev_was_blank,
                 location: Location { path: path.clone(), line: line_no },
                 status, order, kind,
                 title, body: Vec::new(), markers, children: Vec::new(),
             });
+            prev_was_blank = false;
             continue;
         }
 
@@ -206,6 +221,7 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
         if let Some(top) = stack.last_mut() {
             top.body.push(line.to_string());
         }
+        prev_was_blank = false;
     }
 
     flush_stack(&mut stack, &mut items);
@@ -371,6 +387,7 @@ mod tests {
         let task = Task {
             location: loc(1),
             indent: 0,
+            preceded_by_blank: true,
             status: Status::Todo,
             title: "add item to basket".to_string(),
             body: vec![],
@@ -435,6 +452,7 @@ mod tests {
             FileItem::Task(Task {
                 location: loc(1),
                 indent: 0,
+                preceded_by_blank: true,
                 status: Status::Done,
                 title: "ship MVP".to_string(),
                 body: vec![],
@@ -447,6 +465,7 @@ mod tests {
             FileItem::Task(Task {
                 location: loc(5),
                 indent: 0,
+                preceded_by_blank: true,
                 status: Status::Todo,
                 title: "gather feedback".to_string(),
                 body: vec![],
