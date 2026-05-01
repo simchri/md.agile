@@ -411,7 +411,7 @@ fn lsp_diagnostic_range_covers_full_line() {
     assert!(!diags.is_empty(), "expected at least one diagnostic");
 
     let end_char = diags[0]["range"]["end"]["character"].as_u64().unwrap();
-    assert_eq!(end_char, 100, "diagnostic end character should be 100");
+    assert_eq!(end_char, u32::MAX as u64, "diagnostic end character should be u32::MAX (end of line)");
 
     drop(stdin);
     let _ = child.kill();
