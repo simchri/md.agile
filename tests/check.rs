@@ -60,7 +60,7 @@ fn flags_orphaned_indented_top_level_task() {
     // Single issue in ESLint-style format: error header, location line, source line, pointer, help.
     // Should contain the location and error details.
     assert!(stdout.contains("a.agile.md:3:"), "stdout: {stdout:?}");
-    assert!(stdout.contains("orphaned subtask"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Orphaned Subtask"), "stdout: {stdout:?}");
     assert!(stdout.contains("error[E001]"), "stdout: {stdout:?}");
 }
 

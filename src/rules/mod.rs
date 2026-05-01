@@ -35,7 +35,7 @@ pub fn wrong_indent(items: &[FileItem]) -> Vec<Issue> {
             FileItem::Task(t) if t.indent > 0 => Some(Issue {
                 location: t.location.clone(),
                 code:     "E001".to_string(),
-                message:  "orphaned subtask".to_string(),
+                message:  "Orphaned Subtask".to_string(),
                 column:   t.indent + 1, // 1-based column where the dash starts
                 help:     Some(
                     "Remove leading spaces (make this a task), or delete preceeding empty lines if the element above is a task (make this a subtask)."
@@ -68,7 +68,7 @@ mod tests {
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].location.line, 3);
         assert_eq!(issues[0].code, "E001");
-        assert!(issues[0].message.contains("orphaned"));
+        assert!(issues[0].message.contains("Orphaned"));
     }
 
     #[test]

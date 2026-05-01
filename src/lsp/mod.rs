@@ -44,14 +44,21 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
         start: Position { line, character: 0 },
         end:   Position { line, character: dash_col.max(1) },
     };
+
+    let sev = match issue.code.chars().next() {
+        Some('E') => DiagnosticSeverity::ERROR,
+        Some('W') => DiagnosticSeverity::WARNING,
+        _         => DiagnosticSeverity::ERROR,
+    };
+
     Diagnostic {
         range,
-        severity: Some(DiagnosticSeverity::WARNING),
+        severity: Some(sev),
         code: Some(NumberOrString::String(issue.code)),
         source: Some("agilels".to_string()),
         message: match issue.help {
-            Some(h) => format!("{}\n{}", issue.message, h),
-            None    => issue.message,
+            Some(h) => format!("{}\n{}", format_message(issue.message), format_help(h)),
+            None    => format_message(issue.message),
         },
         ..Diagnostic::default()
     }
@@ -125,3 +132,12 @@ pub fn run() -> std::io::Result<()> {
     info!("LSP server stopped");
     Ok(())
 }
+
+fn format_message(msg: String) -> String {
+    format!("[{}]", msg.trim().to_string())
+}
+
+fn format_help(help: String) -> String {
+    format!("HINT: {}", help.trim())
+}
+

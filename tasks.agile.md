@@ -34,9 +34,8 @@ any operation that parses tasks lists should immediately stop on encountering th
 ## First Minimal Language Server
 - [x] hello world language server mode implemented into cli tool, command `agile `
 - [x] wrongly indented task check is working in lsp
-- [ ] testing for first lsp feature
-
-- [ ] refactor and understand
+- [x] testing for first lsp feature
+- [x] refactor and understand
 
 
 ## More basic checks (recommended next: E002 & E003)
