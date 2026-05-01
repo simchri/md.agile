@@ -50,10 +50,9 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
     // For E001 (orphaned indented task), `column` is the 1-based column of the
     // dash, so the leading whitespace runs from column 0 to column-1.
     let line = issue.location.line.saturating_sub(1) as u32;
-    let dash_col = issue.column.saturating_sub(1) as u32;
     let range = Range {
         start: Position { line, character: 0 },
-        end:   Position { line, character: dash_col.max(1) },
+        end:   Position { line, character: u32::MAX },
     };
 
     let sev = match issue.code.chars().next() {
