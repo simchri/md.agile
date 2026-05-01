@@ -21,7 +21,10 @@ fn diag_e002(line: u32, current_indent: u32, expected_indent: usize) -> Diagnost
 #[test]
 fn build_quickfix_replaces_three_space_indent_with_two() {
     let uri: Url = "file:///tmp/example.agile.md".parse().unwrap();
-    let doc = "- [ ] top\n   - [ ] sub\n";
+    let doc = "\
+- [ ] top
+   - [ ] sub
+";
     // Subtask is on line 1 (0-based) and currently has 3 spaces.
     let diag = diag_e002(1, 3, 2);
 
@@ -47,7 +50,11 @@ fn build_quickfix_replaces_three_space_indent_with_two() {
 fn build_quickfix_handles_deeper_subtask() {
     let uri: Url = "file:///tmp/example.agile.md".parse().unwrap();
     // 5-space-indented level-2 subtask, expected = 4 spaces.
-    let doc = "- [ ] top\n  - [ ] mid\n     - [ ] deep\n";
+    let doc = "\
+- [ ] top
+  - [ ] mid
+     - [ ] deep
+";
     let diag = diag_e002(2, 5, 4);
 
     let action = build_quickfix(&diag, doc, &uri).expect("should produce a quickfix");
@@ -64,7 +71,9 @@ fn build_quickfix_handles_deeper_subtask() {
 #[test]
 fn build_quickfix_returns_none_for_e001() {
     let uri: Url = "file:///tmp/example.agile.md".parse().unwrap();
-    let doc = "  - [ ] orphan\n";
+    let doc = "\
+  - [ ] orphan
+";
     let diag = Diagnostic {
         range: Range {
             start: Position { line: 0, character: 0 },
@@ -80,7 +89,10 @@ fn build_quickfix_returns_none_for_e001() {
 #[test]
 fn build_quickfix_returns_none_when_data_missing() {
     let uri: Url = "file:///tmp/example.agile.md".parse().unwrap();
-    let doc = "- [ ] top\n   - [ ] sub\n";
+    let doc = "\
+- [ ] top
+   - [ ] sub
+";
     let mut diag = diag_e002(1, 3, 2);
     diag.data = None;
 

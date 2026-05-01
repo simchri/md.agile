@@ -49,6 +49,20 @@ Project-level configuration (properties, users, groups) lives in `mdagile.toml`.
 
 ## Development rules
 
+### Sample text in tests
+
+Always write inline file content using the `"\` continuation style so the content renders exactly as it would in a real file — indentation and all:
+
+```rust
+let input = "\
+- [ ] top task
+  - [ ] subtask
+    - [ ] nested
+";
+```
+
+Never use embedded `\n` escapes or string concatenation for multi-line file samples. The goal is that a reader can see indentation and structure at a glance, just as they would in an actual `.agile.md` file.
+
 ### TDD — mandatory for all code changes
 
 Follow red-green cycle strictly:
