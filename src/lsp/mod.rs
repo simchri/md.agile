@@ -52,7 +52,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
     let line = issue.location.line.saturating_sub(1) as u32;
     let range = Range {
         start: Position { line, character: 0 },
-        end:   Position { line, character: u32::MAX },
+        end:   Position { line, character: 100 },
     };
 
     let sev = match issue.code.chars().next() {
