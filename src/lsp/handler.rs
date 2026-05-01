@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::io::Write;
 use serde_json::json;
+use tracing::{info, debug};
 
 use crate::lsp::protocol::{JsonRpcMessage, PublishDiagnosticsParams, Diagnostic, Range, Position, JsonRpcResponse};
 use crate::parser::parse;
@@ -34,10 +35,22 @@ impl Handler {
     ///
     /// Returns server capabilities describing what the server supports.
     pub fn initialize(&mut self, _msg: &JsonRpcMessage) -> serde_json::Value {
+        debug!("Initializing handler");
         self.initialized = true;
+        info!("Handler initialized");
         json!({
             "capabilities": {
-                "textDocumentSync": 1  // 1 = Full document sync
+                "textDocumentSync": {
+                    "openClose": true,
+                    "change": 1,  // 1 = Full document sync
+                    "willSave": false,
+                    "willSaveWaitUntil": false,
+                    "didSave": false
+                }
+            },
+            "serverInfo": {
+                "name": "agilels",
+                "version": env!("CARGO_PKG_VERSION")
             }
         })
     }
@@ -64,6 +77,8 @@ impl Handler {
                     .and_then(|t| t.as_str())
                     .ok_or(())
                 {
+                    info!("Document opened: {}", doc_uri);
+                    debug!("Document content length: {} bytes", text.len());
                     self.documents.insert(doc_uri.to_string(), text.to_string());
                     self.validate_and_publish(doc_uri, text);
                 }
@@ -89,6 +104,8 @@ impl Handler {
                             .and_then(|t| t.as_str())
                             .ok_or(())
                         {
+                            info!("Document changed: {}", doc_uri);
+                            debug!("New content length: {} bytes", text.len());
                             self.documents.insert(doc_uri.to_string(), text.to_string());
                             self.validate_and_publish(doc_uri, text);
                         }
@@ -108,6 +125,7 @@ impl Handler {
                 .and_then(|uri| uri.as_str())
                 .ok_or(())
             {
+                info!("Document closed: {}", doc_uri);
                 self.documents.remove(doc_uri);
             }
         }
@@ -137,12 +155,18 @@ impl Handler {
         let filename = doc_uri.split('/').last().unwrap_or("unknown.agile.md");
         let path = PathBuf::from(filename);
         
+        debug!("Validating document: {}", filename);
+        
         // Parse and check
         let items = parse(text, path);
+        debug!("Parsed {} items", items.len());
+        
         let issues = checker::run(&items);
+        info!("Validation complete: found {} issues", issues.len());
         
         // Convert issues to LSP diagnostics
         let diagnostics: Vec<Diagnostic> = issues.into_iter().map(|issue| {
+            debug!("Issue {}: {} at line {}", issue.code, issue.message, issue.location.line);
             // Convert 1-based line/column to 0-based
             let line = (issue.location.line as i32 - 1).max(0);
             let character = (issue.column as i32 - 1).max(0);
@@ -181,6 +205,7 @@ impl Handler {
             serde_json::to_value(&params).unwrap_or(json!({})),
         );
         let _ = writeln!(std::io::stdout().lock(), "{}", notification);
+        debug!("Diagnostics published for: {}", doc_uri);
     }
 }
 

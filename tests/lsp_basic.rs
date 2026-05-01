@@ -20,6 +20,45 @@ fn start_lsp_server() -> (std::process::Child, BufReader<std::process::ChildStdo
     (child, reader)
 }
 
+fn send_lsp_message<W: Write>(writer: &mut W, message: &str) -> std::io::Result<()> {
+    writeln!(writer, "Content-Length: {}", message.len())?;
+    writeln!(writer, "Content-Type: application/vscode-jsonrpc; charset=utf-8")?;
+    writeln!(writer)?;
+    write!(writer, "{}", message)?;
+    writer.flush()?;
+    Ok(())
+}
+
+fn read_lsp_response<R: BufRead>(reader: &mut R) -> std::io::Result<String> {
+    let mut headers = std::collections::HashMap::new();
+    let mut line = String::new();
+    
+    // Read headers
+    loop {
+        line.clear();
+        reader.read_line(&mut line)?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            break;
+        }
+        if let Some((key, value)) = trimmed.split_once(':') {
+            headers.insert(key.trim().to_lowercase(), value.trim().to_string());
+        }
+    }
+    
+    // Get content length
+    let content_length: usize = headers
+        .get("content-length")
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Missing Content-Length"))?;
+    
+    // Read message body
+    let mut message = vec![0u8; content_length];
+    reader.read_exact(&mut message)?;
+    
+    Ok(String::from_utf8_lossy(&message).to_string())
+}
+
 #[test]
 fn lsp_initialize_request_returns_capabilities() {
     let (mut child, mut reader) = start_lsp_server();
@@ -27,11 +66,10 @@ fn lsp_initialize_request_returns_capabilities() {
 
     // Send initialize request
     let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootPath":"/tmp"}}"#;
-    writeln!(stdin, "{}", init_request).unwrap();
+    send_lsp_message(&mut stdin, init_request).unwrap();
     
     // Read response
-    let mut response = String::new();
-    reader.read_line(&mut response).unwrap();
+    let response = read_lsp_response(&mut reader).unwrap();
     
     // Verify response is JSON with result
     assert!(response.contains("\"jsonrpc\":\"2.0\""), "response: {}", response);
@@ -51,15 +89,14 @@ fn lsp_initialized_notification_accepted() {
 
     // Send initialize
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootPath":"/tmp"}}"#;
-    writeln!(stdin, "{}", init).unwrap();
+    send_lsp_message(&mut stdin, init).unwrap();
     
     // Read initialize response
-    let mut buf = String::new();
-    reader.read_line(&mut buf).unwrap();
+    let _response = read_lsp_response(&mut reader).unwrap();
     
     // Send initialized notification (no response expected)
     let initialized = r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#;
-    writeln!(stdin, "{}", initialized).unwrap();
+    send_lsp_message(&mut stdin, initialized).unwrap();
     
     // Server should still be running (not error)
     assert!(child.try_wait().is_ok() || child.try_wait().unwrap().is_none());
@@ -76,19 +113,17 @@ fn lsp_shutdown_request_handled() {
 
     // Initialize first
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootPath":"/tmp"}}"#;
-    writeln!(stdin, "{}", init).unwrap();
-    let mut buf = String::new();
-    reader.read_line(&mut buf).unwrap();
+    send_lsp_message(&mut stdin, init).unwrap();
+    let _init_response = read_lsp_response(&mut reader).unwrap();
     
     // Send shutdown
     let shutdown = r#"{"jsonrpc":"2.0","id":2,"method":"shutdown","params":null}"#;
-    writeln!(stdin, "{}", shutdown).unwrap();
+    send_lsp_message(&mut stdin, shutdown).unwrap();
     
     // Read shutdown response
-    buf.clear();
-    reader.read_line(&mut buf).unwrap();
-    
-    assert!(buf.contains("\"result\":null"), "response: {}", buf);
+    let response = read_lsp_response(&mut reader).unwrap();
+
+    assert!(response.contains("\"result\":null"), "response: {}", response);
     
     // Cleanup
     drop(stdin);
