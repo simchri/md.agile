@@ -33,5 +33,4 @@ pub fn orphaned_subtask(items: &[FileItem]) -> Vec<Issue> {
 }
 
 #[cfg(test)]
-#[path = "orphaned_subtask_tests.rs"]
 mod tests;

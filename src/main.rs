@@ -191,5 +191,4 @@ fn apply_limit<T>(items: Vec<T>, next: Option<usize>, last: Option<usize>) -> Ve
 }
 
 #[cfg(test)]
-#[path = "main_tests.rs"]
-mod tests;
+mod cli_tests;

@@ -42,5 +42,4 @@ pub fn init_logging() -> io::Result<PathBuf> {
 }
 
 #[cfg(test)]
-#[path = "logger_tests.rs"]
 mod tests;

@@ -71,5 +71,4 @@ fn check_subtask_recursive(
 }
 
 #[cfg(test)]
-#[path = "wrong_indentation_tests.rs"]
 mod tests;
