@@ -32,7 +32,10 @@ any operation that parses tasks lists should immediately stop on encountering th
   Binary is now explicitly named "agile" via [[bin]] in Cargo.toml, matching vision.md
 
 ## First Minimal Language Server
-- [ ] hello world language server mode implemented into cli tool, command `agile `
+- [x] hello world language server mode implemented into cli tool, command `agile `
+- [x] wrongly indented task check is working in lsp
+- [ ] testing for first lsp feature
+- [ ] refactor and understand
 
 
 ## More basic checks (recommended next: E002 & E003)
@@ -68,12 +71,6 @@ any operation that parses tasks lists should immediately stop on encountering th
   - [ ] Decide: warning (exit 0) vs error (exit 1)?
   - [ ] Consider: add --strict flag to promote warnings to errors
 
-
-  - [ ]  wrong task
-
-...nt_nvimVdIwvV/usr/share/nvim/runtime/lua/vim/lsp/rpc.lua:800: Spawning language server with cmd: `{ "agile", "lsp" }` failed. The language server is either not installed, missing from PATH, or not executable.
-
-Client agile quit with exit code 1 and signal 0. Check log for errors: /home/simon/.local/state/nvim/lsp.log
 
 ## More CLI features
 - [ ] create a global overview of the CLI structure

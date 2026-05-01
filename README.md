@@ -4,6 +4,8 @@ Plain-text, version-controlled task management for developers.
 
 **Status**: Early prototype. Basic parsing and file discovery work. Core checker and LSP server are operational but cover only the first validation rule.
 
+For upcoming features, see [README.vision.md](README.vision.md)
+
 ## What Works
 
 ### File Discovery & Parsing
@@ -51,8 +53,6 @@ A minimal LSP server that runs on stdin/stdout. Advertises text document sync (F
 **Supported diagnostics:**
 - **E001: Orphaned indented task** — A task has leading whitespace but no parent task on the preceding line (usually due to a blank line separating parent and child). The diagnostic highlights the leading whitespace that should be removed.
 
-Example: VS Code or Neovim with LSP client configured to use `agilels` will show warnings for orphaned tasks as you type.
-
 ### File Priority & Task Ordering
 
 Files are ordered alphabetically by their path relative to the project root (directory components first, then filename). This establishes global task priority:
@@ -61,19 +61,7 @@ Files are ordered alphabetically by their path relative to the project root (dir
 
 The first incomplete task across all files is the highest-priority work.
 
-## What Does NOT Work Yet
 
-The vision (see [README.vision.md](README.vision.md)) includes many features not yet implemented:
-
-- **Markers & Properties**: The `#property` and `@assignment` syntax is recognized by the parser but not validated or enforced
-- **Rules**: Only indentation is checked; no other validation rules exist
-- **Configuration**: `mdagile.toml` support is scaffolded but not functional
-- **Users & Groups**: Assignment logic (`@user`, `@group`) is not implemented
-- **Mandatory/Optional Subtasks**: Properties that define required subtasks (`#OPT`, `#feature` with subtasks)
-- **Milestones & ETA**: No milestone support or time estimation
-- **LSP Features**: No auto-fix suggestions, no symbol completion
-- **Advanced Workflows**: Ordered tasks, branch properties, neighbor tasks not implemented
-- **Project Structure**: No support for large-project file layout or archiving
 
 ## Building & Testing
 
