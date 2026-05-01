@@ -26,6 +26,7 @@ pub fn orphaned_subtask(items: &[FileItem]) -> Vec<Issue> {
                     "Remove leading spaces (make this a task), or delete preceeding empty lines if the element above is a task (make this a subtask)."
                         .to_string()
                 ),
+                data:     None,
             }),
             _ => None,
         })

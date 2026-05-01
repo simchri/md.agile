@@ -1,7 +1,7 @@
 //! E002 — flags items whose indentation does not match a valid subtask level.
 
 use crate::parser::{FileItem, Subtask};
-use crate::rules::Issue;
+use crate::rules::{Issue, IssueData};
 
 /// Flags wrong-indentation issues:
 /// - Subtasks where `indent != depth * 2`.
@@ -16,6 +16,9 @@ pub fn wrong_indentation(items: &[FileItem]) -> Vec<Issue> {
             // Top-level task with indent > 0 that was *attached* (not preceded
             // by a blank line) is wrong indentation, not an orphan.
             if task.indent > 0 && !task.preceded_by_blank {
+                // The user meant to nest under the previous element. Snap to
+                // the first subtask level (2 spaces).
+                let expected_indent = 2;
                 issues.push(Issue {
                     location: task.location.clone(),
                     code: "E002".to_string(),
@@ -26,6 +29,7 @@ pub fn wrong_indentation(items: &[FileItem]) -> Vec<Issue> {
                         task.indent,
                         if task.indent == 1 { "" } else { "s" }
                     )),
+                    data: Some(IssueData::WrongIndent { expected_indent }),
                 });
             }
 
@@ -60,6 +64,7 @@ fn check_subtask_recursive(
                 depth,
                 subtask.indent
             )),
+            data: Some(IssueData::WrongIndent { expected_indent }),
         });
     }
 
