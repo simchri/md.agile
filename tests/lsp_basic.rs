@@ -65,7 +65,7 @@ fn lsp_initialize_request_returns_capabilities() {
     let mut stdin = child.stdin.take().unwrap();
 
     // Send initialize request
-    let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootPath":"/tmp"}}"#;
+    let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootUri":null,"capabilities":{}}}"#;
     send_lsp_message(&mut stdin, init_request).unwrap();
     
     // Read response
@@ -88,12 +88,12 @@ fn lsp_initialized_notification_accepted() {
     let mut stdin = child.stdin.take().unwrap();
 
     // Send initialize
-    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootPath":"/tmp"}}"#;
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootUri":null,"capabilities":{}}}"#;
     send_lsp_message(&mut stdin, init).unwrap();
-    
+
     // Read initialize response
     let _response = read_lsp_response(&mut reader).unwrap();
-    
+
     // Send initialized notification (no response expected)
     let initialized = r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#;
     send_lsp_message(&mut stdin, initialized).unwrap();
@@ -112,12 +112,12 @@ fn lsp_shutdown_request_handled() {
     let mut stdin = child.stdin.take().unwrap();
 
     // Initialize first
-    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootPath":"/tmp"}}"#;
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootUri":null,"capabilities":{}}}"#;
     send_lsp_message(&mut stdin, init).unwrap();
     let _init_response = read_lsp_response(&mut reader).unwrap();
     
     // Send shutdown
-    let shutdown = r#"{"jsonrpc":"2.0","id":2,"method":"shutdown","params":null}"#;
+    let shutdown = r#"{"jsonrpc":"2.0","id":2,"method":"shutdown"}"#;
     send_lsp_message(&mut stdin, shutdown).unwrap();
     
     // Read shutdown response
