@@ -2,47 +2,37 @@
 //!
 //! Invoked when the user runs `agile` with no subcommand.
 
-use crate::cli::common::parse_file;
+use crate::cli::common::{find_task_files, parse_file};
 use crate::parser::{FileItem, Status};
 use std::path::{Path, PathBuf};
 
 /// Default-action entry point. Opens the editor at the next active task, or
 /// prints a message to stderr if every task is done.
 pub fn run(root: &Path) {
-    match find_file_with_next_task(root) {
-        Some(path) => {
-            let line = find_next_task_line(&path).unwrap_or(1);
-            open_editor(&path, line);
-        }
+    match find_next_task(root) {
+        Some((path, line)) => open_editor(&path, line),
         None => eprintln!("agile: no active tasks found"),
     }
 }
 
-/// Returns the path of the highest-priority task file that contains at least one active task.
+/// Returns the `(path, line)` of the first incomplete top-level task across
+/// all task files under `root`, in priority order.
 ///
-/// Files are evaluated in priority order (alphabetical by relative path). Returns `None` if no
-/// file has any incomplete `[ ]` top-level tasks, or if no task files exist under `root`.
-pub fn find_file_with_next_task(root: &Path) -> Option<PathBuf> {
-    crate::cli::common::find_task_files(root)
-        .into_iter()
-        .find(|p| file_has_active_task(p))
-}
-
-/// Returns the 1-based line number of the first incomplete top-level task in `path`.
-///
-/// Reads and parses `path`, then returns the [`crate::parser::Location::line`] of the
-/// first top-level Task whose status is [`Status::Todo`]. Returns `None` if the
-/// file cannot be read or contains no incomplete top-level tasks.
-pub fn find_next_task_line(path: &Path) -> Option<usize> {
-    parse_file(path).into_iter().find_map(|item| match item {
-        FileItem::Task(t) if t.status == Status::Todo => Some(t.location.line),
-        _ => None,
+/// Files are walked in priority order (alphabetical by relative path). For
+/// each file, the parser runs once: if the file contains at least one todo
+/// (`[ ]`) top-level task, this returns `(file, line_of_first_todo)`. Done
+/// (`[x]`) and cancelled (`[-]`) top-level tasks are skipped, as are subtasks.
+/// Returns `None` if no file under `root` has any active top-level task.
+pub fn find_next_task(root: &Path) -> Option<(PathBuf, usize)> {
+    find_task_files(root).into_iter().find_map(|path| {
+        first_active_task_line(&path).map(|line| (path, line))
     })
 }
 
-fn file_has_active_task(path: &Path) -> bool {
-    parse_file(path).iter().any(|item| {
-        matches!(item, FileItem::Task(t) if t.status == Status::Todo)
+fn first_active_task_line(path: &Path) -> Option<usize> {
+    parse_file(path).into_iter().find_map(|item| match item {
+        FileItem::Task(t) if t.status == Status::Todo => Some(t.location.line),
+        _ => None,
     })
 }
 
