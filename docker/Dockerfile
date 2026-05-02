@@ -21,14 +21,7 @@ RUN apt-get update && apt-get install --yes \
       make \
       sudo \
       vim \
-      wget \
-      nodejs \
-      npm \
-      libgtk-3-dev \
-      libayatana-appindicator3-dev \
-      libwebkit2gtk-4.1-dev \
-      librsvg2-dev \
-      libsoup-3.0-dev
+      wget
 
 RUN rustup component add rust-analyzer
 RUN rust-analyzer --version
