@@ -18,11 +18,8 @@ fn main() {
 fn App() -> Element {
     rsx! {
         div { class: "layout",
-            div { class: "top-row" }
-            div { class: "separator" }
-            div { class: "middle-row" }
-            div { class: "separator" }
-            div { class: "bottom-row" }
+            div { class: "separator1" }
+            div { class: "separator2" }
 
             div { class: "task-card", style: "top: 30px; left: 30px;",
                 "Implement user\nauthentication"

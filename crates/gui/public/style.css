@@ -26,21 +26,23 @@ body {
     pointer-events: none;
 }
 
-.separator {
+.separator1 {
     position: absolute;
     left: 0;
-    width: 100%;
+    top: 15%;
+    width: 100vw;
     height: 4px;
     background: black;
     pointer-events: none;
 }
-
-.separator:nth-child(2) {
-    top: 15%;
-}
-
-.separator:nth-child(4) {
-    top: calc(15% + 1fr);
+.separator2 {
+    position: absolute;
+    left: 0;
+    top: 85%;
+    width: 100vw;
+    height: 4px;
+    background: black;
+    pointer-events: none;
 }
 
 .middle-row {
@@ -48,6 +50,7 @@ body {
     top: calc(15% + 4px);
     left: 0;
     width: 100%;
+    width: 100vw;
     height: calc(70% - 4px);
     pointer-events: none;
 }
