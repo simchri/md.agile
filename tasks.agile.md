@@ -38,20 +38,20 @@ any operation that parses tasks lists should immediately stop on encountering th
 - [x] refactor and understand
 
 
-## More basic checks (recommended next: E002 & E003)
+## More basic checks
 
-- [ ] E002 + E003: Property & Assignment validation
+- [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
   - [ ] Read mdagile.toml config in checker; pass config to rules
-  - [ ] E002: Detect undefined #property markers in tasks
+  - [ ] Detect undefined #property markers in tasks
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
     - [ ] Test with common typos: #Feature, #feat, etc.
-  - [ ] E003: Detect undefined @user and @group assignments
+  - [ ] Detect undefined @user and @group assignments
     - [ ] Suggest close matches for misspelled names
     - [ ] Handle OR connections: @markus or @josh
   - [ ] Update error formatter for new error codes
 
-- [ ] E004: Missing required subtasks
+- [ ] Missing required subtasks
   Detect when a task has a property (e.g. #feature) but lacks required subtasks
   - [ ] Match quoted subtasks in tasks against property definitions from mdagile.toml
   - [ ] Handle multiple properties on same task
@@ -59,7 +59,7 @@ any operation that parses tasks lists should immediately stop on encountering th
   - [ ] Provide helpful error with list of missing subtasks
   - [ ] Tests: single property, multiple properties, nested properties
 
-- [ ] E005: Invalid order markers
+- [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
   - [ ] Validate no duplicate ranks (e.g., two "2." markers)
   - [ ] Detect gaps in sequence (1, 3, skip 2)
@@ -108,9 +108,9 @@ any operation that parses tasks lists should immediately stop on encountering th
     - [ ] Include error message, code, help text
   - [ ] Integrate with existing checker::run()
   - [ ] Validate on textDocument/didOpen and didChange
-  - [ ] Publish diagnostics for all errors (E001, E002, E003, etc.)
+  - [ ] Publish diagnostics for all errors
   - [ ] Create tests/lsp_diagnostics.rs — validation tests
-    - [ ] E001 errors generate correct diagnostics
+    - [ ] All error types generate correct diagnostics
     - [ ] Multiple errors aggregated
     - [ ] Clean files produce no diagnostics
   - [ ] Test with real .agile.md files
