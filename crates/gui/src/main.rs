@@ -59,10 +59,8 @@ fn app() -> Element {
 
     rsx! {
         div { class: "layout",
-            div { class: "top-row",
-                for (i, task) in backlog.iter().enumerate() {
-                    BacklogCard { task: task.clone(), index: i }
-                }
+            for (i, task) in backlog.iter().enumerate() {
+                BacklogCard { task: task.clone(), index: i }
             }
             div { class: "separator1" }
             div { class: "separator2" }
