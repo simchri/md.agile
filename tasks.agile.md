@@ -76,16 +76,22 @@ any operation that parses tasks lists should immediately stop on encountering th
   - [x] Test with real .agile.md files
 
 ## More basic Syntax Checks and Quick Fixes
-- [ ] wrongly indented task description
+- [x] wrongly indented task description
 task description starts exactly here, at the same location as the "-".
 This applies to every line of the task description.
-  - [ ] quickfix
+  - [x] agile check
+  - [ ] agilels hint
+  - [ ] agilels quickfix: fix indentation
 - [ ] missing space between task box and beginning of task title
-  - [ ] quickfix
+  - [ ] agile check
+  - [ ] agilels hint
+  - [ ] agilels quickfix: Add space
 
 ## Subtasks are Mandatory
 - [ ] detect parent task incorrectly marked as done, even though subtasks are not done
-  - [ ] quickfix: Mark all subtasks as done, 
+  - [ ] agile check
+  - [ ] agilels hint
+  - [ ] agilels quickfix: Mark all subtasks as done, 
 
 ##  Properties and first Settings
 

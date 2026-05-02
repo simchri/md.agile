@@ -10,9 +10,11 @@
 
 mod orphaned_subtask;
 mod wrong_indentation;
+mod wrong_body_indent;
 
 pub use orphaned_subtask::orphaned_subtask;
 pub use wrong_indentation::wrong_indentation;
+pub use wrong_body_indent::wrong_body_indent;
 
 use crate::parser::{FileItem, Location};
 use serde::{Deserialize, Serialize};
@@ -53,6 +55,7 @@ pub fn check_all(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
     issues.extend(orphaned_subtask(items));
     issues.extend(wrong_indentation(items));
+    issues.extend(wrong_body_indent(items));
     issues
 }
 
