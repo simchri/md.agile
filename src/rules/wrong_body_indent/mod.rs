@@ -44,7 +44,7 @@ fn check_task_body(task: &crate::parser::Task) -> Vec<Issue> {
                     if expected_indent == 1 { "" } else { "s" },
                     actual_indent
                 )),
-                data: None,
+                data: Some(crate::rules::IssueData::WrongBodyIndent { expected_indent }),
             });
         }
     }
@@ -79,7 +79,7 @@ fn check_subtask_body(subtask: &Subtask) -> Vec<Issue> {
                     if expected_indent == 1 { "" } else { "s" },
                     actual_indent
                 )),
-                data: None,
+                data: Some(crate::rules::IssueData::WrongBodyIndent { expected_indent }),
             });
         }
     }

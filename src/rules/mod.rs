@@ -32,6 +32,9 @@ pub enum IssueData {
     /// Payload for E002 "Wrong Indentation": the indentation (in spaces)
     /// that the offending line should be re-indented to.
     WrongIndent { expected_indent: usize },
+    /// Payload for E003 "Wrong Body Indentation": the indentation (in spaces)
+    /// that the body line should be re-indented to.
+    WrongBodyIndent { expected_indent: usize },
 }
 
 /// A single problem found by a rule.

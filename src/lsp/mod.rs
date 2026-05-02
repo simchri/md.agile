@@ -78,7 +78,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
     }
 }
 
-/// Builds a `quickfix` code action for a single E002 diagnostic, or `None`
+/// Builds a `quickfix` code action for E002/E003 diagnostics, or `None`
 /// if the diagnostic is not auto-fixable.
 ///
 /// Pure helper so we can unit-test it without driving the full LSP loop.
@@ -86,16 +86,19 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
 /// leading whitespace of the offending line with exactly `expected_indent`
 /// spaces (read from `diagnostic.data`).
 fn build_quickfix(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
-    // Only E002 is auto-fixable; E001 needs the user to decide intent.
+    // E002 and E003 are auto-fixable; E001/E004 need the user to decide intent.
     match &diagnostic.code {
-        Some(NumberOrString::String(s)) if s == "E002" => {}
+        Some(NumberOrString::String(s)) if s == "E002" || s == "E003" => {}
         _ => return None,
     }
 
     // Pull expected_indent out of the diagnostic's data payload.
     let data = diagnostic.data.as_ref()?;
     let issue_data: IssueData = serde_json::from_value(data.clone()).ok()?;
-    let IssueData::WrongIndent { expected_indent } = issue_data;
+    let expected_indent = match issue_data {
+        IssueData::WrongIndent { expected_indent } => expected_indent,
+        IssueData::WrongBodyIndent { expected_indent } => expected_indent,
+    };
 
     let line_idx = diagnostic.range.start.line as usize;
     let line_text = doc_text.lines().nth(line_idx)?;

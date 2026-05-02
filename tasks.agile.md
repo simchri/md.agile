@@ -80,8 +80,8 @@ any operation that parses tasks lists should immediately stop on encountering th
 task description starts exactly here, at the same location as the "-".
 This applies to every line of the task description.
   - [x] agile check
-  - [ ] agilels hint
-  - [ ] agilels quickfix: fix indentation
+  - [x] agilels hint
+  - [x] agilels quickfix: fix indentation
 - [ ] missing space between task box and beginning of task title
   - [ ] agile check
   - [ ] agilels hint
@@ -90,7 +90,7 @@ This applies to every line of the task description.
 ## Subtasks are Mandatory
 - [x] detect parent task incorrectly marked as done, even though subtasks are not done
   - [x] agile check
-  - [ ] agilels hint
+  - [x] agilels hint
   - [ ] agilels quickfix: Mark all subtasks as done 
 
 ##  Properties and first Settings
