@@ -32,21 +32,28 @@ pub struct TaskView {
 }
 
 /// Tasks bundle delivered to the GUI on every poll: the active "in progress"
-/// task plus the next ten queued items (the backlog displayed in the top row).
+/// task, the next ten queued items (the backlog along the top), and the last
+/// ten finished items (the recently-done strip along the bottom).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TaskList {
     pub current: Option<TaskView>,
     pub backlog: Vec<TaskView>,
+    pub done: Vec<TaskView>,
 }
 
 #[cfg(feature = "server")]
 const BACKLOG_LIMIT: usize = 10;
+#[cfg(feature = "server")]
+const DONE_LIMIT: usize = 10;
 
-/// Returns the current task and the next [`BACKLOG_LIMIT`] queued tasks.
+/// Returns the current task, the next [`BACKLOG_LIMIT`] queued tasks, and the
+/// last [`DONE_LIMIT`] completed tasks.
 ///
 /// Runs on the server: walks `*.agile.md` files under the project root and
-/// collects every top-level `[ ]` task in document order. The first becomes
-/// `current`; up to ten more fill the backlog.
+/// collects every top-level task in document order. The first Todo becomes
+/// `current`; up to ten more Todos fill the backlog. The trailing slice of
+/// Done tasks (in document order — last in the file = most recently noted as
+/// done) populates the bottom row.
 #[server]
 pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
     use mdagile::cli::common::{find_task_files, parse_files};
@@ -63,7 +70,14 @@ pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
     let current = todos.next();
     let backlog: Vec<TaskView> = todos.take(BACKLOG_LIMIT).collect();
 
-    Ok(TaskList { current, backlog })
+    let dones: Vec<TaskView> = items.iter().filter_map(|item| match item {
+        FileItem::Task(task) if task.status == Status::Done => Some(task_to_view(task)),
+        _ => None,
+    }).collect();
+    let skip = dones.len().saturating_sub(DONE_LIMIT);
+    let done: Vec<TaskView> = dones.into_iter().skip(skip).collect();
+
+    Ok(TaskList { current, backlog, done })
 }
 
 #[cfg(feature = "server")]

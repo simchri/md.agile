@@ -40,10 +40,13 @@ fn app() -> Element {
         }
     });
 
-    let (current_task, backlog): (Option<TaskView>, Vec<TaskView>) = match &*tasks.read_unchecked() {
-        Some(Ok(TaskList { current, backlog })) => (current.clone(), backlog.clone()),
-        _ => (None, Vec::new()),
-    };
+    let (current_task, backlog, done): (Option<TaskView>, Vec<TaskView>, Vec<TaskView>) =
+        match &*tasks.read_unchecked() {
+            Some(Ok(TaskList { current, backlog, done })) => {
+                (current.clone(), backlog.clone(), done.clone())
+            }
+            _ => (None, Vec::new(), Vec::new()),
+        };
 
     let card = match &*tasks.read_unchecked() {
         Some(Ok(TaskList { current: Some(t), .. })) => rsx! {
@@ -61,6 +64,9 @@ fn app() -> Element {
         div { class: "layout",
             for (i, task) in backlog.iter().enumerate() {
                 BacklogCard { task: task.clone(), index: i }
+            }
+            for (i, task) in done.iter().enumerate() {
+                DoneCard { task: task.clone(), index: i }
             }
             div { class: "separator1" }
             div { class: "separator2" }
@@ -139,6 +145,24 @@ fn BacklogCard(task: TaskView, index: usize) -> Element {
                     }
                 }
             }
+        }
+    }
+}
+
+/// Step (px) and starting offset (px) shared with the backlog row but rendered
+/// at the bottom of the canvas. The 12px left inset matches the backlog so
+/// the two rows align visually.
+const DONE_LEFT_PX: usize = 12;
+
+#[component]
+fn DoneCard(task: TaskView, index: usize) -> Element {
+    let style = format!("left: {}px;", DONE_LEFT_PX + index * BACKLOG_OFFSET_PX);
+    rsx! {
+        div { class: "done-card", style: "{style}",
+            div { class: "done-card-status {status_class(&task.status)}",
+                {status_box(&task.status)}
+            }
+            div { class: "done-card-title", "{task.title}" }
         }
     }
 }

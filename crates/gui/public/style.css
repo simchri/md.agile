@@ -378,3 +378,38 @@ body {
     font-family: monospace;
     margin-right: 3px;
 }
+
+.done-card {
+    position: absolute;
+    bottom: 8px;
+    /* `left` is set inline per-card from the index in DoneCard */
+    width: 110px;
+    height: calc(15vh - 16px);
+    max-height: 110px;
+    padding: 6px 8px;
+    background: #d8e6c8;
+    border-radius: 3px;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.08);
+    font-size: 11px;
+    line-height: 1.3;
+    color: #555;
+    overflow: hidden;
+    pointer-events: auto;
+    opacity: 0.85;
+}
+
+.done-card-status {
+    font-family: monospace;
+    font-size: 10px;
+    color: #555;
+    margin-bottom: 3px;
+}
+
+.done-card-title {
+    font-weight: 500;
+    font-size: 11.5px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-decoration: line-through;
+    color: #666;
+}
