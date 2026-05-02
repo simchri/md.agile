@@ -4,7 +4,7 @@ version.workspace = true
 edition = "2021"
 
 [dependencies]
-dioxus = { version = "0.7", features = ["router"] }
+dioxus = { version = "0.7", features = ["fullstack"] }
 dioxus-logger = "0.7"
 tracing = "0.1"
 log = { version = "0.4" }
@@ -12,12 +12,13 @@ env_logger = "0.10"
 console_log = "1.0.0"
 once_cell = "1"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-mdagile = { path = "../cli" }
+# Server-only: pulled in only when the `server` feature is active so it never
+# enters the WASM build.
+mdagile = { path = "../cli", optional = true }
 notify = "8.2.0"
 
 [features]
 default = []
 web = ["dioxus/web"]
-# desktop = ["dioxus/desktop"]
-
+server = ["dioxus/server", "dep:mdagile"]
+desktop = ["dioxus/desktop"]

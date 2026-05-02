@@ -1,15 +1,12 @@
 use dioxus::prelude::*;
-use log::error;
 use log::info;
+use log::error;
 use log::warn;
-use once_cell::sync::Lazy;
-use std::path::PathBuf;
-use std::{path::Path, sync::mpsc};
-
-#[cfg(not(feature = "web"))]
 use notify::{Event, RecursiveMode, Watcher};
+use std::{path::Path, sync::mpsc};
+use std::path::PathBuf;
+use once_cell::sync::Lazy;
 
-#[cfg(not(feature = "web"))]
 pub static WORKING_DIR: Lazy<PathBuf> = Lazy::new(|| {
     std::env::var("MDAGILE_WORKDIR")
         .map(PathBuf::from)
@@ -24,9 +21,6 @@ pub static WORKING_DIR: Lazy<PathBuf> = Lazy::new(|| {
         .expect("failed to get working directory")
 });
 
-#[cfg(feature = "web")]
-pub static WORKING_DIR: Lazy<PathBuf> = Lazy::new(|| std::path::PathBuf::new());
-
 fn main() {
     #[cfg(not(feature = "web"))]
     env_logger::init();
@@ -38,37 +32,33 @@ fn main() {
     // Set Up Root Dir
     // ======
     // root dir is static for the lifetime of the application
-    //
+    // 
     info!("check for mdagile.toml file..");
     let working_dir = &*WORKING_DIR;
-    if working_dir.join("mdagile.toml").is_file() {
+    if working_dir.join("mdagile.toml").is_file() { 
         info!("found project root at {}", working_dir.display());
     } else {
-        warn!(
-            "could not find project root (no mdagile.toml found in current or parent directories)"
-        );
+        error!("could not find project root (no mdagile.toml found in current or parent directories)");
+        std::process::exit(1);
     }
+    info!(".. ok. found project root at {}", working_dir.display());
+
 
     // File Watching
     // ======
     // Create a channel for notifications
-    #[cfg(not(feature = "web"))]
     let (tx, rx) = std::sync::mpsc::channel::<Result<notify::Event, notify::Error>>();
 
     // Spawn the watcher in a separate thread
-    #[cfg(not(feature = "web"))]
-    setup_file_watcher();
+    std::thread::spawn(move || {
+        if let Err(e) = watch_events(tx) {
+            log::error!("watcher error: {:?}", e);
+        } else {
+            log::info!("watcher exited successfully");
+        }
+    });
 
     // Spawn a thread to handle incoming notifications (example: print them)
-    #[cfg(not(feature = "web"))]
-    receive_file_change_events(rx);
-
-    log::info!("Launch Dioxus App");
-    dioxus::launch(App);
-}
-
-#[cfg(not(feature = "web"))]
-fn receive_file_change_events(rx: mpsc::Receiver<Result<notify::Event, notify::Error>>) {
     std::thread::spawn(move || {
         for event in rx {
             match event {
@@ -77,20 +67,11 @@ fn receive_file_change_events(rx: mpsc::Receiver<Result<notify::Event, notify::E
             }
         }
     });
+
+    log::info!("Launch Dioxus App");
+    dioxus::launch(App);
 }
 
-#[cfg(not(feature = "web"))]
-fn setup_file_watcher(tx: mpsc::Sender<Result<notify::Event, notify::Error>>) {
-    std::thread::spawn(move || {
-        if let Err(e) = watch_events(tx) {
-            log::error!("watcher error: {:?}", e);
-        } else {
-            log::info!("watcher exited successfully");
-        }
-    });
-}
-
-#[cfg(not(feature = "web"))]
 fn watch_events(tx: std::sync::mpsc::Sender<Result<Event, notify::Error>>) -> notify::Result<()> {
     log::info!("set up event watcher");
 
@@ -107,27 +88,28 @@ fn watch_events(tx: std::sync::mpsc::Sender<Result<Event, notify::Error>>) -> no
 }
 
 /// Returns the title of the next highest-priority incomplete task.
-#[cfg(not(feature = "web"))]
-fn get_next_task() -> Option<String> {
+///
+/// Runs on the server (the local dev process), reads `*.agile.md` from the
+/// project root, and yields the title of the first `[ ]` top-level task.
+#[server]
+async fn get_next_task() -> Result<Option<String>, ServerFnError> {
     use mdagile::cli::common::{find_task_files, parse_files};
     use mdagile::cli::subcommands::task::next_task_title;
 
-    let items = parse_files(&find_task_files(&WORKING_DIR));
-    next_task_title(&items)
-}
 
-#[cfg(feature = "web")]
-fn get_next_task() -> Option<String> {
-    Some("dummy task".to_string())
+    let items = parse_files(&find_task_files(&WORKING_DIR));
+    Ok(next_task_title(&items))
 }
 
 #[component]
 fn App() -> Element {
-    let next = use_signal(|| get_next_task());
+    let next = use_resource(|| async { get_next_task().await });
 
-    let title = match next() {
-        Some(t) => t.clone(),
-        None => "Loading…".to_string(),
+    let title = match &*next.read_unchecked() {
+        Some(Ok(Some(t))) => t.clone(),
+        Some(Ok(None))    => "All tasks done".to_string(),
+        Some(Err(e))      => format!("Error: {e}"),
+        None              => "Loading…".to_string(),
     };
 
     rsx! {
