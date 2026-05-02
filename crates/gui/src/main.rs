@@ -1,10 +1,8 @@
 use dioxus::prelude::*;
 use log::info;
 use log::error;
-use log::warn;
 use notify::{Event, RecursiveMode, Watcher};
-use std::{path::Path, sync::mpsc};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use once_cell::sync::Lazy;
 
 pub static WORKING_DIR: Lazy<PathBuf> = Lazy::new(|| {
@@ -22,34 +20,38 @@ pub static WORKING_DIR: Lazy<PathBuf> = Lazy::new(|| {
 });
 
 fn main() {
+    init_logger();
+    info!("mdagile-gui main");
+
+    validate_working_dir();
+    spawn_file_watcher();
+
+    info!("Launching Dioxus App");
+    dioxus::launch(App);
+}
+
+fn init_logger() {
     #[cfg(not(feature = "web"))]
     env_logger::init();
 
     #[cfg(feature = "web")]
     console_log::init_with_level(log::Level::Debug).expect("error initializing logger");
+}
 
-    info!("mdagile-gui main");
-    // Set Up Root Dir
-    // ======
-    // root dir is static for the lifetime of the application
-    // 
-    info!("check for mdagile.toml file..");
+fn validate_working_dir() {
+    info!("checking for mdagile.toml file..");
     let working_dir = &*WORKING_DIR;
-    if working_dir.join("mdagile.toml").is_file() { 
+    if working_dir.join("mdagile.toml").is_file() {
         info!("found project root at {}", working_dir.display());
     } else {
-        error!("could not find project root (no mdagile.toml found in current or parent directories)");
+        error!("could not find project root (no mdagile.toml found)");
         std::process::exit(1);
     }
-    info!(".. ok. found project root at {}", working_dir.display());
+}
 
-
-    // File Watching
-    // ======
-    // Create a channel for notifications
+fn spawn_file_watcher() {
     let (tx, rx) = std::sync::mpsc::channel::<Result<notify::Event, notify::Error>>();
 
-    // Spawn the watcher in a separate thread
     std::thread::spawn(move || {
         if let Err(e) = watch_events(tx) {
             log::error!("watcher error: {:?}", e);
@@ -58,18 +60,14 @@ fn main() {
         }
     });
 
-    // Spawn a thread to handle incoming notifications (example: print them)
     std::thread::spawn(move || {
         for event in rx {
             match event {
-                Ok(ev) => log::info!("Received event: {:?}", ev),
-                Err(e) => log::error!("Watch error: {:?}", e),
+                Ok(ev) => log::info!("file event: {:?}", ev),
+                Err(e) => log::error!("watch error: {:?}", e),
             }
         }
     });
-
-    log::info!("Launch Dioxus App");
-    dioxus::launch(App);
 }
 
 fn watch_events(tx: std::sync::mpsc::Sender<Result<Event, notify::Error>>) -> notify::Result<()> {
@@ -104,13 +102,7 @@ async fn get_next_task() -> Result<Option<String>, ServerFnError> {
 #[component]
 fn App() -> Element {
     let next = use_resource(|| async { get_next_task().await });
-
-    let title = match &*next.read_unchecked() {
-        Some(Ok(Some(t))) => t.clone(),
-        Some(Ok(None))    => "All tasks done".to_string(),
-        Some(Err(e))      => format!("Error: {e}"),
-        None              => "Loading…".to_string(),
-    };
+    let title = format_task_title(&*next.read_unchecked());
 
     rsx! {
         div { class: "layout",
@@ -121,5 +113,14 @@ fn App() -> Element {
                 "{title}"
             }
         }
+    }
+}
+
+fn format_task_title(result: &Option<Result<Option<String>, ServerFnError>>) -> String {
+    match result {
+        Some(Ok(Some(t))) => t.clone(),
+        Some(Ok(None))    => "All tasks done".to_string(),
+        Some(Err(e))      => format!("Error: {e}"),
+        None              => "Loading…".to_string(),
     }
 }
