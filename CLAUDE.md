@@ -107,6 +107,13 @@ User prompt:
 > add a simple css confetti animation to the "Done" button (when completing a task)
 ```
 
+### Task Management in tasks.agile.md
+
+Use `tasks.agile.md` as the authoritative record of work completed and planned:
+- **When work is completed**: Mark it as done `[x]` in `tasks.agile.md` immediately, even if it's already committed.
+- **When the user prompts something new**: If it's not already in `tasks.agile.md`, create a new task in a suitable location (under an appropriate section/heading, or create a new section if needed).
+- **Keep it current**: This file serves as a running history of what's been built and what's planned next. Use it to avoid duplicate work and to understand project momentum.
+
 ## Terminology
 
 See `GLOSSARY.md` for precise definitions. Key terms used throughout the codebase and vision docs:
