@@ -20,6 +20,11 @@ cargo test --lib -- <test_name>                                       # single u
 cargo test --test acceptance-tests -- --name "<scenario name>"        # acceptance test
 ```
 
+count tests in the project: (don't run)
+```bash
+cargo test -- --list | grep -c "^" # count tests
+```
+
 ### Docker dev environment
 
 The project is configured for development in a docker container, where the project sources are mounted.
@@ -93,7 +98,9 @@ If the branch does **not** start with `vibe`, warn the user instead and do not c
 
 **Commit format**:
 - **Short summary**: `(Claude) <description>` — e.g., `(Claude) add confetti animation to Done button`
-- **Body**: Include a detailed explanation of the changes, followed by the verbatim user prompt that triggered the changes
+- **Body**: 
+  - Include a detailed explanation of the changes, followed by the verbatim user prompt that triggered the changes
+  - Include the total number of tests in the project (c.f. above for how to count). Format: "total tests: <num tests>"
 
 Example:
 ```
