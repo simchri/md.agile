@@ -20,17 +20,15 @@ body {
 
 .top-row {
     flex: 0 0 15%;
-    border-bottom: 1px solid black;
 }
 
 .separator {
-    flex: 0 0 1px;
+    flex: 0 0 4px;
     background: black;
 }
 
 .middle-row {
     flex: 1;
-    border-bottom: 1px solid black;
 }
 
 .bottom-row {
