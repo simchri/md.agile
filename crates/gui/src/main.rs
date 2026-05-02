@@ -22,6 +22,7 @@ fn init_logger() {
 
 fn app() -> Element {
     let mut next = use_resource(|| async { server::get_next_task().await });
+    let mut modal_open = use_signal(|| false);
 
     use_effect({
         // Clock, frequency 1s.
@@ -39,8 +40,18 @@ fn app() -> Element {
         }
     });
 
+    let task_data: Option<TaskView> = match &*next.read_unchecked() {
+        Some(Ok(Some(t))) => Some(t.clone()),
+        _ => None,
+    };
+
     let card = match &*next.read_unchecked() {
-        Some(Ok(Some(t))) => rsx! { TaskCard { task: t.clone() } },
+        Some(Ok(Some(t))) => rsx! {
+            TaskCard {
+                task: t.clone(),
+                on_click: move |_| modal_open.set(true),
+            }
+        },
         Some(Ok(None))    => rsx! { div { class: "task-card", style: "{diagonal_style(1.0)}", "All tasks done" } },
         Some(Err(e))      => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Error: {e}" } },
         None              => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Loading…" } },
@@ -51,15 +62,25 @@ fn app() -> Element {
             div { class: "separator1" }
             div { class: "separator2" }
             {card}
+
+            if modal_open() {
+                if let Some(task) = task_data {
+                    TaskModal {
+                        task: task,
+                        on_close: move |_| modal_open.set(false),
+                    }
+                }
+            }
         }
     }
 }
 
 #[component]
-fn TaskCard(task: TaskView) -> Element {
+fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>) -> Element {
     let progress = task_progress(&task);
     rsx! {
         div { class: "task-card", style: "{diagonal_style(progress)}",
+            onclick: move |evt| on_click.call(evt),
             div { class: "task-card-header",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
                 span { class: "task-card-title", "{task.title}" }
@@ -110,6 +131,55 @@ fn SubtaskItem(task: TaskView, depth: usize) -> Element {
                 ul { class: "subtask-children",
                     for child in &task.children {
                         SubtaskItem { task: child.clone(), depth: depth + 1 }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn TaskModal(task: TaskView, on_close: EventHandler<MouseEvent>) -> Element {
+    rsx! {
+        div { class: "modal-backdrop",
+            onclick: move |evt| on_close.call(evt),
+
+            div { class: "modal-content",
+                onclick: move |evt: MouseEvent| evt.stop_propagation(),
+
+                button { class: "modal-close",
+                    onclick: move |evt| on_close.call(evt),
+                    "×"
+                }
+
+                div { class: "modal-task-header",
+                    span { class: "modal-status {status_class(&task.status)}",
+                        {status_box(&task.status)}
+                    }
+                    h1 { class: "modal-task-title", "{task.title}" }
+                }
+
+                if !task.markers.is_empty() {
+                    div { class: "modal-markers",
+                        for marker in &task.markers {
+                            span { class: "marker", "{marker}" }
+                        }
+                    }
+                }
+
+                if !task.body.is_empty() {
+                    div { class: "modal-body",
+                        for line in &task.body {
+                            div { "{line}" }
+                        }
+                    }
+                }
+
+                if !task.children.is_empty() {
+                    ul { class: "modal-children",
+                        for child in &task.children {
+                            SubtaskItem { task: child.clone(), depth: 1 }
+                        }
                     }
                 }
             }

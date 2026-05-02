@@ -117,6 +117,18 @@
     just clip if not enough space. keep post-it side constant)
 - [x] place post-it along top-left → bottom-right diagonal based on subtask completion progress (done in bottom-right corner)
 
+- [x] task post-it can be opened by clicking
+  - [x] task modal then takes up most of the available screen and overlays all other elements
+  - [x] modal is made scrollable
+  - [x] all content can be viewed
+- [ ] load in backlog tasks along the top row
+  load the ten next tasks in the backlog
+  - [ ] backlog task post-its are a bit smaller than task in progress
+- [ ] display the last ten tasks that were done along the bottom row
+  - [ ] done task post-its are a bit smaller than task in progress
+
+- [ ] z-ordering: Last changed task is moved to front
+
 
 ##  Properties and first Settings
 
