@@ -105,7 +105,7 @@ fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>) -> Element {
             if !task.children.is_empty() {
                 ul { class: "task-card-children",
                     for child in &task.children {
-                        SubtaskItem { task: child.clone(), depth: 1 }
+                        SubtaskItem { task: child.clone(), depth: 1, show_body: false }
                     }
                 }
             }
@@ -114,7 +114,7 @@ fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>) -> Element {
 }
 
 #[component]
-fn SubtaskItem(task: TaskView, depth: usize) -> Element {
+fn SubtaskItem(task: TaskView, depth: usize, show_body: bool) -> Element {
     let style = format!("padding-left: {}px;", (depth - 1) * 8);
     rsx! {
         li { class: "subtask {status_class(&task.status)}", style: "{style}",
@@ -127,10 +127,17 @@ fn SubtaskItem(task: TaskView, depth: usize) -> Element {
                     }
                 }
             }
+            if show_body && !task.body.is_empty() {
+                div { class: "subtask-body",
+                    for line in &task.body {
+                        div { "{line}" }
+                    }
+                }
+            }
             if !task.children.is_empty() {
                 ul { class: "subtask-children",
                     for child in &task.children {
-                        SubtaskItem { task: child.clone(), depth: depth + 1 }
+                        SubtaskItem { task: child.clone(), depth: depth + 1, show_body: show_body }
                     }
                 }
             }
@@ -178,7 +185,7 @@ fn TaskModal(task: TaskView, on_close: EventHandler<MouseEvent>) -> Element {
                 if !task.children.is_empty() {
                     ul { class: "modal-children",
                         for child in &task.children {
-                            SubtaskItem { task: child.clone(), depth: 1 }
+                            SubtaskItem { task: child.clone(), depth: 1, show_body: true }
                         }
                     }
                 }

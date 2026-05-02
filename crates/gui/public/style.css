@@ -315,3 +315,19 @@ body {
 .modal-children .subtask-children {
     padding-left: 20px;
 }
+
+.subtask-body {
+    margin: 4px 0 8px 24px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.4);
+    border-left: 2px solid rgba(0, 0, 0, 0.15);
+    border-radius: 0 3px 3px 0;
+    font-size: 13px;
+    color: #555;
+    font-style: italic;
+    line-height: 1.5;
+}
+
+.subtask-body div {
+    margin: 0;
+}
