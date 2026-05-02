@@ -85,6 +85,7 @@ Whenever a prompt results in code changes (modifications to versioned files or n
 **Test requirements**:
 - If only `.md` files are modified: commit directly without running tests.
 - If any `.rs` or other code files are modified: run `cargo test` first and ensure all tests pass before committing.
+- **Exception**: `tasks.agile.md` must be validated with `agile check` before committing (it's a `.agile.md` file, not documentation).
 
 If tests fail, fix them first — do not commit a red suite.
 
