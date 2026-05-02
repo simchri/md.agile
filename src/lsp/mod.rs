@@ -78,12 +78,12 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
     }
 }
 
-/// Builds a `quickfix` code action for E002/E003 diagnostics, or `None`
+/// Builds a `quickfix` code action for E002/E003/E005 diagnostics, or `None`
 /// if the diagnostic is not auto-fixable.
 ///
-/// Pure helper so we can unit-test it without driving the full LSP loop.
-/// `doc_text` is the current content of the document; the edit replaces the
-/// leading whitespace of the offending line with exactly `expected_indent`
+/// Extracted as a pure function for testability. Used by the code_action handler
+/// to provide inline fixes. `doc_text` is the current document content; the edit
+/// replaces the leading whitespace of the offending line with exactly `expected_indent`
 /// spaces (read from `diagnostic.data`).
 fn build_quickfix(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
     // E002, E003, E005 are auto-fixable; E001/E004 need the user to decide intent.
