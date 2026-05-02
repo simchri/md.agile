@@ -10,7 +10,6 @@ tracing = "0.1"
 log = { version = "0.4" }
 env_logger = "0.10"
 console_log = "1.0.0"
-gloo-net = "0.6"
 
 [features]
 default = []
