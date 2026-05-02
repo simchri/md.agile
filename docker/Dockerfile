@@ -17,11 +17,21 @@ RUN apt-get update && apt-get install --yes \
       file \
       g++ \
       git \
+      libayatana-appindicator3-dev \
+      libcanberra-gtk3-module=0.30-18 \
+      libglib2.0-dev \
+      librsvg2-dev \
+      libssl-dev \
+      libsqlite3-dev \
+      libwebkit2gtk-4.1-dev \
+      libxdo-dev \
       libssl-dev \
       make \
       sudo \
       vim \
       wget
+
+RUN cargo binstall dioxus-cli@0.7.3
 
 RUN rustup component add rust-analyzer
 RUN rust-analyzer --version

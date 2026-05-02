@@ -100,13 +100,15 @@
     Note: For now- no quickfix. Users should decide if subtasks can be deleted, cancelled or marked done
 
 ## GUI prototype
-- [ ] overview of suitable GUI frameworks
+- [x] overview of suitable GUI frameworks
   suitable framework must:
   - compile natively to windows and linux. Mobile not required atm
   - support nice animations for "moving post-its over a canvas"
   - be lightweight and performant
   - popular and well supported
   - styling with css
+- [x] GUI framework selected: Dioxus
+- [x] Hello world GUI app running
 - [ ] prototype runs: Empty canvas, divided into three rows, narrow top row, wide middle row, narrow bottom row. Separated by simple black lines.
 
 
