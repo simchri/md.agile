@@ -93,7 +93,7 @@ fn format_task_title(result: &Option<Result<Option<String>, ServerFnError>>) -> 
 
 fn app() -> Element {
     
-    let next = use_resource(|| async { get_next_task().await });
+    let mut next = use_resource(|| async { get_next_task().await });
 
     let title = match &*next.read_unchecked() {
         Some(Ok(Some(t))) => t.clone(),
@@ -101,6 +101,24 @@ fn app() -> Element {
         Some(Err(e))      => format!("Error: {e}"),
         None              => "Loading…".to_string(),
     };
+
+    use_effect({
+        // Clock, frequency 1s.
+        // Poll updates from the server side (e.g. update task list)
+        move || {
+            dioxus::prelude::spawn(async move {
+                log::info!("use_effect: clock START");
+                use wasmtimer::tokio::sleep;
+
+                loop {
+                    sleep(std::time::Duration::from_millis(1000)).await;
+
+                    // updates the "next" resource, by re-evaluating the registered function, therefore calling the backend, to get the current latest task.
+                    next.restart(); 
+                }
+            });
+        }
+    });
 
     rsx! {
         div { class: "layout",
