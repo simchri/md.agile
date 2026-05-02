@@ -3678,6 +3678,8 @@ dependencies = [
  "mdagile",
  "notify",
  "once_cell",
+ "serde",
+ "tokio",
  "tracing",
 ]
 

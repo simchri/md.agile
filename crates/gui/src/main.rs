@@ -1,9 +1,11 @@
+use serde;
 use dioxus::prelude::*;
 use log::info;
 use log::error;
 use notify::{Event, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use once_cell::sync::Lazy;
+use dioxus_fullstack::ServerEvents;
 
 pub static WORKING_DIR: Lazy<PathBuf> = Lazy::new(|| {
     std::env::var("MDAGILE_WORKDIR")
@@ -99,10 +101,65 @@ async fn get_next_task() -> Result<Option<String>, ServerFnError> {
     Ok(next_task_title(&items))
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+enum MyServerEvent {
+    Yay { message: String },
+    Nay { error: String },
+}
+
+/// Our SSE endpoint, when called, will return the ServerEvents handle which streams events to the client.
+/// On the client, we can interact with this stream object to get new events as they arrive.
+#[get("/api/sse")]
+async fn listen_for_changes() -> Result<ServerEvents<MyServerEvent>> {
+    use std::time::Duration;
+
+    Ok(ServerEvents::new(|mut tx| async move {
+        let mut count = 1;
+
+        loop {
+            // Create our serializable message
+            let msg = if count % 5 == 0 {
+                MyServerEvent::Nay {
+                    error: "An error occurred".into(),
+                }
+            } else {
+                MyServerEvent::Yay {
+                    message: format!("Hello number {count}"),
+                }
+            };
+
+            // Send the message to the client. If it errors, the client has disconnected
+            if tx.send(msg).await.is_err() {
+                // client disconnected, do some cleanup
+                break;
+            }
+
+            count += 1;
+
+            // Poll some data source here, subscribe to changes, maybe call an LLM?
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }))
+}
+
 #[component]
 fn App() -> Element {
     let next = use_resource(|| async { get_next_task().await });
     let title = format_task_title(&*next.read_unchecked());
+
+    // receive events from server
+    let mut events = use_signal(Vec::new);
+    use_future(move || async move {
+        // Call the SSE endpoint to get a stream of events
+        let mut stream = listen_for_changes().await?;
+
+        // And then poll it for new events, adding them to our signal
+        while let Some(Ok(event)) = stream.recv().await {
+            events.push(event);
+        }
+
+        dioxus::Ok(())
+    });
 
     rsx! {
         div { class: "layout",
@@ -111,6 +168,10 @@ fn App() -> Element {
 
             div { class: "task-card", style: "top: 30px; left: 30px;",
                 "{title}"
+            }
+            h1 { "Events from server: " }
+                for msg in events.read().iter().rev() {
+                pre { "{msg:?}" }
             }
         }
     }
