@@ -28,7 +28,8 @@
       "Bash(git -C /home/simon/ws/md.agile add src/main.rs tests/list_limits.rs tasks.agile.md)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(grep -E \"^test result|FAILED|ok$\")"
+      "Bash(grep -E \"^test result|FAILED|ok$\")",
+      "Bash(cargo install *)"
     ]
   }
 }
