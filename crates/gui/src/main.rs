@@ -3,7 +3,7 @@ use log::info;
 
 mod server;
 
-use server::{TaskStatus, TaskView};
+use server::{TaskList, TaskStatus, TaskView};
 
 fn main() {
     init_logger();
@@ -21,7 +21,7 @@ fn init_logger() {
 }
 
 fn app() -> Element {
-    let mut next = use_resource(|| async { server::get_next_task().await });
+    let mut tasks = use_resource(|| async { server::get_tasks().await });
     let mut modal_open = use_signal(|| false);
 
     use_effect({
@@ -34,37 +34,42 @@ fn app() -> Element {
 
                 loop {
                     sleep(std::time::Duration::from_millis(1000)).await;
-                    next.restart();
+                    tasks.restart();
                 }
             });
         }
     });
 
-    let task_data: Option<TaskView> = match &*next.read_unchecked() {
-        Some(Ok(Some(t))) => Some(t.clone()),
-        _ => None,
+    let (current_task, backlog): (Option<TaskView>, Vec<TaskView>) = match &*tasks.read_unchecked() {
+        Some(Ok(TaskList { current, backlog })) => (current.clone(), backlog.clone()),
+        _ => (None, Vec::new()),
     };
 
-    let card = match &*next.read_unchecked() {
-        Some(Ok(Some(t))) => rsx! {
+    let card = match &*tasks.read_unchecked() {
+        Some(Ok(TaskList { current: Some(t), .. })) => rsx! {
             TaskCard {
                 task: t.clone(),
                 on_click: move |_| modal_open.set(true),
             }
         },
-        Some(Ok(None))    => rsx! { div { class: "task-card", style: "{diagonal_style(1.0)}", "All tasks done" } },
-        Some(Err(e))      => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Error: {e}" } },
-        None              => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Loading…" } },
+        Some(Ok(TaskList { current: None, .. })) => rsx! { div { class: "task-card", style: "{diagonal_style(1.0)}", "All tasks done" } },
+        Some(Err(e))                              => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Error: {e}" } },
+        None                                      => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Loading…" } },
     };
 
     rsx! {
         div { class: "layout",
+            div { class: "top-row",
+                for task in backlog.iter() {
+                    BacklogCard { task: task.clone() }
+                }
+            }
             div { class: "separator1" }
             div { class: "separator2" }
             {card}
 
             if modal_open() {
-                if let Some(task) = task_data {
+                if let Some(task) = current_task {
                     TaskModal {
                         task: task,
                         on_close: move |_| modal_open.set(false),
@@ -106,6 +111,25 @@ fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>) -> Element {
                 ul { class: "task-card-children",
                     for child in &task.children {
                         SubtaskItem { task: child.clone(), depth: 1, show_body: false }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn BacklogCard(task: TaskView) -> Element {
+    rsx! {
+        div { class: "backlog-card",
+            div { class: "backlog-card-status {status_class(&task.status)}",
+                {status_box(&task.status)}
+            }
+            div { class: "backlog-card-title", "{task.title}" }
+            if !task.markers.is_empty() {
+                div { class: "backlog-card-markers",
+                    for marker in &task.markers {
+                        span { class: "marker", "{marker}" }
                     }
                 }
             }

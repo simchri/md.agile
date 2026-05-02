@@ -31,24 +31,39 @@ pub struct TaskView {
     pub children: Vec<TaskView>,
 }
 
-/// Returns the next highest-priority incomplete task with all its subtree info.
+/// Tasks bundle delivered to the GUI on every poll: the active "in progress"
+/// task plus the next ten queued items (the backlog displayed in the top row).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct TaskList {
+    pub current: Option<TaskView>,
+    pub backlog: Vec<TaskView>,
+}
+
+#[cfg(feature = "server")]
+const BACKLOG_LIMIT: usize = 10;
+
+/// Returns the current task and the next [`BACKLOG_LIMIT`] queued tasks.
 ///
-/// Runs on the server (the local dev process), reads `*.agile.md` from the
-/// project root, and yields the first `[ ]` top-level task as a [`TaskView`].
+/// Runs on the server: walks `*.agile.md` files under the project root and
+/// collects every top-level `[ ]` task in document order. The first becomes
+/// `current`; up to ten more fill the backlog.
 #[server]
-pub async fn get_next_task() -> Result<Option<TaskView>, ServerFnError> {
+pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
     use mdagile::cli::common::{find_task_files, parse_files};
     use mdagile::parser::{FileItem, Status};
 
     let root = get_or_init_working_dir()?;
     let items = parse_files(&find_task_files(&root));
 
-    let next = items.iter().find_map(|item| match item {
+    let mut todos = items.iter().filter_map(|item| match item {
         FileItem::Task(task) if task.status == Status::Todo => Some(task_to_view(task)),
         _ => None,
     });
 
-    Ok(next)
+    let current = todos.next();
+    let backlog: Vec<TaskView> = todos.take(BACKLOG_LIMIT).collect();
+
+    Ok(TaskList { current, backlog })
 }
 
 #[cfg(feature = "server")]

@@ -121,14 +121,12 @@
   - [x] task modal then takes up most of the available screen and overlays all other elements
   - [x] modal is made scrollable
   - [x] all content can be viewed
-- [ ] load in backlog tasks along the top row
+- [x] load in backlog tasks along the top row
   load the ten next tasks in the backlog
-  - [ ] backlog task post-its are a bit smaller than task in progress
+  - [x] backlog task post-its are a bit smaller than task in progress
 - [ ] display the last ten tasks that were done along the bottom row
   - [ ] done task post-its are a bit smaller than task in progress
-
 - [ ] z-ordering: Last changed task is moved to front
-
 
 ##  Properties and first Settings
 
