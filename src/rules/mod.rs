@@ -62,11 +62,11 @@ pub struct Issue {
 /// Runs all lint rules and returns a concatenated list of issues.
 pub fn check_all(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
+    issues.extend(missing_space_after_box(items));
     issues.extend(orphaned_subtask(items));
     issues.extend(wrong_indentation(items));
     issues.extend(wrong_body_indent(items));
     issues.extend(incomplete_parent(items));
-    issues.extend(missing_space_after_box(items));
     issues
 }
 

@@ -18,13 +18,13 @@
 ## First basic checks
 - [x] agile check subcommand created
 - [x] Check for wrongly indented task (task that is surrounded by newlines but indented like a subtaks)
-any operation that parses tasks lists should immediately stop on encountering this error. The error should be printed, including file path and line number
+  any operation that parses tasks lists should immediately stop on encountering this error. The error should be printed, including file path and line number
 
 - [x] iterate on the first error message
   - [x] proper coloring
   - [x] indenting
   - [x] other highlighting
-  Bottom Line: It should be a really ergonomic, nicely readable error message, but which could also be parsed (machine readable)
+    Bottom Line: It should be a really ergonomic, nicely readable error message, but which could also be parsed (machine readable)
 
 
 ## Fixes
@@ -97,7 +97,7 @@ any operation that parses tasks lists should immediately stop on encountering th
 - [ ] detect parent task incorrectly marked as done, even though subtasks are not done
   - [x] agile check
   - [x] agilels hint
-  - [ ] agilels quickfix: Mark all subtasks as done 
+    Note: For now- no quickfix. Users should decide if subtasks can be deleted, cancelled or marked done
 
 ##  Properties and first Settings
 
