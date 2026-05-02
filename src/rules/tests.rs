@@ -36,3 +36,23 @@ fn wrong_indentation_vs_orphan_distinction_1() {
     assert_eq!(issues[2].code, "E001");
     assert_eq!(issues[3].code, "E001");
 }
+
+#[test]
+fn missing_space_behind_box_vs_wrong_body_indent() {
+
+    let input = "\
+- [ ] ok, has space
+- [ ]MISSING space
+  - [ ] valid subtask
+WRONG INDENT tasks description
+";
+
+    let mut issues = check_all(&p(input));
+    issues.sort_by_key(|i| i.location.line);
+
+    assert_eq!(issues[0].code, "E005");
+    assert_eq!(issues[0].location.line, 2);
+
+    assert_eq!(issues[1].code, "E003");
+    assert_eq!(issues[1].location.line, 4);
+}
