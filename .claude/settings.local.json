@@ -29,7 +29,10 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(grep -E \"^test result|FAILED|ok$\")",
-      "Bash(cargo install *)"
+      "Bash(cargo install *)",
+      "Bash(cp *)",
+      "Bash(cargo check *)",
+      "Bash(dx serve *)"
     ]
   }
 }
