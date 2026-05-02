@@ -224,19 +224,26 @@ fn TaskModal(task: TaskView, on_close: EventHandler<MouseEvent>) -> Element {
     }
 }
 
-/// Returns the share of subtasks that are complete (Done or Cancelled), counted
-/// recursively across all nesting levels. A task with no subtasks reports 0.0,
-/// and a task whose own status is already Done reports 1.0.
+/// Returns the completion ratio (0.0..=1.0) used to position the post-it on
+/// the diagonal. The top-level checkbox is worth a flat 10% of the total —
+/// reserved for the moment the user actually ticks the parent task done — so
+/// even a Todo task with every subtask complete tops out at 0.9. Subtasks
+/// (counted recursively, with Done and Cancelled treated as complete) fill
+/// the remaining 90% proportionally.
 fn task_progress(task: &TaskView) -> f64 {
+    const PARENT_WEIGHT: f64 = 0.1;
+    const SUBTASKS_WEIGHT: f64 = 1.0 - PARENT_WEIGHT;
+
     if matches!(task.status, TaskStatus::Done | TaskStatus::Cancelled) {
         return 1.0;
     }
     let (done, total) = count_subtasks(task);
-    if total == 0 {
+    let subtasks_share = if total == 0 {
         0.0
     } else {
         done as f64 / total as f64
-    }
+    };
+    SUBTASKS_WEIGHT * subtasks_share
 }
 
 fn count_subtasks(task: &TaskView) -> (usize, usize) {
