@@ -1,8 +1,10 @@
-use serde;
 use dioxus::prelude::*;
 use log::info;
 use log::error;
-use std::path::{PathBuf};
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+static WORKING_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 /// Returns the title of the next highest-priority incomplete task.
 ///
@@ -13,23 +15,18 @@ pub async fn get_next_task() -> Result<Option<String>, ServerFnError> {
     use mdagile::cli::common::{find_task_files, parse_files};
     use mdagile::cli::subcommands::task::next_task_title;
 
-    // dx's CWD is the gui crate dir, not the project root. Walk up to find
-    // the directory containing `mdagile.toml` (the project marker).
-    let root_dir_opt = get_validated_working_dir().await?;
-
-    let root = match root_dir_opt {
-        Some(dir) => dir,
-        None => return Err(ServerFnError::new("working directory not found")),
-    };
-
-
+    let root = get_or_init_working_dir()?;
     let items = parse_files(&find_task_files(&root));
     Ok(next_task_title(&items))
 }
 
-#[server]
-async fn get_validated_working_dir() -> Result<Option<PathBuf>, ServerFnError> {
-    info!("checking for mdagile.toml file..");
+fn get_or_init_working_dir() -> Result<PathBuf, ServerFnError> {
+    let mut cached = WORKING_DIR.lock().unwrap();
+
+    if let Some(dir) = cached.as_ref() {
+        return Ok(dir.clone());
+    }
+
     let working_dir_res = std::env::var("MDAGILE_WORKDIR")
         .map(PathBuf::from)
         .or_else(|_| {
@@ -48,14 +45,16 @@ async fn get_validated_working_dir() -> Result<Option<PathBuf>, ServerFnError> {
                 dir
             } else {
                 error!("could not find project root (no mdagile.toml found in {})", dir.display());
-                std::process::exit(1);
+                return Err(ServerFnError::new("mdagile.toml not found"));
             }
         }
         Err(e) => {
             error!("could not determine working directory: {e}");
-            std::process::exit(1);
+            return Err(ServerFnError::new("failed to determine working directory"));
         }
     };
 
-    Ok(Some(dir))
+    *cached = Some(dir.clone());
+    Ok(dir)
 }
+
