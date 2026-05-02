@@ -18,11 +18,20 @@ fn main() {
 fn App() -> Element {
     rsx! {
         div { class: "layout",
-            div { class: "top-row" }
+            div { class: "top-row",
+                "TEST: Backlog section"
+                div { class: "task-card",
+                    "Implement user authentication"
+                }
+            }
             div { class: "separator" }
-            div { class: "middle-row" }
+            div { class: "middle-row",
+                "TEST: In Progress section"
+            }
             div { class: "separator" }
-            div { class: "bottom-row" }
+            div { class: "bottom-row",
+                "TEST: Done section"
+            }
         }
     }
 }

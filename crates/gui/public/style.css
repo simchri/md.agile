@@ -20,6 +20,8 @@ body {
 
 .top-row {
     flex: 0 0 15%;
+    padding: 16px;
+    overflow: auto;
 }
 
 .separator {
@@ -31,8 +33,29 @@ body {
 
 .middle-row {
     flex: 1;
+    padding: 16px;
+    overflow: auto;
 }
 
 .bottom-row {
     flex: 0 0 15%;
+    padding: 16px;
+    overflow: auto;
+}
+
+.task-card {
+    width: 180px;
+    height: 180px;
+    padding: 16px;
+    background: #ffd666;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+    word-wrap: break-word;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
