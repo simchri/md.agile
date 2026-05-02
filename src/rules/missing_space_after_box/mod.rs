@@ -21,7 +21,7 @@ pub fn missing_space_after_box(items: &[FileItem]) -> Vec<Issue> {
                         "Add a space between the status box and the task title: `- [ ] title`"
                             .to_string(),
                     ),
-                    data: None,
+                    data: Some(crate::rules::IssueData::MissingSpaceAfterBox),
                 });
             }
             issues.extend(check_subtasks(&task.children));
@@ -45,7 +45,7 @@ fn check_subtasks(subtasks: &[Subtask]) -> Vec<Issue> {
                     "Add a space between the status box and the task title: `- [ ] title`"
                         .to_string(),
                 ),
-                data: None,
+                data: Some(crate::rules::IssueData::MissingSpaceAfterBox),
             });
         }
         issues.extend(check_subtasks(&subtask.children));

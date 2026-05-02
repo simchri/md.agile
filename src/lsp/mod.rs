@@ -86,40 +86,55 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
 /// leading whitespace of the offending line with exactly `expected_indent`
 /// spaces (read from `diagnostic.data`).
 fn build_quickfix(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
-    // E002 and E003 are auto-fixable; E001/E004 need the user to decide intent.
+    // E002, E003, E005 are auto-fixable; E001/E004 need the user to decide intent.
     match &diagnostic.code {
-        Some(NumberOrString::String(s)) if s == "E002" || s == "E003" => {}
+        Some(NumberOrString::String(s)) if s == "E002" || s == "E003" || s == "E005" => {}
         _ => return None,
     }
 
-    // Pull expected_indent out of the diagnostic's data payload.
     let data = diagnostic.data.as_ref()?;
     let issue_data: IssueData = serde_json::from_value(data.clone()).ok()?;
-    let expected_indent = match issue_data {
-        IssueData::WrongIndent { expected_indent } => expected_indent,
-        IssueData::WrongBodyIndent { expected_indent } => expected_indent,
-    };
 
     let line_idx = diagnostic.range.start.line as usize;
     let line_text = doc_text.lines().nth(line_idx)?;
-    let current_indent = line_text.chars().take_while(|c| *c == ' ').count();
 
-    let edit = TextEdit {
-        range: Range {
-            start: Position { line: diagnostic.range.start.line, character: 0 },
-            end:   Position {
-                line: diagnostic.range.start.line,
-                character: current_indent as u32,
-            },
-        },
-        new_text: " ".repeat(expected_indent),
+    let (title, edit) = match issue_data {
+        IssueData::WrongIndent { expected_indent } | IssueData::WrongBodyIndent { expected_indent } => {
+            let current_indent = line_text.chars().take_while(|c| *c == ' ').count();
+            let text_edit = TextEdit {
+                range: Range {
+                    start: Position { line: diagnostic.range.start.line, character: 0 },
+                    end:   Position {
+                        line: diagnostic.range.start.line,
+                        character: current_indent as u32,
+                    },
+                },
+                new_text: " ".repeat(expected_indent),
+            };
+            (format!("Fix indentation: use {} spaces", expected_indent), text_edit)
+        }
+        IssueData::MissingSpaceAfterBox => {
+            // Find the `]` character in the line and insert a space after it
+            if let Some(bracket_pos) = line_text.find(']') {
+                let text_edit = TextEdit {
+                    range: Range {
+                        start: Position { line: diagnostic.range.start.line, character: (bracket_pos + 1) as u32 },
+                        end:   Position { line: diagnostic.range.start.line, character: (bracket_pos + 1) as u32 },
+                    },
+                    new_text: " ".to_string(),
+                };
+                ("Add space after status box".to_string(), text_edit)
+            } else {
+                return None;
+            }
+        }
     };
 
     let mut changes = HashMap::new();
     changes.insert(uri.clone(), vec![edit]);
 
     Some(CodeAction {
-        title: format!("Fix indentation: use {} spaces", expected_indent),
+        title,
         kind: Some(CodeActionKind::QUICKFIX),
         diagnostics: Some(vec![diagnostic.clone()]),
         edit: Some(WorkspaceEdit {

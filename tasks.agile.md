@@ -91,7 +91,7 @@ any operation that parses tasks lists should immediately stop on encountering th
 - [x] missing space between task box and beginning of task title
   - [x] agile check
   - [x] agilels hint
-  - [ ] agilels quickfix: Add space
+  - [x] agilels quickfix: Add space
 
 ## Subtasks are Mandatory
 - [ ] detect parent task incorrectly marked as done, even though subtasks are not done

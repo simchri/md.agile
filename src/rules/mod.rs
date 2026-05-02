@@ -37,6 +37,8 @@ pub enum IssueData {
     /// Payload for E003 "Wrong Body Indentation": the indentation (in spaces)
     /// that the body line should be re-indented to.
     WrongBodyIndent { expected_indent: usize },
+    /// Payload for E005 "Missing Space After Box": marker to add space after status box.
+    MissingSpaceAfterBox,
 }
 
 /// A single problem found by a rule.
