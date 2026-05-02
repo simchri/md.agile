@@ -24,10 +24,6 @@ body {
     width: 100%;
     height: 15%;
     pointer-events: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
     overflow: hidden;
 }
 
@@ -338,7 +334,9 @@ body {
 }
 
 .backlog-card {
-    flex: 0 0 auto;
+    position: absolute;
+    top: 8px;
+    /* `left` is set inline per-card from the index in BacklogCard */
     width: 110px;
     height: calc(15vh - 16px);
     max-height: 110px;
@@ -352,9 +350,6 @@ body {
     overflow: hidden;
     cursor: pointer;
     pointer-events: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
     transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
@@ -367,7 +362,7 @@ body {
     font-family: monospace;
     font-size: 10px;
     color: #555;
-    flex-shrink: 0;
+    margin-bottom: 3px;
 }
 
 .backlog-card-title {
@@ -375,24 +370,21 @@ body {
     font-size: 11.5px;
     line-height: 1.25;
     overflow: hidden;
-    flex: 1;
-    min-height: 0;
+    margin-bottom: 3px;
 }
 
 .backlog-card-markers {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
-    flex-shrink: 0;
     overflow: hidden;
     max-height: 14px;
 }
 
 .backlog-card-markers .marker {
+    display: inline-block;
     background: rgba(0, 0, 0, 0.08);
     padding: 0 4px;
     border-radius: 2px;
     font-size: 9px;
     color: #555;
     font-family: monospace;
+    margin-right: 3px;
 }

@@ -60,8 +60,8 @@ fn app() -> Element {
     rsx! {
         div { class: "layout",
             div { class: "top-row",
-                for task in backlog.iter() {
-                    BacklogCard { task: task.clone() }
+                for (i, task) in backlog.iter().enumerate() {
+                    BacklogCard { task: task.clone(), index: i }
                 }
             }
             div { class: "separator1" }
@@ -118,10 +118,16 @@ fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>) -> Element {
     }
 }
 
+/// Horizontal step (in px) between two adjacent backlog post-its. The card
+/// itself is 110px wide; the extra 10px is the visual gap between cards.
+const BACKLOG_OFFSET_PX: usize = 120;
+const BACKLOG_LEFT_PX: usize = 12;
+
 #[component]
-fn BacklogCard(task: TaskView) -> Element {
+fn BacklogCard(task: TaskView, index: usize) -> Element {
+    let style = format!("left: {}px;", BACKLOG_LEFT_PX + index * BACKLOG_OFFSET_PX);
     rsx! {
-        div { class: "backlog-card",
+        div { class: "backlog-card", style: "{style}",
             div { class: "backlog-card-status {status_class(&task.status)}",
                 {status_box(&task.status)}
             }
