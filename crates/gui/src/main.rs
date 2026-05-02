@@ -11,20 +11,13 @@ use tokio::sync::broadcast;
 use dioxus::prelude::*;
 
 
+fn main() {
+    init_logger();
+    info!("mdagile-gui main");
 
+    dioxus::launch(app);
+}
 
-//
-// pub static FILE_CHANGE_BROADCAST: Lazy<broadcast::Sender<String>> = Lazy::new(|| {
-//     broadcast::channel(100).0
-// });
-//
-// fn main() {
-//     spawn_file_watcher();
-//
-//     info!("Launching Dioxus App");
-//     dioxus::launch(App);
-// }
-//
 fn init_logger() {
     #[cfg(not(feature = "web"))]
     env_logger::init();
@@ -67,105 +60,6 @@ fn check_for_mdagile_toml(dir: &Path) {
     }
 }
 
-//
-// fn spawn_file_watcher() {
-//     let (tx, rx) = std::sync::mpsc::channel::<Result<notify::Event, notify::Error>>();
-//
-//     std::thread::spawn(move || {
-//         if let Err(e) = watch_events(tx) {
-//             log::error!("watcher error: {:?}", e);
-//         } else {
-//             log::info!("watcher exited successfully");
-//         }
-//     });
-//
-//     std::thread::spawn(move || {
-//         for event in rx {
-//             match event {
-//                 Ok(_ev) => {
-//                     log::info!("file changed");
-//                     let _ = FILE_CHANGE_BROADCAST.send("file changed".to_string());
-//                 }
-//                 Err(e) => log::error!("watch error: {:?}", e),
-//             }
-//         }
-//     });
-// }
-//
-// fn watch_events(tx: std::sync::mpsc::Sender<Result<Event, notify::Error>>) -> notify::Result<()> {
-//     log::info!("set up event watcher");
-//
-//     let mut watcher = notify::recommended_watcher(move |res| {
-//         tx.send(res).unwrap();
-//     })?;
-//
-//     watcher.watch(Path::new("."), RecursiveMode::Recursive)?;
-//
-//     // Keep the thread alive
-//     loop {
-//         std::thread::sleep(std::time::Duration::from_secs(60));
-//     }
-// }
-//
-// /// Returns the title of the next highest-priority incomplete task.
-// ///
-// /// Runs on the server (the local dev process), reads `*.agile.md` from the
-// /// project root, and yields the title of the first `[ ]` top-level task.
-// #[server]
-// async fn get_next_task() -> Result<Option<String>, ServerFnError> {
-//     use mdagile::cli::common::{find_task_files, parse_files};
-//     use mdagile::cli::subcommands::task::next_task_title;
-//
-//
-//     let items = parse_files(&find_task_files(&WORKING_DIR));
-//     Ok(next_task_title(&items))
-// }
-//
-// #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-// enum MyServerEvent {
-//     Yay { message: String },
-//     Nay { error: String },
-// }
-//
-// /// Our SSE endpoint streams file change events to the client.
-// /// When the file watcher detects changes, they are broadcast to all connected clients.
-// #[get("/api/sse")]
-// async fn listen_for_changes() -> Result<ServerEvents<MyServerEvent>> {
-//     log::info!("client connected to SSE endpoint");
-//
-//     Ok(ServerEvents::new(|mut tx| async move {
-//         let mut rx = FILE_CHANGE_BROADCAST.subscribe();
-//
-//         loop {
-//             match rx.recv().await {
-//                 Ok(msg) => {
-//                     let event = MyServerEvent::Yay { message: msg };
-//                     if tx.send(event).await.is_err() {
-//                         break;
-//                     }
-//                 }
-//                 Err(broadcast::error::RecvError::Lagged(_)) => {
-//                     log::warn!("client lagged behind broadcast channel");
-//                 }
-//                 Err(broadcast::error::RecvError::Closed) => {
-//                     log::info!("broadcast channel closed");
-//                     break;
-//                 }
-//             }
-//         }
-//     }))
-// }
-//
-//
-
-
-fn main() {
-    init_logger();
-    info!("mdagile-gui main");
-
-    dioxus::launch(app);
-}
-
 fn format_task_title(result: &Option<Result<Option<String>, ServerFnError>>) -> String {
     match result {
         Some(Ok(Some(t))) => t.clone(),
@@ -176,20 +70,7 @@ fn format_task_title(result: &Option<Result<Option<String>, ServerFnError>>) -> 
 }
 
 fn app() -> Element {
-    let mut events = use_signal(Vec::new);
-
-    use_future(move || async move {
-        // Call the SSE endpoint to get a stream of events
-        let mut stream = listen_for_changes().await?;
-
-        // And then poll it for new events, adding them to our signal
-        while let Some(Ok(event)) = stream.recv().await {
-            events.push(event);
-        }
-
-        dioxus::Ok(())
-    });
-
+    
     rsx! {
         div { class: "layout",
             div { class: "separator1" }
@@ -198,52 +79,6 @@ fn app() -> Element {
             div { class: "task-card", style: "top: 30px; left: 30px;",
                 "foo"
             }
-            h1 { "Events from server: " }
-                for msg in events.read().iter().rev() {
-                pre { "{msg:?}" }
-            }
         }
     }
-}
-
-/// We can send anything that's serializable as a server event - strings, numbers, structs, enums, etc.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-enum MyServerEvent {
-    Yay { message: String },
-    Nay { error: String },
-}
-
-/// Our SSE endpoint, when called, will return the ServerEvents handle which streams events to the client.
-/// On the client, we can interact with this stream object to get new events as they arrive.
-#[get("/api/sse")]
-async fn listen_for_changes() -> Result<ServerEvents<MyServerEvent>> {
-    use std::time::Duration;
-
-    Ok(ServerEvents::new(|mut tx| async move {
-        let mut count = 1;
-
-        loop {
-            // Create our serializable message
-            let msg = if count % 5 == 0 {
-                MyServerEvent::Nay {
-                    error: "An error occurred".into(),
-                }
-            } else {
-                MyServerEvent::Yay {
-                    message: format!("Hello number {count}"),
-                }
-            };
-
-            // Send the message to the client. If it errors, the client has disconnected
-            if tx.send(msg).await.is_err() {
-                // client disconnected, do some cleanup
-                break;
-            }
-
-            count += 1;
-
-            // Poll some data source here, subscribe to changes, maybe call an LLM?
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-    }))
 }
