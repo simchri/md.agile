@@ -88,8 +88,8 @@ any operation that parses tasks lists should immediately stop on encountering th
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut gravida lorem.
   - [x] agilels hint
   - [x] agilels quickfix: fix indentation
-- [ ] missing space between task box and beginning of task title
-  - [ ] agile check
+- [x] missing space between task box and beginning of task title
+  - [x] agile check
   - [ ] agilels hint
   - [ ] agilels quickfix: Add space
 

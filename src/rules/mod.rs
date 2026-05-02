@@ -12,11 +12,13 @@ mod orphaned_subtask;
 mod wrong_indentation;
 mod wrong_body_indent;
 mod incomplete_parent;
+mod missing_space_after_box;
 
 pub use orphaned_subtask::orphaned_subtask;
 pub use wrong_indentation::wrong_indentation;
 pub use wrong_body_indent::wrong_body_indent;
 pub use incomplete_parent::incomplete_parent;
+pub use missing_space_after_box::missing_space_after_box;
 
 use crate::parser::{FileItem, Location};
 use serde::{Deserialize, Serialize};
@@ -62,6 +64,7 @@ pub fn check_all(items: &[FileItem]) -> Vec<Issue> {
     issues.extend(wrong_indentation(items));
     issues.extend(wrong_body_indent(items));
     issues.extend(incomplete_parent(items));
+    issues.extend(missing_space_after_box(items));
     issues
 }
 

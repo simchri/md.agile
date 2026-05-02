@@ -40,6 +40,7 @@ fn can_construct_task_with_all_node_kinds() {
                 body: vec![],
                 markers: vec![],
                 children: vec![],
+                has_space_after_box: true,
             },
             Subtask {
                 location: loc(3),
@@ -51,6 +52,7 @@ fn can_construct_task_with_all_node_kinds() {
                 body: vec![],
                 markers: vec![Marker::Special(SpecialMarker::Opt)],
                 children: vec![],
+                has_space_after_box: true,
             },
             Subtask {
                 location: loc(4),
@@ -62,6 +64,7 @@ fn can_construct_task_with_all_node_kinds() {
                 body: vec![],
                 markers: vec![],
                 children: vec![],
+                has_space_after_box: true,
             },
             Subtask {
                 location: loc(5),
@@ -73,8 +76,10 @@ fn can_construct_task_with_all_node_kinds() {
                 body: vec![],
                 markers: vec![Marker::Assignment("markus".to_string())],
                 children: vec![],
+                has_space_after_box: true,
             },
         ],
+        has_space_after_box: true,
     };
     assert_eq!(task.status, Status::Todo);
     assert_eq!(task.children.len(), 4);
@@ -92,6 +97,7 @@ fn file_items_interleave_tasks_and_milestones() {
             body: vec![],
             markers: vec![],
             children: vec![],
+            has_space_after_box: true,
         }),
         FileItem::Milestone(Milestone {
             name: "Release of MVP".to_string(),
@@ -105,6 +111,7 @@ fn file_items_interleave_tasks_and_milestones() {
             body: vec![],
             markers: vec![],
             children: vec![],
+            has_space_after_box: true,
         }),
     ];
     assert_eq!(items.len(), 3);

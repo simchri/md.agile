@@ -88,6 +88,8 @@ pub struct Subtask {
     pub body:     Vec<String>, // lines preserve structure for LSP range calculation
     pub markers:  Vec<Marker>,
     pub children: Vec<Subtask>,
+    // True if there is a space between the status box and the title.
+    pub has_space_after_box: bool,
 }
 
 // ── Task ──────────────────────────────────────────────────────────────────────
@@ -110,6 +112,9 @@ pub struct Task {
     pub body:     Vec<String>,
     pub markers:  Vec<Marker>,
     pub children: Vec<Subtask>,
+    // True if there is a space between the status box and the title.
+    // E.g., `- [ ] title` has space, `- [ ]title` does not.
+    pub has_space_after_box: bool,
 }
 
 // ── File-level items ──────────────────────────────────────────────────────────
@@ -149,6 +154,7 @@ struct PartialItem {
     body:     Vec<String>,
     markers:  Vec<Marker>,
     children: Vec<Subtask>,
+    has_space_after_box: bool,
 }
 
 impl PartialItem {
@@ -157,12 +163,13 @@ impl PartialItem {
                preceded_by_blank: self.preceded_by_blank,
                status: self.status,
                title: self.title, body: self.body, markers: self.markers,
-               children: self.children }
+               children: self.children, has_space_after_box: self.has_space_after_box }
     }
     fn into_subtask(self) -> Subtask {
         Subtask { location: self.location, indent: self.indent, status: self.status,
                   order: self.order, kind: self.kind, title: self.title,
-                  body: self.body, markers: self.markers, children: self.children }
+                  body: self.body, markers: self.markers, children: self.children,
+                  has_space_after_box: self.has_space_after_box }
     }
 }
 
@@ -196,7 +203,7 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             continue;
         }
 
-        if let Some((depth, indent, status, rest)) = parse_task_line(line) {
+        if let Some((depth, indent, status, rest, has_space_after_box)) = parse_task_line(line) {
             // Close any open siblings and their descendants before pushing the
             // new item. Popping depth >= current depth means a sibling at the
             // same level is finalized before the new one takes its place.
@@ -212,6 +219,7 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
                 location: Location { path: path.clone(), line: line_no },
                 status, order, kind,
                 title, body: Vec::new(), markers, children: Vec::new(),
+                has_space_after_box,
             });
             prev_was_blank = false;
             continue;
@@ -248,20 +256,29 @@ fn flush_stack(stack: &mut Vec<PartialItem>, items: &mut Vec<FileItem>) {
 // Returns (depth, indent, status, rest-of-title) for a task line, or None.
 // Indent is leading-space count; depth is indent / 2; status comes from the
 // checkbox character.
-fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String)> {
+fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, bool)> {
     let indent = line.len() - line.trim_start_matches(' ').len();
     let depth  = indent / 2;
     let trimmed = &line[indent..];
-    let (status, rest) = if let Some(r) = trimmed.strip_prefix("- [ ] ") {
-        (Status::Todo, r)
+
+    // Try with space first (correct format)
+    let (status, rest, has_space) = if let Some(r) = trimmed.strip_prefix("- [ ] ") {
+        (Status::Todo, r, true)
     } else if let Some(r) = trimmed.strip_prefix("- [x] ") {
-        (Status::Done, r)
+        (Status::Done, r, true)
     } else if let Some(r) = trimmed.strip_prefix("- [-] ") {
-        (Status::Cancelled, r)
+        (Status::Cancelled, r, true)
+    } else if let Some(r) = trimmed.strip_prefix("- [ ]") {
+        // No space after box - still parse it, but flag it
+        (Status::Todo, r, false)
+    } else if let Some(r) = trimmed.strip_prefix("- [x]") {
+        (Status::Done, r, false)
+    } else if let Some(r) = trimmed.strip_prefix("- [-]") {
+        (Status::Cancelled, r, false)
     } else {
         return None;
     };
-    Some((depth, indent, status, rest.trim_end().to_string()))
+    Some((depth, indent, status, rest.trim_end().to_string(), has_space))
 }
 
 // Recognises a standalone `#MILESTONE: name` line and returns the name.
