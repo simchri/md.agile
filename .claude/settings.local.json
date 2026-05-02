@@ -32,7 +32,10 @@
       "Bash(cargo install *)",
       "Bash(cp *)",
       "Bash(cargo check *)",
-      "Bash(dx serve *)"
+      "Bash(dx serve *)",
+      "Bash(curl -s http://localhost:8080/)",
+      "Bash(curl -s http://localhost:8080/style.css)",
+      "Bash(dx *)"
     ]
   }
 }
