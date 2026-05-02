@@ -48,10 +48,12 @@ Parses all `*.agile.md` files and reports validation issues. Exits with status 1
 
 ### Language Server: `agilels`
 
-A minimal LSP server that runs on stdin/stdout. Advertises text document sync (FULL mode) and publishes real-time diagnostics as you edit.
+A minimal LSP server that runs on stdin/stdout. Advertises text document sync (FULL mode), publishes real-time diagnostics as you edit, and offers quickfix code actions for fixable issues.
 
 **Supported diagnostics:**
-- **E001: Orphaned indented task** — A task has leading whitespace but no parent task on the preceding line (usually due to a blank line separating parent and child). The diagnostic highlights the leading whitespace that should be removed.
+- **E001: Orphaned indented task** — A task has leading whitespace but no parent task on the preceding line (usually due to a blank line separating parent and child). Indicates the task should be un-indented to top-level.
+- **E002: Wrong indentation** — A task's indentation does not match a valid subtask level. Expected indentation is `depth * 2` spaces (2 spaces per nesting level).
+  - quickfix: Auto-correct indentation to match nesting depth
 
 ### File Priority & Task Ordering
 
