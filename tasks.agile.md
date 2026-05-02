@@ -94,7 +94,7 @@
   - [x] agilels quickfix: Add space
 
 ## Subtasks are Mandatory
-- [ ] detect parent task incorrectly marked as done, even though subtasks are not done
+- [x] detect parent task incorrectly marked as done, even though subtasks are not done
   - [x] agile check
   - [x] agilels hint
     Note: For now- no quickfix. Users should decide if subtasks can be deleted, cancelled or marked done
