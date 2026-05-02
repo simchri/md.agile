@@ -1,0 +1,9 @@
+[package]
+name = "mdagile-gui"
+version.workspace = true
+edition = "2021"
+
+[dependencies]
+dioxus = { version = "0.7", features = ["web"] }
+dioxus-logger = "0.7"
+tracing = "0.1"
