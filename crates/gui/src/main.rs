@@ -119,7 +119,9 @@ fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>) -> Element {
 /// Horizontal step (in px) between two adjacent backlog post-its. The card
 /// itself is 110px wide; the extra 10px is the visual gap between cards.
 const BACKLOG_OFFSET_PX: usize = 120;
-const BACKLOG_LEFT_PX: usize = 12;
+/// The first two slots from the left are reserved for the top-of-backlog
+/// post-it, so the rest of the backlog starts two widths in.
+const BACKLOG_LEFT_PX: usize = 12 + 2 * BACKLOG_OFFSET_PX;
 
 #[component]
 fn BacklogCard(task: TaskView, index: usize) -> Element {
