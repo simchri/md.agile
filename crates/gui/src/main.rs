@@ -6,6 +6,7 @@ use notify::{Event, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use once_cell::sync::Lazy;
 use dioxus_fullstack::ServerEvents;
+use tokio::sync::broadcast;
 
 pub static WORKING_DIR: Lazy<PathBuf> = Lazy::new(|| {
     std::env::var("MDAGILE_WORKDIR")
@@ -19,6 +20,10 @@ pub static WORKING_DIR: Lazy<PathBuf> = Lazy::new(|| {
             }
         })
         .expect("failed to get working directory")
+});
+
+pub static FILE_CHANGE_BROADCAST: Lazy<broadcast::Sender<String>> = Lazy::new(|| {
+    broadcast::channel(100).0
 });
 
 fn main() {
@@ -65,7 +70,10 @@ fn spawn_file_watcher() {
     std::thread::spawn(move || {
         for event in rx {
             match event {
-                Ok(ev) => log::info!("file event: {:?}", ev),
+                Ok(_ev) => {
+                    log::info!("file changed");
+                    let _ = FILE_CHANGE_BROADCAST.send("file changed".to_string());
+                }
                 Err(e) => log::error!("watch error: {:?}", e),
             }
         }
@@ -107,37 +115,29 @@ enum MyServerEvent {
     Nay { error: String },
 }
 
-/// Our SSE endpoint, when called, will return the ServerEvents handle which streams events to the client.
-/// On the client, we can interact with this stream object to get new events as they arrive.
+/// Our SSE endpoint streams file change events to the client.
+/// When the file watcher detects changes, they are broadcast to all connected clients.
 #[get("/api/sse")]
 async fn listen_for_changes() -> Result<ServerEvents<MyServerEvent>> {
-    use std::time::Duration;
-
     Ok(ServerEvents::new(|mut tx| async move {
-        let mut count = 1;
+        let mut rx = FILE_CHANGE_BROADCAST.subscribe();
 
         loop {
-            // Create our serializable message
-            let msg = if count % 5 == 0 {
-                MyServerEvent::Nay {
-                    error: "An error occurred".into(),
+            match rx.recv().await {
+                Ok(msg) => {
+                    let event = MyServerEvent::Yay { message: msg };
+                    if tx.send(event).await.is_err() {
+                        break;
+                    }
                 }
-            } else {
-                MyServerEvent::Yay {
-                    message: format!("Hello number {count}"),
+                Err(broadcast::error::RecvError::Lagged(_)) => {
+                    log::warn!("client lagged behind broadcast channel");
                 }
-            };
-
-            // Send the message to the client. If it errors, the client has disconnected
-            if tx.send(msg).await.is_err() {
-                // client disconnected, do some cleanup
-                break;
+                Err(broadcast::error::RecvError::Closed) => {
+                    log::info!("broadcast channel closed");
+                    break;
+                }
             }
-
-            count += 1;
-
-            // Poll some data source here, subscribe to changes, maybe call an LLM?
-            tokio::time::sleep(Duration::from_secs(1)).await;
         }
     }))
 }
@@ -166,9 +166,9 @@ fn App() -> Element {
             div { class: "separator1" }
             div { class: "separator2" }
 
-            div { class: "task-card", style: "top: 30px; left: 30px;",
-                "{title}"
-            }
+            // div { class: "task-card", style: "top: 30px; left: 30px;",
+            //     "{title}"
+            // }
             h1 { "Events from server: " }
                 for msg in events.read().iter().rev() {
                 pre { "{msg:?}" }
