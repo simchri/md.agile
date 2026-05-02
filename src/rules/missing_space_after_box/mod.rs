@@ -14,7 +14,7 @@ pub fn missing_space_after_box(items: &[FileItem]) -> Vec<Issue> {
             if !task.has_space_after_box {
                 issues.push(Issue {
                     location: task.location.clone(),
-                    code: "E005".to_string(),
+                    code: crate::rules::ErrorCode::MissingSpaceAfterBox,
                     message: "Missing space after status box".to_string(),
                     column: 6, // Position right after the `]` in `- [x]`
                     help: Some(
@@ -38,7 +38,7 @@ fn check_subtasks(subtasks: &[Subtask]) -> Vec<Issue> {
         if !subtask.has_space_after_box {
             issues.push(Issue {
                 location: subtask.location.clone(),
-                code: "E005".to_string(),
+                code: crate::rules::ErrorCode::MissingSpaceAfterBox,
                 message: "Missing space after status box".to_string(),
                 column: subtask.indent + 6, // Position right after the `]` relative to indent
                 help: Some(

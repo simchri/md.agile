@@ -19,7 +19,7 @@ pub fn orphaned_subtask(items: &[FileItem]) -> Vec<Issue> {
         .filter_map(|item| match item {
             FileItem::Task(t) if t.indent > 0 && t.preceded_by_blank => Some(Issue {
                 location: t.location.clone(),
-                code:     "E001".to_string(),
+                code:     crate::rules::ErrorCode::OrphanedSubtask,
                 message:  "Orphaned Subtask".to_string(),
                 column:   t.indent + 1, // 1-based column where the dash starts
                 help:     Some(

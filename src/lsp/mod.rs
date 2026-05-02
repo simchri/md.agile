@@ -56,7 +56,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
         end:   Position { line, character: dash_col.max(1) },
     };
 
-    let sev = match issue.code.chars().next() {
+    let sev = match issue.code.as_str().chars().next() {
         Some('E') => DiagnosticSeverity::ERROR,
         Some('W') => DiagnosticSeverity::WARNING,
         _         => DiagnosticSeverity::ERROR,
@@ -67,7 +67,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
     Diagnostic {
         range,
         severity: Some(sev),
-        code: Some(NumberOrString::String(issue.code)),
+        code: Some(NumberOrString::String(issue.code.as_str().to_string())),
         source: Some("agilels".to_string()),
         message: match issue.help {
             Some(h) => format!("{}\n{}", format_message(issue.message), format_help(h)),

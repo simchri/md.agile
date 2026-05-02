@@ -16,7 +16,7 @@ fn flags_subtask_with_mismatched_indent() {
 ";
     let issues = wrong_indentation(&p(input));
     assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, "E002");
+    assert_eq!(issues[0].code, crate::rules::ErrorCode::WrongIndentation);
     assert_eq!(issues[0].message, "Wrong Indentation");
 }
 

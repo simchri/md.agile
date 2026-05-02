@@ -35,7 +35,7 @@ fn check_task_body(task: &crate::parser::Task) -> Vec<Issue> {
                     path: task.location.path.clone(),
                     line: body_line_number,
                 },
-                code: "E003".to_string(),
+                code: crate::rules::ErrorCode::WrongBodyIndentation,
                 message: "Wrong body indentation".to_string(),
                 column: actual_indent + 1,
                 help: Some(format!(
@@ -70,7 +70,7 @@ fn check_subtask_body(subtask: &Subtask) -> Vec<Issue> {
                     path: subtask.location.path.clone(),
                     line: body_line_number,
                 },
-                code: "E003".to_string(),
+                code: crate::rules::ErrorCode::WrongBodyIndentation,
                 message: "Wrong body indentation".to_string(),
                 column: actual_indent + 1,
                 help: Some(format!(

@@ -21,7 +21,7 @@ pub fn wrong_indentation(items: &[FileItem]) -> Vec<Issue> {
                 let expected_indent = 2;
                 issues.push(Issue {
                     location: task.location.clone(),
-                    code: "E002".to_string(),
+                    code: crate::rules::ErrorCode::WrongIndentation,
                     message: "Wrong Indentation".to_string(),
                     column: task.indent + 1,
                     help: Some(format!(
@@ -54,7 +54,7 @@ fn check_subtask_recursive(
     if subtask.indent != expected_indent {
         issues.push(Issue {
             location: subtask.location.clone(),
-            code: "E002".to_string(),
+            code: crate::rules::ErrorCode::WrongIndentation,
             message: "Wrong Indentation".to_string(),
             column: subtask.indent + 1,
             help: Some(format!(

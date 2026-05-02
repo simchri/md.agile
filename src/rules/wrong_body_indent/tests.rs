@@ -14,7 +14,7 @@ fn detects_body_line_with_wrong_indentation() {
 
     // Should report the misaligned line
     assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, "E003");
+    assert_eq!(issues[0].code, crate::rules::ErrorCode::WrongBodyIndentation);
     assert_eq!(issues[0].location.line, 3); // Line with extra space
 }
 
@@ -43,7 +43,7 @@ fn subtask_body_indentation_checked() {
     let issues = super::wrong_body_indent(&items);
 
     assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, "E003");
+    assert_eq!(issues[0].code, crate::rules::ErrorCode::WrongBodyIndentation);
 }
 
 #[test]

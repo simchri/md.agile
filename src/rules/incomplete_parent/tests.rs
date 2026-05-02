@@ -11,7 +11,7 @@ fn detects_done_parent_with_incomplete_children() {
     let issues = super::incomplete_parent(&items);
 
     assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, "E004");
+    assert_eq!(issues[0].code, crate::rules::ErrorCode::IncompleteParent);
     assert_eq!(issues[0].location.line, 1); // Parent task line
 }
 
@@ -64,7 +64,7 @@ fn detects_in_deeply_nested_tasks() {
     let issues = super::incomplete_parent(&items);
 
     assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, "E004");
+    assert_eq!(issues[0].code, crate::rules::ErrorCode::IncompleteParent);
     assert_eq!(issues[0].location.line, 2); // Level 2 task with incomplete child
 }
 

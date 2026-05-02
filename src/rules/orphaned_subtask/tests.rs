@@ -16,7 +16,7 @@ fn flags_task_with_indent_after_blank_line() {
     let issues = orphaned_subtask(&p(input));
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].location.line, 3);
-    assert_eq!(issues[0].code, "E001");
+    assert_eq!(issues[0].code, crate::rules::ErrorCode::OrphanedSubtask);
     assert!(issues[0].message.contains("Orphaned"));
 }
 

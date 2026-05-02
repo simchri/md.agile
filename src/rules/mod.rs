@@ -20,6 +20,40 @@ pub use wrong_body_indent::wrong_body_indent;
 pub use incomplete_parent::incomplete_parent;
 pub use missing_space_after_box::missing_space_after_box;
 
+/// Error codes for validation rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ErrorCode {
+    /// E001: Orphaned indented task with no parent
+    OrphanedSubtask,
+    /// E002: Task indentation doesn't match nesting depth
+    WrongIndentation,
+    /// E003: Task body indentation misaligned
+    WrongBodyIndentation,
+    /// E004: Done parent with incomplete children
+    IncompleteParent,
+    /// E005: Missing space after status box
+    MissingSpaceAfterBox,
+}
+
+impl ErrorCode {
+    /// Returns the short code string (e.g., "E001")
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ErrorCode::OrphanedSubtask => "E001",
+            ErrorCode::WrongIndentation => "E002",
+            ErrorCode::WrongBodyIndentation => "E003",
+            ErrorCode::IncompleteParent => "E004",
+            ErrorCode::MissingSpaceAfterBox => "E005",
+        }
+    }
+}
+
+impl std::fmt::Display for ErrorCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 use crate::parser::{FileItem, Location};
 use serde::{Deserialize, Serialize};
 
@@ -44,7 +78,7 @@ pub enum IssueData {
 /// A single problem found by a rule.
 ///
 /// `location` points at the source line that triggered the issue; `code` is a
-/// machine-readable identifier (e.g., "E001"); `message` is the human-readable
+/// machine-readable error code (e.g., E001); `message` is the human-readable
 /// description; `column` marks the character position (1-based) where the issue
 /// occurs; `help` provides optional guidance on fixing the issue; `data`
 /// carries an optional rule-specific payload (used e.g. by the LSP layer to
@@ -52,7 +86,7 @@ pub enum IssueData {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Issue {
     pub location: Location,
-    pub code: String,
+    pub code: ErrorCode,
     pub message: String,
     pub column: usize,
     pub help: Option<String>,

@@ -67,7 +67,7 @@ fn check_children_complete(children: &[Subtask], parent_location: &crate::parser
         if child.status != Status::Done && child.status != Status::Cancelled {
             issues.push(Issue {
                 location: parent_location.clone(),
-                code: "E004".to_string(),
+                code: crate::rules::ErrorCode::IncompleteParent,
                 message: "Incomplete parent".to_string(),
                 column: 1,
                 help: Some(
