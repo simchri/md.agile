@@ -90,7 +90,7 @@ any operation that parses tasks lists should immediately stop on encountering th
   - [x] agilels quickfix: fix indentation
 - [x] missing space between task box and beginning of task title
   - [x] agile check
-  - [ ] agilels hint
+  - [x] agilels hint
   - [ ] agilels quickfix: Add space
 
 ## Subtasks are Mandatory
