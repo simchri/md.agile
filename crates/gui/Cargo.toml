@@ -4,14 +4,19 @@ version.workspace = true
 edition = "2021"
 
 [dependencies]
-dioxus = { version = "0.7", features = ["web"] }
+dioxus = { version = "0.7", features = ["fullstack"] }
 dioxus-logger = "0.7"
 tracing = "0.1"
 log = { version = "0.4" }
 env_logger = "0.10"
 console_log = "1.0.0"
 
+# Server-only: pulled in only when the `server` feature is active so it never
+# enters the WASM build.
+mdagile = { path = "../cli", optional = true }
+
 [features]
 default = []
 web = ["dioxus/web"]
+server = ["dioxus/server", "dep:mdagile"]
 desktop = ["dioxus/desktop"]

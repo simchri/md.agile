@@ -28,3 +28,14 @@ pub fn next_task(items: &[FileItem]) -> String {
     }
     String::new()
 }
+
+/// Returns the title of the first incomplete top-level task in `items`.
+///
+/// Same selection rule as [`next_task`] but yields just the title string. Used
+/// by callers that don't need the rendered subtree (e.g. the GUI post-it).
+pub fn next_task_title(items: &[FileItem]) -> Option<String> {
+    items.iter().find_map(|item| match item {
+        FileItem::Task(task) if task.status == Status::Todo => Some(task.title.clone()),
+        _ => None,
+    })
+}
