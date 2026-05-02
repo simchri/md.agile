@@ -35,7 +35,8 @@
       "Bash(dx serve *)",
       "Bash(curl -s http://localhost:8080/)",
       "Bash(curl -s http://localhost:8080/style.css)",
-      "Bash(dx *)"
+      "Bash(dx *)",
+      "Bash(curl -s http://localhost:8080/wasm/)"
     ]
   }
 }
