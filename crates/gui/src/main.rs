@@ -15,10 +15,12 @@ fn App() -> Element {
             style { {CSS} }
         }
         body {
-            div { class: "container",
-                h1 { "mdagile" }
-                p { "Hello from Dioxus!" }
-                p { "This is your GUI prototype for mdagile." }
+            div { class: "layout",
+                div { class: "top-row" }
+                div { class: "separator" }
+                div { class: "middle-row" }
+                div { class: "separator" }
+                div { class: "bottom-row" }
             }
         }
     }
@@ -33,32 +35,34 @@ const CSS: &str = r#"
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.container {
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-    padding: 40px;
-    text-align: center;
-    max-width: 500px;
+    height: 100vh;
+    display: flex;
 }
 
-h1 {
-    color: #333;
-    margin-bottom: 20px;
-    font-size: 2.5rem;
+.layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
 }
 
-p {
-    color: #666;
-    font-size: 1.1rem;
-    margin-bottom: 15px;
-    line-height: 1.6;
+.top-row {
+    flex: 0 0 15%;
+    border-bottom: 1px solid black;
+}
+
+.separator {
+    flex: 0 0 1px;
+    background: black;
+}
+
+.middle-row {
+    flex: 1;
+    border-bottom: 1px solid black;
+}
+
+.bottom-row {
+    flex: 0 0 15%;
 }
 "#;
