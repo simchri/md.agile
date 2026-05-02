@@ -41,9 +41,9 @@ fn app() -> Element {
 
     let card = match &*next.read_unchecked() {
         Some(Ok(Some(t))) => rsx! { TaskCard { task: t.clone() } },
-        Some(Ok(None))    => rsx! { div { class: "task-card", style: "top: 30px; left: 30px;", "All tasks done" } },
-        Some(Err(e))      => rsx! { div { class: "task-card", style: "top: 30px; left: 30px;", "Error: {e}" } },
-        None              => rsx! { div { class: "task-card", style: "top: 30px; left: 30px;", "Loading…" } },
+        Some(Ok(None))    => rsx! { div { class: "task-card", style: "{diagonal_style(1.0)}", "All tasks done" } },
+        Some(Err(e))      => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Error: {e}" } },
+        None              => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Loading…" } },
     };
 
     rsx! {
@@ -57,8 +57,9 @@ fn app() -> Element {
 
 #[component]
 fn TaskCard(task: TaskView) -> Element {
+    let progress = task_progress(&task);
     rsx! {
-        div { class: "task-card", style: "top: 30px; left: 30px;",
+        div { class: "task-card", style: "{diagonal_style(progress)}",
             div { class: "task-card-header",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
                 span { class: "task-card-title", "{task.title}" }
@@ -114,6 +115,46 @@ fn SubtaskItem(task: TaskView, depth: usize) -> Element {
             }
         }
     }
+}
+
+/// Returns the share of subtasks that are complete (Done or Cancelled), counted
+/// recursively across all nesting levels. A task with no subtasks reports 0.0,
+/// and a task whose own status is already Done reports 1.0.
+fn task_progress(task: &TaskView) -> f64 {
+    if matches!(task.status, TaskStatus::Done | TaskStatus::Cancelled) {
+        return 1.0;
+    }
+    let (done, total) = count_subtasks(task);
+    if total == 0 {
+        0.0
+    } else {
+        done as f64 / total as f64
+    }
+}
+
+fn count_subtasks(task: &TaskView) -> (usize, usize) {
+    let mut done = 0;
+    let mut total = 0;
+    for child in &task.children {
+        total += 1;
+        if matches!(child.status, TaskStatus::Done | TaskStatus::Cancelled) {
+            done += 1;
+        }
+        let (cd, ct) = count_subtasks(child);
+        done += cd;
+        total += ct;
+    }
+    (done, total)
+}
+
+/// Builds a CSS positioning rule that places the post-it along the top-left to
+/// bottom-right diagonal at `progress` (0.0 = top-left, 1.0 = bottom-right).
+/// 280px = 220px card + 60px combined margin from the viewport edges.
+fn diagonal_style(progress: f64) -> String {
+    let p = progress.clamp(0.0, 1.0);
+    format!(
+        "top: calc({p:.3} * (100vh - 280px) + 30px); left: calc({p:.3} * (100vw - 280px) + 30px);"
+    )
 }
 
 fn status_box(status: &TaskStatus) -> &'static str {
