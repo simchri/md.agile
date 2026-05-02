@@ -88,10 +88,10 @@ This applies to every line of the task description.
   - [ ] agilels quickfix: Add space
 
 ## Subtasks are Mandatory
-- [ ] detect parent task incorrectly marked as done, even though subtasks are not done
-  - [ ] agile check
+- [x] detect parent task incorrectly marked as done, even though subtasks are not done
+  - [x] agile check
   - [ ] agilels hint
-  - [ ] agilels quickfix: Mark all subtasks as done, 
+  - [ ] agilels quickfix: Mark all subtasks as done 
 
 ##  Properties and first Settings
 
