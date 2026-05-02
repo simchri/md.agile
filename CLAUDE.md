@@ -80,10 +80,13 @@ Never write production code without a failing test that justifies it.
 ### Auto-commit on vibe branches
 
 Whenever a prompt results in code changes (modifications to versioned files or new files to be versioned), **automatically create a commit** — but **only if**:
-- the current branch starts with `vibe` (e.g., `vibes01`, `vibe-feature-x`), **and**
-- `cargo test` passes with no failures.
+- the current branch starts with `vibe` (e.g., `vibes01`, `vibe-feature-x`)
 
-Run `cargo test` before every commit. If tests fail, fix them first — do not commit a red suite.
+**Test requirements**:
+- If only `.md` files are modified: commit directly without running tests.
+- If any `.rs` or other code files are modified: run `cargo test` first and ensure all tests pass before committing.
+
+If tests fail, fix them first — do not commit a red suite.
 
 If the branch does **not** start with `vibe`, warn the user instead and do not commit.
 
