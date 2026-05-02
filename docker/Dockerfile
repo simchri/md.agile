@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install --yes \
       vim \
       wget
 
-RUN cargo binstall dioxus-cli@0.7.3
+RUN cargo binstall dioxus-cli@0.7.7
 
 RUN rustup component add rust-analyzer
 RUN rust-analyzer --version

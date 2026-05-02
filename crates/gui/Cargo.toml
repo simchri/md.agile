@@ -7,3 +7,11 @@ edition = "2021"
 dioxus = { version = "0.7", features = ["web"] }
 dioxus-logger = "0.7"
 tracing = "0.1"
+log = { version = "0.4" }
+env_logger = "0.10"
+console_log = "1.0.0"
+
+[features]
+default = []
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]

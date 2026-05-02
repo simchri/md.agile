@@ -109,7 +109,7 @@
   - styling with css
 - [x] GUI framework selected: Dioxus
 - [x] Hello world GUI app running
-- [ ] prototype runs: Empty canvas, divided into three rows, narrow top row, wide middle row, narrow bottom row. Separated by simple black lines.
+- [x] prototype runs: Empty canvas, divided into three rows, narrow top row, wide middle row, narrow bottom row. Separated by simple black lines.
 
 
 ##  Properties and first Settings

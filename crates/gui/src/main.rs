@@ -1,11 +1,20 @@
 use dioxus::prelude::*;
+use log::info;
 
 fn main() {
-    dioxus_logger::init(tracing::Level::INFO).expect("failed to init logger");
-    launch(App);
+    #[cfg(not(feature = "web"))]
+    env_logger::init();
+
+    #[cfg(feature = "web")]
+    console_log::init_with_level(log::Level::Debug).expect("error initializing logger");
+
+    info!("main()");
+
+    info!("Launch Dioxus App");
+    dioxus::launch(App);
 }
 
-#[allow(non_snake_case)]
+#[component]
 fn App() -> Element {
     rsx! {
         div { class: "layout",
