@@ -77,9 +77,15 @@ any operation that parses tasks lists should immediately stop on encountering th
 
 ## More basic Syntax Checks and Quick Fixes
 - [x] wrongly indented task description
-task description starts exactly here, at the same location as the "-".
-This applies to every line of the task description.
+  task description starts exactly here, at the same location as the "[ ]".
+  This applies to every line of the task description.
   - [x] agile check
+    Some more dummy subtask content to test the visual appearance of the indentation. Lorem ipsum dolor sit amet,
+    consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris.
+    Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. 
+    Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue. 
+    Nam tincidunt congue enim, ut porta lorem lacinia consectetur. Donec ut libero sed arcu vehicula ultricies a non tortor. 
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut gravida lorem.
   - [x] agilels hint
   - [x] agilels quickfix: fix indentation
 - [ ] missing space between task box and beginning of task title
@@ -88,7 +94,7 @@ This applies to every line of the task description.
   - [ ] agilels quickfix: Add space
 
 ## Subtasks are Mandatory
-- [x] detect parent task incorrectly marked as done, even though subtasks are not done
+- [ ] detect parent task incorrectly marked as done, even though subtasks are not done
   - [x] agile check
   - [x] agilels hint
   - [ ] agilels quickfix: Mark all subtasks as done 

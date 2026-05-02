@@ -12,10 +12,7 @@ use crate::rules::{self, Issue};
 /// Issues are returned in the order their producing rule emits them. An empty
 /// result means the input is clean.
 pub fn run(items: &[FileItem]) -> Vec<Issue> {
-    let mut issues = Vec::new();
-    issues.extend(rules::orphaned_subtask(items));
-    issues.extend(rules::wrong_indentation(items));
-    issues
+    rules::check_all(items)
 }
 
 #[cfg(test)]
