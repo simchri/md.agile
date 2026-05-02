@@ -110,6 +110,12 @@
 - [x] GUI framework selected: Dioxus
 - [x] Hello world GUI app running
 - [x] prototype runs: Empty canvas, divided into three rows, narrow top row, wide middle row, narrow bottom row. Separated by simple black lines.
+- [x] load title of next task onto post-it
+- [x] next task dynamically updated on file changes
+- [ ] make all information of task available on the frontend side of the UI 
+  - [x] render subtasks as well in the post it
+    just clip if not enough space. keep post-it side constant)
+  - [ ] some subtask
 
 
 ##  Properties and first Settings

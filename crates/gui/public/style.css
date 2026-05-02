@@ -66,19 +66,115 @@ body {
 
 .task-card {
     position: absolute;
-    width: 180px;
-    height: 180px;
-    padding: 16px;
+    width: 220px;
+    height: 220px;
+    padding: 10px 12px;
     background: #ffd666;
     border-radius: 4px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.4;
     color: #333;
     word-wrap: break-word;
+    overflow: hidden;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    flex-direction: column;
+    text-align: left;
     cursor: grab;
+}
+
+.task-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+}
+
+.task-card-title {
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+.task-card-markers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+}
+
+.task-card-markers .marker {
+    background: rgba(0, 0, 0, 0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    color: #555;
+    font-family: monospace;
+}
+
+.task-card-body {
+    font-size: 11px;
+    color: #555;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+    font-style: italic;
+}
+
+.task-card-children {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+}
+
+.subtask {
+    list-style: none;
+    font-size: 11.5px;
+    line-height: 1.35;
+    display: block;
+}
+
+.subtask-status {
+    font-family: monospace;
+    margin-right: 4px;
+    color: #555;
+}
+
+.subtask-title {
+    color: #333;
+}
+
+.subtask.status-done .subtask-title,
+.subtask.status-cancelled .subtask-title {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.status-todo  {
+    opacity: 1;
+    min-width: 30px;
+}
+
+.subtask-markers {
+    margin-left: 4px;
+}
+
+.subtask-markers .marker {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0 4px;
+    border-radius: 2px;
+    font-size: 9.5px;
+    color: #666;
+    font-family: monospace;
+    margin-left: 2px;
+}
+
+.subtask-children {
+    list-style: none;
+    padding-left: 12px;
+    margin: 0;
 }
