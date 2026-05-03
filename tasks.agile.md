@@ -124,16 +124,16 @@
 - [x] load in backlog tasks along the top row
   load the ten next tasks in the backlog
   - [x] backlog task post-its are a bit smaller than task in progress
-- [-] handle all task post-its the same way in the code. Not different items
+- [x] handle all task post-its the same way in the code. Not different items
   This implies that multiple post its can be in the middle part of the view, moving over the screen- that's what we want!
-  - [ ] assign new css classes, when at least one sub-task is checked (larger box)
-  - [ ] all post it's are conceptually handled the same way
+  - [-] assign new css classes, when at least one sub-task is checked (larger box)
+  - [x] all post its are conceptually handled the same way
 - [x] display the last ten tasks that were done along the bottom row
   - [x] done task post-its are a bit smaller than task in progress
 - [ ] z-ordering: Last changed task is moved to front
   - [x] some subtask
-  - [x] some subtask
-  - [x] some subtask
+  - [ ] some subtask
+  - [ ] some subtask
   - [x] some subtask
   - [x] some subtask
   - [x] some subtask
