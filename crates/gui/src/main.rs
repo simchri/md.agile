@@ -44,19 +44,15 @@ fn app() -> Element {
     {
         let task_slots = task_slots.clone();
         use_effect(move || {
-            if let Some(Ok(TaskList { in_progress, backlog, done })) = &*tasks_resource.read() {
-                done_offset_signal.set(in_progress.len() + backlog.len());
+            if let Some(Ok(tasks)) = &*tasks_resource.read() {
 
-                let mut iter = in_progress
-                    .iter()
-                    .chain(backlog.iter())
-                    .chain(done.iter())
-                    .cloned();
+                let mut iter = tasks.into_iter();
+
                 for slot in &task_slots {
                     let mut slot = *slot;
                     let next = iter.next();
-                    if *slot.peek() != next {
-                        slot.set(next);
+                    if *slot.peek() != next.cloned() {
+                        slot.set(next.cloned());
                     }
                 }
             }

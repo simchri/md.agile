@@ -63,7 +63,7 @@ const DONE_LIMIT: usize = 10;
 /// subtasks is Done or Cancelled — i.e. work has begun. Otherwise it stays
 /// in `backlog`.
 #[server]
-pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
+pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
     use mdagile::cli::common::{find_task_files, parse_files};
     use mdagile::parser::{FileItem, Status};
 
@@ -99,7 +99,14 @@ pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
     let skip = dones.len().saturating_sub(DONE_LIMIT);
     let done: Vec<TaskView> = dones.into_iter().skip(skip).collect();
 
-    Ok(TaskList { in_progress, backlog, done })
+    // concatenate the three categories into one vector:
+    let tasks = in_progress
+        .into_iter()
+        .chain(backlog.into_iter())
+        .chain(done.into_iter())
+        .collect();
+
+    Ok(tasks)
 }
 
 /// True when the task has at least one direct subtask marked Done or
