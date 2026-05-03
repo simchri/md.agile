@@ -22,8 +22,6 @@ fn init_logger() {
 
 fn app() -> Element {
     let mut tasks = use_resource(|| async { server::get_tasks().await });
-    let mut modal_open = use_signal(|| false);
-    let mut maximized_task = use_signal(|| None::<TaskView>);
 
     use_effect({
         // Clock, frequency 1s.
@@ -49,20 +47,18 @@ fn app() -> Element {
             _ => (Vec::new(), Vec::new(), Vec::new()),
         };
 
+    let all_tasks = in_progress.iter().chain(backlog.iter()).chain(done.iter());
+
+    let done_offset = in_progress.len() + backlog.len();
+
 
     rsx! {
         div { class: "layout",
             div { class: "separator1" }
             div { class: "separator2" }
 
-            for (i, task) in backlog.iter().enumerate() {
-                TaskCard { task: task.clone(), index: i }
-            }
-            for (i, task) in done.iter().enumerate() {
-                TaskCard { task: task.clone(), index: i }
-            }
-            for (i, task) in in_progress.iter().enumerate() {
-                TaskCard { task: task.clone(),  index: i }
+            for (i, task) in all_tasks.enumerate() {
+                TaskCard { task: task.clone(), index: i, done_offset: done_offset }
             }
 
 
@@ -92,9 +88,8 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 const DONE_LEFT_PX: usize = 12;
 
 #[component]
-fn TaskCard(task: TaskView,  index: usize) -> Element {
+fn TaskCard(task: TaskView, index: usize, done_offset: usize) -> Element {
     let progress = task_progress(&task);
-
 
     if progress == 0.0 {
         // backlog card style and pos
@@ -120,7 +115,17 @@ fn TaskCard(task: TaskView,  index: usize) -> Element {
 
     if progress >= 1.0 {
         // done card style and position
-        let style = format!("left: {}px;", DONE_LEFT_PX + index * BACKLOG_OFFSET_PX);
+
+        let mut done_index = index;
+
+        if done_index >= done_offset  {
+            done_index = index - done_offset;
+        } else { 
+            done_index = 0;
+        }
+
+
+        let style = format!("left: {}px;", DONE_LEFT_PX + done_index * BACKLOG_OFFSET_PX);
         return rsx! {
             div { class: "done-card", style: "{style}",
                 div { class: "done-card-status {status_class(&task.status)}",
@@ -132,7 +137,6 @@ fn TaskCard(task: TaskView,  index: usize) -> Element {
     }
 
     // Else: In Progress style
-
     return rsx! {
         div { class: "task-card", style: "{diagonal_style(progress)}",
             // TODO: modal
