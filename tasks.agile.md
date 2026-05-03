@@ -131,6 +131,24 @@
 - [x] display the last ten tasks that were done along the bottom row
   - [x] done task post-its are a bit smaller than task in progress
 - [ ] z-ordering: Last changed task is moved to front
+- [ ] Repel/spread: overlapping in-progress cards push each other apart
+  Cards that would overlap negotiate their position along (or perpendicular to)
+  the diagonal so none fully obscure another. Progress still determines the
+  rough position; the spread is only the local adjustment needed to avoid overlap.
+  - [ ] Detect overlapping cards (same or close diagonal position)
+  - [ ] Spread overlapping cards perpendicular to the diagonal
+  - [ ] Animate the spread smoothly so cards feel like they're sliding apart
+  - [ ] Ensure spread cards snap back when progress changes move them apart naturally
+- [ ] sample task A
+  - [x] sample subtask
+  - [ ] sample subtask
+- [ ] sample task B
+  - [x] sample subtask
+  - [ ] sample subtask
+  - [ ] sample subtask
+- [ ] sample task C
+  - [ ] sample subtask
+  - [ ] sample subtask
 
 ##  Properties and first Settings
 
