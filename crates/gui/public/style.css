@@ -328,7 +328,6 @@ body {
 
 .backlog-card {
     position: absolute;
-    top: 8px;
     /* `left` is set inline per-card from the index in BacklogCard */
     width: 110px;
     height: calc(15vh - 16px);
@@ -384,7 +383,6 @@ body {
 
 .done-card {
     position: absolute;
-    bottom: 8px;
     /* `left` is set inline per-card from the index in DoneCard */
     width: 110px;
     height: calc(15vh - 16px);

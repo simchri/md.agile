@@ -205,7 +205,7 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
     let mut card_style = "task-card".to_string();
     let mut title_style = "task-card-title".to_string();
     let mut markers_style = "task-card-markers".to_string();
-    let mut position_style = diagonal_style(progress);
+    let mut position_style = "".to_string();
 
 
     if progress == 0.0 {
@@ -222,10 +222,9 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
             pos_index = 0;
         }
 
-        position_style = format!("left: {}px;{z}", BACKLOG_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
-    }
+        position_style = format!("top: 8px; bottom: unset; left: {}px;{z}", BACKLOG_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
 
-    if progress >= 1.0 {
+    } else if progress >= 1.0 {
 
         // done card style and position
         let mut pos_index = task.rank;
@@ -235,14 +234,16 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
             pos_index = 0;
         } 
 
-        position_style = format!("left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
+        position_style = format!("bottom: 8px; top: unset; left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
 
         card_style = "done-card".to_string();
         title_style = "done-card-title".to_string();
   
+    } else {
+        // Else: In Progress style
+        position_style = diagonal_style(progress);
     }
 
-    // Else: In Progress style
     let t = task.clone();
     let t2 = task.clone();
     return rsx! {
