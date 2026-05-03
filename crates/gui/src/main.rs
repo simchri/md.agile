@@ -75,7 +75,10 @@ fn app() -> Element {
             if let Some(task) = modal_task() {
                 TaskModal {
                     task: task,
-                    on_close: move |_| modal_task.set(None),
+                    on_close: move |_| {
+                        modal_task.set(None);
+                        front_title.set(None);
+                    },
                 }
             }
         }
