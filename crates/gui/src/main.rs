@@ -100,7 +100,7 @@ const DONE_LEFT_PX: usize = 12;
 #[component]
 fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>) -> Element {
     let progress = task_progress(&task);
-    let z = if z_index > 0 { format!(" z-index: {z_index};") } else { String::new() };
+    let z = format!(" z-index: {z_index};");
 
     if progress == 0.0 {
         // backlog card style and pos
