@@ -131,12 +131,6 @@
 - [x] display the last ten tasks that were done along the bottom row
   - [x] done task post-its are a bit smaller than task in progress
 - [ ] z-ordering: Last changed task is moved to front
-  - [x] some subtask
-  - [ ] some subtask
-  - [ ] some subtask
-  - [x] some subtask
-  - [x] some subtask
-  - [x] some subtask
 
 ##  Properties and first Settings
 
