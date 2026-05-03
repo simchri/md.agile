@@ -55,6 +55,7 @@ fn app() -> Element {
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
 
+
     rsx! {
         div { class: "layout",
             div { class: "separator1" }
@@ -78,7 +79,6 @@ fn app() -> Element {
                     task: task,
                     on_close: move |_| {
                         modal_task.set(None);
-                        front_index.set(None);
                     },
                 }
             }
@@ -101,7 +101,8 @@ const DONE_LEFT_PX: usize = 12;
 #[component]
 fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>) -> Element {
     let progress = task_progress(&task);
-    let z = if z_index > 0 { format!(" z-index: {z_index};") } else { String::new() };
+
+    let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
 
     if progress == 0.0 {
         // backlog card style and pos
