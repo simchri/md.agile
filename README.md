@@ -75,4 +75,4 @@ A minimal LSP server that runs on stdin/stdout. Advertises text document sync (F
 
 ## Project Philosophy
 
-See [MANIFESTO.md](MANIFESTO.md) for the design rationale behind the text-based, git-integrated approach.
+See [MANIFESTO.md](MANIFESTO.md)
