@@ -126,20 +126,16 @@ fn app() -> Element {
     }
 
 
-let mut lowest_rank_done = usize::MAX;
-for slot in task_slots.iter() {
-    if let Some(task) = slot() {
-        if task_progress(&task) >= 1.0 {
-            if task.rank < lowest_rank_done {
-                lowest_rank_done = task.rank;
+    let mut highest_rank_done = 0;
+    for slot in task_slots.iter() {
+        if let Some(task) = slot() {
+            if task_progress(&task) >= 1.0 {
+                if task.rank > highest_rank_done {
+                    highest_rank_done = task.rank;
+                }
             }
         }
     }
-}
-if lowest_rank_done == usize::MAX {
-    lowest_rank_done = 0;
-}
-    
 
 
     rsx! {
@@ -161,7 +157,7 @@ if lowest_rank_done == usize::MAX {
                             front_index.set(Some(i));
                         },
                         lowest_rank_backlog,
-                        lowest_rank_done,
+                        highest_rank_done,
                     }
                 }
             }
@@ -197,23 +193,24 @@ enum TaskCardState {
 }
 
 #[component]
-fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, lowest_rank_done: usize) -> Element {
+fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, highest_rank_done: usize) -> Element {
     let progress = task_progress(&task);
 
     let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
 
     let mut card_style = "task-card".to_string();
     let mut title_style = "task-card-title".to_string();
-    let mut markers_style = "task-card-markers".to_string();
+    let markers_style = "task-card-markers".to_string();
     let mut position_style = "".to_string();
 
+    let CARD_WIDTH_PX = 110;
+    let CARD_GAP_PX = 8;
 
     if progress == 0.0 {
 
         // backlog card style and pos
         card_style = "backlog-card".to_string();
         title_style = "backlog-card-title".to_string();
-        markers_style = "backlog-card-markers".to_string();
 
         let mut pos_index = task.rank;
         if pos_index >= lowest_rank_backlog {
@@ -222,24 +219,31 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
             pos_index = 0;
         }
 
-        position_style = format!("top: 8px; bottom: unset; left: {}px;{z}", BACKLOG_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
+        let x_px = CARD_GAP_PX + ((pos_index ) * (CARD_WIDTH_PX + CARD_GAP_PX));
+        let left = format!("{x_px}px");
+
+        position_style = format!("top: 8px; bottom: unset; left: {};{z}", left);
 
     } else if progress >= 1.0 {
 
         // done card style and position
-        let mut pos_index = task.rank;
-        if pos_index >= lowest_rank_done {
-            pos_index = task.rank - lowest_rank_done;
+        let pos_index;
+        if task.rank <= highest_rank_done {
+            pos_index = highest_rank_done - task.rank;
         } else {
             pos_index = 0;
         } 
 
-        // position_style = format!("bottom: 8px; top: unset; left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
+        log::info!("task: {}", task.title);
+        log::info!("rank: {}, lowest_rank_done: {}, pos_index: {}", task.rank, highest_rank_done, pos_index);
+
 
         let done_top = format!("calc(100vh - {}px)", (110 + 8)); 
-        let done_left_px: usize = DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX;
 
-        position_style = format!("top: {}; left: {}px;{z}", done_top, done_left_px);
+        let x_px = CARD_GAP_PX + ((pos_index + 1) * (CARD_WIDTH_PX + CARD_GAP_PX));
+        let left = format!("calc(100vw - {x_px}px)");
+
+        position_style = format!("top: {}; left: {};{z}", done_top, left);
 
         card_style = "done-card".to_string();
         title_style = "done-card-title".to_string();

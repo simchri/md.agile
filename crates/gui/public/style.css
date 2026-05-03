@@ -365,22 +365,6 @@ body {
     margin-bottom: 3px;
 }
 
-.backlog-card-markers {
-    overflow: hidden;
-    max-height: 14px;
-}
-
-.backlog-card-markers .marker {
-    display: inline-block;
-    background: rgba(0, 0, 0, 0.08);
-    padding: 0 4px;
-    border-radius: 2px;
-    font-size: 9px;
-    color: #555;
-    font-family: monospace;
-    margin-right: 3px;
-}
-
 .done-card {
     position: absolute;
     /* `left` is set inline per-card from the index in DoneCard */
