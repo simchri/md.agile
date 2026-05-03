@@ -9,11 +9,11 @@ For upcoming features, see [README.vision.md](README.vision.md)
 
 Simple animated board
 
-<img width="800" height="402" alt="animated_board" src="https://github.com/user-attachments/assets/476af559-b4fb-4558-8f09-258a97f1e176" />
+<img width="400" height="auto" alt="animated_board" src="https://github.com/user-attachments/assets/476af559-b4fb-4558-8f09-258a97f1e176" />
 
 Formatting rules enforced via language server with quick fixes!
 
-<img width="800" height="768" alt="quickfix" src="https://github.com/user-attachments/assets/aaecaa6e-a735-4ae4-98b3-90da54981000" />
+<img width="400" height="auto" alt="quickfix" src="https://github.com/user-attachments/assets/aaecaa6e-a735-4ae4-98b3-90da54981000" />
 
 
 ## What Works
