@@ -236,12 +236,10 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
 
         // position_style = format!("bottom: 8px; top: unset; left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
 
-        let done_top_px = 685; 
-        // TODO: proper dynamic value. Constraint: We must not change the css hooks used to position elements.
-        // e.g. use always top + left (don't switch to "bottom" inbetween). Otherwise animations break. (Items must remain in the DOM)
+        let done_top = format!("calc(100vh - {}px)", (110 + 8)); 
         let done_left_px: usize = DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX;
 
-        position_style = format!("top: {}px; left: {}px;{z}", done_top_px, done_left_px);
+        position_style = format!("top: {}; left: {}px;{z}", done_top, done_left_px);
 
         card_style = "done-card".to_string();
         title_style = "done-card-title".to_string();
