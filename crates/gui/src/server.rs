@@ -89,11 +89,6 @@ pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
     let skip = dones.len().saturating_sub(DONE_LIMIT);
     let done: Vec<TaskView> = dones.into_iter().skip(skip).collect();
 
-    // move first of "backlog" to "in_progress":
-    if !backlog.is_empty() {
-        in_progress.push(backlog.remove(0));
-    }
-
     Ok(TaskList { in_progress, backlog, done })
 }
 

@@ -23,6 +23,7 @@ fn init_logger() {
 fn app() -> Element {
     let mut tasks = use_resource(|| async { server::get_tasks().await });
     let mut modal_open = use_signal(|| false);
+    let mut maximized_task = use_signal(|| None::<TaskView>);
 
     use_effect({
         // Clock, frequency 1s.
@@ -55,13 +56,13 @@ fn app() -> Element {
             div { class: "separator2" }
 
             for (i, task) in backlog.iter().enumerate() {
-                BacklogCard { task: task.clone(), index: i }
+                TaskCard { task: task.clone(), index: i }
             }
             for (i, task) in done.iter().enumerate() {
-                DoneCard { task: task.clone(), index: i }
+                TaskCard { task: task.clone(), index: i }
             }
             for (i, task) in in_progress.iter().enumerate() {
-                TaskCard { task: task.clone(),on_click: move |_| modal_open.set(true), index: i }
+                TaskCard { task: task.clone(),  index: i }
             }
 
 
@@ -78,12 +79,64 @@ fn app() -> Element {
     }
 }
 
+/// Horizontal step (in px) between two adjacent backlog post-its. The card
+/// itself is 110px wide; the extra 10px is the visual gap between cards.
+const BACKLOG_OFFSET_PX: usize = 120;
+/// The first two slots from the left are reserved for the top-of-backlog
+/// post-it, so the rest of the backlog starts two widths in.
+const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
+
+/// Step (px) and starting offset (px) shared with the backlog row but rendered
+/// at the bottom of the canvas. The 12px left inset matches the backlog so
+/// the two rows align visually.
+const DONE_LEFT_PX: usize = 12;
+
 #[component]
-fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>, index: usize) -> Element {
+fn TaskCard(task: TaskView,  index: usize) -> Element {
     let progress = task_progress(&task);
-    rsx! {
+
+
+    if progress == 0.0 {
+        // backlog card style and pos
+
+        let style = format!("left: {}px;", BACKLOG_LEFT_PX + index * BACKLOG_OFFSET_PX);
+
+        return rsx! {
+            div { class: "backlog-card", style: "{style}",
+                div { class: "backlog-card-status {status_class(&task.status)}",
+                    {status_box(&task.status)}
+                }
+                div { class: "backlog-card-title", "{task.title}" }
+                if !task.markers.is_empty() {
+                    div { class: "backlog-card-markers",
+                        for marker in &task.markers {
+                            span { class: "marker", "{marker}" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if progress >= 1.0 {
+        // done card style and position
+        let style = format!("left: {}px;", DONE_LEFT_PX + index * BACKLOG_OFFSET_PX);
+        return rsx! {
+            div { class: "done-card", style: "{style}",
+                div { class: "done-card-status {status_class(&task.status)}",
+                    {status_box(&task.status)}
+                }
+                div { class: "done-card-title", "{task.title}" }
+            }
+        }
+    }
+
+    // Else: In Progress style
+
+    return rsx! {
         div { class: "task-card", style: "{diagonal_style(progress)}",
-            onclick: move |evt| on_click.call(evt),
+            // TODO: modal
+            // onclick: move |evt| on_click.call(evt),
             div { class: "task-card-header",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
                 span { class: "task-card-title", "{task.title}" }
@@ -114,52 +167,10 @@ fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>, index: usize) ->
             }
         }
     }
+
+
 }
 
-/// Horizontal step (in px) between two adjacent backlog post-its. The card
-/// itself is 110px wide; the extra 10px is the visual gap between cards.
-const BACKLOG_OFFSET_PX: usize = 120;
-/// The first two slots from the left are reserved for the top-of-backlog
-/// post-it, so the rest of the backlog starts two widths in.
-const BACKLOG_LEFT_PX: usize = 12 + 2 * BACKLOG_OFFSET_PX;
-
-#[component]
-fn BacklogCard(task: TaskView, index: usize) -> Element {
-    let style = format!("left: {}px;", BACKLOG_LEFT_PX + index * BACKLOG_OFFSET_PX);
-    rsx! {
-        div { class: "backlog-card", style: "{style}",
-            div { class: "backlog-card-status {status_class(&task.status)}",
-                {status_box(&task.status)}
-            }
-            div { class: "backlog-card-title", "{task.title}" }
-            if !task.markers.is_empty() {
-                div { class: "backlog-card-markers",
-                    for marker in &task.markers {
-                        span { class: "marker", "{marker}" }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Step (px) and starting offset (px) shared with the backlog row but rendered
-/// at the bottom of the canvas. The 12px left inset matches the backlog so
-/// the two rows align visually.
-const DONE_LEFT_PX: usize = 12;
-
-#[component]
-fn DoneCard(task: TaskView, index: usize) -> Element {
-    let style = format!("left: {}px;", DONE_LEFT_PX + index * BACKLOG_OFFSET_PX);
-    rsx! {
-        div { class: "done-card", style: "{style}",
-            div { class: "done-card-status {status_class(&task.status)}",
-                {status_box(&task.status)}
-            }
-            div { class: "done-card-title", "{task.title}" }
-        }
-    }
-}
 
 #[component]
 fn SubtaskItem(task: TaskView, depth: usize, show_body: bool) -> Element {
