@@ -1,11 +1,27 @@
 # md.agile
 
 Plain-text, version-controlled task management for developers.
+Your tasks live forever in a simple text file, version-controlled directly alongside your code (ideally in the same repository) – not a web app!
 
-**Status**: Early prototype. Basic parsing and file discovery work. Core checker and LSP server are operational but cover only the first validation rule.
+This project is >> under construction <<  - more features to come. (c.f. [README.vision.md](README.vision.md))
 
-For upcoming features, see [README.vision.md](README.vision.md)
+**tasks.md:**
 
+```md
+- [ ] a task - this is the task-title
+Some more info on this task - this is the task-body
+Both inside and outside of tasks, you can just use normal markdown syntax
+  - [ ] a subtask @markus
+  more details for this subtask go here.
+  - [x] this subtask is done
+
+- [ ] #bug: another task
+  - [ ] "1. reproduce in test"
+  - [ ] "2. implement fix"
+  - [ ] "3. regression test"
+```
+
+Tasks follow a specific syntax. You will receive immediate feedback in your text editor if you make a mistake (via Language Server). Use the language server's auto-fix feature for an ergonomic experience. Use the CLI tool to add strict checks as pre-commit hooks or in your pipeline – your task list is always consistent. Everything is designed with a "command line first" approach: text files and CLI tools are the primary interface. Graphical client for convenient "board view" (Currently only a viewer, no edits possible).
 
 Simple animated board
 
@@ -15,14 +31,6 @@ Formatting rules enforced via language server with quick fixes!
 
 <img width="400" height="auto" alt="quickfix" src="https://github.com/user-attachments/assets/aaecaa6e-a735-4ae4-98b3-90da54981000" />
 
-
-## What Works
-
-### File Discovery & Parsing
-- Recursively finds `*.agile.md` files anywhere under the project root
-- Parses task syntax: `- [status] title` where status is ` ` (todo), `x` (done), or `-` (cancelled)
-- Supports arbitrary nesting of subtasks (indented by 2 spaces per level)
-- Records file path and line number for every task
 
 ### CLI Tool: `agile`
 
@@ -61,9 +69,15 @@ Parses all `*.agile.md` files and reports validation issues. Exits with status 1
 A minimal LSP server that runs on stdin/stdout. Advertises text document sync (FULL mode), publishes real-time diagnostics as you edit, and offers quickfix code actions for fixable issues.
 
 **Supported diagnostics:**
-- **E001: Orphaned indented task** — A task has leading whitespace but no parent task on the preceding line (usually due to a blank line separating parent and child). Indicates the task should be un-indented to top-level.
-- **E002: Wrong indentation** — A task's indentation does not match a valid subtask level. Expected indentation is `depth * 2` spaces (2 spaces per nesting level).
+- **Orphaned indented task** — A task has leading whitespace but no parent task on the preceding line (usually due to a blank line separating parent and child). Indicates the task should be un-indented to top-level.
+- **Wrong indentation** — A task's indentation does not match a valid subtask level. Expected indentation is `depth * 2` spaces (2 spaces per nesting level).
   - quickfix: Auto-correct indentation to match nesting depth
+- **Wrong Body Indentation** — A task body line is incorrectly indented 
+  - quickfix: Auto-correct indentation 
+- **Missing Space After Box** — A task line is missing a space after the status box (e.g. `- [ ]task` instead of `- [ ] task`)
+  - quickfix: Insert missing space
+- **Incomplete Parent** — A parent task is marked done but has incomplete children (no quick fix)
+
 
 ### File Priority & Task Ordering
 
@@ -72,21 +86,6 @@ Files are ordered alphabetically by their path relative to the project root (dir
 - Within each file, top-to-bottom order determines priority
 
 The first incomplete task across all files is the highest-priority work.
-
-
-
-## Building & Testing
-
-Requires Rust nightly (pinned in `docker/Dockerfile`). Edition 2024.
-
-```bash
-cargo build                      # Build CLI and LSP
-cargo run                        # Run CLI
-./target/debug/agilels          # Run LSP (runs on stdin/stdout)
-
-cargo test                       # Run full test suite
-cargo test --lib -- test_name   # Run single test
-```
 
 ## Project Philosophy
 
