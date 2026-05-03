@@ -7,13 +7,11 @@ Prereqs:
 - Rust toolchain installed
 - Project sources available (e.g. project cloned)
 
-Install the cli and language server - in project dir:
+Install the cli and language server with cargo - from project dir:
 ```
 cargo install --path crates/cli
 ```
-Install board viewer:
-```
-cargo install --path crates/gui
-```
+board viewer:
+Currently not installable. Use development workflow for testing.
 
 
