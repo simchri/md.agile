@@ -190,14 +190,30 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 /// the two rows align visually.
 const DONE_LEFT_PX: usize = 12;
 
+enum TaskCardState {
+    Progress,
+    Backlog,
+    Done,
+}
+
 #[component]
 fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, lowest_rank_done: usize) -> Element {
     let progress = task_progress(&task);
 
     let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
 
+    let mut card_style = "task-card".to_string();
+    let mut title_style = "task-card-title".to_string();
+    let mut markers_style = "task-card-markers".to_string();
+    let mut position_style = diagonal_style(progress);
+
+
     if progress == 0.0 {
+
         // backlog card style and pos
+        card_style = "backlog-card".to_string();
+        title_style = "backlog-card-title".to_string();
+        markers_style = "backlog-card-markers".to_string();
 
         let mut pos_index = task.rank;
         if pos_index >= lowest_rank_backlog {
@@ -206,32 +222,11 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
             pos_index = 0;
         }
 
-        let position_style = format!("left: {}px;{z}", BACKLOG_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
-        let t = task.clone();
-        let t2 = task.clone();
-
-        return rsx! {
-            div { 
-                class: "backlog-card", 
-                style: "{position_style}",
-                onclick: move |_| on_click.call(t.clone()),
-                onmouseover: move |_| on_hover.call(t2.clone()),
-                div { class: "backlog-card-status {status_class(&task.status)}",
-                    {status_box(&task.status)}
-                }
-                div { class: "backlog-card-title", "{task.title}" }
-                if !task.markers.is_empty() {
-                    div { class: "backlog-card-markers",
-                        for marker in &task.markers {
-                            span { class: "marker", "{marker}" }
-                        }
-                    }
-                }
-            }
-        }
+        position_style = format!("left: {}px;{z}", BACKLOG_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
     }
 
     if progress >= 1.0 {
+
         // done card style and position
         let mut pos_index = task.rank;
         if pos_index >= lowest_rank_done {
@@ -240,22 +235,11 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
             pos_index = 0;
         } 
 
-        let style = format!("left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
-        let t = task.clone();
-        let t2 = task.clone();
+        position_style = format!("left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
 
-        return rsx! {
-            div { 
-                class: "done-card", 
-                style: "{style}",
-                onclick: move |_| on_click.call(t.clone()),
-                onmouseover: move |_| on_hover.call(t2.clone()),
-                div { class: "done-card-status {status_class(&task.status)}",
-                    {status_box(&task.status)}
-                }
-                div { class: "done-card-title", "{task.title}" }
-            }
-        }
+        card_style = "done-card".to_string();
+        title_style = "done-card-title".to_string();
+  
     }
 
     // Else: In Progress style
@@ -263,17 +247,17 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
     let t2 = task.clone();
     return rsx! {
         div { 
-            class: "task-card", 
-            style: "{diagonal_style(progress)}{z}",
+            class: "{card_style} smooth-movement", 
+            style: "{position_style}",
             onclick: move |_| on_click.call(t.clone()),
             onmouseover: move |_| on_hover.call(t2.clone()),
-            div { class: "task-card-header",
+            div { class: "{markers_style}",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
-                span { class: "task-card-title", "{task.title}" }
+                span { class: "{title_style}", "{task.title}" }
             }
 
             if !task.markers.is_empty() {
-                div { class: "task-card-markers",
+                div { class: "{markers_style}",
                     for marker in &task.markers {
                         span { class: "marker", "{marker}" }
                     }
