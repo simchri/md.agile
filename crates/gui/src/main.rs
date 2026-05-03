@@ -100,6 +100,19 @@ fn app() -> Element {
     }
 
 
+let mut lowest_rank_done = usize::MAX;
+for slot in task_slots.iter() {
+    if let Some(task) = slot() {
+        if task_progress(&task) >= 1.0 {
+            if task.rank < lowest_rank_done {
+                lowest_rank_done = task.rank;
+            }
+        }
+    }
+}
+if lowest_rank_done == usize::MAX {
+    lowest_rank_done = 0;
+}
     
 
 
@@ -123,6 +136,7 @@ fn app() -> Element {
                             front_index.set(Some(i));
                         },
                         lowest_rank_backlog,
+                        lowest_rank_done,
                     }
                 }
             }
@@ -152,7 +166,7 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 const DONE_LEFT_PX: usize = 12;
 
 #[component]
-fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize) -> Element {
+fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, lowest_rank_done: usize) -> Element {
     let progress = task_progress(&task);
 
     let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
@@ -166,10 +180,6 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on
         } else {
             pos_index = 0;
         }
-
-        // log task title and pos_index:
-        log::debug!("Task '{}' with rank {} gets backlog pos_index {}", task.title, task.rank, pos_index);
-
 
         let position_style = format!("left: {}px;{z}", BACKLOG_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
         let t = task.clone();
@@ -196,16 +206,14 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on
 
     if progress >= 1.0 {
         // done card style and position
-
-        let mut done_index = index;
-
-        if done_index >= done_offset  {
-            done_index = index - done_offset;
+        let mut pos_index = task.rank;
+        if pos_index >= lowest_rank_done {
+            pos_index = task.rank - lowest_rank_done;
         } else {
-            done_index = 0;
-        }
+            pos_index = 0;
+        } 
 
-        let style = format!("left: {}px;{z}", DONE_LEFT_PX + done_index * BACKLOG_OFFSET_PX);
+        let style = format!("left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
         let t = task.clone();
         let t2 = task.clone();
 
