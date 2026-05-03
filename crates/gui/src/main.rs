@@ -125,7 +125,7 @@ if lowest_rank_done == usize::MAX {
                 if let Some(task) = slot() {
                     TaskCard {
                         task,
-                        index: i,
+                        _index: i,
                         done_offset,
                         z_index: if current_front == Some(i) { 100 } else { 0 },
                         on_click: move |t: TaskView| {
@@ -166,7 +166,7 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 const DONE_LEFT_PX: usize = 12;
 
 #[component]
-fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, lowest_rank_done: usize) -> Element {
+fn TaskCard(task: TaskView, _index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, lowest_rank_done: usize) -> Element {
     let progress = task_progress(&task);
 
     let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
