@@ -52,7 +52,6 @@ fn app() -> Element {
     let done_offset = in_progress.len() + backlog.len();
 
     let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
-    let mut front_title: Signal<Option<String>> = use_signal(|| None);
 
     rsx! {
         div { class: "layout",
@@ -64,11 +63,7 @@ fn app() -> Element {
                     task: task.clone(),
                     index: i,
                     done_offset: done_offset,
-                    is_front: front_title().as_deref() == Some(task.title.as_str()),
-                    on_click: move |t: TaskView| {
-                        front_title.set(Some(t.title.clone()));
-                        modal_task.set(Some(t));
-                    },
+                    on_click: move |t| modal_task.set(Some(t)),
                 }
             }
 
@@ -95,14 +90,13 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 const DONE_LEFT_PX: usize = 12;
 
 #[component]
-fn TaskCard(task: TaskView, index: usize, done_offset: usize, is_front: bool, on_click: EventHandler<TaskView>) -> Element {
+fn TaskCard(task: TaskView, index: usize, done_offset: usize, on_click: EventHandler<TaskView>) -> Element {
     let progress = task_progress(&task);
-    let z = if is_front { " z-index: 100;" } else { "" };
 
     if progress == 0.0 {
         // backlog card style and pos
 
-        let style = format!("left: {}px;{z}", BACKLOG_LEFT_PX + index * BACKLOG_OFFSET_PX);
+        let style = format!("left: {}px;", BACKLOG_LEFT_PX + index * BACKLOG_OFFSET_PX);
         let t = task.clone();
 
         return rsx! {
@@ -134,7 +128,7 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize, is_front: bool, on
             done_index = 0;
         }
 
-        let style = format!("left: {}px;{z}", DONE_LEFT_PX + done_index * BACKLOG_OFFSET_PX);
+        let style = format!("left: {}px;", DONE_LEFT_PX + done_index * BACKLOG_OFFSET_PX);
         let t = task.clone();
 
         return rsx! {
@@ -151,7 +145,7 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize, is_front: bool, on
     // Else: In Progress style
     let t = task.clone();
     return rsx! {
-        div { class: "task-card", style: "{diagonal_style(progress)}{z}",
+        div { class: "task-card", style: "{diagonal_style(progress)}",
             onclick: move |_| on_click.call(t.clone()),
             div { class: "task-card-header",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
