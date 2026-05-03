@@ -73,6 +73,15 @@ A minimal LSP server that runs on stdin/stdout. Advertises text document sync (F
   - quickfix: Insert missing space
 - **Incomplete Parent** — A parent task is marked done but has incomplete children (no quick fix)
 
+## GUI
+
+After installation launch in the directory with the md.agile.tasks and toml file: 
+```
+mdagile-gui
+```
+Then connect to localhost 8080 in a browser (in browser search bar type `http://127.0.0.1:8080/`).
+
+
 ## Project Philosophy
 
 See [MANIFESTO.md](MANIFESTO.md)
