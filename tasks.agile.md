@@ -130,6 +130,7 @@
   - [x] all post its are conceptually handled the same way
 - [x] display the last ten tasks that were done along the bottom row
   - [x] done task post-its are a bit smaller than task in progress
+- [x] refactor: each TaskView lives in its own signal (vector of 50 pre-allocated slots; backend tasks beyond the limit are dropped)
 - [ ] z-ordering: Last changed task is moved to front
 - [ ] Repel/spread: overlapping in-progress cards push each other apart
   Cards that would overlap negotiate their position along (or perpendicular to)

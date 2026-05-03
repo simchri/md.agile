@@ -20,8 +20,48 @@ fn init_logger() {
     console_log::init_with_level(log::Level::Debug).expect("error initializing logger");
 }
 
+/// Maximum number of task cards rendered on the canvas at once. The frontend
+/// pre-allocates this many `Signal<Option<TaskView>>` slots; any tasks the
+/// backend reports beyond the limit are dropped on the GUI side.
+const MAX_TASK_SLOTS: usize = 50;
+
 fn app() -> Element {
-    let mut tasks = use_resource(|| async { server::get_tasks().await });
+    let mut tasks_resource = use_resource(|| async { server::get_tasks().await });
+
+    // One signal per visible task slot. Empty slots hold `None`. Each slot is
+    // its own signal so that a change to one task does not invalidate the
+    // others.
+    let task_slots: Vec<Signal<Option<TaskView>>> = (0..MAX_TASK_SLOTS)
+        .map(|_| use_signal(|| None::<TaskView>))
+        .collect();
+
+    // Boundary between non-done slots (in_progress + backlog) and done slots.
+    // Used by `TaskCard` to compute the per-row index for done cards.
+    let mut done_offset_signal = use_signal(|| 0usize);
+
+    // Sync the resource into the per-slot signals whenever a fresh task list
+    // arrives. Slots beyond `MAX_TASK_SLOTS` of input are silently dropped.
+    {
+        let task_slots = task_slots.clone();
+        use_effect(move || {
+            if let Some(Ok(TaskList { in_progress, backlog, done })) = &*tasks_resource.read() {
+                done_offset_signal.set(in_progress.len() + backlog.len());
+
+                let mut iter = in_progress
+                    .iter()
+                    .chain(backlog.iter())
+                    .chain(done.iter())
+                    .cloned();
+                for slot in &task_slots {
+                    let mut slot = *slot;
+                    let next = iter.next();
+                    if *slot.peek() != next {
+                        slot.set(next);
+                    }
+                }
+            }
+        });
+    }
 
     use_effect({
         // Clock, frequency 1s.
@@ -33,27 +73,16 @@ fn app() -> Element {
 
                 loop {
                     sleep(std::time::Duration::from_millis(1000)).await;
-                    tasks.restart();
+                    tasks_resource.restart();
                 }
             });
         }
     });
 
-    let (in_progress, backlog, done): (Vec<TaskView>, Vec<TaskView>, Vec<TaskView>) =
-        match &*tasks.read_unchecked() {
-            Some(Ok(TaskList { in_progress, backlog, done })) => {
-                (in_progress.clone(), backlog.clone(), done.clone())
-            }
-            _ => (Vec::new(), Vec::new(), Vec::new()),
-        };
-
-    let all_tasks = in_progress.iter().chain(backlog.iter()).chain(done.iter());
-
-    let done_offset = in_progress.len() + backlog.len();
-
     let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
+    let done_offset = done_offset_signal();
 
 
     rsx! {
@@ -61,19 +90,21 @@ fn app() -> Element {
             div { class: "separator1" }
             div { class: "separator2" }
 
-            for (i, task) in all_tasks.enumerate() {
-                TaskCard {
-                    task: task.clone(),
-                    index: i,
-                    done_offset: done_offset,
-                    z_index: if current_front == Some(i) { 100 } else { 0 },
-                    on_click: move |t: TaskView| {
-                        front_index.set(Some(i));
-                        modal_task.set(Some(t));
-                    },
-                    on_hover: move |t: TaskView| {
-                        front_index.set(Some(i));
-                    },
+            for (i, slot) in task_slots.iter().enumerate() {
+                if let Some(task) = slot() {
+                    TaskCard {
+                        task,
+                        index: i,
+                        done_offset,
+                        z_index: if current_front == Some(i) { 100 } else { 0 },
+                        on_click: move |t: TaskView| {
+                            front_index.set(Some(i));
+                            modal_task.set(Some(t));
+                        },
+                        on_hover: move |_t: TaskView| {
+                            front_index.set(Some(i));
+                        },
+                    }
                 }
             }
 
