@@ -85,6 +85,24 @@ fn app() -> Element {
     let done_offset = done_offset_signal();
 
 
+    let mut lowest_rank_backlog = usize::MAX;
+    for slot in task_slots.iter() {
+        if let Some(task) = slot() {
+            if task_progress(&task) == 0.0 {
+                if task.rank < lowest_rank_backlog {
+                    lowest_rank_backlog = task.rank;
+                }
+            }
+        }
+    }
+    if lowest_rank_backlog == usize::MAX {
+        lowest_rank_backlog = 0;
+    }
+
+
+    
+
+
     rsx! {
         div { class: "layout",
             div { class: "separator1" }
@@ -104,6 +122,7 @@ fn app() -> Element {
                         on_hover: move |_t: TaskView| {
                             front_index.set(Some(i));
                         },
+                        lowest_rank_backlog,
                     }
                 }
             }
@@ -133,7 +152,7 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 const DONE_LEFT_PX: usize = 12;
 
 #[component]
-fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>) -> Element {
+fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize) -> Element {
     let progress = task_progress(&task);
 
     let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
@@ -141,12 +160,23 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on
     if progress == 0.0 {
         // backlog card style and pos
 
-        let style = format!("left: {}px;{z}", BACKLOG_LEFT_PX + index * BACKLOG_OFFSET_PX);
+        let mut pos_index = task.rank;
+        if pos_index >= lowest_rank_backlog {
+            pos_index = task.rank - lowest_rank_backlog;
+        } else {
+            pos_index = 0;
+        }
+
+        // log task title and pos_index:
+        log::debug!("Task '{}' with rank {} gets backlog pos_index {}", task.title, task.rank, pos_index);
+
+
+        let position_style = format!("left: {}px;{z}", BACKLOG_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
         let t = task.clone();
         let t2 = task.clone();
 
         return rsx! {
-            div { class: "backlog-card", style: "{style}",
+            div { class: "backlog-card", style: "{position_style}",
                 onclick: move |_| on_click.call(t.clone()),
                 onmouseover: move |_| on_hover.call(t2.clone()),
                 div { class: "backlog-card-status {status_class(&task.status)}",

@@ -22,6 +22,12 @@ pub enum TaskStatus {
 ///
 /// `Task` and `Subtask` from the parser are merged into one type here because
 /// the UI renders them the same way — only the styling differs by depth.
+///
+/// `rank` is the priority of a top-level task: 0 = first task encountered when
+/// parsing all `.agile.md` files in the project (file path order, then
+/// in-file order). It defines the visual ordering on the canvas regardless of
+/// which slot a task happens to occupy. Subtasks carry `rank == 0` since they
+/// are rendered inline within their parent and never positioned independently.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TaskView {
     pub status: TaskStatus,
@@ -29,6 +35,7 @@ pub struct TaskView {
     pub markers: Vec<String>,
     pub body: Vec<String>,
     pub children: Vec<TaskView>,
+    pub rank: usize,
 }
 
 /// Tasks bundle delivered to the GUI on every poll. The frontend renders a
@@ -67,11 +74,14 @@ pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
     let mut backlog = Vec::new();
     let mut dones = Vec::new();
 
+    let mut rank: usize = 0;
     for item in items.iter() {
         if let FileItem::Task(task) = item {
+            let task_rank = rank;
+            rank += 1;
             match task.status {
                 Status::Todo => {
-                    let view = task_to_view(task);
+                    let view = task_to_view(task, task_rank);
                     if has_started(&view) {
                         if in_progress.len() < IN_PROGRESS_LIMIT {
                             in_progress.push(view);
@@ -80,7 +90,7 @@ pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
                         backlog.push(view);
                     }
                 }
-                Status::Done => dones.push(task_to_view(task)),
+                Status::Done => dones.push(task_to_view(task, task_rank)),
                 Status::Cancelled => {}
             }
         }
@@ -102,13 +112,14 @@ pub fn has_started(task: &TaskView) -> bool {
 }
 
 #[cfg(feature = "server")]
-fn task_to_view(task: &mdagile::parser::Task) -> TaskView {
+fn task_to_view(task: &mdagile::parser::Task, rank: usize) -> TaskView {
     TaskView {
         status: status_to_view(&task.status),
         title: task.title.clone(),
         markers: task.markers.iter().map(format_marker).collect(),
         body: task.body.clone(),
         children: task.children.iter().map(subtask_to_view).collect(),
+        rank,
     }
 }
 
@@ -120,6 +131,7 @@ fn subtask_to_view(sub: &mdagile::parser::Subtask) -> TaskView {
         markers: sub.markers.iter().map(format_marker).collect(),
         body: sub.body.clone(),
         children: sub.children.iter().map(subtask_to_view).collect(),
+        rank: 0,
     }
 }
 
