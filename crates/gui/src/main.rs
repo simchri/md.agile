@@ -51,6 +51,7 @@ fn app() -> Element {
 
     let done_offset = in_progress.len() + backlog.len();
 
+    let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
 
     rsx! {
         div { class: "layout",
@@ -58,19 +59,20 @@ fn app() -> Element {
             div { class: "separator2" }
 
             for (i, task) in all_tasks.enumerate() {
-                TaskCard { task: task.clone(), index: i, done_offset: done_offset }
+                TaskCard {
+                    task: task.clone(),
+                    index: i,
+                    done_offset: done_offset,
+                    on_click: move |t| modal_task.set(Some(t)),
+                }
             }
 
-
-            // TODO: re-enable modal view
-            // if modal_open() {
-            //     if let Some(task) = in_progress {
-            //         TaskModal {
-            //             task: task,
-            //             on_close: move |_| modal_open.set(false),
-            //         }
-            //     }
-            // }
+            if let Some(task) = modal_task() {
+                TaskModal {
+                    task: task,
+                    on_close: move |_| modal_task.set(None),
+                }
+            }
         }
     }
 }
@@ -88,16 +90,18 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 const DONE_LEFT_PX: usize = 12;
 
 #[component]
-fn TaskCard(task: TaskView, index: usize, done_offset: usize) -> Element {
+fn TaskCard(task: TaskView, index: usize, done_offset: usize, on_click: EventHandler<TaskView>) -> Element {
     let progress = task_progress(&task);
 
     if progress == 0.0 {
         // backlog card style and pos
 
         let style = format!("left: {}px;", BACKLOG_LEFT_PX + index * BACKLOG_OFFSET_PX);
+        let t = task.clone();
 
         return rsx! {
             div { class: "backlog-card", style: "{style}",
+                onclick: move |_| on_click.call(t.clone()),
                 div { class: "backlog-card-status {status_class(&task.status)}",
                     {status_box(&task.status)}
                 }
@@ -120,14 +124,16 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize) -> Element {
 
         if done_index >= done_offset  {
             done_index = index - done_offset;
-        } else { 
+        } else {
             done_index = 0;
         }
 
-
         let style = format!("left: {}px;", DONE_LEFT_PX + done_index * BACKLOG_OFFSET_PX);
+        let t = task.clone();
+
         return rsx! {
             div { class: "done-card", style: "{style}",
+                onclick: move |_| on_click.call(t.clone()),
                 div { class: "done-card-status {status_class(&task.status)}",
                     {status_box(&task.status)}
                 }
@@ -137,10 +143,10 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize) -> Element {
     }
 
     // Else: In Progress style
+    let t = task.clone();
     return rsx! {
         div { class: "task-card", style: "{diagonal_style(progress)}",
-            // TODO: modal
-            // onclick: move |evt| on_click.call(evt),
+            onclick: move |_| on_click.call(t.clone()),
             div { class: "task-card-header",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
                 span { class: "task-card-title", "{task.title}" }
@@ -171,8 +177,6 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize) -> Element {
             }
         }
     }
-
-
 }
 
 
