@@ -211,7 +211,9 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
         let t2 = task.clone();
 
         return rsx! {
-            div { class: "backlog-card", style: "{position_style}",
+            div { 
+                class: "backlog-card", 
+                style: "{position_style}",
                 onclick: move |_| on_click.call(t.clone()),
                 onmouseover: move |_| on_hover.call(t2.clone()),
                 div { class: "backlog-card-status {status_class(&task.status)}",
@@ -243,7 +245,9 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
         let t2 = task.clone();
 
         return rsx! {
-            div { class: "done-card", style: "{style}",
+            div { 
+                class: "done-card", 
+                style: "{style}",
                 onclick: move |_| on_click.call(t.clone()),
                 onmouseover: move |_| on_hover.call(t2.clone()),
                 div { class: "done-card-status {status_class(&task.status)}",
@@ -258,7 +262,9 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
     let t = task.clone();
     let t2 = task.clone();
     return rsx! {
-        div { class: "task-card", style: "{diagonal_style(progress)}{z}",
+        div { 
+            class: "task-card", 
+            style: "{diagonal_style(progress)}{z}",
             onclick: move |_| on_click.call(t.clone()),
             onmouseover: move |_| on_hover.call(t2.clone()),
             div { class: "task-card-header",
