@@ -31,12 +31,13 @@ pub struct TaskView {
     pub children: Vec<TaskView>,
 }
 
-/// Tasks bundle delivered to the GUI on every poll: the active "in progress"
-/// task, the next ten queued items (the backlog along the top), and the last
-/// ten finished items (the recently-done strip along the bottom).
+/// Tasks bundle delivered to the GUI on every poll. The frontend renders a
+/// post-it for each entry; the bucket determines where it sits on the canvas:
+/// `in_progress` floats in the middle along the diagonal, `backlog` lives in
+/// the top row, `done` in the bottom row.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TaskList {
-    pub current: Option<TaskView>,
+    pub in_progress: Vec<TaskView>,
     pub backlog: Vec<TaskView>,
     pub done: Vec<TaskView>,
 }
@@ -44,16 +45,16 @@ pub struct TaskList {
 #[cfg(feature = "server")]
 const BACKLOG_LIMIT: usize = 10;
 #[cfg(feature = "server")]
+const IN_PROGRESS_LIMIT: usize = 10;
+#[cfg(feature = "server")]
 const DONE_LIMIT: usize = 10;
 
-/// Returns the current task, the next [`BACKLOG_LIMIT`] queued tasks, and the
+/// Returns Todo tasks split by progress (in_progress vs. backlog) and the
 /// last [`DONE_LIMIT`] completed tasks.
 ///
-/// Runs on the server: walks `*.agile.md` files under the project root and
-/// collects every top-level task in document order. The first Todo becomes
-/// `current`; up to ten more Todos fill the backlog. The trailing slice of
-/// Done tasks (in document order — last in the file = most recently noted as
-/// done) populates the bottom row.
+/// A Todo task counts as `in_progress` once at least one of its direct
+/// subtasks is Done or Cancelled — i.e. work has begun. Otherwise it stays
+/// in `backlog`.
 #[server]
 pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
     use mdagile::cli::common::{find_task_files, parse_files};
@@ -62,22 +63,47 @@ pub async fn get_tasks() -> Result<TaskList, ServerFnError> {
     let root = get_or_init_working_dir()?;
     let items = parse_files(&find_task_files(&root));
 
-    let mut todos = items.iter().filter_map(|item| match item {
-        FileItem::Task(task) if task.status == Status::Todo => Some(task_to_view(task)),
-        _ => None,
-    });
+    let mut in_progress = Vec::new();
+    let mut backlog = Vec::new();
+    let mut dones = Vec::new();
 
-    let current = todos.next();
-    let backlog: Vec<TaskView> = todos.take(BACKLOG_LIMIT).collect();
+    for item in items.iter() {
+        if let FileItem::Task(task) = item {
+            match task.status {
+                Status::Todo => {
+                    let view = task_to_view(task);
+                    if has_started(&view) {
+                        if in_progress.len() < IN_PROGRESS_LIMIT {
+                            in_progress.push(view);
+                        }
+                    } else if backlog.len() < BACKLOG_LIMIT {
+                        backlog.push(view);
+                    }
+                }
+                Status::Done => dones.push(task_to_view(task)),
+                Status::Cancelled => {}
+            }
+        }
+    }
 
-    let dones: Vec<TaskView> = items.iter().filter_map(|item| match item {
-        FileItem::Task(task) if task.status == Status::Done => Some(task_to_view(task)),
-        _ => None,
-    }).collect();
     let skip = dones.len().saturating_sub(DONE_LIMIT);
     let done: Vec<TaskView> = dones.into_iter().skip(skip).collect();
 
-    Ok(TaskList { current, backlog, done })
+    // move first of "backlog" to "in_progress":
+    if !backlog.is_empty() {
+        in_progress.push(backlog.remove(0));
+    }
+
+    Ok(TaskList { in_progress, backlog, done })
+}
+
+/// True when the task has at least one direct subtask marked Done or
+/// Cancelled — i.e. work has begun on it. Used both for server-side
+/// categorization and frontend size-class selection.
+pub fn has_started(task: &TaskView) -> bool {
+    task.children
+        .iter()
+        .any(|c| matches!(c.status, TaskStatus::Done | TaskStatus::Cancelled))
 }
 
 #[cfg(feature = "server")]

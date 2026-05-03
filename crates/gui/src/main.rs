@@ -40,52 +40,46 @@ fn app() -> Element {
         }
     });
 
-    let (current_task, backlog, done): (Option<TaskView>, Vec<TaskView>, Vec<TaskView>) =
+    let (in_progress, backlog, done): (Vec<TaskView>, Vec<TaskView>, Vec<TaskView>) =
         match &*tasks.read_unchecked() {
-            Some(Ok(TaskList { current, backlog, done })) => {
-                (current.clone(), backlog.clone(), done.clone())
+            Some(Ok(TaskList { in_progress, backlog, done })) => {
+                (in_progress.clone(), backlog.clone(), done.clone())
             }
-            _ => (None, Vec::new(), Vec::new()),
+            _ => (Vec::new(), Vec::new(), Vec::new()),
         };
 
-    let card = match &*tasks.read_unchecked() {
-        Some(Ok(TaskList { current: Some(t), .. })) => rsx! {
-            TaskCard {
-                task: t.clone(),
-                on_click: move |_| modal_open.set(true),
-            }
-        },
-        Some(Ok(TaskList { current: None, .. })) => rsx! { div { class: "task-card", style: "{diagonal_style(1.0)}", "All tasks done" } },
-        Some(Err(e))                              => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Error: {e}" } },
-        None                                      => rsx! { div { class: "task-card", style: "{diagonal_style(0.0)}", "Loading…" } },
-    };
 
     rsx! {
         div { class: "layout",
+            div { class: "separator1" }
+            div { class: "separator2" }
+
             for (i, task) in backlog.iter().enumerate() {
                 BacklogCard { task: task.clone(), index: i }
             }
             for (i, task) in done.iter().enumerate() {
                 DoneCard { task: task.clone(), index: i }
             }
-            div { class: "separator1" }
-            div { class: "separator2" }
-            {card}
-
-            if modal_open() {
-                if let Some(task) = current_task {
-                    TaskModal {
-                        task: task,
-                        on_close: move |_| modal_open.set(false),
-                    }
-                }
+            for (i, task) in in_progress.iter().enumerate() {
+                TaskCard { task: task.clone(),on_click: move |_| modal_open.set(true), index: i }
             }
+
+
+            // TODO: re-enable modal view
+            // if modal_open() {
+            //     if let Some(task) = in_progress {
+            //         TaskModal {
+            //             task: task,
+            //             on_close: move |_| modal_open.set(false),
+            //         }
+            //     }
+            // }
         }
     }
 }
 
 #[component]
-fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>) -> Element {
+fn TaskCard(task: TaskView, on_click: EventHandler<MouseEvent>, index: usize) -> Element {
     let progress = task_progress(&task);
     rsx! {
         div { class: "task-card", style: "{diagonal_style(progress)}",
