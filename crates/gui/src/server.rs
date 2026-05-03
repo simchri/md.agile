@@ -56,12 +56,29 @@ const IN_PROGRESS_LIMIT: usize = 10;
 #[cfg(feature = "server")]
 const DONE_LIMIT: usize = 10;
 
-/// Returns Todo tasks split by progress (in_progress vs. backlog) and the
-/// last [`DONE_LIMIT`] completed tasks.
+/// Retrieves and categorizes tasks from the working directory.
 ///
-/// A Todo task counts as `in_progress` once at least one of its direct
-/// subtasks is Done or Cancelled — i.e. work has begun. Otherwise it stays
-/// in `backlog`.
+/// This server function scans the working directory for task files, parses them,
+/// and organizes the resulting tasks into three categories:
+/// - In Progress: Tasks that have started, up to a configured limit.
+/// - Backlog: Tasks that are yet to be started, up to a configured limit.
+/// - Done: Recently completed tasks, limited to the most recent ones.
+///
+/// Tasks are ranked in the order they are found. The function returns a single
+/// vector containing all tasks, with in-progress tasks first, followed by backlog,
+/// and then done tasks.
+///
+/// # Returns
+/// - `Ok(Vec<TaskView>)`: A vector of task views in the specified order.
+/// - `Err(ServerFnError)`: If there is an error initializing the working directory or reading files.
+///
+/// # Errors
+/// Returns an error if the working directory cannot be initialized or if task files cannot be parsed.
+///
+/// # Example
+/// ```
+/// let tasks = get_tasks().await?;
+/// ```
 #[server]
 pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
     use mdagile::cli::common::{find_task_files, parse_files};
