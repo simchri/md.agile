@@ -3,7 +3,9 @@ use log::info;
 
 mod server;
 
-use server::{TaskList, TaskStatus, TaskView};
+use std::collections::{HashMap, HashSet};
+
+use server::{TaskStatus, TaskView};
 
 fn main() {
     init_logger();
@@ -35,24 +37,53 @@ fn app() -> Element {
         .map(|_| use_signal(|| None::<TaskView>))
         .collect();
 
-    // Boundary between non-done slots (in_progress + backlog) and done slots.
-    // Used by `TaskCard` to compute the per-row index for done cards.
-    let mut done_offset_signal = use_signal(|| 0usize);
-
     // Sync the resource into the per-slot signals whenever a fresh task list
-    // arrives. Slots beyond `MAX_TASK_SLOTS` of input are silently dropped.
+    // arrives. Matching is by title so the slot a task occupies is stable
+    // across polls: unchanged tasks stay in place (no signal write, no
+    // re-render), gone tasks vacate their slot, and new tasks fill any
+    // available empty slot.
     {
         let task_slots = task_slots.clone();
         use_effect(move || {
-            if let Some(Ok(tasks)) = &*tasks_resource.read() {
+            if let Some(Ok(new_list)) = &*tasks_resource.read() {
+                let new_by_title: HashMap<String, TaskView> = new_list
+                    .iter()
+                    .map(|t| (t.title.clone(), t.clone()))
+                    .collect();
 
-                let mut iter = tasks.into_iter();
+                let mut handled: HashSet<String> = HashSet::new();
+
+                // Pass 1: update in-place or evict tasks whose title is gone.
+                for slot in &task_slots {
+                    let mut slot = *slot;
+                    let current: Option<TaskView> = (*slot.peek()).clone();
+                    if let Some(cur) = current {
+                        if let Some(updated) = new_by_title.get(&cur.title) {
+                            if &cur != updated {
+                                slot.set(Some(updated.clone()));
+                            }
+                            handled.insert(cur.title);
+                        } else {
+                            slot.set(None);
+                        }
+                    }
+                }
+
+                // Pass 2: place arriving tasks into empty slots, lowest rank first.
+                let mut arrivals: Vec<&TaskView> = new_by_title
+                    .values()
+                    .filter(|t| !handled.contains(&t.title))
+                    .collect();
+                arrivals.sort_by_key(|t| t.rank);
+                let mut arrivals = arrivals.into_iter();
 
                 for slot in &task_slots {
                     let mut slot = *slot;
-                    let next = iter.next();
-                    if *slot.peek() != next.cloned() {
-                        slot.set(next.cloned());
+                    if slot.peek().is_none() {
+                        match arrivals.next() {
+                            Some(task) => slot.set(Some(task.clone())),
+                            None => break,
+                        }
                     }
                 }
             }
@@ -78,7 +109,6 @@ fn app() -> Element {
     let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
-    let done_offset = done_offset_signal();
 
 
     let mut lowest_rank_backlog = usize::MAX;
@@ -122,7 +152,6 @@ if lowest_rank_done == usize::MAX {
                     TaskCard {
                         task,
                         _index: i,
-                        done_offset,
                         z_index: if current_front == Some(i) { 100 } else { 0 },
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));
@@ -162,7 +191,7 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 const DONE_LEFT_PX: usize = 12;
 
 #[component]
-fn TaskCard(task: TaskView, _index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, lowest_rank_done: usize) -> Element {
+fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, lowest_rank_done: usize) -> Element {
     let progress = task_progress(&task);
 
     let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
