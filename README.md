@@ -11,14 +11,9 @@ This project is >> under construction <<  - more features to come. (c.f. [README
 - [ ] a task - this is the task-title
 Some more info on this task - this is the task-body
 Both inside and outside of tasks, you can just use normal markdown syntax
-  - [ ] a subtask @markus
+  - [ ] a subtask 
   more details for this subtask go here.
   - [x] this subtask is done
-
-- [ ] #bug: another task
-  - [ ] "1. reproduce in test"
-  - [ ] "2. implement fix"
-  - [ ] "3. regression test"
 ```
 
 Tasks follow a specific syntax. You will receive immediate feedback in your text editor if you make a mistake (via Language Server). Use the language server's auto-fix feature for an ergonomic experience. Use the CLI tool to add strict checks as pre-commit hooks or in your pipeline – your task list is always consistent. Everything is designed with a "command line first" approach: text files and CLI tools are the primary interface. Graphical client for convenient "board view" (Currently only a viewer, no edits possible).
@@ -70,22 +65,13 @@ A minimal LSP server that runs on stdin/stdout. Advertises text document sync (F
 
 **Supported diagnostics:**
 - **Orphaned indented task** — A task has leading whitespace but no parent task on the preceding line (usually due to a blank line separating parent and child). Indicates the task should be un-indented to top-level.
-- **Wrong indentation** — A task's indentation does not match a valid subtask level. Expected indentation is `depth * 2` spaces (2 spaces per nesting level).
+- **Wrong indentation** — A task's indentation does not match a valid subtask level.
   - quickfix: Auto-correct indentation to match nesting depth
 - **Wrong Body Indentation** — A task body line is incorrectly indented 
   - quickfix: Auto-correct indentation 
 - **Missing Space After Box** — A task line is missing a space after the status box (e.g. `- [ ]task` instead of `- [ ] task`)
   - quickfix: Insert missing space
 - **Incomplete Parent** — A parent task is marked done but has incomplete children (no quick fix)
-
-
-### File Priority & Task Ordering
-
-Files are ordered alphabetically by their path relative to the project root (directory components first, then filename). This establishes global task priority:
-- `tasks/50_current/001.agile.md` outranks `tasks/60_backlog/001.agile.md`
-- Within each file, top-to-bottom order determines priority
-
-The first incomplete task across all files is the highest-priority work.
 
 ## Project Philosophy
 
