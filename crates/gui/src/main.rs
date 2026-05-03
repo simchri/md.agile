@@ -53,6 +53,7 @@ fn app() -> Element {
 
     let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
+    let current_front = front_index();
 
     rsx! {
         div { class: "layout",
@@ -64,7 +65,7 @@ fn app() -> Element {
                     task: task.clone(),
                     index: i,
                     done_offset: done_offset,
-                    z_index: if front_index() == Some(i) { 100 } else { 0 },
+                    z_index: if current_front == Some(i) { 100 } else { 0 },
                     on_click: move |t: TaskView| {
                         front_index.set(Some(i));
                         modal_task.set(Some(t));
@@ -100,7 +101,7 @@ const DONE_LEFT_PX: usize = 12;
 #[component]
 fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>) -> Element {
     let progress = task_progress(&task);
-    let z = format!(" z-index: {z_index};");
+    let z = if z_index > 0 { format!(" z-index: {z_index};") } else { String::new() };
 
     if progress == 0.0 {
         // backlog card style and pos
