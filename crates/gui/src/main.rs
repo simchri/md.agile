@@ -234,7 +234,12 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
             pos_index = 0;
         } 
 
-        position_style = format!("bottom: 8px; top: unset; left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
+        // position_style = format!("bottom: 8px; top: unset; left: {}px;{z}", DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX);
+
+        let done_top_px = 600; // TODO: proper dynamic value
+        let done_left_px: usize = DONE_LEFT_PX + pos_index * BACKLOG_OFFSET_PX;
+
+        position_style = format!("top: {}px; left: {}px;{z}", done_top_px, done_left_px);
 
         card_style = "done-card".to_string();
         title_style = "done-card-title".to_string();
