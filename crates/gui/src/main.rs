@@ -71,6 +71,9 @@ fn app() -> Element {
                         front_index.set(Some(i));
                         modal_task.set(Some(t));
                     },
+                    on_hover: move |t: TaskView| {
+                        front_index.set(Some(i));
+                    },
                 }
             }
 
@@ -99,7 +102,7 @@ const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
 const DONE_LEFT_PX: usize = 12;
 
 #[component]
-fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>) -> Element {
+fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>) -> Element {
     let progress = task_progress(&task);
 
     let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
@@ -109,10 +112,12 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on
 
         let style = format!("left: {}px;{z}", BACKLOG_LEFT_PX + index * BACKLOG_OFFSET_PX);
         let t = task.clone();
+        let t2 = task.clone();
 
         return rsx! {
             div { class: "backlog-card", style: "{style}",
                 onclick: move |_| on_click.call(t.clone()),
+                onmouseover: move |_| on_hover.call(t2.clone()),
                 div { class: "backlog-card-status {status_class(&task.status)}",
                     {status_box(&task.status)}
                 }
@@ -141,10 +146,12 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on
 
         let style = format!("left: {}px;{z}", DONE_LEFT_PX + done_index * BACKLOG_OFFSET_PX);
         let t = task.clone();
+        let t2 = task.clone();
 
         return rsx! {
             div { class: "done-card", style: "{style}",
                 onclick: move |_| on_click.call(t.clone()),
+                onmouseover: move |_| on_hover.call(t2.clone()),
                 div { class: "done-card-status {status_class(&task.status)}",
                     {status_box(&task.status)}
                 }
@@ -155,9 +162,11 @@ fn TaskCard(task: TaskView, index: usize, done_offset: usize, z_index: usize, on
 
     // Else: In Progress style
     let t = task.clone();
+    let t2 = task.clone();
     return rsx! {
         div { class: "task-card", style: "{diagonal_style(progress)}{z}",
             onclick: move |_| on_click.call(t.clone()),
+            onmouseover: move |_| on_hover.call(t2.clone()),
             div { class: "task-card-header",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
                 span { class: "task-card-title", "{task.title}" }
