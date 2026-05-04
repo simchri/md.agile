@@ -1,4 +1,4 @@
-use crate::parser::{FileItem, Location, Subtask};
+use crate::parser::{FileItem, Location, ParsingIssue, Subtask};
 use crate::rules::Issue;
 
 pub fn invalid_box(items: &[FileItem]) -> Vec<Issue> {
@@ -6,7 +6,7 @@ pub fn invalid_box(items: &[FileItem]) -> Vec<Issue> {
 
     for item in items {
         if let FileItem::Task(task) = item {
-            if !task.box_valid {
+            if task.parsing_issues.contains(&ParsingIssue::InvalidBox) {
                 issues.push(make_issue(&task.location, task.indent));
             }
             for subtask in &task.children {
@@ -30,7 +30,7 @@ fn make_issue(location: &Location, indent: usize) -> Issue {
 }
 
 fn check_subtask_recursive(subtask: &Subtask, issues: &mut Vec<Issue>) {
-    if !subtask.box_valid {
+    if subtask.parsing_issues.contains(&ParsingIssue::InvalidBox) {
         issues.push(make_issue(&subtask.location, subtask.indent));
     }
     for child in &subtask.children {

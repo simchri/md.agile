@@ -1,6 +1,6 @@
 //! E005 — flags tasks/subtasks missing a space after the status box.
 
-use crate::parser::{FileItem, Subtask};
+use crate::parser::{FileItem, ParsingIssue, Subtask};
 use crate::rules::Issue;
 
 /// Flags tasks/subtasks that are missing a space between `[status]` and title.
@@ -11,7 +11,10 @@ pub fn missing_space_after_box(items: &[FileItem]) -> Vec<Issue> {
 
     for item in items {
         if let FileItem::Task(task) = item {
-            if !task.has_space_after_box {
+            if task
+                .parsing_issues
+                .contains(&ParsingIssue::MissingSpaceAfterBox)
+            {
                 issues.push(Issue {
                     location: task.location.clone(),
                     code: crate::rules::ErrorCode::MissingSpaceAfterBox,
@@ -35,7 +38,10 @@ fn check_subtasks(subtasks: &[Subtask]) -> Vec<Issue> {
     let mut issues = Vec::new();
 
     for subtask in subtasks {
-        if !subtask.has_space_after_box {
+        if subtask
+            .parsing_issues
+            .contains(&ParsingIssue::MissingSpaceAfterBox)
+        {
             issues.push(Issue {
                 location: subtask.location.clone(),
                 code: crate::rules::ErrorCode::MissingSpaceAfterBox,

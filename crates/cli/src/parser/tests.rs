@@ -43,9 +43,7 @@ fn can_construct_task_with_all_node_kinds() {
                 body: vec![],
                 markers: vec![],
                 children: vec![],
-                has_space_after_box: true,
-                box_valid: true,
-                uppercase_x: false,
+                parsing_issues: vec![],
             },
             Subtask {
                 location: loc(3),
@@ -57,9 +55,7 @@ fn can_construct_task_with_all_node_kinds() {
                 body: vec![],
                 markers: vec![Marker::Special(SpecialMarker::Opt)],
                 children: vec![],
-                has_space_after_box: true,
-                box_valid: true,
-                uppercase_x: false,
+                parsing_issues: vec![],
             },
             Subtask {
                 location: loc(4),
@@ -71,9 +67,7 @@ fn can_construct_task_with_all_node_kinds() {
                 body: vec![],
                 markers: vec![],
                 children: vec![],
-                has_space_after_box: true,
-                box_valid: true,
-                uppercase_x: false,
+                parsing_issues: vec![],
             },
             Subtask {
                 location: loc(5),
@@ -85,14 +79,10 @@ fn can_construct_task_with_all_node_kinds() {
                 body: vec![],
                 markers: vec![Marker::Assignment("markus".to_string())],
                 children: vec![],
-                has_space_after_box: true,
-                box_valid: true,
-                uppercase_x: false,
+                parsing_issues: vec![],
             },
         ],
-        has_space_after_box: true,
-        box_valid: true,
-        uppercase_x: false,
+        parsing_issues: vec![],
     };
     assert_eq!(task.status, Status::Todo);
     assert_eq!(task.children.len(), 4);
@@ -110,9 +100,7 @@ fn file_items_interleave_tasks_and_milestones() {
             body: vec![],
             markers: vec![],
             children: vec![],
-            has_space_after_box: true,
-            box_valid: true,
-            uppercase_x: false,
+            parsing_issues: vec![],
         }),
         FileItem::Milestone(Milestone {
             name: "Release of MVP".to_string(),
@@ -126,9 +114,7 @@ fn file_items_interleave_tasks_and_milestones() {
             body: vec![],
             markers: vec![],
             children: vec![],
-            has_space_after_box: true,
-            box_valid: true,
-            uppercase_x: false,
+            parsing_issues: vec![],
         }),
     ];
     assert_eq!(items.len(), 3);
@@ -468,7 +454,7 @@ fn parse_uppercase_x_sets_flag() {
 ";
     let items = p(input);
     let t = task(&items, 0);
-    assert!(t.uppercase_x);
-    assert!(t.box_valid);
+    assert!(t.parsing_issues.contains(&ParsingIssue::UppercaseX));
+    assert!(!t.parsing_issues.contains(&ParsingIssue::InvalidBox));
     assert_eq!(t.title, "task title");
 }
