@@ -13,12 +13,14 @@ mod wrong_indentation;
 mod wrong_body_indent;
 mod incomplete_parent;
 mod missing_space_after_box;
+mod invalid_box;
 
 pub use orphaned_subtask::orphaned_subtask;
 pub use wrong_indentation::wrong_indentation;
 pub use wrong_body_indent::wrong_body_indent;
 pub use incomplete_parent::incomplete_parent;
 pub use missing_space_after_box::missing_space_after_box;
+pub use invalid_box::invalid_box;
 
 /// Error codes for validation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,17 +35,21 @@ pub enum ErrorCode {
     IncompleteParent,
     /// E005: Missing space after status box
     MissingSpaceAfterBox,
+    /// E006: Box style invalid
+    BoxStyleInvalid,
 }
 
 impl ErrorCode {
     /// Returns the short code string (e.g., "E001")
     pub fn as_str(&self) -> &'static str {
         match self {
+            // SFI: Logically organized error codes
             ErrorCode::OrphanedSubtask => "E001",
             ErrorCode::WrongIndentation => "E002",
             ErrorCode::WrongBodyIndentation => "E003",
             ErrorCode::IncompleteParent => "E004",
             ErrorCode::MissingSpaceAfterBox => "E005",
+            ErrorCode::BoxStyleInvalid => "E006",
         }
     }
 }
@@ -101,6 +107,7 @@ pub fn check_all(items: &[FileItem]) -> Vec<Issue> {
     issues.extend(wrong_body_indent(items));
     issues.extend(incomplete_parent(items));
     issues.extend(missing_space_after_box(items));
+    issues.extend(invalid_box(items));
     issues
 }
 

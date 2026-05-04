@@ -2,7 +2,10 @@ use super::*;
 
 // Tests that don't care about source location share this dummy path.
 fn loc(line: usize) -> Location {
-    Location { path: PathBuf::from("test.agile.md"), line }
+    Location {
+        path: PathBuf::from("test.agile.md"),
+        line,
+    }
 }
 
 // Wrapper around `parse` so tests don't have to repeat the dummy path.
@@ -41,6 +44,7 @@ fn can_construct_task_with_all_node_kinds() {
                 markers: vec![],
                 children: vec![],
                 has_space_after_box: true,
+                box_valid: true,
             },
             Subtask {
                 location: loc(3),
@@ -53,6 +57,7 @@ fn can_construct_task_with_all_node_kinds() {
                 markers: vec![Marker::Special(SpecialMarker::Opt)],
                 children: vec![],
                 has_space_after_box: true,
+                box_valid: true,
             },
             Subtask {
                 location: loc(4),
@@ -65,6 +70,7 @@ fn can_construct_task_with_all_node_kinds() {
                 markers: vec![],
                 children: vec![],
                 has_space_after_box: true,
+                box_valid: true,
             },
             Subtask {
                 location: loc(5),
@@ -77,9 +83,11 @@ fn can_construct_task_with_all_node_kinds() {
                 markers: vec![Marker::Assignment("markus".to_string())],
                 children: vec![],
                 has_space_after_box: true,
+                box_valid: true,
             },
         ],
         has_space_after_box: true,
+        box_valid: true,
     };
     assert_eq!(task.status, Status::Todo);
     assert_eq!(task.children.len(), 4);
@@ -98,6 +106,7 @@ fn file_items_interleave_tasks_and_milestones() {
             markers: vec![],
             children: vec![],
             has_space_after_box: true,
+            box_valid: true,
         }),
         FileItem::Milestone(Milestone {
             name: "Release of MVP".to_string(),
@@ -112,6 +121,7 @@ fn file_items_interleave_tasks_and_milestones() {
             markers: vec![],
             children: vec![],
             has_space_after_box: true,
+            box_valid: true,
         }),
     ];
     assert_eq!(items.len(), 3);
@@ -132,13 +142,28 @@ fn branch_property_form_carries_resolved_branch_name() {
 // ── parse() tests ─────────────────────────────────────────────────────────
 
 fn task(items: &[FileItem], i: usize) -> &Task {
-    if let FileItem::Task(t) = &items[i] { t } else { panic!("item {i} is not a Task") }
+    if let FileItem::Task(t) = &items[i] {
+        t
+    } else {
+        panic!("item {i} is not a Task")
+    }
 }
 
 #[test]
 fn parse_todo_task() {
     let input = "\
 - [ ] do the thing
+";
+    let items = p(input);
+    assert_eq!(items.len(), 1);
+    assert_eq!(task(&items, 0).status, Status::Todo);
+    assert_eq!(task(&items, 0).title, "do the thing");
+}
+
+#[test]
+fn parse_todo_task_missing_space() {
+    let input = "\
+- [] do the thing
 ";
     let items = p(input);
     assert_eq!(items.len(), 1);
@@ -216,10 +241,13 @@ fn parse_property_marker_in_title() {
     let items = p(input);
     let t = task(&items, 0);
     assert_eq!(t.title, "add basket");
-    assert_eq!(t.markers, vec![Marker::Property(PropertyRef {
-        name: "feature".to_string(),
-        form: PropertyForm::Full,
-    })]);
+    assert_eq!(
+        t.markers,
+        vec![Marker::Property(PropertyRef {
+            name: "feature".to_string(),
+            form: PropertyForm::Full,
+        })]
+    );
 }
 
 #[test]
@@ -304,10 +332,13 @@ fn parse_branch_pending_marker() {
 ";
     let items = p(input);
     let markers = &task(&items, 0).markers;
-    assert_eq!(markers, &vec![Marker::Property(PropertyRef {
-        name: "review".to_string(),
-        form: PropertyForm::BranchPending,
-    })]);
+    assert_eq!(
+        markers,
+        &vec![Marker::Property(PropertyRef {
+            name: "review".to_string(),
+            form: PropertyForm::BranchPending,
+        })]
+    );
 }
 
 #[test]
@@ -317,10 +348,13 @@ fn parse_branch_resolved_marker() {
 ";
     let items = p(input);
     let markers = &task(&items, 0).markers;
-    assert_eq!(markers, &vec![Marker::Property(PropertyRef {
-        name: "review".to_string(),
-        form: PropertyForm::BranchResolved("passed".to_string()),
-    })]);
+    assert_eq!(
+        markers,
+        &vec![Marker::Property(PropertyRef {
+            name: "review".to_string(),
+            form: PropertyForm::BranchResolved("passed".to_string()),
+        })]
+    );
 }
 
 #[test]
@@ -351,8 +385,20 @@ fn parse_records_task_locations() {
     let items = parse(input, path.clone());
     let t0 = task(&items, 0);
     let t1 = task(&items, 1);
-    assert_eq!(t0.location, Location { path: path.clone(), line: 3 });
-    assert_eq!(t1.location, Location { path: path.clone(), line: 4 });
+    assert_eq!(
+        t0.location,
+        Location {
+            path: path.clone(),
+            line: 3
+        }
+    );
+    assert_eq!(
+        t1.location,
+        Location {
+            path: path.clone(),
+            line: 4
+        }
+    );
     assert_eq!(t1.children[0].location, Location { path, line: 5 });
 }
 

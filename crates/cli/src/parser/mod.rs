@@ -42,9 +42,9 @@ pub struct PropertyRef {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PropertyForm {
     Full,
-    Short,                    // #feat_  -- brainstorm mode; task cannot be marked Done
-    BranchPending,            // #review...  -- outcome not yet chosen
-    BranchResolved(String),   // #review:passed  -- branch name in the String
+    Short,                  // #feat_  -- brainstorm mode; task cannot be marked Done
+    BranchPending,          // #review...  -- outcome not yet chosen
+    BranchResolved(String), // #review:passed  -- branch name in the String
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -80,16 +80,17 @@ pub enum SubtaskKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Subtask {
     pub location: Location,
-    pub indent:   usize, // leading spaces in the source line; encodes nesting
-    pub status:   Status,
-    pub order:    Order,
-    pub kind:     SubtaskKind,
-    pub title:    String,
-    pub body:     Vec<String>, // lines preserve structure for LSP range calculation
-    pub markers:  Vec<Marker>,
+    pub indent: usize, // leading spaces in the source line; encodes nesting
+    pub status: Status,
+    pub order: Order,
+    pub kind: SubtaskKind,
+    pub title: String,
+    pub body: Vec<String>, // lines preserve structure for LSP range calculation
+    pub markers: Vec<Marker>,
     pub children: Vec<Subtask>,
     // True if there is a space between the status box and the title.
     pub has_space_after_box: bool,
+    pub box_valid: bool,
 }
 
 // ── Task ──────────────────────────────────────────────────────────────────────
@@ -102,19 +103,20 @@ pub struct Task {
     // live parent. Combined with `preceded_by_blank`, this lets the checker
     // distinguish orphans (blank line before) from wrong indentation (attached
     // to previous element).
-    pub indent:   usize,
+    pub indent: usize,
     // True if the immediately preceding line was blank (or the task is the very
     // first non-empty content in the file). When `indent > 0`, this disambiguates
     // orphaned subtasks (true) from wrongly-indented attached tasks (false).
     pub preceded_by_blank: bool,
-    pub status:   Status,
-    pub title:    String,
-    pub body:     Vec<String>,
-    pub markers:  Vec<Marker>,
+    pub status: Status,
+    pub title: String,
+    pub body: Vec<String>,
+    pub markers: Vec<Marker>,
     pub children: Vec<Subtask>,
     // True if there is a space between the status box and the title.
     // E.g., `- [ ] title` has space, `- [ ]title` does not.
     pub has_space_after_box: bool,
+    pub box_valid: bool,
 }
 
 // ── File-level items ──────────────────────────────────────────────────────────
@@ -134,7 +136,7 @@ pub enum FileItem {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TaskFile {
-    pub path:  PathBuf,
+    pub path: PathBuf,
     pub items: Vec<FileItem>,
 }
 
@@ -143,33 +145,50 @@ pub struct TaskFile {
 // Transient accumulator used while the stack is being built; converted into
 // Task or Subtask when popped. Keeps a single code path for both node kinds.
 struct PartialItem {
-    depth:    usize,
-    indent:   usize,
+    depth: usize,
+    indent: usize,
     preceded_by_blank: bool,
     location: Location,
-    status:   Status,
-    order:    Order,
-    kind:     SubtaskKind,
-    title:    String,
-    body:     Vec<String>,
-    markers:  Vec<Marker>,
+    status: Status,
+    order: Order,
+    kind: SubtaskKind,
+    title: String,
+    body: Vec<String>,
+    markers: Vec<Marker>,
     children: Vec<Subtask>,
     has_space_after_box: bool,
+    box_valid: bool,
 }
 
 impl PartialItem {
     fn into_task(self) -> Task {
-        Task { location: self.location, indent: self.indent,
-               preceded_by_blank: self.preceded_by_blank,
-               status: self.status,
-               title: self.title, body: self.body, markers: self.markers,
-               children: self.children, has_space_after_box: self.has_space_after_box }
+        Task {
+            location: self.location,
+            indent: self.indent,
+            preceded_by_blank: self.preceded_by_blank,
+            status: self.status,
+            title: self.title,
+            body: self.body,
+            markers: self.markers,
+            children: self.children,
+            has_space_after_box: self.has_space_after_box,
+            box_valid: self.box_valid,
+        }
     }
     fn into_subtask(self) -> Subtask {
-        Subtask { location: self.location, indent: self.indent, status: self.status,
-                  order: self.order, kind: self.kind, title: self.title,
-                  body: self.body, markers: self.markers, children: self.children,
-                  has_space_after_box: self.has_space_after_box }
+        Subtask {
+            location: self.location,
+            indent: self.indent,
+            status: self.status,
+            order: self.order,
+            kind: self.kind,
+            title: self.title,
+            body: self.body,
+            markers: self.markers,
+            children: self.children,
+            has_space_after_box: self.has_space_after_box,
+            box_valid: self.box_valid,
+        }
     }
 }
 
@@ -203,7 +222,9 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             continue;
         }
 
-        if let Some((depth, indent, status, rest, has_space_after_box)) = parse_task_line(line) {
+        if let Some((depth, indent, status, rest, has_space_after_box, box_valid)) =
+            parse_task_line(line)
+        {
             // Close any open siblings and their descendants before pushing the
             // new item. Popping depth >= current depth means a sibling at the
             // same level is finalized before the new one takes its place.
@@ -211,15 +232,25 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
                 pop_one(&mut stack, &mut items);
             }
             let (order, rest) = parse_order_prefix(&rest);
-            let (kind, rest)  = parse_subtask_kind(rest);
+            let (kind, rest) = parse_subtask_kind(rest);
             let (markers, title) = parse_markers(rest);
             stack.push(PartialItem {
-                depth, indent,
+                depth,
+                indent,
                 preceded_by_blank: prev_was_blank,
-                location: Location { path: path.clone(), line: line_no },
-                status, order, kind,
-                title, body: Vec::new(), markers, children: Vec::new(),
+                location: Location {
+                    path: path.clone(),
+                    line: line_no,
+                },
+                status,
+                order,
+                kind,
+                title,
+                body: Vec::new(),
+                markers,
+                children: Vec::new(),
                 has_space_after_box,
+                box_valid,
             });
             prev_was_blank = false;
             continue;
@@ -243,7 +274,11 @@ fn pop_one(stack: &mut Vec<PartialItem>, items: &mut Vec<FileItem>) {
     if stack.is_empty() {
         items.push(FileItem::Task(finished.into_task()));
     } else {
-        stack.last_mut().unwrap().children.push(finished.into_subtask());
+        stack
+            .last_mut()
+            .unwrap()
+            .children
+            .push(finished.into_subtask());
     }
 }
 
@@ -253,32 +288,87 @@ fn flush_stack(stack: &mut Vec<PartialItem>, items: &mut Vec<FileItem>) {
     }
 }
 
+pub trait DropNChars {
+    /// Returns a string slice with the first `n` characters removed, safely handling UTF-8.
+    ///
+    /// If `n` is greater than the number of characters in the string, returns an empty string.
+    ///
+    /// # Examples
+    /// ```
+    /// use mdagile::parser::DropNChars; // <-- Add this line
+    /// let s = "héllo";
+    /// assert_eq!(s.drop_n_chars(2), "llo");
+    /// ```
+    fn drop_n_chars(&self, n: usize) -> &str;
+}
+
+impl DropNChars for str {
+    fn drop_n_chars(&self, n: usize) -> &str {
+        let idx = self
+            .char_indices()
+            .nth(n)
+            .map(|(i, _)| i)
+            .unwrap_or(self.len());
+        &self[idx..]
+    }
+}
+
 // Returns (depth, indent, status, rest-of-title) for a task line, or None.
 // Indent is leading-space count; depth is indent / 2; status comes from the
 // checkbox character.
-fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, bool)> {
+fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, bool, bool)> {
     let indent = line.len() - line.trim_start_matches(' ').len();
-    let depth  = indent / 2;
+    let depth = indent / 2;
     let trimmed = &line[indent..];
 
     // Try with space first (correct format)
-    let (status, rest, has_space) = if let Some(r) = trimmed.strip_prefix("- [ ] ") {
-        (Status::Todo, r, true)
+    let (status, rest, has_space, box_valid) = if let Some(r) = trimmed.strip_prefix("- [ ] ") {
+        (Status::Todo, r, true, true)
     } else if let Some(r) = trimmed.strip_prefix("- [x] ") {
-        (Status::Done, r, true)
+        (Status::Done, r, true, true)
     } else if let Some(r) = trimmed.strip_prefix("- [-] ") {
-        (Status::Cancelled, r, true)
+        (Status::Cancelled, r, true, true)
     } else if let Some(r) = trimmed.strip_prefix("- [ ]") {
         // No space after box - still parse it, but flag it
-        (Status::Todo, r, false)
+        (Status::Todo, r, false, true)
+    } else if let Some(r) = trimmed.strip_prefix("- [] ") {
+        // No space inside box - still parse it, but flag it
+        (Status::Todo, r, true, false)
+    } else if let Some(r) = trimmed.strip_prefix("- []") {
+        (Status::Todo, r, false, false)
     } else if let Some(r) = trimmed.strip_prefix("- [x]") {
-        (Status::Done, r, false)
+        (Status::Done, r, false, true)
     } else if let Some(r) = trimmed.strip_prefix("- [-]") {
-        (Status::Cancelled, r, false)
+        (Status::Cancelled, r, false, true)
     } else {
+        // cases of boxes with wrong char ( [o], [l] .. whatever)
+        let stripped_first_part = trimmed.strip_prefix("- [");
+        match stripped_first_part {
+            Some(r) => {
+                let stripped_second_part = r.drop_n_chars(1).strip_prefix("]");
+                match stripped_second_part {
+                    Some(_) => {
+                        // Wrong char in box, but (largely) correct format otherwise - flag it but parse as normal
+                        return Some((depth, indent, Status::Todo, r.to_string(), true, false));
+                    }
+                    None => {}
+                }
+            }
+            _ => {}
+        }
+
         return None;
     };
-    Some((depth, indent, status, rest.trim_end().to_string(), has_space))
+
+    // SFI: has_space and box_valid could go into a "parsing issues" struct
+    Some((
+        depth,
+        indent,
+        status,
+        rest.trim_end().to_string(),
+        has_space,
+        box_valid,
+    ))
 }
 
 // Recognises a standalone `#MILESTONE: name` line and returns the name.
@@ -287,7 +377,9 @@ fn parse_milestone_name(line: &str) -> Option<String> {
     let rest = line.trim().strip_prefix("#MILESTONE")?;
     // Skip any leading non-alphanumeric chars (e.g. ": ")
     let name = rest.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '(');
-    if name.is_empty() { return None; }
+    if name.is_empty() {
+        return None;
+    }
     Some(name.trim_end().to_string())
 }
 
@@ -295,7 +387,9 @@ fn parse_milestone_name(line: &str) -> Option<String> {
 fn parse_order_prefix(title: &str) -> (Order, &str) {
     let bytes = title.as_bytes();
     let mut i = 0;
-    while i < bytes.len() && bytes[i].is_ascii_digit() { i += 1; }
+    while i < bytes.len() && bytes[i].is_ascii_digit() {
+        i += 1;
+    }
     if i > 0 && bytes.get(i) == Some(&b'.') && bytes.get(i + 1) == Some(&b' ') {
         if let Ok(n) = title[..i].parse::<u32>() {
             return (Order::Ranked(n), title[i + 2..].trim_start());
@@ -318,7 +412,7 @@ fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str) {
 // title words, then re-joins the plain words.
 fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
-    let mut words   = Vec::new();
+    let mut words = Vec::new();
     for token in title.split_whitespace() {
         if let Some(after) = token.strip_prefix('#') {
             if let Some(m) = parse_hash_token(after) {
@@ -338,14 +432,16 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
 }
 
 fn parse_hash_token(name: &str) -> Option<Marker> {
-    if name.is_empty() { return None; }
+    if name.is_empty() {
+        return None;
+    }
 
     // Known ALL-CAPS special markers checked explicitly; avoids misidentifying
     // a user property whose name happens to be all-caps.
     match name {
-        "OPT"       => return Some(Marker::Special(SpecialMarker::Opt)),
+        "OPT" => return Some(Marker::Special(SpecialMarker::Opt)),
         "MILESTONE" => return Some(Marker::Special(SpecialMarker::Milestone)),
-        "MDAGILE"   => return Some(Marker::Special(SpecialMarker::MdAgile)),
+        "MDAGILE" => return Some(Marker::Special(SpecialMarker::MdAgile)),
         _ => {}
     }
 
@@ -353,7 +449,8 @@ fn parse_hash_token(name: &str) -> Option<Marker> {
     if let Some(base) = name.strip_suffix("...") {
         if !base.is_empty() {
             return Some(Marker::Property(PropertyRef {
-                name: base.to_string(), form: PropertyForm::BranchPending,
+                name: base.to_string(),
+                form: PropertyForm::BranchPending,
             }));
         }
     }
@@ -371,9 +468,12 @@ fn parse_hash_token(name: &str) -> Option<Marker> {
 
     // Plain property, possibly with trailing punctuation: `#feature:`
     let clean = name.trim_end_matches(|c: char| ":;,.".contains(c));
-    if clean.is_empty() { return None; }
+    if clean.is_empty() {
+        return None;
+    }
     Some(Marker::Property(PropertyRef {
-        name: clean.to_string(), form: PropertyForm::Full,
+        name: clean.to_string(),
+        form: PropertyForm::Full,
     }))
 }
 
