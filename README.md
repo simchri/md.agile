@@ -9,10 +9,10 @@ This project is >> under construction <<  - more features to come. (c.f. [README
 
 ```md
 - [ ] a task - this is the task-title
-Some more info on this task - this is the task-body
-Both inside and outside of tasks, you can just use normal markdown syntax
+  Some more info on this task - this is the task-body
+  Both inside and outside of tasks, you can just use normal markdown syntax
   - [ ] a subtask 
-  more details for this subtask go here.
+    more details for this subtask go here.
   - [x] this subtask is done
 ```
 
