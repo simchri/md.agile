@@ -76,15 +76,23 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
         .as_ref()
         .and_then(|d| serde_json::to_value(d).ok());
 
+    let head = format_message(issue.message);
+    let head = if issue.code.has_quickfix() {
+        format!("{head} (fix avail.)")
+    } else {
+        head
+    };
+    let message = match issue.help {
+        Some(h) => format!("{}\n{}", head, format_help(h)),
+        None => head,
+    };
+
     Diagnostic {
         range,
         severity: Some(sev),
         code: Some(NumberOrString::String(issue.code.as_str().to_string())),
         source: Some("agilels".to_string()),
-        message: match issue.help {
-            Some(h) => format!("{}\n{}", format_message(issue.message), format_help(h)),
-            None => format_message(issue.message),
-        },
+        message,
         data,
         ..Diagnostic::default()
     }

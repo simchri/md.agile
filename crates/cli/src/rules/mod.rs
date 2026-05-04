@@ -57,6 +57,22 @@ impl ErrorCode {
             ErrorCode::UppercaseX => "E007",
         }
     }
+
+    /// True if an LSP quickfix is registered for this code.
+    ///
+    /// Source of truth for the "(fix avail.)" hint shown in CLI and LSP
+    /// diagnostic messages. Must stay in sync with the dispatcher in
+    /// `lsp::quickfix::build_quickfix`.
+    pub fn has_quickfix(&self) -> bool {
+        matches!(
+            self,
+            ErrorCode::WrongIndentation
+                | ErrorCode::WrongBodyIndentation
+                | ErrorCode::MissingSpaceAfterBox
+                | ErrorCode::BoxStyleInvalid
+                | ErrorCode::UppercaseX
+        )
+    }
 }
 
 impl std::fmt::Display for ErrorCode {

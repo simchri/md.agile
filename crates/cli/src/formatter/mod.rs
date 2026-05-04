@@ -27,10 +27,15 @@ const YELLOW: &str = "\x1b[33m";
 pub fn format_issue(issue: &Issue) -> String {
     let mut output = String::new();
 
-    // Header line: error[CODE]: message
+    // Header line: error[CODE]: message [(fix avail.)]
+    let fix_hint = if issue.code.has_quickfix() {
+        " (fix avail.)"
+    } else {
+        ""
+    };
     output.push_str(&format!(
-        "{}{BOLD}error[{}]{RESET}: {}\n",
-        RED, issue.code, issue.message
+        "{}{BOLD}error[{}]{RESET}: {}{}\n",
+        RED, issue.code, issue.message, fix_hint
     ));
 
     // File:line:column location
