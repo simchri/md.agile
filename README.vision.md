@@ -502,7 +502,7 @@ neighbortasks = ["publish feature"]
 neighbortasks = ["create follow up task for fixes"]
 ```
 
-A Branching Workflow property is written in its incomplete form (e.g., `#review...`) while the task is still in progress. When the task is marked as done, this property must be updated to one of its defined outcome states (e.g., `#result:passed`, `#result:failed`). Each outcome can have its own constraints, such as mandatory subtasks or neighbor tasks.
+A Branching Workflow property is written in its incomplete form (e.g., `#review...`) while the task is still in progress. When the task is marked as done, this property must be updated to one of its defined outcome states (e.g., `#review:passed`, `#review:failed`). Each outcome can have its own constraints, such as mandatory subtasks or neighbor tasks.
 
 While task in progress:
 ```md
