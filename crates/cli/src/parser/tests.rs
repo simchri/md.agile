@@ -45,6 +45,7 @@ fn can_construct_task_with_all_node_kinds() {
                 children: vec![],
                 has_space_after_box: true,
                 box_valid: true,
+                uppercase_x: false,
             },
             Subtask {
                 location: loc(3),
@@ -58,6 +59,7 @@ fn can_construct_task_with_all_node_kinds() {
                 children: vec![],
                 has_space_after_box: true,
                 box_valid: true,
+                uppercase_x: false,
             },
             Subtask {
                 location: loc(4),
@@ -71,6 +73,7 @@ fn can_construct_task_with_all_node_kinds() {
                 children: vec![],
                 has_space_after_box: true,
                 box_valid: true,
+                uppercase_x: false,
             },
             Subtask {
                 location: loc(5),
@@ -84,10 +87,12 @@ fn can_construct_task_with_all_node_kinds() {
                 children: vec![],
                 has_space_after_box: true,
                 box_valid: true,
+                uppercase_x: false,
             },
         ],
         has_space_after_box: true,
         box_valid: true,
+        uppercase_x: false,
     };
     assert_eq!(task.status, Status::Todo);
     assert_eq!(task.children.len(), 4);
@@ -107,6 +112,7 @@ fn file_items_interleave_tasks_and_milestones() {
             children: vec![],
             has_space_after_box: true,
             box_valid: true,
+            uppercase_x: false,
         }),
         FileItem::Milestone(Milestone {
             name: "Release of MVP".to_string(),
@@ -122,6 +128,7 @@ fn file_items_interleave_tasks_and_milestones() {
             children: vec![],
             has_space_after_box: true,
             box_valid: true,
+            uppercase_x: false,
         }),
     ];
     assert_eq!(items.len(), 3);
@@ -447,9 +454,21 @@ fn parse_empty_box_style() {
 #[test]
 fn parse_invalid_box_style() {
     let input = "\
-- [R] empty box 
+- [R] empty box
 ";
     let items = p(input);
     let task = task(&items, 0);
     assert_eq!(task.title, "empty box");
+}
+
+#[test]
+fn parse_uppercase_x_sets_flag() {
+    let input = "\
+- [X] task title
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(t.uppercase_x);
+    assert!(t.box_valid);
+    assert_eq!(t.title, "task title");
 }

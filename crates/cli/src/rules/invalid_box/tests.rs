@@ -83,7 +83,11 @@ fn flags_multiple_invalid_tasks() {
 ";
     let issues = invalid_box(&p(input));
     assert_eq!(issues.len(), 2);
-    assert!(issues.iter().all(|i| i.code == crate::rules::ErrorCode::BoxStyleInvalid));
+    assert!(
+        issues
+            .iter()
+            .all(|i| i.code == crate::rules::ErrorCode::BoxStyleInvalid)
+    );
 }
 
 #[test]
@@ -94,7 +98,11 @@ fn flags_invalid_task_and_invalid_subtask() {
 ";
     let issues = invalid_box(&p(input));
     assert_eq!(issues.len(), 2);
-    assert!(issues.iter().all(|i| i.code == crate::rules::ErrorCode::BoxStyleInvalid));
+    assert!(
+        issues
+            .iter()
+            .all(|i| i.code == crate::rules::ErrorCode::BoxStyleInvalid)
+    );
 }
 
 #[test]

@@ -8,19 +8,21 @@
 //! Each rule lives in its own submodule and is re-exported from this module
 //! for convenience.
 
-mod orphaned_subtask;
-mod wrong_indentation;
-mod wrong_body_indent;
 mod incomplete_parent;
-mod missing_space_after_box;
 mod invalid_box;
+mod missing_space_after_box;
+mod orphaned_subtask;
+mod uppercase_x;
+mod wrong_body_indent;
+mod wrong_indentation;
 
-pub use orphaned_subtask::orphaned_subtask;
-pub use wrong_indentation::wrong_indentation;
-pub use wrong_body_indent::wrong_body_indent;
 pub use incomplete_parent::incomplete_parent;
-pub use missing_space_after_box::missing_space_after_box;
 pub use invalid_box::invalid_box;
+pub use missing_space_after_box::missing_space_after_box;
+pub use orphaned_subtask::orphaned_subtask;
+pub use uppercase_x::uppercase_x;
+pub use wrong_body_indent::wrong_body_indent;
+pub use wrong_indentation::wrong_indentation;
 
 /// Error codes for validation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -37,6 +39,8 @@ pub enum ErrorCode {
     MissingSpaceAfterBox,
     /// E006: Box style invalid
     BoxStyleInvalid,
+    /// E007: Uppercase X used instead of lowercase x
+    UppercaseX,
 }
 
 impl ErrorCode {
@@ -50,6 +54,7 @@ impl ErrorCode {
             ErrorCode::IncompleteParent => "E004",
             ErrorCode::MissingSpaceAfterBox => "E005",
             ErrorCode::BoxStyleInvalid => "E006",
+            ErrorCode::UppercaseX => "E007",
         }
     }
 }
@@ -108,6 +113,7 @@ pub fn check_all(items: &[FileItem]) -> Vec<Issue> {
     issues.extend(incomplete_parent(items));
     issues.extend(missing_space_after_box(items));
     issues.extend(invalid_box(items));
+    issues.extend(uppercase_x(items));
     issues
 }
 

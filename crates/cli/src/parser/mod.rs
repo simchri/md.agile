@@ -91,6 +91,7 @@ pub struct Subtask {
     // True if there is a space between the status box and the title.
     pub has_space_after_box: bool,
     pub box_valid: bool,
+    pub uppercase_x: bool,
 }
 
 // ── Task ──────────────────────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ pub struct Task {
     // E.g., `- [ ] title` has space, `- [ ]title` does not.
     pub has_space_after_box: bool,
     pub box_valid: bool,
+    pub uppercase_x: bool,
 }
 
 // ── File-level items ──────────────────────────────────────────────────────────
@@ -158,6 +160,7 @@ struct PartialItem {
     children: Vec<Subtask>,
     has_space_after_box: bool,
     box_valid: bool,
+    uppercase_x: bool,
 }
 
 impl PartialItem {
@@ -173,6 +176,7 @@ impl PartialItem {
             children: self.children,
             has_space_after_box: self.has_space_after_box,
             box_valid: self.box_valid,
+            uppercase_x: self.uppercase_x,
         }
     }
     fn into_subtask(self) -> Subtask {
@@ -188,6 +192,7 @@ impl PartialItem {
             children: self.children,
             has_space_after_box: self.has_space_after_box,
             box_valid: self.box_valid,
+            uppercase_x: self.uppercase_x,
         }
     }
 }
@@ -222,7 +227,7 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             continue;
         }
 
-        if let Some((depth, indent, status, rest, has_space_after_box, box_valid)) =
+        if let Some((depth, indent, status, rest, has_space_after_box, box_valid, uppercase_x)) =
             parse_task_line(line)
         {
             // Close any open siblings and their descendants before pushing the
@@ -251,6 +256,7 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
                 children: Vec::new(),
                 has_space_after_box,
                 box_valid,
+                uppercase_x,
             });
             prev_was_blank = false;
             continue;
@@ -316,51 +322,64 @@ impl DropNChars for str {
 // Returns (depth, indent, status, rest-of-title) for a task line, or None.
 // Indent is leading-space count; depth is indent / 2; status comes from the
 // checkbox character.
-fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, bool, bool)> {
+fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, bool, bool, bool)> {
     let indent = line.len() - line.trim_start_matches(' ').len();
     let depth = indent / 2;
     let trimmed = &line[indent..];
 
     // Try with space first (correct format)
-    let (status, rest, has_space, box_valid) = if let Some(r) = trimmed.strip_prefix("- [ ] ") {
-        (Status::Todo, r, true, true)
-    } else if let Some(r) = trimmed.strip_prefix("- [x] ") {
-        (Status::Done, r, true, true)
-    } else if let Some(r) = trimmed.strip_prefix("- [-] ") {
-        (Status::Cancelled, r, true, true)
-    } else if let Some(r) = trimmed.strip_prefix("- [ ]") {
-        // No space after box - still parse it, but flag it
-        (Status::Todo, r, false, true)
-    } else if let Some(r) = trimmed.strip_prefix("- [] ") {
-        // No space inside box - still parse it, but flag it
-        (Status::Todo, r, true, false)
-    } else if let Some(r) = trimmed.strip_prefix("- []") {
-        (Status::Todo, r, false, false)
-    } else if let Some(r) = trimmed.strip_prefix("- [x]") {
-        (Status::Done, r, false, true)
-    } else if let Some(r) = trimmed.strip_prefix("- [-]") {
-        (Status::Cancelled, r, false, true)
-    } else {
-        // cases of boxes with wrong char ( [o], [l] .. whatever)
-        let stripped_first_part = trimmed.strip_prefix("- [");
-        match stripped_first_part {
-            Some(r) => {
-                let stripped_second_part = r.drop_n_chars(1).strip_prefix("]");
-                match stripped_second_part {
-                    Some(r) => {
-                        // Wrong char in box, but (largely) correct format otherwise - flag it but parse as normal
-                        return Some((depth, indent, Status::Todo, r.to_string(), true, false));
+    let (status, rest, has_space, box_valid, uppercase_x) =
+        if let Some(r) = trimmed.strip_prefix("- [ ] ") {
+            (Status::Todo, r, true, true, false)
+        } else if let Some(r) = trimmed.strip_prefix("- [x] ") {
+            (Status::Done, r, true, true, false)
+        } else if let Some(r) = trimmed.strip_prefix("- [-] ") {
+            (Status::Cancelled, r, true, true, false)
+        } else if let Some(r) = trimmed.strip_prefix("- [X] ") {
+            (Status::Done, r, true, true, true)
+        } else if let Some(r) = trimmed.strip_prefix("- [ ]") {
+            // No space after box - still parse it, but flag it
+            (Status::Todo, r, false, true, false)
+        } else if let Some(r) = trimmed.strip_prefix("- [] ") {
+            // No space inside box - still parse it, but flag it
+            (Status::Todo, r, true, false, false)
+        } else if let Some(r) = trimmed.strip_prefix("- []") {
+            (Status::Todo, r, false, false, false)
+        } else if let Some(r) = trimmed.strip_prefix("- [x]") {
+            (Status::Done, r, false, true, false)
+        } else if let Some(r) = trimmed.strip_prefix("- [-]") {
+            (Status::Cancelled, r, false, true, false)
+        } else if let Some(r) = trimmed.strip_prefix("- [X]") {
+            (Status::Done, r, false, true, true)
+        } else {
+            // cases of boxes with wrong char ( [o], [l] .. whatever)
+            let stripped_first_part = trimmed.strip_prefix("- [");
+            match stripped_first_part {
+                Some(r) => {
+                    let stripped_second_part = r.drop_n_chars(1).strip_prefix("]");
+                    match stripped_second_part {
+                        Some(r) => {
+                            // Wrong char in box, but (largely) correct format otherwise - flag it but parse as normal
+                            return Some((
+                                depth,
+                                indent,
+                                Status::Todo,
+                                r.to_string(),
+                                true,
+                                false,
+                                false,
+                            ));
+                        }
+                        None => {}
                     }
-                    None => {}
                 }
+                _ => {}
             }
-            _ => {}
-        }
 
-        return None;
-    };
+            return None;
+        };
 
-    // SFI: has_space and box_valid could go into a "parsing issues" struct
+    // SFI: has_space, box_valid, uppercase_x could go into a "parsing issues" struct
     Some((
         depth,
         indent,
@@ -368,6 +387,7 @@ fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, bool, bo
         rest.trim_end().to_string(),
         has_space,
         box_valid,
+        uppercase_x,
     ))
 }
 
