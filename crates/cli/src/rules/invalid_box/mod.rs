@@ -1,4 +1,4 @@
-use crate::parser::{FileItem, Subtask, Task};
+use crate::parser::{FileItem, Location, Subtask};
 use crate::rules::Issue;
 
 pub fn invalid_box(items: &[FileItem]) -> Vec<Issue> {
@@ -7,12 +7,10 @@ pub fn invalid_box(items: &[FileItem]) -> Vec<Issue> {
     for item in items {
         if let FileItem::Task(task) = item {
             if !task.box_valid {
-                issues.push(box_not_valid_issue(task));
+                issues.push(make_issue(&task.location, task.indent));
             }
-
-            // Recurse into subtasks.
             for subtask in &task.children {
-                issues = check_subtask_recursive(subtask, 1, issues);
+                check_subtask_recursive(subtask, &mut issues);
             }
         }
     }
@@ -20,39 +18,25 @@ pub fn invalid_box(items: &[FileItem]) -> Vec<Issue> {
     issues
 }
 
-fn box_not_valid_issue(task: &Task) -> Issue {
+fn make_issue(location: &Location, indent: usize) -> Issue {
     Issue {
-        location: task.location.clone(),
+        location: location.clone(),
         code: crate::rules::ErrorCode::BoxStyleInvalid,
         message: "Box style invalid".to_string(),
-        column: task.indent + 1,
-        help: Some(format!("Valid task boxes look like this: [ ] [x] [-]")),
+        column: indent + 1,
+        help: Some("Valid task boxes look like this: [ ] [x] [-]".to_string()),
         data: None,
     }
 }
 
-fn box_not_valid_issue_sub(task: &Subtask) -> Issue {
-    Issue {
-        location: task.location.clone(),
-        code: crate::rules::ErrorCode::BoxStyleInvalid,
-        message: "Box style invalid".to_string(),
-        column: task.indent + 1,
-        help: Some(format!("Valid task boxes look like this: [ ] [x] [-]")),
-        data: None,
+fn check_subtask_recursive(subtask: &Subtask, issues: &mut Vec<Issue>) {
+    if !subtask.box_valid {
+        issues.push(make_issue(&subtask.location, subtask.indent));
+    }
+    for child in &subtask.children {
+        check_subtask_recursive(child, issues);
     }
 }
-
- fn check_subtask_recursive(subtask: &Subtask, depth: usize, mut issues: Vec<Issue>) -> Vec<Issue> {
-     if !subtask.box_valid {
-         issues.push(box_not_valid_issue_sub(subtask));
-     }
-
-     for child in &subtask.children {
-         issues = check_subtask_recursive(child, depth + 1, issues);
-     }
-
-     issues
- }
 
 #[cfg(test)]
 mod tests;
