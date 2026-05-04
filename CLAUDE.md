@@ -68,6 +68,10 @@ let input = "\
 
 Never use embedded `\n` escapes or string concatenation for multi-line file samples. The goal is that a reader can see indentation and structure at a glance, just as they would in an actual `.agile.md` file.
 
+### Formatting
+
+After adding or editing any `.rs` file, run `cargo fmt` before committing.
+
 ### TDD — mandatory for all code changes
 
 Follow red-green cycle strictly:
