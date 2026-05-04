@@ -73,7 +73,9 @@ A minimal LSP server that runs on stdin/stdout. Advertises text document sync (F
   - quickfix: Insert missing space
 - **Incomplete Parent** — A parent task is marked done but has incomplete children (no quick fix)
 - **Invalid Box Style** — The status box contains an unrecognised character (e.g. `- [o] task`, `- [] task`). Valid boxes are `[ ]`, `[x]`, and `[-]`.
+  - quickfix: Replace the invalid box with `[ ]`
 - **Uppercase X** — The status box uses an uppercase X (e.g. `- [X] task`). Use lowercase `[x]` instead.
+  - quickfix: Replace `[X]` with `[x]`
 
 ## GUI
 

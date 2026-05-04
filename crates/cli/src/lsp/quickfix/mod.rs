@@ -1,7 +1,9 @@
 use crate::rules::ErrorCode;
 use tower_lsp::lsp_types::{CodeAction, Diagnostic, NumberOrString, Url};
 
+mod invalid_box;
 mod missing_space_after_box;
+mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
 
@@ -18,6 +20,12 @@ pub fn build_quickfix(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Opt
             }
             code if code == ErrorCode::MissingSpaceAfterBox.as_str() => {
                 missing_space_after_box::build(diagnostic, doc_text, uri)
+            }
+            code if code == ErrorCode::BoxStyleInvalid.as_str() => {
+                invalid_box::build(diagnostic, doc_text, uri)
+            }
+            code if code == ErrorCode::UppercaseX.as_str() => {
+                uppercase_x::build(diagnostic, doc_text, uri)
             }
             _ => None,
         },
