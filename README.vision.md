@@ -482,7 +482,7 @@ neighbortasks = ["do the back end implementation also!"]
 ```md
 - [ ] let's build a feature and
   - [ ] ..first do the #frontend-implementation
-  - [ ] do the back end implementation also!
+  - [ ] "do the back end implementation also!"
 ```
 
 Neighbor tasks can themselves have their own properties and subtasks. This mechanism helps ensure that important follow-up steps are not forgotten and are tracked explicitly in your workflow. You can also use this to couple certain properties together.
