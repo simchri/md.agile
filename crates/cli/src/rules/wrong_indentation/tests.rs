@@ -80,4 +80,3 @@ fn issue_data_for_deeper_subtask_uses_depth_times_two() {
         Some(IssueData::WrongIndent { expected_indent: 4 }),
     );
 }
-

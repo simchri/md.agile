@@ -1,6 +1,6 @@
-use tower_lsp::lsp_types::*;
 use crate::rules::IssueData;
 use std::collections::HashMap;
+use tower_lsp::lsp_types::*;
 
 /// Builds a quickfix for E005 (missing space after status box).
 /// Finds the first `]` in the line and inserts a space after it.
@@ -19,8 +19,14 @@ pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
     if let Some(bracket_pos) = line_text.find(']') {
         let text_edit = TextEdit {
             range: Range {
-                start: Position { line: diagnostic.range.start.line, character: (bracket_pos + 1) as u32 },
-                end:   Position { line: diagnostic.range.start.line, character: (bracket_pos + 1) as u32 },
+                start: Position {
+                    line: diagnostic.range.start.line,
+                    character: (bracket_pos + 1) as u32,
+                },
+                end: Position {
+                    line: diagnostic.range.start.line,
+                    character: (bracket_pos + 1) as u32,
+                },
             },
             new_text: " ".to_string(),
         };

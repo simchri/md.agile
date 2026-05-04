@@ -45,11 +45,7 @@ pub fn wrong_indentation(items: &[FileItem]) -> Vec<Issue> {
 
 /// Recursively walks a subtask tree, flagging any subtask whose indentation
 /// does not match its expected nesting depth (`depth * 2`).
-fn check_subtask_recursive(
-    subtask: &Subtask,
-    depth: usize,
-    mut issues: Vec<Issue>,
-) -> Vec<Issue> {
+fn check_subtask_recursive(subtask: &Subtask, depth: usize, mut issues: Vec<Issue>) -> Vec<Issue> {
     let expected_indent = depth * 2;
     if subtask.indent != expected_indent {
         issues.push(Issue {

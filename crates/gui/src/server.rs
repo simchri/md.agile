@@ -205,7 +205,10 @@ fn get_or_init_working_dir() -> Result<PathBuf, ServerFnError> {
                 info!("found project root at {}", dir.display());
                 dir
             } else {
-                error!("could not find project root (no mdagile.toml found in {})", dir.display());
+                error!(
+                    "could not find project root (no mdagile.toml found in {})",
+                    dir.display()
+                );
                 return Err(ServerFnError::new("mdagile.toml not found"));
             }
         }

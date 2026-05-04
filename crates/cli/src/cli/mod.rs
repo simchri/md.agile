@@ -21,7 +21,7 @@ Reads all *.agile.md files found anywhere under the current directory.
 Files are prioritised by their path relative to the project root, so
 tasks/50_current/001.agile.md outranks tasks/60_backlog/001.agile.md.
 
-Run without a subcommand to open the next task in $VISUAL / $EDITOR.",
+Run without a subcommand to open the next task in $VISUAL / $EDITOR."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -121,14 +121,27 @@ pub fn run() {
     let root = Path::new(".");
     match Cli::parse().command {
         None => subcommands::default::run(root),
-        Some(Command::List { what: None, next, last, all })
-        | Some(Command::List { what: Some(ListWhat::Tasks { next, last, all }), .. }) => {
+        Some(Command::List {
+            what: None,
+            next,
+            last,
+            all,
+        })
+        | Some(Command::List {
+            what: Some(ListWhat::Tasks { next, last, all }),
+            ..
+        }) => {
             subcommands::list::run_tasks(root, next, last, all);
         }
-        Some(Command::List { what: Some(ListWhat::Files { next, last }), .. }) => {
+        Some(Command::List {
+            what: Some(ListWhat::Files { next, last }),
+            ..
+        }) => {
             subcommands::list::run_files(root, next, last);
         }
-        Some(Command::Task { action: TaskAction::Next }) => {
+        Some(Command::Task {
+            action: TaskAction::Next,
+        }) => {
             subcommands::task::run_next(root);
         }
         Some(Command::Check) => {

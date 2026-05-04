@@ -21,7 +21,11 @@ pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
         .map(|e| e.into_path())
         .collect();
 
-    paths.sort_by_key(|p| p.strip_prefix(root).map(|r| r.to_path_buf()).unwrap_or_else(|_| p.clone()));
+    paths.sort_by_key(|p| {
+        p.strip_prefix(root)
+            .map(|r| r.to_path_buf())
+            .unwrap_or_else(|_| p.clone())
+    });
     paths
 }
 
@@ -83,8 +87,8 @@ fn render_subtask(sub: &parser::Subtask, depth: usize, out: &mut String) {
 /// Returns the textual checkbox for a [`parser::Status`]: `[ ]`, `[x]`, or `[-]`.
 fn status_marker(status: &parser::Status) -> &'static str {
     match status {
-        parser::Status::Todo      => "[ ]",
-        parser::Status::Done      => "[x]",
+        parser::Status::Todo => "[ ]",
+        parser::Status::Done => "[x]",
         parser::Status::Cancelled => "[-]",
     }
 }

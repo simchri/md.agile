@@ -1,6 +1,6 @@
-use tower_lsp::lsp_types::*;
 use crate::rules::IssueData;
 use std::collections::HashMap;
+use tower_lsp::lsp_types::*;
 
 /// Builds a quickfix for E002 (wrong indentation).
 /// Extracts the expected_indent from diagnostic.data and replaces leading whitespace.
@@ -18,7 +18,10 @@ pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
 
     let text_edit = TextEdit {
         range: Range {
-            start: Position { line: diagnostic.range.start.line, character: 0 },
+            start: Position {
+                line: diagnostic.range.start.line,
+                character: 0,
+            },
             end: Position {
                 line: diagnostic.range.start.line,
                 character: current_indent as u32,

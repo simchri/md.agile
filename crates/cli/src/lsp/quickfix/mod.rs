@@ -1,9 +1,9 @@
-use tower_lsp::lsp_types::{CodeAction, Diagnostic, NumberOrString, Url};
 use crate::rules::ErrorCode;
+use tower_lsp::lsp_types::{CodeAction, Diagnostic, NumberOrString, Url};
 
-mod wrong_indentation;
-mod wrong_body_indent;
 mod missing_space_after_box;
+mod wrong_body_indent;
+mod wrong_indentation;
 
 /// Routes a diagnostic to the appropriate quickfix handler.
 /// Dispatches based on error code; handlers don't re-check the code.

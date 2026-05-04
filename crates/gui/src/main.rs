@@ -110,7 +110,6 @@ fn app() -> Element {
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
 
-
     let mut lowest_rank_backlog = usize::MAX;
     for slot in task_slots.iter() {
         if let Some(task) = slot() {
@@ -125,7 +124,6 @@ fn app() -> Element {
         lowest_rank_backlog = 0;
     }
 
-
     let mut highest_rank_done = 0;
     for slot in task_slots.iter() {
         if let Some(task) = slot() {
@@ -136,7 +134,6 @@ fn app() -> Element {
             }
         }
     }
-
 
     rsx! {
         div { class: "layout",
@@ -193,10 +190,22 @@ enum TaskCardState {
 }
 
 #[component]
-fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandler<TaskView>, on_hover: EventHandler<TaskView>, lowest_rank_backlog: usize, highest_rank_done: usize) -> Element {
+fn TaskCard(
+    task: TaskView,
+    _index: usize,
+    z_index: usize,
+    on_click: EventHandler<TaskView>,
+    on_hover: EventHandler<TaskView>,
+    lowest_rank_backlog: usize,
+    highest_rank_done: usize,
+) -> Element {
     let progress = task_progress(&task);
 
-    let z = if z_index > 0 { format!(" z-index: {z_index};") } else { format!(" z-index: 0;") };
+    let z = if z_index > 0 {
+        format!(" z-index: {z_index};")
+    } else {
+        format!(" z-index: 0;")
+    };
 
     let mut card_style = "task-card".to_string();
     let mut title_style = "task-card-title".to_string();
@@ -207,7 +216,6 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
     let CARD_GAP_PX = 8;
 
     if progress == 0.0 {
-
         // backlog card style and pos
         card_style = "backlog-card".to_string();
         title_style = "backlog-card-title".to_string();
@@ -219,26 +227,28 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
             pos_index = 0;
         }
 
-        let x_px = CARD_GAP_PX + ((pos_index ) * (CARD_WIDTH_PX + CARD_GAP_PX));
+        let x_px = CARD_GAP_PX + ((pos_index) * (CARD_WIDTH_PX + CARD_GAP_PX));
         let left = format!("{x_px}px");
 
         position_style = format!("top: 8px; bottom: unset; left: {};{z}", left);
-
     } else if progress >= 1.0 {
-
         // done card style and position
         let pos_index;
         if task.rank <= highest_rank_done {
             pos_index = highest_rank_done - task.rank;
         } else {
             pos_index = 0;
-        } 
+        }
 
         log::info!("task: {}", task.title);
-        log::info!("rank: {}, lowest_rank_done: {}, pos_index: {}", task.rank, highest_rank_done, pos_index);
+        log::info!(
+            "rank: {}, lowest_rank_done: {}, pos_index: {}",
+            task.rank,
+            highest_rank_done,
+            pos_index
+        );
 
-
-        let done_top = format!("calc(100vh - {}px)", (110 + 8)); 
+        let done_top = format!("calc(100vh - {}px)", (110 + 8));
 
         let x_px = CARD_GAP_PX + ((pos_index + 1) * (CARD_WIDTH_PX + CARD_GAP_PX));
         let left = format!("calc(100vw - {x_px}px)");
@@ -247,7 +257,6 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
 
         card_style = "done-card".to_string();
         title_style = "done-card-title".to_string();
-  
     } else {
         // Else: In Progress style
         position_style = diagonal_style(progress);
@@ -256,8 +265,8 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
     let t = task.clone();
     let t2 = task.clone();
     return rsx! {
-        div { 
-            class: "{card_style} smooth-movement", 
+        div {
+            class: "{card_style} smooth-movement",
             style: "{position_style}",
             onclick: move |_| on_click.call(t.clone()),
             onmouseover: move |_| on_hover.call(t2.clone()),
@@ -290,9 +299,8 @@ fn TaskCard(task: TaskView, _index: usize,  z_index: usize, on_click: EventHandl
                 }
             }
         }
-    }
+    };
 }
-
 
 #[component]
 fn SubtaskItem(task: TaskView, depth: usize, show_body: bool) -> Element {
@@ -424,16 +432,16 @@ fn diagonal_style(progress: f64) -> String {
 
 fn status_box(status: &TaskStatus) -> &'static str {
     match status {
-        TaskStatus::Todo      => "[ ]",
-        TaskStatus::Done      => "[x]",
+        TaskStatus::Todo => "[ ]",
+        TaskStatus::Done => "[x]",
         TaskStatus::Cancelled => "[-]",
     }
 }
 
 fn status_class(status: &TaskStatus) -> &'static str {
     match status {
-        TaskStatus::Todo      => "status-todo",
-        TaskStatus::Done      => "status-done",
+        TaskStatus::Todo => "status-todo",
+        TaskStatus::Done => "status-done",
         TaskStatus::Cancelled => "status-cancelled",
     }
 }

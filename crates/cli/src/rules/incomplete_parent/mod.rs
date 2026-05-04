@@ -39,7 +39,10 @@ fn check_subtask_completion(subtask: &Subtask) -> Vec<Issue> {
 
     // Check if this subtask is done but has incomplete children
     if subtask.status == Status::Done {
-        issues.extend(check_children_complete(&subtask.children, &subtask.location));
+        issues.extend(check_children_complete(
+            &subtask.children,
+            &subtask.location,
+        ));
     }
 
     // Recurse into subtask children
@@ -50,14 +53,18 @@ fn check_subtask_completion(subtask: &Subtask) -> Vec<Issue> {
     issues
 }
 
-fn check_children_complete(children: &[Subtask], parent_location: &crate::parser::Location) -> Vec<Issue> {
+fn check_children_complete(
+    children: &[Subtask],
+    parent_location: &crate::parser::Location,
+) -> Vec<Issue> {
     let mut issues = Vec::new();
 
     for child in children {
         // Skip checking optional children - they don't block parent completion
-        let is_optional = child.markers.iter().any(|m| {
-            matches!(m, crate::parser::Marker::Special(SpecialMarker::Opt))
-        });
+        let is_optional = child
+            .markers
+            .iter()
+            .any(|m| matches!(m, crate::parser::Marker::Special(SpecialMarker::Opt)));
 
         if is_optional {
             continue;
@@ -73,7 +80,7 @@ fn check_children_complete(children: &[Subtask], parent_location: &crate::parser
                 help: Some(
                     "This task is marked done, but it has incomplete children. \
                      Mark all required children done, cancel them, or make them optional with #OPT."
-                        .to_string()
+                        .to_string(),
                 ),
                 data: None,
             });

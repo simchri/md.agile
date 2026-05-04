@@ -36,7 +36,11 @@ pub fn format_issue(issue: &Issue) -> String {
     // File:line:column location
     output.push_str(&format!(
         " {}-->{}  {}:{}:{}\n",
-        CYAN, RESET, issue.location.path.display(), issue.location.line, issue.column
+        CYAN,
+        RESET,
+        issue.location.path.display(),
+        issue.location.line,
+        issue.column
     ));
 
     // Try to read and display source context
@@ -56,10 +60,7 @@ pub fn format_issue(issue: &Issue) -> String {
 
             // Create and display the error pointer
             let pointer = create_pointer(error_line, issue.column);
-            output.push_str(&format!(
-                "  {YELLOW}| {RED}{BOLD}{}{RESET}\n",
-                pointer
-            ));
+            output.push_str(&format!("  {YELLOW}| {RED}{BOLD}{}{RESET}\n", pointer));
         }
     }
 
@@ -96,10 +97,10 @@ fn create_pointer(line: &str, column: usize) -> String {
             found = true;
             break;
         }
-        
+
         // Add a space for each visible character
         pointer.push(' ');
-        
+
         // For display purposes, tabs count as moving to next tab stop
         if ch == '\t' {
             visible_pos += 4;

@@ -36,7 +36,9 @@
       "Bash(curl -s http://localhost:8080/)",
       "Bash(curl -s http://localhost:8080/style.css)",
       "Bash(dx *)",
-      "Bash(curl -s http://localhost:8080/wasm/)"
+      "Bash(curl -s http://localhost:8080/wasm/)",
+      "Bash(cargo fmt *)",
+      "Bash(rustup component *)"
     ]
   }
 }

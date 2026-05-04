@@ -7,6 +7,8 @@ fn tasks_is_alias_for_task_subcommand() {
         .expect("`agile tasks next` should parse as the `task next` subcommand");
     assert!(matches!(
         cli.command,
-        Some(Command::Task { action: TaskAction::Next })
+        Some(Command::Task {
+            action: TaskAction::Next
+        })
     ));
 }

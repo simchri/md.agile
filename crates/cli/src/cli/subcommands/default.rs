@@ -24,9 +24,9 @@ pub fn run(root: &Path) {
 /// (`[x]`) and cancelled (`[-]`) top-level tasks are skipped, as are subtasks.
 /// Returns `None` if no file under `root` has any active top-level task.
 pub fn find_next_task(root: &Path) -> Option<(PathBuf, usize)> {
-    find_task_files(root).into_iter().find_map(|path| {
-        first_active_task_line(&path).map(|line| (path, line))
-    })
+    find_task_files(root)
+        .into_iter()
+        .find_map(|path| first_active_task_line(&path).map(|line| (path, line)))
 }
 
 fn first_active_task_line(path: &Path) -> Option<usize> {

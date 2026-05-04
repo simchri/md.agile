@@ -11,7 +11,10 @@ fn detects_missing_space_after_box() {
     let issues = super::missing_space_after_box(&items);
 
     assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, crate::rules::ErrorCode::MissingSpaceAfterBox);
+    assert_eq!(
+        issues[0].code,
+        crate::rules::ErrorCode::MissingSpaceAfterBox
+    );
     assert_eq!(issues[0].location.line, 1); // First task has no space
 }
 
@@ -39,7 +42,10 @@ fn detects_in_subtasks() {
     let issues = super::missing_space_after_box(&items);
 
     assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, crate::rules::ErrorCode::MissingSpaceAfterBox);
+    assert_eq!(
+        issues[0].code,
+        crate::rules::ErrorCode::MissingSpaceAfterBox
+    );
     assert_eq!(issues[0].location.line, 2); // Subtask without space
 }
 

@@ -41,7 +41,10 @@ impl Backend {
             .into_iter()
             .map(issue_to_diagnostic)
             .collect();
-        self.diagnostics.write().await.insert(uri.clone(), diagnostics.clone());
+        self.diagnostics
+            .write()
+            .await
+            .insert(uri.clone(), diagnostics.clone());
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;
@@ -56,16 +59,22 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
     let dash_col = issue.column.saturating_sub(1) as u32;
     let range = Range {
         start: Position { line, character: 0 },
-        end:   Position { line, character: dash_col.max(1) },
+        end: Position {
+            line,
+            character: dash_col.max(1),
+        },
     };
 
     let sev = match issue.code.as_str().chars().next() {
         Some('E') => DiagnosticSeverity::ERROR,
         Some('W') => DiagnosticSeverity::WARNING,
-        _         => DiagnosticSeverity::ERROR,
+        _ => DiagnosticSeverity::ERROR,
     };
 
-    let data = issue.data.as_ref().and_then(|d| serde_json::to_value(d).ok());
+    let data = issue
+        .data
+        .as_ref()
+        .and_then(|d| serde_json::to_value(d).ok());
 
     Diagnostic {
         range,
@@ -74,7 +83,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
         source: Some("agilels".to_string()),
         message: match issue.help {
             Some(h) => format!("{}\n{}", format_message(issue.message), format_help(h)),
-            None    => format_message(issue.message),
+            None => format_message(issue.message),
         },
         data,
         ..Diagnostic::default()
@@ -110,13 +119,18 @@ impl LanguageServer for Backend {
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let doc = params.text_document;
         info!("did_open {}", doc.uri);
-        self.docs.write().await.insert(doc.uri.clone(), doc.text.clone());
+        self.docs
+            .write()
+            .await
+            .insert(doc.uri.clone(), doc.text.clone());
         self.validate(doc.uri, &doc.text, Some(doc.version)).await;
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
         // FULL sync: a single change containing the entire new text.
-        let Some(change) = params.content_changes.pop() else { return };
+        let Some(change) = params.content_changes.pop() else {
+            return;
+        };
         info!("did_change {}", params.text_document.uri);
         self.docs
             .write()
@@ -130,10 +144,7 @@ impl LanguageServer for Backend {
         .await;
     }
 
-    async fn code_action(
-        &self,
-        params: CodeActionParams,
-    ) -> Result<Option<CodeActionResponse>> {
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
         let doc_text = match self.docs.read().await.get(&params.text_document.uri) {
             Some(t) => t.clone(),
             None => return Ok(None),
@@ -207,4 +218,3 @@ fn format_help(help: String) -> String {
 
 #[cfg(test)]
 mod tests;
-

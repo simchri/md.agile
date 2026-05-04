@@ -19,10 +19,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 /// Returns an error if the log file cannot be created
 pub fn init_logging() -> io::Result<PathBuf> {
     // Create a file appender in the system temp directory
-    let file_appender = tracing_appender::rolling::never(
-        std::env::temp_dir(),
-        "agilels.log",
-    );
+    let file_appender = tracing_appender::rolling::never(std::env::temp_dir(), "agilels.log");
 
     // Set up the subscriber with the file appender
     let subscriber = tracing_subscriber::fmt()

@@ -1,12 +1,15 @@
 use super::*;
-use tower_lsp::lsp_types::*;
 use serde_json::json;
+use tower_lsp::lsp_types::*;
 
 fn diag_e002(line: u32, current_indent: u32, expected_indent: usize) -> Diagnostic {
     Diagnostic {
         range: Range {
             start: Position { line, character: 0 },
-            end:   Position { line, character: current_indent.max(1) },
+            end: Position {
+                line,
+                character: current_indent.max(1),
+            },
         },
         severity: Some(DiagnosticSeverity::ERROR),
         code: Some(NumberOrString::String("E002".into())),
@@ -24,7 +27,10 @@ fn diag_e003(line: u32, current_indent: u32, expected_indent: usize) -> Diagnost
     Diagnostic {
         range: Range {
             start: Position { line, character: 0 },
-            end:   Position { line, character: current_indent.max(1) },
+            end: Position {
+                line,
+                character: current_indent.max(1),
+            },
         },
         severity: Some(DiagnosticSeverity::ERROR),
         code: Some(NumberOrString::String("E003".into())),
@@ -42,7 +48,7 @@ fn diag_e005(line: u32) -> Diagnostic {
     Diagnostic {
         range: Range {
             start: Position { line, character: 0 },
-            end:   Position { line, character: 1 },
+            end: Position { line, character: 1 },
         },
         severity: Some(DiagnosticSeverity::ERROR),
         code: Some(NumberOrString::String("E005".into())),
@@ -78,8 +84,20 @@ fn build_quickfix_replaces_three_space_indent_with_two() {
         .expect("edit should target our uri");
     assert_eq!(edits.len(), 1);
     let e = &edits[0];
-    assert_eq!(e.range.start, Position { line: 1, character: 0 });
-    assert_eq!(e.range.end,   Position { line: 1, character: 3 });
+    assert_eq!(
+        e.range.start,
+        Position {
+            line: 1,
+            character: 0
+        }
+    );
+    assert_eq!(
+        e.range.end,
+        Position {
+            line: 1,
+            character: 3
+        }
+    );
     assert_eq!(e.new_text, "  ");
 }
 
@@ -113,8 +131,14 @@ fn build_quickfix_returns_none_for_e001() {
 ";
     let diag = Diagnostic {
         range: Range {
-            start: Position { line: 0, character: 0 },
-            end:   Position { line: 0, character: 2 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 2,
+            },
         },
         code: Some(NumberOrString::String("E001".into())),
         ..Diagnostic::default()
@@ -159,8 +183,20 @@ fn build_quickfix_e003_wrong_body_indent() {
         .expect("edit should target our uri");
     assert_eq!(edits.len(), 1);
     let e = &edits[0];
-    assert_eq!(e.range.start, Position { line: 1, character: 0 });
-    assert_eq!(e.range.end,   Position { line: 1, character: 3 });
+    assert_eq!(
+        e.range.start,
+        Position {
+            line: 1,
+            character: 0
+        }
+    );
+    assert_eq!(
+        e.range.end,
+        Position {
+            line: 1,
+            character: 3
+        }
+    );
     assert_eq!(e.new_text, "  ");
 }
 
@@ -186,8 +222,20 @@ fn build_quickfix_e005_missing_space_after_box() {
     assert_eq!(edits.len(), 1);
     let e = &edits[0];
     // Position right after the `]` at position 5
-    assert_eq!(e.range.start, Position { line: 0, character: 5 });
-    assert_eq!(e.range.end,   Position { line: 0, character: 5 });
+    assert_eq!(
+        e.range.start,
+        Position {
+            line: 0,
+            character: 5
+        }
+    );
+    assert_eq!(
+        e.range.end,
+        Position {
+            line: 0,
+            character: 5
+        }
+    );
     assert_eq!(e.new_text, " ");
 }
 

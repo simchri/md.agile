@@ -39,7 +39,6 @@ fn wrong_indentation_vs_orphan_distinction_1() {
 
 #[test]
 fn missing_space_behind_box_vs_wrong_body_indent() {
-
     let input = "\
 - [ ] ok, has space
 - [ ]MISSING space
