@@ -234,7 +234,7 @@ You can mark a task as cancelled with a `-`
 ```md
 - [-] this task is cancelled
 ```
-Sometimes your team may plan something and later decide, that it's not necessary after all. Marking tasks as cancelled makes things transparent (This was considered, but discarded).
+Sometimes your team may plan something and later decide, that it's not necessary after all. Marking tasks as cancelled makes things transparent ("This was part of the original plan, but discarded").
 
 By default you can also cancel subtasks that are required by properties, but this can be adjusted in the configuration.
 
