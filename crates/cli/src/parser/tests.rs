@@ -433,3 +433,23 @@ fn parse_keeps_indent_for_orphaned_indented_task() {
     assert_eq!(orphan.indent, 2);
     assert_eq!(orphan.title, "orphan indented");
 }
+
+#[test]
+fn parse_empty_box_style() {
+    let input = "\
+- [] empty box 
+";
+    let items = p(input);
+    let task = task(&items, 0);
+    assert_eq!(task.title, "empty box");
+}
+
+#[test]
+fn parse_invalid_box_style() {
+    let input = "\
+- [R] empty box 
+";
+    let items = p(input);
+    let task = task(&items, 0);
+    assert_eq!(task.title, "empty box");
+}

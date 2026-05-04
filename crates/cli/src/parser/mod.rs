@@ -347,7 +347,7 @@ fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, bool, bo
             Some(r) => {
                 let stripped_second_part = r.drop_n_chars(1).strip_prefix("]");
                 match stripped_second_part {
-                    Some(_) => {
+                    Some(r) => {
                         // Wrong char in box, but (largely) correct format otherwise - flag it but parse as normal
                         return Some((depth, indent, Status::Todo, r.to_string(), true, false));
                     }
