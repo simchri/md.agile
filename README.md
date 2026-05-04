@@ -1,4 +1,4 @@
-# md.agile
+# Md.Agile
 
 Plain-text, version-controlled task management for developers.
 Your tasks live forever in a simple text file, version-controlled directly alongside your code (ideally in the same repository) – not a web app!
