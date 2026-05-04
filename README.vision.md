@@ -211,7 +211,7 @@ Properties are added to tasks with a `#` followed by the property name. This mak
 ```
 As you type out a property marker, the language server will give you a hint - use the autofix feature of your text editor to quickly add the required subtasks.
 
-Subtasks that are required by a property are quoted `""`. If a property tag is followed by a single punctuation symbol (`:;,.` etc.), that symbol is ignored (it is not considered part of the property name, nor the task name).
+Subtasks that are required by a property are quoted `""`.
 
 Properties can also be added to subtasks! Note how `'#feature'` is quoted in the example above - the ticks prevent the tag from being interpreted as a property of the subtask. Otherwise you get the following:
 ```md
