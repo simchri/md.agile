@@ -137,8 +137,9 @@
 - [x] no empty boxes "[]"
 - [x] no boxes filled with anything else
 - [x] refactor: "ParsingIssues" to Partial Item, to avoid adding more and more fields here
-- [ ] Quickfix for [X] --> "[x]"
-- [ ] Quickfix for other invalid boxes --> "[ ]"
+- [x] Quickfix for [X] --> "[x]"
+- [x] Quickfix for other invalid boxes --> "[ ]"
+- [x] indication for when quickfix available
 
 
 ##  Properties and first Settings
