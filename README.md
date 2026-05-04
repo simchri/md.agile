@@ -3,7 +3,7 @@
 Plain-text, version-controlled task management for developers.
 Your tasks live forever in a simple text file, version-controlled directly alongside your code (ideally in the same repository) – not a web app!
 
-This project is >> under construction <<  - more features to come. (c.f. [README.vision.md](README.vision.md))
+> This project is >> under construction <<  - more features to come. (c.f. [README.vision.md](README.vision.md))
 
 **tasks.md:**
 

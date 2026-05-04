@@ -1,6 +1,6 @@
 # Md.Agile
 
-> This file states the project's vision from a user POV – nothing here is currently implemented
+> This file states the vision for the project, from a user's POV – many features described here are not yet implemented. For what's currently available, c.f. [README.md](README.md).
 
 Simple, collaborative task management using Markdown (plain text) and Git.
 
