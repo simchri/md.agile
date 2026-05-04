@@ -136,7 +136,7 @@
 ## Additional (Simple) Syntax & Validations
 - [x] no empty boxes "[]"
 - [x] no boxes filled with anything else
-- [ ] refactor: "ParsingIssues" to Partial Item, to avoid adding more and more fields here
+- [x] refactor: "ParsingIssues" to Partial Item, to avoid adding more and more fields here
 - [ ] Quickfix for [X] --> "[x]"
 - [ ] Quickfix for other invalid boxes --> "[ ]"
 
