@@ -436,6 +436,8 @@ You can assign tasks to specific people or groups with the assignment marker: `@
 ```
 The implementation can only be marked complete by Markus. The review may be checked by any QA person. mdagile checks this by comparing the current user's email, as provided in the git config, against the assigned users and groups. You can alternatively inject an identity explicitly via arguments or environment variables. Use this in pipelines, where the user's `.gitconfig` is not available.
 
+When a parent task has an assignment, all child tasks are considered assigned in the same way, unless a child task defines its own assignments - then only those apply.
+
 This feature requires that groups and users are first identified in the configuration.
 
 Consider this feature only "automation", not "access control". This is not secure in any way! The mechanism can easily be sidestepped! We assume that our colleagues use this responsibly and do not impersonate others. (However, you can always check in your git history if someone cheated). (c.f. MANIFESTO.md "Trust but Control")
