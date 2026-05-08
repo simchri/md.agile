@@ -134,7 +134,7 @@
 - [x] z-ordering: Last changed task is moved to front
 
 ## Additional (Simple) Syntax & Validations
-- [x] no empty boxes "[]"
+- [ ] no empty boxes "[]"
 - [x] no boxes filled with anything else
 - [x] refactor: "ParsingIssues" to Partial Item, to avoid adding more and more fields here
 - [x] Quickfix for [X] --> "[x]"
@@ -143,6 +143,10 @@
 
 
 ##  Properties and first Settings
+
+- [x] Create config module: parse property definitions from mdagile.toml
+  Adds `src/config/` with `Config::from_str` and `Config::load`. Reads `[Properties.<name>]`
+  sections using the `toml` crate; validates the file is well-formed TOML.
 
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments

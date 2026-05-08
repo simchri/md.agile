@@ -5,6 +5,7 @@
 
 pub mod checker;
 pub mod cli;
+pub mod config;
 pub mod formatter;
 pub mod lsp;
 pub mod parser;
