@@ -15,6 +15,7 @@ pub struct PropertyConfig {
 pub enum ConfigError {
     Io(std::io::Error),
     Parse(toml::de::Error),
+    ConflictingConfig { paths: [std::path::PathBuf; 2] },
 }
 
 impl std::fmt::Display for ConfigError {
@@ -22,6 +23,12 @@ impl std::fmt::Display for ConfigError {
         match self {
             ConfigError::Io(e) => write!(f, "could not read config file: {e}"),
             ConfigError::Parse(e) => write!(f, "invalid config: {e}"),
+            ConfigError::ConflictingConfig { paths } => write!(
+                f,
+                "conflicting config files '{}' and '{}': don't know which config to use",
+                paths[0].display(),
+                paths[1].display(),
+            ),
         }
     }
 }
@@ -58,14 +65,22 @@ impl Config {
     }
 
     pub fn load(root: &Path) -> Result<Self, ConfigError> {
-        for name in &["mdagile.toml", ".mdagile.toml"] {
-            let path = root.join(name);
-            if path.exists() {
-                let content = std::fs::read_to_string(&path)?;
-                return Config::from_str(&content).map_err(ConfigError::Parse);
+        let plain = root.join("mdagile.toml");
+        let dot = root.join(".mdagile.toml");
+        match (plain.exists(), dot.exists()) {
+            (true, true) => Err(ConfigError::ConflictingConfig {
+                paths: [plain, dot],
+            }),
+            (true, false) => {
+                let content = std::fs::read_to_string(&plain)?;
+                Config::from_str(&content).map_err(ConfigError::Parse)
             }
+            (false, true) => {
+                let content = std::fs::read_to_string(&dot)?;
+                Config::from_str(&content).map_err(ConfigError::Parse)
+            }
+            (false, false) => Ok(Config::default()),
         }
-        Ok(Config::default())
     }
 }
 

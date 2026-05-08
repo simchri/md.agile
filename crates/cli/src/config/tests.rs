@@ -66,11 +66,10 @@ fn dotfile_variant_is_loaded() {
 }
 
 #[test]
-fn mdagile_toml_takes_precedence_over_dotfile() {
+fn both_config_files_present_is_an_error() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
     std::fs::write(dir.path().join(".mdagile.toml"), "[Properties.bug]\n").unwrap();
-    let config = Config::load(dir.path()).unwrap();
-    assert!(config.properties.contains_key("feature"));
-    assert!(!config.properties.contains_key("bug"));
+    let err = Config::load(dir.path()).unwrap_err();
+    assert!(matches!(err, ConfigError::ConflictingConfig { .. }));
 }
