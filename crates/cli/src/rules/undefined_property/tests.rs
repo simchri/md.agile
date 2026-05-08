@@ -34,6 +34,15 @@ fn no_issues_when_no_properties_used() {
 }
 
 #[test]
+fn no_issues_when_properties_quoted() {
+    let input = "\
+- [ ] a plain task with no actual markers, but a quoted '#marker'
+";
+    let issues = undefined_property(&p(input), &Config::default());
+    assert!(issues.is_empty());
+}
+
+#[test]
 fn no_issues_when_property_is_defined() {
     let input = "\
 - [ ] a task with #feature marker
