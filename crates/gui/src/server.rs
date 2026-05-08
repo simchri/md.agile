@@ -74,6 +74,7 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
     use mdagile::parser::{FileItem, Status};
 
     let root = get_or_init_working_dir()?;
+    log::info!("scanning for tasks in {}", root.display());
     let items = parse_files(&find_task_files(&root));
 
     let mut in_progress = Vec::new();

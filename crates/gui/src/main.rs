@@ -28,7 +28,20 @@ fn init_logger() {
 const MAX_TASK_SLOTS: usize = 50;
 
 fn app() -> Element {
-    let mut tasks_resource = use_resource(|| async { server::get_tasks().await });
+    let mut tasks_resource = use_resource(|| async {
+        // BUG: Board empty
+        log::info!("get tasks from server");
+        let tasks = server::get_tasks().await;
+        let num_tasks = match &tasks {
+            Ok(t) => t.len(),
+            Err(e) => {
+                log::error!("error fetching tasks: {e}");
+                0
+            }
+        };
+        log::info!("got {} tasks from server", num_tasks);
+        tasks
+    });
 
     // One signal per visible task slot. Empty slots hold `None`. Each slot is
     // its own signal so that a change to one task does not invalidate the
