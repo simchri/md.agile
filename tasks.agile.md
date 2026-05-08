@@ -154,7 +154,7 @@
   - [ ] Detect undefined '#property' markers in tasks
     - [ ] basic detection and errors '#foo'
       - [x] agile check
-      - [ ] language server
+      - [x] language server
     - [ ] quickfix to add a respective toml entry 
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
     - [ ] Test with common typos: #Feature, #feat, etc.

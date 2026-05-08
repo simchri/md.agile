@@ -21,6 +21,23 @@ use tracing::info;
 
 use crate::{checker, config::Config, parser, rules::Issue};
 
+fn load_config_for_file(file_path: &std::path::Path) -> Config {
+    let mut dir = match file_path.parent() {
+        Some(p) => p,
+        None => return Config::default(),
+    };
+    loop {
+        let has_config = dir.join("mdagile.toml").exists() || dir.join(".mdagile.toml").exists();
+        if has_config {
+            return Config::load(dir).unwrap_or_default();
+        }
+        match dir.parent() {
+            Some(parent) => dir = parent,
+            None => return Config::default(),
+        }
+    }
+}
+
 struct Backend {
     client: Client,
     /// Latest text of every open document, keyed by URI.
@@ -36,8 +53,9 @@ impl Backend {
         let path = uri
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let config = load_config_for_file(&path);
         let items = parser::parse(text, path);
-        let diagnostics: Vec<Diagnostic> = checker::run(&items, &Config::default())
+        let diagnostics: Vec<Diagnostic> = checker::run(&items, &config)
             .into_iter()
             .map(issue_to_diagnostic)
             .collect();

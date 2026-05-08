@@ -419,3 +419,99 @@ fn lsp_code_action_available_anywhere_on_the_line() {
     drop(stdin);
     let _ = child.kill();
 }
+
+#[test]
+fn lsp_e008_not_reported_for_declared_property() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("mdagile.toml"), "[Properties.priority]\n").unwrap();
+
+    let file_path = dir.path().join("tasks.agile.md");
+    let uri = format!("file://{}", file_path.display());
+
+    let (mut child, mut reader) = start_lsp_server();
+    let mut stdin = child.stdin.take().unwrap();
+
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootUri":null,"capabilities":{}}}"#;
+    send_lsp_message(&mut stdin, init).unwrap();
+    let _init_response = read_lsp_response(&mut reader).unwrap();
+    send_lsp_message(
+        &mut stdin,
+        r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#,
+    )
+    .unwrap();
+
+    let did_open = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "textDocument/didOpen",
+        "params": {
+            "textDocument": {
+                "uri": uri,
+                "languageId": "markdown",
+                "version": 1,
+                "text": "- [ ] task #priority\n"
+            }
+        }
+    });
+    send_lsp_message(&mut stdin, &did_open.to_string()).unwrap();
+
+    let notification = read_notification(&mut reader, "textDocument/publishDiagnostics");
+    let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
+
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d["code"].as_str() == Some("E008")),
+        "expected no E008 for declared property '#priority', but got: {diagnostics:?}"
+    );
+
+    drop(stdin);
+    let _ = child.kill();
+}
+
+#[test]
+fn lsp_e008_reported_for_undeclared_property() {
+    let dir = tempfile::tempdir().unwrap();
+    // No mdagile.toml — all properties are undeclared.
+
+    let file_path = dir.path().join("tasks.agile.md");
+    let uri = format!("file://{}", file_path.display());
+
+    let (mut child, mut reader) = start_lsp_server();
+    let mut stdin = child.stdin.take().unwrap();
+
+    let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":1234,"rootUri":null,"capabilities":{}}}"#;
+    send_lsp_message(&mut stdin, init).unwrap();
+    let _init_response = read_lsp_response(&mut reader).unwrap();
+    send_lsp_message(
+        &mut stdin,
+        r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#,
+    )
+    .unwrap();
+
+    let did_open = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "textDocument/didOpen",
+        "params": {
+            "textDocument": {
+                "uri": uri,
+                "languageId": "markdown",
+                "version": 1,
+                "text": "- [ ] task #undeclared\n"
+            }
+        }
+    });
+    send_lsp_message(&mut stdin, &did_open.to_string()).unwrap();
+
+    let notification = read_notification(&mut reader, "textDocument/publishDiagnostics");
+    let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
+
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d["code"].as_str() == Some("E008")),
+        "expected E008 for undeclared property '#undeclared', but got: {diagnostics:?}"
+    );
+
+    drop(stdin);
+    let _ = child.kill();
+}
