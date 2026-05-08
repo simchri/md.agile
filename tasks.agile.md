@@ -157,17 +157,17 @@
       - [x] language server
     - [ ] quickfix to add a respective toml entry 
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
-    - [ ] Test with common typos: #Feature, #feat, etc.
+    - [ ] Test with common typos: '#Feature', '#feat', etc.
   - [ ] Detect undefined @user and @group assignments
     - [ ] Suggest close matches for misspelled names
-    - [ ] Handle OR connections: @markus or @josh
+    - [ ] Handle OR connections: '@markus' or '@josh'
   - [ ] Update error formatter for new error codes
 
 - [ ] Missing required subtasks
-  Detect when a task has a property (e.g. #feature) but lacks required subtasks
+  Detect when a task has a property (e.g. '#feature') but lacks required subtasks
   - [ ] Match quoted subtasks in tasks against property definitions from mdagile.toml
   - [ ] Handle multiple properties on same task
-  - [ ] Handle nested properties (e.g., #feature that includes #review)
+  - [ ] Handle nested properties (e.g., '#feature' that includes '#review')
   - [ ] Provide helpful error with list of missing subtasks
   - [ ] Tests: single property, multiple properties, nested properties
 
