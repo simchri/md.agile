@@ -4,6 +4,7 @@
 //! [`run`]. Subcommand-specific logic lives in [`subcommands`]; helpers shared
 //! across subcommands live in [`common`].
 
+use crate::config;
 use clap::{Parser, Subcommand};
 use std::path::Path;
 
@@ -119,6 +120,10 @@ pub enum TaskAction {
 /// binary needs to call.
 pub fn run() {
     let root = Path::new(".");
+    if let Err(e) = config::Config::load(root) {
+        eprintln!("agile: {e}");
+        std::process::exit(1);
+    }
     match Cli::parse().command {
         None => subcommands::default::run(root),
         Some(Command::List {
