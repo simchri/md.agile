@@ -19,7 +19,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tracing::info;
 
-use crate::{checker, parser, rules::Issue};
+use crate::{checker, config::Config, parser, rules::Issue};
 
 struct Backend {
     client: Client,
@@ -37,7 +37,7 @@ impl Backend {
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
         let items = parser::parse(text, path);
-        let diagnostics: Vec<Diagnostic> = checker::run(&items)
+        let diagnostics: Vec<Diagnostic> = checker::run(&items, &Config::default())
             .into_iter()
             .map(issue_to_diagnostic)
             .collect();

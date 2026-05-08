@@ -120,10 +120,13 @@ pub enum TaskAction {
 /// binary needs to call.
 pub fn run() {
     let root = Path::new(".");
-    if let Err(e) = config::Config::load(root) {
-        eprintln!("agile: {e}");
-        std::process::exit(1);
-    }
+    let config = match config::Config::load(root) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("agile: {e}");
+            std::process::exit(1);
+        }
+    };
     match Cli::parse().command {
         None => subcommands::default::run(root),
         Some(Command::List {
@@ -150,7 +153,7 @@ pub fn run() {
             subcommands::task::run_next(root);
         }
         Some(Command::Check) => {
-            subcommands::check::run(root);
+            subcommands::check::run(root, &config);
         }
     }
 }

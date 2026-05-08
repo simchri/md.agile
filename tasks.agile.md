@@ -150,8 +150,8 @@
 
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
-  - [ ] Read mdagile.toml config in checker; pass config to rules
-  - [ ] Detect undefined #property markers in tasks
+  - [x] Read mdagile.toml config in checker; pass config to rules
+  - [x] Detect undefined #property markers in tasks
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
     - [ ] Test with common typos: #Feature, #feat, etc.
   - [ ] Detect undefined @user and @group assignments

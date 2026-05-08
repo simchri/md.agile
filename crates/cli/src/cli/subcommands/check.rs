@@ -2,13 +2,14 @@
 
 use crate::checker;
 use crate::cli::common::{find_task_files, parse_files};
+use crate::config::Config;
 use crate::formatter;
 use std::path::Path;
 
 /// `agile check` entry point. Prints issues to stdout and exits 1 if any are found.
-pub fn run(root: &Path) {
+pub fn run(root: &Path, config: &Config) {
     let items = parse_files(&find_task_files(root));
-    let issues = checker::run(&items);
+    let issues = checker::run(&items, config);
     for issue in &issues {
         print!("{}", formatter::format_issue(issue));
     }

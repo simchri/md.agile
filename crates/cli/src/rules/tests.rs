@@ -28,7 +28,7 @@ fn wrong_indentation_vs_orphan_distinction_1() {
   - [ ] ORPHAN
 ";
 
-    let mut issues = check_all(&p(input));
+    let mut issues = check_all(&p(input), &crate::config::Config::default());
     issues.sort_by_key(|i| i.location.line);
 
     assert_eq!(issues[0].code, ErrorCode::WrongIndentation);
@@ -58,7 +58,7 @@ fn missing_space_behind_box_vs_wrong_body_indent() {
 WRONG INDENT tasks description
 ";
 
-    let mut issues = check_all(&p(input));
+    let mut issues = check_all(&p(input), &crate::config::Config::default());
     issues.sort_by_key(|i| i.location.line);
 
     assert_eq!(issues[0].code, ErrorCode::MissingSpaceAfterBox);

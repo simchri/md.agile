@@ -4,6 +4,7 @@
 //! `&[FileItem]` and concatenates the results into a single `Vec<Issue>`.
 //! New rules are added by appending to [`run`].
 
+use crate::config::Config;
 use crate::parser::FileItem;
 use crate::rules::{self, Issue};
 
@@ -11,8 +12,8 @@ use crate::rules::{self, Issue};
 ///
 /// Issues are returned in the order their producing rule emits them. An empty
 /// result means the input is clean.
-pub fn run(items: &[FileItem]) -> Vec<Issue> {
-    rules::check_all(items)
+pub fn run(items: &[FileItem], config: &Config) -> Vec<Issue> {
+    rules::check_all(items, config)
 }
 
 #[cfg(test)]
