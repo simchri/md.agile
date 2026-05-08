@@ -38,17 +38,6 @@ pub struct TaskView {
     pub rank: usize,
 }
 
-/// Tasks bundle delivered to the GUI on every poll. The frontend renders a
-/// post-it for each entry; the bucket determines where it sits on the canvas:
-/// `in_progress` floats in the middle along the diagonal, `backlog` lives in
-/// the top row, `done` in the bottom row.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct TaskList {
-    pub in_progress: Vec<TaskView>,
-    pub backlog: Vec<TaskView>,
-    pub done: Vec<TaskView>,
-}
-
 #[cfg(feature = "server")]
 const BACKLOG_LIMIT: usize = 10;
 #[cfg(feature = "server")]

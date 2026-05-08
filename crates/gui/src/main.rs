@@ -171,24 +171,6 @@ fn app() -> Element {
     }
 }
 
-/// Horizontal step (in px) between two adjacent backlog post-its. The card
-/// itself is 110px wide; the extra 10px is the visual gap between cards.
-const BACKLOG_OFFSET_PX: usize = 120;
-/// The first two slots from the left are reserved for the top-of-backlog
-/// post-it, so the rest of the backlog starts two widths in.
-const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
-
-/// Step (px) and starting offset (px) shared with the backlog row but rendered
-/// at the bottom of the canvas. The 12px left inset matches the backlog so
-/// the two rows align visually.
-const DONE_LEFT_PX: usize = 12;
-
-enum TaskCardState {
-    Progress,
-    Backlog,
-    Done,
-}
-
 #[component]
 fn TaskCard(
     task: TaskView,
@@ -210,7 +192,7 @@ fn TaskCard(
     let mut card_style = "task-card".to_string();
     let mut title_style = "task-card-title".to_string();
     let markers_style = "task-card-markers".to_string();
-    let mut position_style = "".to_string();
+    let position_style;
 
     let CARD_WIDTH_PX = 110;
     let CARD_GAP_PX = 8;
