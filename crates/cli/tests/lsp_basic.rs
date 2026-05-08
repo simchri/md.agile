@@ -515,3 +515,71 @@ fn lsp_e008_reported_for_undeclared_property() {
     drop(stdin);
     let _ = child.kill();
 }
+
+#[test]
+fn lsp_uses_root_uri_for_config_not_file_walk() {
+    // mdagile.toml lives in the project root (rootUri dir).
+    // The .agile.md file lives in a completely separate temp dir.
+    // Walk-up from the file dir will never reach the project root,
+    // so only a rootUri-aware server will avoid a false E008.
+    let project_root = tempfile::tempdir().unwrap();
+    std::fs::write(
+        project_root.path().join("mdagile.toml"),
+        "[Properties.priority]\n",
+    )
+    .unwrap();
+
+    let file_dir = tempfile::tempdir().unwrap();
+    let file_path = file_dir.path().join("tasks.agile.md");
+    let file_uri = format!("file://{}", file_path.display());
+    let root_uri = format!("file://{}", project_root.path().display());
+
+    let (mut child, mut reader) = start_lsp_server();
+    let mut stdin = child.stdin.take().unwrap();
+
+    // Initialize with rootUri pointing at the project root.
+    let init = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "processId": 1234,
+            "rootUri": root_uri,
+            "capabilities": {}
+        }
+    });
+    send_lsp_message(&mut stdin, &init.to_string()).unwrap();
+    let _init_response = read_lsp_response(&mut reader).unwrap();
+    send_lsp_message(
+        &mut stdin,
+        r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#,
+    )
+    .unwrap();
+
+    let did_open = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "textDocument/didOpen",
+        "params": {
+            "textDocument": {
+                "uri": file_uri,
+                "languageId": "markdown",
+                "version": 1,
+                "text": "- [ ] task #priority\n"
+            }
+        }
+    });
+    send_lsp_message(&mut stdin, &did_open.to_string()).unwrap();
+
+    let notification = read_notification(&mut reader, "textDocument/publishDiagnostics");
+    let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
+
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d["code"].as_str() == Some("E008")),
+        "expected no E008: server should use rootUri config, got: {diagnostics:?}"
+    );
+
+    drop(stdin);
+    let _ = child.kill();
+}
