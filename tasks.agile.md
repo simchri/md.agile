@@ -134,7 +134,7 @@
 - [x] z-ordering: Last changed task is moved to front
 
 ## Additional (Simple) Syntax & Validations
-- [ ] no empty boxes "[]"
+- [x] no empty boxes "[]"
 - [x] no boxes filled with anything else
 - [x] refactor: "ParsingIssues" to Partial Item, to avoid adding more and more fields here
 - [x] Quickfix for [X] --> "[x]"
@@ -152,6 +152,10 @@
   Detect undefined #property markers and @user/@group assignments
   - [x] Read mdagile.toml config in checker; pass config to rules
   - [x] Detect undefined #property markers in tasks
+    - [ ] basic detection and errors
+      - [x] agile check
+      - [ ] language server
+    - [ ] quickfix to add a respective toml entry
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
     - [ ] Test with common typos: #Feature, #feat, etc.
   - [ ] Detect undefined @user and @group assignments
