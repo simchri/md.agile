@@ -139,6 +139,7 @@ run_overtake() {
 # ---------------------------------------------------------------------------
 # Many-cards mode
 # ---------------------------------------------------------------------------
+# BUG: unclear if bug in this part of the script, or code - but this behaves very strangely, compared to the simple scenario (which looks great!)
 
 # write_many_phase <traveler_done>
 #   traveler_done: integer 0..10 (subtasks done out of 10), or "x" (parent done).
