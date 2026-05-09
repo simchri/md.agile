@@ -40,7 +40,7 @@ const K_REPEL: f64 = 16.0;
 // Centering spring: pulls each card's perpendicular offset back toward 0.
 const K_RESTORE: f64 = 0.03;
 // Velocity retention per tick (lower = snappier settle, higher = more drift).
-const DAMPING: f64 = 0.60;
+const DAMPING: f64 = 0.80;
 // Boundary springs: activate when a card edge is within this many px of the screen edge.
 const BOUNDARY_ZONE_PX: f64 = 80.0;
 // Velocity impulse per pixel of penetration into the boundary zone.
