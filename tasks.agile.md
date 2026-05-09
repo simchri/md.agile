@@ -174,14 +174,14 @@
 - [x] GUI: don't update (get tasks) while a task is maximized
 
 ## GUI 1.0
-- [ ] test case / script:
-  - [ ] launches a gui instance via dx pointing to a fixture directory
-  - [ ] simulates tasks with subtasks being created (backlog)
-  - [ ] lorem ipsum text in tasks
-  - [ ] simulates tasks being marked done, so that they continuously progress over the board
-  - [ ] multiple tasks are in progress at the same time
-  - [ ] at least one task "overtakes" other tasks
-  - [ ] plays the whole thing on repeat
+- [x] test case / script:
+  - [x] launches a gui instance via dx pointing to a fixture directory
+  - [x] simulates tasks with subtasks being created (backlog)
+  - [x] lorem ipsum text in tasks
+  - [x] simulates tasks being marked done, so that they continuously progress over the board
+  - [x] multiple tasks are in progress at the same time
+  - [x] at least one task "overtakes" other tasks
+  - [x] plays the whole thing on repeat
 - [ ] Repel/spread: overlapping in-progress cards push each other apart
   Cards that would overlap negotiate their position along (or perpendicular to)
   the diagonal so none fully obscure another. Progress still determines the
