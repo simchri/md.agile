@@ -46,23 +46,11 @@ const BOUNDARY_ZONE_PX: f64 = 80.0;
 // Velocity impulse per pixel of penetration into the boundary zone.
 const K_BOUNDARY: f64 = 0.08;
 
-/// Returns `(viewport_width_px, viewport_height_px)`.
-/// On WASM reads from the DOM; on other platforms returns a safe fallback.
-#[cfg(target_arch = "wasm32")]
-fn viewport_size() -> (f64, f64) {
-    web_sys::window()
-        .and_then(|w| {
-            let vw = w.inner_width().ok()?.as_f64()?;
-            let vh = w.inner_height().ok()?.as_f64()?;
-            Some((vw, vh))
-        })
-        .unwrap_or((1440.0, 900.0))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn viewport_size() -> (f64, f64) {
-    (1440.0, 900.0)
-}
+// Reference viewport dimensions used by the boundary-spring calculations.
+// These match the constants embedded in diagonal_style()'s CSS formula, so
+// card pixel positions computed here are consistent with where the CSS places them.
+const REF_VW: f64 = 1440.0;
+const REF_VH: f64 = 900.0;
 
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
@@ -238,7 +226,7 @@ fn app() -> Element {
 
                     // Integrate: repulsion + boundary springs + centering spring + damping.
                     // Signal::set takes &mut self, so copy the Signal (it is Copy) first.
-                    let (vw, vh) = viewport_size();
+                    let (vw, vh) = (REF_VW, REF_VH);
                     for &(i, p, offset) in &active {
                         let mut v = *perp_vels[i].peek();
 
