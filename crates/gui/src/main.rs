@@ -38,7 +38,7 @@ const COLLISION_THRESHOLD: f64 = 0.30;
 // Equilibrium separation ≈ 2 * K_REPEL * COLLISION_THRESHOLD / K_RESTORE.
 const K_REPEL: f64 = 16.0;
 // Centering spring: pulls each card's perpendicular offset back toward 0.
-const K_RESTORE: f64 = 0.03;
+const K_RESTORE: f64 = 0.06;
 // Velocity retention per tick (lower = snappier settle, higher = more drift).
 const DAMPING: f64 = 0.80;
 // Boundary springs: activate when a card edge is within this many px of the screen edge.
