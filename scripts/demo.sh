@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Demo script: drives tasks across the md.agile GUI board to demonstrate
-# the repel/spread feature need.
-#
-# Scenario highlights:
-#   - Multiple tasks in progress simultaneously
-#   - Phase 5: Gamma and Delta converge to the same position (0.45) — COLLISION
-#   - Phase 6: Delta overtakes Gamma — OVERTAKE
+# Demo script: drives tasks across the md.agile GUI board.
 #
 # Usage:
-#   ./scripts/demo.sh
+#   ./scripts/demo.sh [mode]
+#
+# Modes:
+#   overtake  (default) — few cards, shows collision and overtake
+#   many                — 40 static in-progress cards + 10 traversers that
+#                         move through the crowded board from backlog to done
 #
 # Optional env vars:
 #   MDAGILE_DEMO_DELAY   seconds per phase (default: 4)
 set -euo pipefail
 
+MODE="${1:-overtake}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 GUI_DIR="$REPO_ROOT/crates/gui"
@@ -30,11 +30,14 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "[demo] Fixture: $FIXTURE_DIR"
+echo "[demo] Mode: $MODE | Fixture: $FIXTURE_DIR"
 touch "$FIXTURE_DIR/mdagile.toml"
 
+# ---------------------------------------------------------------------------
+# Shared helper
+# ---------------------------------------------------------------------------
+
 # task <parent_done 0|1> <title> <body> <total_subtasks> <done_subtasks>
-# Writes one task block to stdout.
 task() {
     local pd="$1" title="$2" body="$3" total="$4" done="$5"
     local ps="[ ]"
@@ -48,6 +51,10 @@ task() {
     done
     printf "\n"
 }
+
+# ---------------------------------------------------------------------------
+# Overtake mode
+# ---------------------------------------------------------------------------
 
 # write_phase <a_pd> <a_d>  <b_pd> <b_d>  <g_pd> <g_d>  <d_pd> <d_d> <d_show>  <e_pd> <e_d> <e_show>
 #
@@ -71,10 +78,173 @@ write_phase() {
     } > "$TASKS_FILE"
 }
 
-# Start GUI server
+run_overtake() {
+    # Progress legend for each phase (progress = subtasks_done/total * 0.9):
+    #
+    #  Phase  Alpha  Beta   Gamma  Delta  Epsilon  Notes
+    #    1    0.00   0.00   0.00   ---    ---      All backlog
+    #    2    0.30   0.18   0.00   ---    ---      Alpha+Beta on diagonal
+    #    3    0.60   0.36   0.15   0.00   ---      Gamma joins; Delta enters backlog
+    #    4    DONE   0.54   0.30   0.225  ---      Alpha done; Delta starts (behind Gamma)
+    #    5    DONE   0.72   0.45   0.45   0.00     COLLISION: Gamma=Delta=0.45; Epsilon backlog
+    #    6    DONE   DONE   0.60   0.675  0.45     OVERTAKE: Delta(0.675) passes Gamma(0.60)
+    #    7    DONE   DONE   0.75   DONE   DONE     Delta+Epsilon done; Gamma moves on
+    #    8    DONE   DONE   0.90   DONE   DONE     Gamma: all subtasks done, parent unticked
+    #    9    DONE   DONE   DONE   DONE   DONE     All complete — loop resets
+
+    local LOOP=0
+    while true; do
+        LOOP=$((LOOP + 1))
+        printf "[demo] ─── Loop %-3d ──────────────────────────────────────────\n" "$LOOP"
+
+        printf "[demo]  1/9  All tasks in backlog\n"
+        write_phase  0 0  0 0  0 0  0 0 0  0 0 0
+        sleep "$STEP_SECS"
+
+        printf "[demo]  2/9  Alpha(0.30) + Beta(0.18) enter diagonal\n"
+        write_phase  0 1  0 1  0 0  0 0 0  0 0 0
+        sleep "$STEP_SECS"
+
+        printf "[demo]  3/9  Gamma(0.15) joins; Delta enters backlog\n"
+        write_phase  0 2  0 2  0 1  0 0 1  0 0 0
+        sleep "$STEP_SECS"
+
+        printf "[demo]  4/9  Alpha done; Delta(0.225) starts — behind Gamma(0.30)\n"
+        write_phase  1 3  0 3  0 2  0 1 1  0 0 0
+        sleep "$STEP_SECS"
+
+        printf "[demo]  5/9  *** COLLISION: Gamma=0.45 meets Delta=0.45; Epsilon enters backlog\n"
+        write_phase  1 3  0 4  0 3  0 2 1  0 0 1
+        sleep "$STEP_SECS"
+
+        printf "[demo]  6/9  *** OVERTAKE: Delta(0.675) passes Gamma(0.60); Epsilon(0.45) on board\n"
+        write_phase  1 3  1 5  0 4  0 3 1  0 1 1
+        sleep "$STEP_SECS"
+
+        printf "[demo]  7/9  Delta + Epsilon done; Gamma(0.75) still moving\n"
+        write_phase  1 3  1 5  0 5  1 4 1  1 2 1
+        sleep "$STEP_SECS"
+
+        printf "[demo]  8/9  Gamma(0.90) — all subtasks done, parent not yet ticked\n"
+        write_phase  1 3  1 5  0 6  1 4 1  1 2 1
+        sleep "$STEP_SECS"
+
+        printf "[demo]  9/9  All done — resetting in 3s\n"
+        write_phase  1 3  1 5  1 6  1 4 1  1 2 1
+        sleep 3
+        echo ""
+    done
+}
+
+# ---------------------------------------------------------------------------
+# Many-cards mode
+# ---------------------------------------------------------------------------
+
+# write_many_phase <traveler_done>
+#   traveler_done: integer 0..10 (subtasks done out of 10), or "x" (parent done).
+#
+# Writes:
+#   30 background in-progress cards — clustered mostly at 50%, with smaller
+#     groups at 10%, 20%, 60%, 80% (subtasks done out of 9):
+#   10 Traveler cards — all start in backlog, then march through the board
+#     (10 subtasks each; 1 subtask per phase → progress 0.09 per phase step)
+write_many_phase() {
+    local tdone="$1"
+    {
+        # 30 cards: 4 at 0.10, 4 at 0.20, 14 at 0.50, 4 at 0.60, 4 at 0.80
+        # (level = subtasks done out of 9; progress = level/9 * 0.9)
+        local LEVELS="1 1 1 1  2 2 2 2  5 5 5 5 5 5 5 5 5 5 5 5 5 5  6 6 6 6  8 8 8 8"
+        local n=1
+        local level
+        for level in $LEVELS; do
+            local body
+            case "$((n % 5))" in
+                1) body="Lorem ipsum dolor sit amet, consectetur adipiscing elit." ;;
+                2) body="Ut enim ad minim veniam, quis nostrud exercitation laboris." ;;
+                3) body="Duis aute irure dolor in reprehenderit in voluptate esse." ;;
+                4) body="Excepteur sint occaecat cupidatat non proident culpa." ;;
+                0) body="Nemo enim ipsam voluptatem quia voluptas sit aspernatur." ;;
+            esac
+            printf -- "- [ ] Card%s\n  %s\n" "$n" "$body"
+            local s
+            for s in $(seq 1 9); do
+                if [[ "$s" -le "$level" ]]; then
+                    printf "  - [x] Card%s step %s\n" "$n" "$s"
+                else
+                    printf "  - [ ] Card%s step %s\n" "$n" "$s"
+                fi
+            done
+            printf "\n"
+            n=$((n + 1))
+        done
+
+        local t
+        for t in $(seq 1 10); do
+            if [[ "$tdone" == "x" ]]; then
+                printf -- "- [x] Traveler%s\n  Traveler %s crossing the crowded board.\n" "$t" "$t"
+                local s
+                for s in $(seq 1 10); do
+                    printf "  - [x] Traveler%s step %s\n" "$t" "$s"
+                done
+            else
+                printf -- "- [ ] Traveler%s\n  Traveler %s crossing the crowded board.\n" "$t" "$t"
+                local s
+                for s in $(seq 1 10); do
+                    if [[ "$s" -le "$tdone" ]]; then
+                        printf "  - [x] Traveler%s step %s\n" "$t" "$s"
+                    else
+                        printf "  - [ ] Traveler%s step %s\n" "$t" "$s"
+                    fi
+                done
+            fi
+            printf "\n"
+        done
+    } > "$TASKS_FILE"
+}
+
+run_many() {
+    # Progress legend:
+    #   Background cards: 30 static cards — 4 at 0.10, 4 at 0.20, 14 at 0.50,
+    #                     4 at 0.60, 4 at 0.80
+    #   Travelers (10 cards, 10 subtasks each):
+    #     Phase  1: 0/10 done → backlog
+    #     Phase  2: 1/10 done → progress 0.09
+    #     Phase  3: 2/10 done → progress 0.18
+    #     ...
+    #     Phase 11: 10/10 done → progress 0.90
+    #     Phase 12: parent [x] → done strip
+    local LOOP=0
+    while true; do
+        LOOP=$((LOOP + 1))
+        printf "[demo/many] ─── Loop %-3d ─────────────────────────────────────\n" "$LOOP"
+
+        printf "[demo/many]   1/12  40 cards in progress; 10 travelers in backlog\n"
+        write_many_phase 0
+        sleep "$STEP_SECS"
+
+        local step
+        for step in $(seq 1 10); do
+            local phase=$((step + 1))
+            printf "[demo/many]  %2d/12  Travelers: %d/10 subtasks done\n" "$phase" "$step"
+            write_many_phase "$step"
+            sleep "$STEP_SECS"
+        done
+
+        printf "[demo/many]  12/12  Travelers done — resetting in 3s\n"
+        write_many_phase "x"
+        sleep "$STEP_SECS"
+        sleep 3
+        echo ""
+    done
+}
+
+# ---------------------------------------------------------------------------
+# Server startup
+# ---------------------------------------------------------------------------
+
 echo "[demo] Building and starting dx serve (log: $DX_LOG)"
 echo "[demo] First build may take ~60s..."
-(cd "$GUI_DIR" && MDAGILE_WORKDIR="$FIXTURE_DIR" dx serve >"$DX_LOG" 2>&1) &
+(cd "$GUI_DIR" && MDAGILE_WORKDIR="$FIXTURE_DIR" dx serve --hot-patch >"$DX_LOG" 2>&1) &
 
 echo "[demo] Waiting for server on :8080 ..."
 WAIT=0
@@ -93,61 +263,19 @@ set -e
 
 echo ""
 echo "[demo] Server ready — open http://localhost:8080"
-echo "[demo] Starting demo loop (${STEP_SECS}s per phase, Ctrl-C to stop)"
+echo "[demo] Starting '$MODE' loop (${STEP_SECS}s per phase, Ctrl-C to stop)"
 echo ""
 
-# Progress legend for each phase (progress = subtasks_done/total * 0.9):
-#
-#  Phase  Alpha  Beta   Gamma  Delta  Epsilon  Notes
-#    1    0.00   0.00   0.00   ---    ---      All backlog
-#    2    0.30   0.18   0.00   ---    ---      Alpha+Beta on diagonal
-#    3    0.60   0.36   0.15   0.00   ---      Gamma joins; Delta enters backlog
-#    4    DONE   0.54   0.30   0.225  ---      Alpha done; Delta starts (behind Gamma)
-#    5    DONE   0.72   0.45   0.45   0.00     COLLISION: Gamma=Delta=0.45; Epsilon backlog
-#    6    DONE   DONE   0.60   0.675  0.45     OVERTAKE: Delta(0.675) passes Gamma(0.60)
-#    7    DONE   DONE   0.75   DONE   DONE     Delta+Epsilon done; Gamma moves on
-#    8    DONE   DONE   0.90   DONE   DONE     Gamma: all subtasks done, parent unticked
-#    9    DONE   DONE   DONE   DONE   DONE     All complete — loop resets
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
 
-LOOP=0
-while true; do
-    LOOP=$((LOOP + 1))
-    printf "[demo] ─── Loop %-3d ──────────────────────────────────────────\n" "$LOOP"
-
-    printf "[demo]  1/9  All tasks in backlog\n"
-    write_phase  0 0  0 0  0 0  0 0 0  0 0 0
-    sleep "$STEP_SECS"
-
-    printf "[demo]  2/9  Alpha(0.30) + Beta(0.18) enter diagonal\n"
-    write_phase  0 1  0 1  0 0  0 0 0  0 0 0
-    sleep "$STEP_SECS"
-
-    printf "[demo]  3/9  Gamma(0.15) joins; Delta enters backlog\n"
-    write_phase  0 2  0 2  0 1  0 0 1  0 0 0
-    sleep "$STEP_SECS"
-
-    printf "[demo]  4/9  Alpha done; Delta(0.225) starts — behind Gamma(0.30)\n"
-    write_phase  1 3  0 3  0 2  0 1 1  0 0 0
-    sleep "$STEP_SECS"
-
-    printf "[demo]  5/9  *** COLLISION: Gamma=0.45 meets Delta=0.45; Epsilon enters backlog\n"
-    write_phase  1 3  0 4  0 3  0 2 1  0 0 1
-    sleep "$STEP_SECS"
-
-    printf "[demo]  6/9  *** OVERTAKE: Delta(0.675) passes Gamma(0.60); Epsilon(0.45) on board\n"
-    write_phase  1 3  1 5  0 4  0 3 1  0 1 1
-    sleep "$STEP_SECS"
-
-    printf "[demo]  7/9  Delta + Epsilon done; Gamma(0.75) still moving\n"
-    write_phase  1 3  1 5  0 5  1 4 1  1 2 1
-    sleep "$STEP_SECS"
-
-    printf "[demo]  8/9  Gamma(0.90) — all subtasks done, parent not yet ticked\n"
-    write_phase  1 3  1 5  0 6  1 4 1  1 2 1
-    sleep "$STEP_SECS"
-
-    printf "[demo]  9/9  All done — resetting in 3s\n"
-    write_phase  1 3  1 5  1 6  1 4 1  1 2 1
-    sleep 3
-    echo ""
-done
+case "$MODE" in
+    overtake) run_overtake ;;
+    many)     run_many ;;
+    *)
+        echo "[demo] Unknown mode: $MODE"
+        echo "[demo] Usage: $0 [overtake|many]"
+        exit 1
+        ;;
+esac
