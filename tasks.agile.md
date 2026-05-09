@@ -148,6 +148,10 @@
   Adds `src/config/` with `Config::from_str` and `Config::load`. Reads `[Properties.<name>]`
   sections using the `toml` crate; validates the file is well-formed TOML.
 
+- [x] BUG: board broken
+- [x] BUG: language server not found by nvim (some config stuff?) 
+  --> cany needed update. Since we added the tty flag as default in devenv, cany needs to do --no-tty
+
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
   - [x] Read mdagile.toml config in checker; pass config to rules
