@@ -29,17 +29,14 @@ const MAX_TASK_SLOTS: usize = 50;
 
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
-        // BUG: Board empty
-        log::info!("get tasks from server");
         let tasks = server::get_tasks().await;
-        let num_tasks = match &tasks {
+        let _num_tasks = match &tasks {
             Ok(t) => t.len(),
             Err(e) => {
                 log::error!("error fetching tasks: {e}");
                 0
             }
         };
-        log::info!("got {} tasks from server", num_tasks);
         tasks
     });
 
