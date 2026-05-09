@@ -148,7 +148,7 @@ run_overtake() {
 #   30 background in-progress cards — clustered mostly at 50%, with smaller
 #     groups at 10%, 20%, 60%, 80% (subtasks done out of 9):
 #   10 Traveler cards — all start in backlog, then march through the board
-#     (10 subtasks each; 1 subtask per phase → progress 0.09 per phase step)
+#     (4 subtasks each; 1 subtask per phase → progress 0.225 per phase step)
 write_many_phase() {
     local tdone="$1"
     {
@@ -184,13 +184,13 @@ write_many_phase() {
             if [[ "$tdone" == "x" ]]; then
                 printf -- "- [x] Traveler%s\n  Traveler %s crossing the crowded board.\n" "$t" "$t"
                 local s
-                for s in $(seq 1 10); do
+                for s in $(seq 1 4); do
                     printf "  - [x] Traveler%s step %s\n" "$t" "$s"
                 done
             else
                 printf -- "- [ ] Traveler%s\n  Traveler %s crossing the crowded board.\n" "$t" "$t"
                 local s
-                for s in $(seq 1 10); do
+                for s in $(seq 1 4); do
                     if [[ "$s" -le "$tdone" ]]; then
                         printf "  - [x] Traveler%s step %s\n" "$t" "$s"
                     else
@@ -207,31 +207,31 @@ run_many() {
     # Progress legend:
     #   Background cards: 30 static cards — 4 at 0.10, 4 at 0.20, 14 at 0.50,
     #                     4 at 0.60, 4 at 0.80
-    #   Travelers (10 cards, 10 subtasks each):
-    #     Phase  1: 0/10 done → backlog
-    #     Phase  2: 1/10 done → progress 0.09
-    #     Phase  3: 2/10 done → progress 0.18
-    #     ...
-    #     Phase 11: 10/10 done → progress 0.90
-    #     Phase 12: parent [x] → done strip
+    #   Travelers (10 cards, 4 subtasks each):
+    #     Phase 1: 0/4 done → backlog
+    #     Phase 2: 1/4 done → progress 0.225
+    #     Phase 3: 2/4 done → progress 0.45
+    #     Phase 4: 3/4 done → progress 0.675
+    #     Phase 5: 4/4 done → progress 0.90
+    #     Phase 6: parent [x] → done strip
     local LOOP=0
     while true; do
         LOOP=$((LOOP + 1))
         printf "[demo/many] ─── Loop %-3d ─────────────────────────────────────\n" "$LOOP"
 
-        printf "[demo/many]   1/12  40 cards in progress; 10 travelers in backlog\n"
+        printf "[demo/many]  1/6  30 cards in progress; 10 travelers in backlog\n"
         write_many_phase 0
         sleep "$STEP_SECS"
 
         local step
-        for step in $(seq 1 10); do
+        for step in $(seq 1 4); do
             local phase=$((step + 1))
-            printf "[demo/many]  %2d/12  Travelers: %d/10 subtasks done\n" "$phase" "$step"
+            printf "[demo/many]  %d/6  Travelers: %d/4 subtasks done\n" "$phase" "$step"
             write_many_phase "$step"
             sleep "$STEP_SECS"
         done
 
-        printf "[demo/many]  12/12  Travelers done — resetting in 3s\n"
+        printf "[demo/many]  6/6  Travelers done — resetting in 3s\n"
         write_many_phase "x"
         sleep "$STEP_SECS"
         sleep 3
