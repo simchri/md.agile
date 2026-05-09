@@ -1,0 +1,176 @@
+use super::*;
+use crate::server::{TaskStatus, TaskView};
+
+fn todo_task(title: &str, children: Vec<TaskView>) -> TaskView {
+    TaskView {
+        status: TaskStatus::Todo,
+        title: title.to_string(),
+        markers: vec![],
+        body: vec![],
+        children,
+        rank: 0,
+    }
+}
+
+fn done_task(title: &str) -> TaskView {
+    TaskView {
+        status: TaskStatus::Done,
+        title: title.to_string(),
+        markers: vec![],
+        body: vec![],
+        children: vec![],
+        rank: 0,
+    }
+}
+
+fn cancelled_task(title: &str) -> TaskView {
+    TaskView {
+        status: TaskStatus::Cancelled,
+        title: title.to_string(),
+        markers: vec![],
+        body: vec![],
+        children: vec![],
+        rank: 0,
+    }
+}
+
+// --- task_progress ---
+
+#[test]
+fn progress_done_parent_is_1() {
+    let task = TaskView {
+        status: TaskStatus::Done,
+        ..todo_task("t", vec![])
+    };
+    assert_eq!(task_progress(&task), 1.0);
+}
+
+#[test]
+fn progress_cancelled_parent_is_1() {
+    let task = TaskView {
+        status: TaskStatus::Cancelled,
+        ..todo_task("t", vec![])
+    };
+    assert_eq!(task_progress(&task), 1.0);
+}
+
+#[test]
+fn progress_todo_no_children_is_0() {
+    let task = todo_task("t", vec![]);
+    assert_eq!(task_progress(&task), 0.0);
+}
+
+#[test]
+fn progress_all_subtasks_done_parent_todo_is_0_9() {
+    let task = todo_task("t", vec![done_task("a"), done_task("b")]);
+    assert!((task_progress(&task) - 0.9).abs() < 1e-9);
+}
+
+#[test]
+fn progress_half_subtasks_done() {
+    let task = todo_task("t", vec![done_task("a"), todo_task("b", vec![])]);
+    // 0.9 * (1/2) = 0.45
+    assert!((task_progress(&task) - 0.45).abs() < 1e-9);
+}
+
+#[test]
+fn progress_cancelled_subtask_counts_as_done() {
+    let task = todo_task("t", vec![cancelled_task("a"), todo_task("b", vec![])]);
+    assert!((task_progress(&task) - 0.45).abs() < 1e-9);
+}
+
+// --- count_subtasks ---
+
+#[test]
+fn count_no_children() {
+    assert_eq!(count_subtasks(&todo_task("t", vec![])), (0, 0));
+}
+
+#[test]
+fn count_flat_children() {
+    let task = todo_task("t", vec![done_task("a"), todo_task("b", vec![])]);
+    assert_eq!(count_subtasks(&task), (1, 2));
+}
+
+#[test]
+fn count_nested_children_recursive() {
+    // t
+    //   a [done]
+    //   b [todo]
+    //     c [done]
+    let task = todo_task(
+        "t",
+        vec![done_task("a"), todo_task("b", vec![done_task("c")])],
+    );
+    // total = a + b + c = 3, done = a + c = 2
+    assert_eq!(count_subtasks(&task), (2, 3));
+}
+
+// --- diagonal_style ---
+
+#[test]
+fn diagonal_at_zero_anchors_top_left() {
+    let s = diagonal_style(0.0);
+    assert!(s.contains("0.000"), "expected 0.000 in: {s}");
+}
+
+#[test]
+fn diagonal_at_one_anchors_bottom_right() {
+    let s = diagonal_style(1.0);
+    assert!(s.contains("1.000"), "expected 1.000 in: {s}");
+}
+
+#[test]
+fn diagonal_clamps_below_zero() {
+    let s = diagonal_style(-5.0);
+    assert!(s.contains("0.000"), "expected clamp to 0 in: {s}");
+}
+
+#[test]
+fn diagonal_clamps_above_one() {
+    let s = diagonal_style(2.0);
+    assert!(s.contains("1.000"), "expected clamp to 1 in: {s}");
+}
+
+// --- has_started ---
+
+#[test]
+fn has_started_no_children_false() {
+    assert!(!has_started(&todo_task("t", vec![])));
+}
+
+#[test]
+fn has_started_only_todo_children_false() {
+    let task = todo_task("t", vec![todo_task("a", vec![]), todo_task("b", vec![])]);
+    assert!(!has_started(&task));
+}
+
+#[test]
+fn has_started_one_done_child_true() {
+    let task = todo_task("t", vec![todo_task("a", vec![]), done_task("b")]);
+    assert!(has_started(&task));
+}
+
+#[test]
+fn has_started_cancelled_child_counts() {
+    let task = todo_task("t", vec![cancelled_task("a")]);
+    assert!(has_started(&task));
+}
+
+// --- status_box ---
+
+#[test]
+fn status_box_values() {
+    assert_eq!(status_box(&TaskStatus::Todo), "[ ]");
+    assert_eq!(status_box(&TaskStatus::Done), "[x]");
+    assert_eq!(status_box(&TaskStatus::Cancelled), "[-]");
+}
+
+// --- status_class ---
+
+#[test]
+fn status_class_values() {
+    assert_eq!(status_class(&TaskStatus::Todo), "status-todo");
+    assert_eq!(status_class(&TaskStatus::Done), "status-done");
+    assert_eq!(status_class(&TaskStatus::Cancelled), "status-cancelled");
+}

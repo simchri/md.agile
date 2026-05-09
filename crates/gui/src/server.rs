@@ -89,7 +89,7 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
             match task.status {
                 Status::Todo => {
                     let view = task_to_view(task, task_rank);
-                    if has_started(&view) {
+                    if crate::logic::has_started(&view) {
                         if in_progress.len() < IN_PROGRESS_LIMIT {
                             in_progress.push(view);
                         }
@@ -114,15 +114,6 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
         .collect();
 
     Ok(tasks)
-}
-
-/// True when the task has at least one direct subtask marked Done or
-/// Cancelled — i.e. work has begun on it. Used both for server-side
-/// categorization and frontend size-class selection.
-pub fn has_started(task: &TaskView) -> bool {
-    task.children
-        .iter()
-        .any(|c| matches!(c.status, TaskStatus::Done | TaskStatus::Cancelled))
 }
 
 #[cfg(feature = "server")]

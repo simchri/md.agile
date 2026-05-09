@@ -1,0 +1,75 @@
+use crate::server::{TaskStatus, TaskView};
+
+/// Returns the completion ratio (0.0..=1.0) used to position the post-it on
+/// the diagonal. The top-level checkbox is worth a flat 10% of the total —
+/// reserved for the moment the user actually ticks the parent task done — so
+/// even a Todo task with every subtask complete tops out at 0.9. Subtasks
+/// (counted recursively, with Done and Cancelled treated as complete) fill
+/// the remaining 90% proportionally.
+pub fn task_progress(task: &TaskView) -> f64 {
+    const PARENT_WEIGHT: f64 = 0.1;
+    const SUBTASKS_WEIGHT: f64 = 1.0 - PARENT_WEIGHT;
+
+    if matches!(task.status, TaskStatus::Done | TaskStatus::Cancelled) {
+        return 1.0;
+    }
+    let (done, total) = count_subtasks(task);
+    let subtasks_share = if total == 0 {
+        0.0
+    } else {
+        done as f64 / total as f64
+    };
+    SUBTASKS_WEIGHT * subtasks_share
+}
+
+pub fn count_subtasks(task: &TaskView) -> (usize, usize) {
+    let mut done = 0;
+    let mut total = 0;
+    for child in &task.children {
+        total += 1;
+        if matches!(child.status, TaskStatus::Done | TaskStatus::Cancelled) {
+            done += 1;
+        }
+        let (cd, ct) = count_subtasks(child);
+        done += cd;
+        total += ct;
+    }
+    (done, total)
+}
+
+/// Builds a CSS positioning rule that places the post-it along the top-left to
+/// bottom-right diagonal at `progress` (0.0 = top-left, 1.0 = bottom-right).
+/// 280px = 220px card + 60px combined margin from the viewport edges.
+pub fn diagonal_style(progress: f64) -> String {
+    let p = progress.clamp(0.0, 1.0);
+    format!(
+        "top: calc({p:.3} * (100vh - 280px) + 30px); left: calc({p:.3} * (100vw - 280px) + 30px);"
+    )
+}
+
+/// True when the task has at least one direct subtask marked Done or
+/// Cancelled — i.e. work has begun on it.
+pub fn has_started(task: &TaskView) -> bool {
+    task.children
+        .iter()
+        .any(|c| matches!(c.status, TaskStatus::Done | TaskStatus::Cancelled))
+}
+
+pub fn status_box(status: &TaskStatus) -> &'static str {
+    match status {
+        TaskStatus::Todo => "[ ]",
+        TaskStatus::Done => "[x]",
+        TaskStatus::Cancelled => "[-]",
+    }
+}
+
+pub fn status_class(status: &TaskStatus) -> &'static str {
+    match status {
+        TaskStatus::Todo => "status-todo",
+        TaskStatus::Done => "status-done",
+        TaskStatus::Cancelled => "status-cancelled",
+    }
+}
+
+#[cfg(test)]
+mod tests;
