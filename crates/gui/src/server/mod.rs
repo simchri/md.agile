@@ -89,7 +89,7 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
             match task.status {
                 Status::Todo => {
                     let view = task_to_view(task, task_rank);
-                    if crate::logic::has_started(&view) {
+                    if crate::card_positioning::has_started(&view) {
                         if in_progress.len() < IN_PROGRESS_LIMIT {
                             in_progress.push(view);
                         }

@@ -1,12 +1,12 @@
 use dioxus::prelude::*;
 use log::info;
 
-mod logic;
+mod card_positioning;
 mod server;
 
 use std::collections::{HashMap, HashSet};
 
-use logic::{diagonal_style, status_box, status_class, task_progress};
+use card_positioning::{diagonal_style, status_box, status_class, task_progress};
 use server::TaskView;
 
 fn main() {
