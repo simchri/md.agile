@@ -164,6 +164,15 @@
     - [x] post-its positions in backlog and progress exactly aligned with the separator sections
     - [x] .. then make the post-its just a little bit smaller (like 5px or so)
 
+- [x] GUI style improvements, red, green coloring, sepia tint, monospace
+  - [x] pastel green text color for done tasks
+  - [x] pastel red color for cancelled tasks
+  - [x] sepia tint of the board
+  - [x] use a monospace font
+  - [x] Problem: text on some tasks does not fit on the card. Don't render text all the way to the bottom of the task, but have a fade-out shadow gradually hide it (fading into the color of the task card). Make tasks with a lot of overflowing text more visually appealing
+
+- [ ] GUI: don't update (get tasks) while a task is maximized
+
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
   - [x] Read mdagile.toml config in checker; pass config to rules
