@@ -33,14 +33,36 @@ const MAX_TASK_SLOTS: usize = 50;
 const PHYSICS_MS: u64 = 60;
 // Two in-progress cards collide when their progress values are within this threshold.
 // At 0.18 progress units ≈ 220 px on a typical 1440-wide viewport.
-const COLLISION_THRESHOLD: f64 = 0.18;
+const COLLISION_THRESHOLD: f64 = 0.30;
 // Velocity impulse (px/tick) per unit of progress overlap.
 // Equilibrium separation ≈ 2 * K_REPEL * COLLISION_THRESHOLD / K_RESTORE.
-const K_REPEL: f64 = 8.0;
+const K_REPEL: f64 = 16.0;
 // Centering spring: pulls each card's perpendicular offset back toward 0.
-const K_RESTORE: f64 = 0.019;
+const K_RESTORE: f64 = 0.03;
 // Velocity retention per tick (lower = snappier settle, higher = more drift).
-const DAMPING: f64 = 0.80;
+const DAMPING: f64 = 0.60;
+// Boundary springs: activate when a card edge is within this many px of the screen edge.
+const BOUNDARY_ZONE_PX: f64 = 80.0;
+// Velocity impulse per pixel of penetration into the boundary zone.
+const K_BOUNDARY: f64 = 0.08;
+
+/// Returns `(viewport_width_px, viewport_height_px)`.
+/// On WASM reads from the DOM; on other platforms returns a safe fallback.
+#[cfg(target_arch = "wasm32")]
+fn viewport_size() -> (f64, f64) {
+    web_sys::window()
+        .and_then(|w| {
+            let vw = w.inner_width().ok()?.as_f64()?;
+            let vh = w.inner_height().ok()?.as_f64()?;
+            Some((vw, vh))
+        })
+        .unwrap_or((1440.0, 900.0))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn viewport_size() -> (f64, f64) {
+    (1440.0, 900.0)
+}
 
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
@@ -214,11 +236,41 @@ fn app() -> Element {
                         }
                     }
 
-                    // Integrate: repulsion impulse + centering spring + velocity damping.
+                    // Integrate: repulsion + boundary springs + centering spring + damping.
                     // Signal::set takes &mut self, so copy the Signal (it is Copy) first.
-                    for &(i, _, offset) in &active {
+                    let (vw, vh) = viewport_size();
+                    for &(i, p, offset) in &active {
                         let mut v = *perp_vels[i].peek();
+
+                        // Pairwise repulsion (computed above).
                         v += dv[i];
+
+                        // Boundary springs: push back when a card edge enters the zone.
+                        // Card position from diagonal_style():
+                        //   left = 5 + p*(vw-230) + offset*0.707
+                        //   top  = 15vh+5 + p*(70vh-230) - offset*0.707
+                        // Positive perp offset → card moves right+up, so:
+                        //   right/top boundary → negative impulse
+                        //   left/bottom boundary → positive impulse
+                        let left = 5.0 + p * (vw - 230.0) + offset * 0.707;
+                        let top = 0.15 * vh + 5.0 + p * (0.70 * vh - 230.0) - offset * 0.707;
+                        let right = left + 220.0;
+                        let bottom = top + 220.0;
+
+                        if left < BOUNDARY_ZONE_PX {
+                            v += K_BOUNDARY * (BOUNDARY_ZONE_PX - left);
+                        }
+                        if right > vw - BOUNDARY_ZONE_PX {
+                            v -= K_BOUNDARY * (right - (vw - BOUNDARY_ZONE_PX));
+                        }
+                        if top < BOUNDARY_ZONE_PX {
+                            v -= K_BOUNDARY * (BOUNDARY_ZONE_PX - top);
+                        }
+                        if bottom > vh - BOUNDARY_ZONE_PX {
+                            v += K_BOUNDARY * (bottom - (vh - BOUNDARY_ZONE_PX));
+                        }
+
+                        // Centering spring + damping.
                         v -= K_RESTORE * offset;
                         v *= DAMPING;
                         let new_offset = (offset + v).clamp(-300.0, 300.0);
