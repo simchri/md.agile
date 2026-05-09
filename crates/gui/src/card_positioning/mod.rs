@@ -39,11 +39,14 @@ pub fn count_subtasks(task: &TaskView) -> (usize, usize) {
 
 /// Builds a CSS positioning rule that places the post-it along the top-left to
 /// bottom-right diagonal at `progress` (0.0 = top-left, 1.0 = bottom-right).
-/// 280px = 220px card + 60px combined margin from the viewport edges.
+///
+/// Vertical range: separator1 (15vh) to separator2 (85vh), leaving a 5px gap
+/// at each end and room for the 220px card height (range = 70vh - 230px).
+/// Horizontal range: 5px from each edge, with 220px card width (range = 100vw - 230px).
 pub fn diagonal_style(progress: f64) -> String {
     let p = progress.clamp(0.0, 1.0);
     format!(
-        "top: calc({p:.3} * (100vh - 280px) + 30px); left: calc({p:.3} * (100vw - 280px) + 30px);"
+        "top: calc(15vh + 5px + {p:.3} * (70vh - 230px)); left: calc(5px + {p:.3} * (100vw - 230px));"
     )
 }
 

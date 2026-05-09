@@ -152,6 +152,18 @@
 - [x] BUG: language server not found by nvim (some config stuff?) 
   --> cany needed update. Since we added the tty flag as default in devenv, cany needs to do --no-tty
 
+- [x] post mortem: add some non-regression checks to the GUI
+  Seems like we are kind of limited here, unit test, ok, otherwise best idea seems to be
+  - [x] add some UTs
+  - [-] smoke test, that checks if warnings are issued.
+    Will be slow and require playwright to find any actual issues (server dormant with no clients connected) -> don't do
+
+- [x] some GUI fixes - for the fun of it!
+  - [x] tasks properly sized and positioned
+    - [x] scale size of task post-its (done and backlog) with viewport size. height should match exactly the height of the "separator" sections
+    - [x] post-its positions in backlog and progress exactly aligned with the separator sections
+    - [x] .. then make the post-its just a little bit smaller (like 5px or so)
+
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
   - [x] Read mdagile.toml config in checker; pass config to rules

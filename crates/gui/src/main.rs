@@ -228,7 +228,7 @@ fn TaskCard(
         let x_px = CARD_GAP_PX + ((pos_index) * (CARD_WIDTH_PX + CARD_GAP_PX));
         let left = format!("{x_px}px");
 
-        position_style = format!("top: 8px; bottom: unset; left: {};{z}", left);
+        position_style = format!("top: 5px; bottom: unset; left: {};{z}", left);
     } else if progress >= 1.0 {
         // done card style and position
         let pos_index;
@@ -238,15 +238,7 @@ fn TaskCard(
             pos_index = 0;
         }
 
-        log::info!("task: {}", task.title);
-        log::info!(
-            "rank: {}, lowest_rank_done: {}, pos_index: {}",
-            task.rank,
-            highest_rank_done,
-            pos_index
-        );
-
-        let done_top = format!("calc(100vh - {}px)", (110 + 8));
+        let done_top = "calc(85vh + 5px)".to_string();
 
         let x_px = CARD_GAP_PX + ((pos_index + 1) * (CARD_WIDTH_PX + CARD_GAP_PX));
         let left = format!("calc(100vw - {x_px}px)");
