@@ -147,8 +147,8 @@ run_overtake() {
 # Writes:
 #   30 background in-progress cards — clustered mostly at 50%, with smaller
 #     groups at 10%, 20%, 60%, 80% (subtasks done out of 9):
-#   10 Traveler cards — all start in backlog, then march through the board
-#     (4 subtasks each; 1 subtask per phase → progress 0.225 per phase step)
+#   1 Traveler card — starts in backlog, then marches through the board
+#     (4 subtasks; 1 subtask per phase → progress 0.225 per phase step)
 write_many_phase() {
     local tdone="$1"
     {
@@ -179,27 +179,24 @@ write_many_phase() {
             n=$((n + 1))
         done
 
-        local t
-        for t in $(seq 1 10); do
-            if [[ "$tdone" == "x" ]]; then
-                printf -- "- [x] Traveler%s\n  Traveler %s crossing the crowded board.\n" "$t" "$t"
-                local s
-                for s in $(seq 1 4); do
-                    printf "  - [x] Traveler%s step %s\n" "$t" "$s"
-                done
-            else
-                printf -- "- [ ] Traveler%s\n  Traveler %s crossing the crowded board.\n" "$t" "$t"
-                local s
-                for s in $(seq 1 4); do
-                    if [[ "$s" -le "$tdone" ]]; then
-                        printf "  - [x] Traveler%s step %s\n" "$t" "$s"
-                    else
-                        printf "  - [ ] Traveler%s step %s\n" "$t" "$s"
-                    fi
-                done
-            fi
-            printf "\n"
-        done
+        if [[ "$tdone" == "x" ]]; then
+            printf -- "- [x] Traveler\n  Traveler crossing the crowded board.\n"
+            local s
+            for s in $(seq 1 4); do
+                printf "  - [x] Traveler step %s\n" "$s"
+            done
+        else
+            printf -- "- [ ] Traveler\n  Traveler crossing the crowded board.\n"
+            local s
+            for s in $(seq 1 4); do
+                if [[ "$s" -le "$tdone" ]]; then
+                    printf "  - [x] Traveler step %s\n" "$s"
+                else
+                    printf "  - [ ] Traveler step %s\n" "$s"
+                fi
+            done
+        fi
+        printf "\n"
     } > "$TASKS_FILE"
 }
 
@@ -207,7 +204,7 @@ run_many() {
     # Progress legend:
     #   Background cards: 30 static cards — 4 at 0.10, 4 at 0.20, 14 at 0.50,
     #                     4 at 0.60, 4 at 0.80
-    #   Travelers (10 cards, 4 subtasks each):
+    #   Traveler (1 card, 4 subtasks):
     #     Phase 1: 0/4 done → backlog
     #     Phase 2: 1/4 done → progress 0.225
     #     Phase 3: 2/4 done → progress 0.45
@@ -219,7 +216,7 @@ run_many() {
         LOOP=$((LOOP + 1))
         printf "[demo/many] ─── Loop %-3d ─────────────────────────────────────\n" "$LOOP"
 
-        printf "[demo/many]  1/6  30 cards in progress; 10 travelers in backlog\n"
+        printf "[demo/many]  1/6  30 cards in progress; traveler in backlog\n"
         write_many_phase 0
         sleep "$STEP_SECS"
 
