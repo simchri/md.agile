@@ -29,6 +29,19 @@ fn init_logger() {
 /// backend reports beyond the limit are dropped on the GUI side.
 const MAX_TASK_SLOTS: usize = 50;
 
+// --- Spring-damper physics constants (perpendicular repulsion) ---
+const PHYSICS_MS: u64 = 60;
+// Two in-progress cards collide when their progress values are within this threshold.
+// At 0.18 progress units ≈ 220 px on a typical 1440-wide viewport.
+const COLLISION_THRESHOLD: f64 = 0.18;
+// Velocity impulse (px/tick) per unit of progress overlap.
+// Equilibrium separation ≈ 2 * K_REPEL * COLLISION_THRESHOLD / K_RESTORE.
+const K_REPEL: f64 = 8.0;
+// Centering spring: pulls each card's perpendicular offset back toward 0.
+const K_RESTORE: f64 = 0.019;
+// Velocity retention per tick (lower = snappier settle, higher = more drift).
+const DAMPING: f64 = 0.80;
+
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
         let tasks = server::get_tasks().await;
@@ -52,6 +65,13 @@ fn app() -> Element {
             .map(|_| Signal::new(None::<TaskView>))
             .collect()
     });
+
+    // Per-slot physics state: perpendicular offset from the diagonal (px) and velocity (px/tick).
+    // Passed as signals to TaskCard so only the affected card re-renders on each physics tick.
+    let perp_offsets: Vec<Signal<f64>> =
+        use_hook(|| (0..MAX_TASK_SLOTS).map(|_| Signal::new(0.0f64)).collect());
+    let perp_vels: Vec<Signal<f64>> =
+        use_hook(|| (0..MAX_TASK_SLOTS).map(|_| Signal::new(0.0f64)).collect());
 
     // Sync the resource into the per-slot signals whenever a fresh task list
     // arrives. Matching is by title so the slot a task occupies is stable
@@ -127,6 +147,92 @@ fn app() -> Element {
             });
         }
     });
+
+    use_effect({
+        // Physics loop at PHYSICS_MS Hz (60ms), runs purely in the WASM frontend.
+        // Applies spring-damper repulsion between in-progress cards that would overlap
+        // along the diagonal, spreading them perpendicular to it.
+        let task_slots = task_slots.clone();
+        let perp_offsets = perp_offsets.clone();
+        let perp_vels = perp_vels.clone();
+        move || {
+            // Vec<Signal<T>> is not Copy, so it cannot be moved from an FnMut closure.
+            // Clone inside the body so each invocation owns its own copies.
+            let task_slots = task_slots.clone();
+            let perp_offsets = perp_offsets.clone();
+            let perp_vels = perp_vels.clone();
+            dioxus::prelude::spawn(async move {
+                use wasmtimer::tokio::sleep;
+                loop {
+                    sleep(std::time::Duration::from_millis(PHYSICS_MS)).await;
+
+                    // Snapshot: (slot_index, progress, current_perp_offset) for in-progress cards.
+                    let active: Vec<(usize, f64, f64)> = task_slots
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, slot)| {
+                            let t = slot.peek().clone()?;
+                            let p = task_progress(&t);
+                            (p > 0.0 && p < 1.0).then(|| (i, p, *perp_offsets[i].peek()))
+                        })
+                        .collect();
+
+                    // Cards that left in-progress get their physics state zeroed.
+                    for (i, slot) in task_slots.iter().enumerate() {
+                        let p = slot.peek().as_ref().map_or(0.0, |t| task_progress(t));
+                        if p <= 0.0 || p >= 1.0 {
+                            if *perp_offsets[i].peek() != 0.0 {
+                                let mut s = perp_offsets[i];
+                                s.set(0.0);
+                            }
+                            if *perp_vels[i].peek() != 0.0 {
+                                let mut s = perp_vels[i];
+                                s.set(0.0);
+                            }
+                        }
+                    }
+
+                    // Pairwise repulsion: cards within COLLISION_THRESHOLD progress units
+                    // push each other apart in the perpendicular direction.
+                    let mut dv = vec![0.0f64; MAX_TASK_SLOTS];
+                    for a in 0..active.len() {
+                        for b in (a + 1)..active.len() {
+                            let (ia, pa, oa) = active[a];
+                            let (ib, pb, ob) = active[b];
+                            let dp = (pa - pb).abs();
+                            if dp < COLLISION_THRESHOLD {
+                                let overlap = COLLISION_THRESHOLD - dp;
+                                let force = K_REPEL * overlap;
+                                if oa <= ob {
+                                    dv[ia] -= force;
+                                    dv[ib] += force;
+                                } else {
+                                    dv[ia] += force;
+                                    dv[ib] -= force;
+                                }
+                            }
+                        }
+                    }
+
+                    // Integrate: repulsion impulse + centering spring + velocity damping.
+                    // Signal::set takes &mut self, so copy the Signal (it is Copy) first.
+                    for &(i, _, offset) in &active {
+                        let mut v = *perp_vels[i].peek();
+                        v += dv[i];
+                        v -= K_RESTORE * offset;
+                        v *= DAMPING;
+                        let new_offset = (offset + v).clamp(-300.0, 300.0);
+                        let mut vel_sig = perp_vels[i];
+                        vel_sig.set(v);
+                        if (new_offset - offset).abs() > 0.05 {
+                            let mut off_sig = perp_offsets[i];
+                            off_sig.set(new_offset);
+                        }
+                    }
+                }
+            });
+        }
+    });
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
 
@@ -166,6 +272,7 @@ fn app() -> Element {
                         task,
                         _index: i,
                         z_index: if current_front == Some(i) { 100 } else { 0 },
+                        perp_offset_signal: perp_offsets[i],
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));
                             modal_task.set(Some(t));
@@ -196,12 +303,14 @@ fn TaskCard(
     task: TaskView,
     _index: usize,
     z_index: usize,
+    perp_offset_signal: Signal<f64>,
     on_click: EventHandler<TaskView>,
     on_hover: EventHandler<TaskView>,
     lowest_rank_backlog: usize,
     highest_rank_done: usize,
 ) -> Element {
     let progress = task_progress(&task);
+    let perp_offset = perp_offset_signal();
 
     let z = if z_index > 0 {
         format!(" z-index: {z_index};")
@@ -252,8 +361,8 @@ fn TaskCard(
         card_style = "done-card".to_string();
         title_style = "done-card-title".to_string();
     } else {
-        // Else: In Progress style
-        position_style = diagonal_style(progress);
+        // Else: In Progress style — physics offset applied here
+        position_style = diagonal_style(progress, perp_offset);
     }
 
     let t = task.clone();

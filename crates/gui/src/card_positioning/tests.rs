@@ -110,25 +110,25 @@ fn count_nested_children_recursive() {
 
 #[test]
 fn diagonal_at_zero_anchors_top_left() {
-    let s = diagonal_style(0.0);
+    let s = diagonal_style(0.0, 0.0);
     assert!(s.contains("0.000"), "expected 0.000 in: {s}");
 }
 
 #[test]
 fn diagonal_at_one_anchors_bottom_right() {
-    let s = diagonal_style(1.0);
+    let s = diagonal_style(1.0, 0.0);
     assert!(s.contains("1.000"), "expected 1.000 in: {s}");
 }
 
 #[test]
 fn diagonal_clamps_below_zero() {
-    let s = diagonal_style(-5.0);
+    let s = diagonal_style(-5.0, 0.0);
     assert!(s.contains("0.000"), "expected clamp to 0 in: {s}");
 }
 
 #[test]
 fn diagonal_clamps_above_one() {
-    let s = diagonal_style(2.0);
+    let s = diagonal_style(2.0, 0.0);
     assert!(s.contains("1.000"), "expected clamp to 1 in: {s}");
 }
 

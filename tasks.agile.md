@@ -182,14 +182,12 @@
   - [x] multiple tasks are in progress at the same time
   - [x] at least one task "overtakes" other tasks
   - [x] plays the whole thing on repeat
-- [ ] Repel/spread: overlapping in-progress cards push each other apart
+- [x] Repel/spread: overlapping in-progress cards push each other apart
   Cards that would overlap negotiate their position along (or perpendicular to)
   the diagonal so none fully obscure another. Progress still determines the
   rough position; the spread is only the local adjustment needed to avoid overlap.
-  - [ ] Detect overlapping cards (same or close diagonal position)
-  - [ ] Spread overlapping cards perpendicular to the diagonal
-  - [ ] Animate the spread smoothly so cards feel like they're sliding apart
-  - [ ] Ensure spread cards snap back when progress changes move them apart naturally
+  - [x] refactor the current code, to easily accomodate setting both x and y postion for each card explicitly.
+  - [x] the normal target position is the current diagonal postion
 
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
