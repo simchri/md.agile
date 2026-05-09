@@ -173,6 +173,24 @@
 
 - [x] GUI: don't update (get tasks) while a task is maximized
 
+## GUI 1.0
+- [ ] test case / script:
+  - [ ] launches a gui instance via dx pointing to a fixture directory
+  - [ ] simulates tasks with subtasks being created (backlog)
+  - [ ] lorem ipsum text in tasks
+  - [ ] simulates tasks being marked done, so that they continuously progress over the board
+  - [ ] multiple tasks are in progress at the same time
+  - [ ] at least one task "overtakes" other tasks
+  - [ ] plays the whole thing on repeat
+- [ ] Repel/spread: overlapping in-progress cards push each other apart
+  Cards that would overlap negotiate their position along (or perpendicular to)
+  the diagonal so none fully obscure another. Progress still determines the
+  rough position; the spread is only the local adjustment needed to avoid overlap.
+  - [ ] Detect overlapping cards (same or close diagonal position)
+  - [ ] Spread overlapping cards perpendicular to the diagonal
+  - [ ] Animate the spread smoothly so cards feel like they're sliding apart
+  - [ ] Ensure spread cards snap back when progress changes move them apart naturally
+
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
   - [x] Read mdagile.toml config in checker; pass config to rules
@@ -234,15 +252,6 @@
   - [ ] File diagnostics on save with `agile check --fix`
 
 
-## GUI 1.0
-- [ ] Repel/spread: overlapping in-progress cards push each other apart
-  Cards that would overlap negotiate their position along (or perpendicular to)
-  the diagonal so none fully obscure another. Progress still determines the
-  rough position; the spread is only the local adjustment needed to avoid overlap.
-  - [ ] Detect overlapping cards (same or close diagonal position)
-  - [ ] Spread overlapping cards perpendicular to the diagonal
-  - [ ] Animate the spread smoothly so cards feel like they're sliding apart
-  - [ ] Ensure spread cards snap back when progress changes move them apart naturally
 
 ### Writing back to file from GUI
 - [ ] Mark task as done from GUI
