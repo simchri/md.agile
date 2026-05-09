@@ -106,9 +106,13 @@ fn app() -> Element {
         });
     }
 
+    let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
+
     use_effect({
         // Clock, frequency 1s.
-        // Poll updates from the server side (e.g. update task list)
+        // Poll updates from the server side (e.g. update task list).
+        // Paused while a task is open in the modal so the card list does not
+        // refresh under the user while they are reading it.
         move || {
             dioxus::prelude::spawn(async move {
                 log::info!("use_effect: clock START");
@@ -116,13 +120,13 @@ fn app() -> Element {
 
                 loop {
                     sleep(std::time::Duration::from_millis(1000)).await;
-                    tasks_resource.restart();
+                    if modal_task.peek().is_none() {
+                        tasks_resource.restart();
+                    }
                 }
             });
         }
     });
-
-    let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
 
