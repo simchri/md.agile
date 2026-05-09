@@ -27,7 +27,7 @@ fn init_logger() {
 /// Maximum number of task cards rendered on the canvas at once. The frontend
 /// pre-allocates this many `Signal<Option<TaskView>>` slots; any tasks the
 /// backend reports beyond the limit are dropped on the GUI side.
-const MAX_TASK_SLOTS: usize = 50;
+const MAX_TASK_SLOTS: usize = 60;
 
 // --- Spring-damper physics constants (perpendicular repulsion) ---
 const PHYSICS_MS: u64 = 60;

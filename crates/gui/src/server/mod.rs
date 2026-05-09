@@ -41,7 +41,7 @@ pub struct TaskView {
 #[cfg(feature = "server")]
 const BACKLOG_LIMIT: usize = 10;
 #[cfg(feature = "server")]
-const IN_PROGRESS_LIMIT: usize = 10;
+const IN_PROGRESS_LIMIT: usize = 40;
 #[cfg(feature = "server")]
 const DONE_LIMIT: usize = 10;
 
