@@ -156,3 +156,21 @@ fn has_started_cancelled_child_counts() {
     let task = todo_task("t", vec![cancelled_task("a")]);
     assert!(has_started(&task));
 }
+
+// --- status_box ---
+
+#[test]
+fn status_box_values() {
+    assert_eq!(status_box(&TaskStatus::Todo), "[ ]");
+    assert_eq!(status_box(&TaskStatus::Done), "[x]");
+    assert_eq!(status_box(&TaskStatus::Cancelled), "[-]");
+}
+
+// --- status_class ---
+
+#[test]
+fn status_class_values() {
+    assert_eq!(status_class(&TaskStatus::Todo), "status-todo");
+    assert_eq!(status_class(&TaskStatus::Done), "status-done");
+    assert_eq!(status_class(&TaskStatus::Cancelled), "status-cancelled");
+}

@@ -44,10 +44,14 @@ fn app() -> Element {
 
     // One signal per visible task slot. Empty slots hold `None`. Each slot is
     // its own signal so that a change to one task does not invalidate the
-    // others.
-    let task_slots: Vec<Signal<Option<TaskView>>> = (0..MAX_TASK_SLOTS)
-        .map(|_| use_signal(|| None::<TaskView>))
-        .collect();
+    // others. Initialised with use_hook (runs once on mount) so that
+    // Signal::new is not called inside an iterator closure, which would
+    // violate the Rules of Hooks.
+    let task_slots: Vec<Signal<Option<TaskView>>> = use_hook(|| {
+        (0..MAX_TASK_SLOTS)
+            .map(|_| Signal::new(None::<TaskView>))
+            .collect()
+    });
 
     // Sync the resource into the per-slot signals whenever a fresh task list
     // arrives. Matching is by title so the slot a task occupies is stable
