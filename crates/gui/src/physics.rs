@@ -6,33 +6,53 @@
 //! returned [`SlotPhysics`] back to the signals (typically with a
 //! "skip-if-unchanged" filter so unrelated cards don't re-render).
 //!
-//! Card geometry (size, diagonal track, viewport reference) lives in
-//! [`crate::card_positioning`] so the boundary checks here always agree
-//! with where CSS places the cards.
+//! All coordinates are **normalized** (0.0–1.0 fractions of viewport dimensions):
+//! - Progress: 0.0 = top-left, 1.0 = bottom-right (unchanged from before)
+//! - Perpendicular offset: fraction of viewport height
+//! - Card size: `ASSUMED_CARD_SIZE_FRAC` as fraction of viewport height
+//! - Boundary zone: `BOUNDARY_ZONE_FRAC` as fraction of viewport width/height
+//!
+//! This makes the physics engine **viewport-size-agnostic**: the same behavior
+//! applies whether the screen is 1440×900 or 1920×1080.
+//!
+//! Boundary checks and CSS positioning happen in [`crate::card_positioning`],
+//! which converts these normalized coordinates to pixels for rendering.
 
 use crate::card_positioning::{card_top_left_px, Viewport, CARD_PX};
 
-// --- Tunables ---
+// --- Tunables (all normalized) ---
+
+/// Card edge length as a fraction of viewport height.
+/// Reference: 220px on 900px = 0.244.
+pub const ASSUMED_CARD_SIZE_FRAC: f64 = 0.244;
 
 /// Two in-progress cards collide when their progress values are within this
-/// threshold. At 0.30 progress units ≈ a card-width's worth of overlap on a
-/// typical 1440-wide viewport.
-const COLLISION_THRESHOLD: f64 = 0.30;
-/// Velocity impulse (px/tick) per unit of progress overlap.
-const K_REPEL: f64 = 16.0;
+/// threshold. Unchanged from pixel-based system.
+pub const COLLISION_THRESHOLD: f64 = 0.30;
+
+/// Velocity impulse (fraction of height per tick) per unit of progress overlap.
+/// Tuned for normalized space: original K_REPEL=16.0 @ 220px card.
+pub const K_REPEL: f64 = 0.018;
+
 /// Centering spring constant: pulls each card's perpendicular offset back
-/// toward 0.
-const K_RESTORE: f64 = 0.06;
+/// toward 0. Original K_RESTORE=0.06 (pixel-based).
+pub const K_RESTORE: f64 = 0.060;
+
 /// Velocity retention per tick (lower = snappier settle, higher = more drift).
-const DAMPING: f64 = 0.80;
-/// Boundary springs activate when a card edge is within this many px of the
-/// screen edge.
-const BOUNDARY_ZONE_PX: f64 = 80.0;
-/// Velocity impulse per pixel of penetration into the boundary zone.
-const K_BOUNDARY: f64 = 0.08;
-/// Hard clamp on perpendicular offset to prevent runaway in pathological
-/// configurations.
-const MAX_OFFSET_PX: f64 = 300.0;
+pub const DAMPING: f64 = 0.80;
+
+/// Boundary springs activate when a card edge is within this fraction of the
+/// screen width or height. Original: 80px @ 1440w, 900h → ~0.0556 (width) or ~0.0889 (height).
+/// Use average: 0.0722.
+pub const BOUNDARY_ZONE_FRAC: f64 = 0.0722;
+
+/// Velocity impulse per unit of penetration into the boundary zone.
+/// Tuned for normalized space: original K_BOUNDARY=0.08 (pixel-based).
+pub const K_BOUNDARY: f64 = 0.088;
+
+/// Hard clamp on perpendicular offset to prevent runaway.
+/// Original: 300px / 900px = 0.333.
+pub const MAX_OFFSET_FRAC: f64 = 0.333;
 
 // --- Public types ---
 
@@ -57,6 +77,8 @@ pub struct Slot {
 /// In-progress slots get pairwise repulsion + boundary springs + a
 /// centering spring + damping applied. Empty / non-in-progress slots
 /// always return [`SlotPhysics::default`] (offset = 0, velocity = 0).
+///
+/// All calculations use normalized coordinates (fractions of viewport dimensions).
 pub fn step(slots: &[Slot], viewport: Viewport) -> Vec<SlotPhysics> {
     let mut out: Vec<SlotPhysics> = vec![SlotPhysics::default(); slots.len()];
 
@@ -88,29 +110,42 @@ pub fn step(slots: &[Slot], viewport: Viewport) -> Vec<SlotPhysics> {
     }
 
     // Per-card integration: repulsion + boundary springs + centering + damping.
+    // Boundary checks work by converting normalized offset to pixels, computing
+    // the card position, and checking against pixel-based boundary zones.
+    // The boundary impulses are scaled to work in normalized velocity space.
+    const BOUNDARY_ZONE_PX: f64 = 80.0;
+
     for &(i, p, offset) in &active {
         let mut v = slots[i].physics.perp_velocity + dv[i];
 
-        let (left, top) = card_top_left_px(p, offset, viewport);
+        // Convert normalized offset to pixels for boundary checking.
+        let offset_px = offset * viewport.height_px;
+        let (left, top) = card_top_left_px(p, offset_px, viewport);
         let right = left + CARD_PX;
         let bottom = top + CARD_PX;
 
+        // Boundary impulses: scale from pixel space to normalized space by dividing by viewport.height_px.
+        // This ensures that K_BOUNDARY works the same way regardless of viewport size.
         if left < BOUNDARY_ZONE_PX {
-            v += K_BOUNDARY * (BOUNDARY_ZONE_PX - left);
+            v += K_BOUNDARY * (BOUNDARY_ZONE_PX - left) / viewport.height_px;
         }
         if right > viewport.width_px - BOUNDARY_ZONE_PX {
-            v -= K_BOUNDARY * (right - (viewport.width_px - BOUNDARY_ZONE_PX));
+            v -= K_BOUNDARY * (right - (viewport.width_px - BOUNDARY_ZONE_PX)) / viewport.height_px;
         }
         if top < BOUNDARY_ZONE_PX {
-            v -= K_BOUNDARY * (BOUNDARY_ZONE_PX - top);
+            v -= K_BOUNDARY * (BOUNDARY_ZONE_PX - top) / viewport.height_px;
         }
         if bottom > viewport.height_px - BOUNDARY_ZONE_PX {
-            v += K_BOUNDARY * (bottom - (viewport.height_px - BOUNDARY_ZONE_PX));
+            v += K_BOUNDARY * (bottom - (viewport.height_px - BOUNDARY_ZONE_PX))
+                / viewport.height_px;
         }
 
+        // Centering spring: pulls offset back toward 0.
         v -= K_RESTORE * offset;
+
+        // Apply damping and clamp.
         v *= DAMPING;
-        let new_offset = (offset + v).clamp(-MAX_OFFSET_PX, MAX_OFFSET_PX);
+        let new_offset = (offset + v).clamp(-MAX_OFFSET_FRAC, MAX_OFFSET_FRAC);
 
         out[i] = SlotPhysics {
             perp_offset: new_offset,
