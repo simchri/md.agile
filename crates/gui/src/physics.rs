@@ -4,12 +4,17 @@
 //! based on their progress percentage (0.0–1.0). A spring-damper system
 //! smoothly animates each card toward its target position.
 
+use rand;
+
 /// Spring stiffness constant (higher = snappier).
 const SPRING_K: f64 = 8.0;
 /// Damping coefficient (higher = less oscillation). Critical damping ≈ 2*sqrt(k).
 const DAMPING_C: f64 = 6.0;
 /// Repulsion strength between in-progress cards (higher = stronger push-apart).
-const REPEL_K: f64 = 16.0;
+const REPEL_K: f64 = 6.0;
+
+const HEAT_K: f64 = 0.00;
+
 /// Radius of influence for inter-card repulsion, in normalized canvas units.
 /// Repulsion in each axis is independent and linear: zero at this distance,
 /// maximum at zero separation. Cards beyond this distance do not interact.
@@ -110,6 +115,11 @@ pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
             card.velocity.vy += ay * dt;
             card.position.x += card.velocity.vx * dt;
             card.position.y += card.velocity.vy * dt;
+
+            let x_rand: f64 = rand::random(); // [0.0, 1.0)
+
+            // randomize postion with 
+            card.position.x += x_rand  * HEAT_K;
         }
     }
 

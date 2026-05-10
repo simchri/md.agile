@@ -18,6 +18,8 @@ notify = "8.2.0"
 serde = "1.0.228"
 tokio = { version = "1.52.1", features = ["sync"] }
 wasmtimer = "0.4.3"
+rand = { version = "0.10.1" }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [features]
 default = ["dioxus/web"]
