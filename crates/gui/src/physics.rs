@@ -1,7 +1,7 @@
 //! Physics module for calculating card positions.
 //!
-//! Currently: calculates normalized (x, y) position of each card.
-//! All cards are placed at the center of the screen.
+//! Cards are positioned along the diagonal from top-left to bottom-right,
+//! based on their progress percentage (0.0–1.0).
 
 /// Card input: progress percentage (0.0–1.0).
 #[derive(Debug, Clone, Copy)]
@@ -28,10 +28,20 @@ pub struct CardPosition {
 /// Output:
 /// - `Vec<CardPosition>`: normalized (x, y) coordinates for each card
 ///
-/// Currently: all cards are positioned at the center (0.5, 0.5) in normalized space.
+/// Logic:
+/// - Cards with `progress = Some(p)` are positioned at (p, p) on the diagonal
+///   (0.0, 0.0) = top-left, (1.0, 1.0) = bottom-right
+/// - Cards with `progress = None` (backlog/done) default to (0.5, 0.5) but are
+///   typically not rendered in the in-progress area
 pub fn step(cards: &[Card]) -> Vec<CardPosition> {
     cards
         .iter()
-        .map(|_card| CardPosition { x: 0.5, y: 0.5 })
+        .map(|card| match card.progress {
+            Some(p) => {
+                let p = p.clamp(0.0, 1.0);
+                CardPosition { x: p, y: p }
+            }
+            None => CardPosition { x: 0.5, y: 0.5 },
+        })
         .collect()
 }
