@@ -33,7 +33,7 @@ fn init_logger() {
 const MAX_TASK_SLOTS: usize = 60;
 
 /// Target frequency for physics simulation: 40 times per second (25ms per frame).
-const PHYSICS_FRAME_MS: u64 = 25;
+const PHYSICS_FRAME_MS: u64 = 16;
 
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {

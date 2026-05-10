@@ -7,7 +7,7 @@
 /// Spring stiffness constant (higher = snappier).
 const SPRING_K: f64 = 8.0;
 /// Damping coefficient (higher = less oscillation). Critical damping ≈ 2*sqrt(k).
-const DAMPING_C: f64 = 5.0;
+const DAMPING_C: f64 = 6.0;
 
 /// Normalized (x, y) position on the canvas (0.0 = left/top, 1.0 = right/bottom).
 #[derive(Debug, Clone, Copy, PartialEq)]
