@@ -1,5 +1,8 @@
-use crate::rules::ErrorCode;
-use tower_lsp::lsp_types::{CodeAction, Diagnostic, NumberOrString, Url};
+use crate::rules::{ErrorCode, IssueData};
+use std::collections::HashMap;
+use tower_lsp::lsp_types::{
+    CodeAction, CodeActionKind, Diagnostic, NumberOrString, TextEdit, Url, WorkspaceEdit,
+};
 
 mod invalid_box;
 mod missing_space_after_box;
@@ -31,6 +34,40 @@ pub fn build_quickfix(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Opt
         },
         _ => None,
     }
+}
+
+/// Wraps a single [`TextEdit`] in the canonical [`CodeAction`] shape used by
+/// every quickfix builder: kind = QUICKFIX, single-edit `WorkspaceEdit`,
+/// `is_preferred = true`, no command/data.
+fn make_quickfix(
+    title: impl Into<String>,
+    uri: &Url,
+    diagnostic: &Diagnostic,
+    edit: TextEdit,
+) -> CodeAction {
+    let mut changes = HashMap::new();
+    changes.insert(uri.clone(), vec![edit]);
+    CodeAction {
+        title: title.into(),
+        kind: Some(CodeActionKind::QUICKFIX),
+        diagnostics: Some(vec![diagnostic.clone()]),
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..WorkspaceEdit::default()
+        }),
+        is_preferred: Some(true),
+        command: None,
+        disabled: None,
+        data: None,
+    }
+}
+
+/// Deserializes the rule-specific payload attached to `diagnostic.data`.
+///
+/// Returns `None` if the diagnostic carries no data or the data does not
+/// match any [`IssueData`] variant.
+fn issue_data(diagnostic: &Diagnostic) -> Option<IssueData> {
+    serde_json::from_value(diagnostic.data.as_ref()?.clone()).ok()
 }
 
 #[cfg(test)]

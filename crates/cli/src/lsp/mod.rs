@@ -58,9 +58,12 @@ impl Backend {
         let config = match self.root.read().await.as_deref() {
             Some(root) => Config::load(root).unwrap_or_default(),
             None => {
-                log::warn!("No project root set. Your editor is supposed to transmit a project root dir. Trying fallback approach - find a config file via heuristics starting from current file path: {} ", path.display());
+                log::warn!(
+                    "No project root set. Your editor is supposed to transmit a project root dir. Trying fallback approach - find a config file via heuristics starting from current file path: {} ",
+                    path.display()
+                );
                 load_config_for_file(&path)
-            },
+            }
         };
         let items = parser::parse(text, path);
         let diagnostics: Vec<Diagnostic> = checker::run(&items, &config)
