@@ -109,6 +109,8 @@ fn app() -> Element {
         let task_slots = task_slots.clone();
         let card_positions = card_positions.clone();
         use_effect(move || {
+            let task_slots = task_slots.clone();
+            let card_positions = card_positions.clone();
             dioxus::prelude::spawn(async move {
                 use wasmtimer::tokio::sleep;
 
