@@ -41,29 +41,47 @@ fn app() -> Element {
         tasks
     });
 
-    // One signal per visible task slot. Each SlotState holds the task data
-    // and its physics state together, so both can be updated atomically and
-    // the physics loop operates on a single collection.
-    let task_slots: Vec<Signal<slots::SlotState>> = use_hook(|| {
+    // Task data and physics live in separate signal arrays.
+    // Physics signals are passed directly into TaskCard, which subscribes to
+    // them internally. This means physics-loop writes only re-render the one
+    // affected card — app() is never triggered by physics ticks.
+    let task_slots: Vec<Signal<Option<TaskView>>> = use_hook(|| {
         (0..MAX_TASK_SLOTS)
-            .map(|_| Signal::new(slots::SlotState::empty()))
+            .map(|_| Signal::new(None::<TaskView>))
+            .collect()
+    });
+    let card_physics: Vec<Signal<physics::Card>> = use_hook(|| {
+        (0..MAX_TASK_SLOTS)
+            .map(|_| Signal::new(physics::Card::new(physics::CardPosition { x: 0.0, y: 0.0 })))
             .collect()
     });
 
     // Sync the resource into the per-slot signals whenever a fresh task list
-    // arrives. Reconciliation preserves physics state for existing tasks and
-    // initializes new cards at their correct target position.
+    // arrives. We build a SlotState view for the reconcile function, then
+    // write task changes and physics changes to their respective signals
+    // independently. Only task_slots writes can trigger app() re-renders.
     {
         let task_slots = task_slots.clone();
+        let card_physics = card_physics.clone();
         use_effect(move || {
             if let Some(Ok(new_list)) = &*tasks_resource.read() {
-                let current: Vec<slots::SlotState> =
-                    task_slots.iter().map(|s| s.peek().clone()).collect();
+                let current: Vec<slots::SlotState> = task_slots
+                    .iter()
+                    .zip(card_physics.iter())
+                    .map(|(t, p)| slots::SlotState {
+                        task: t.peek().clone(),
+                        physics: *p.peek(),
+                    })
+                    .collect();
                 let next = slots::reconcile(&current, new_list);
-                for (slot, new_value) in task_slots.iter().zip(next) {
-                    let mut slot = *slot;
-                    if slot.peek().task != new_value.task {
-                        slot.set(new_value);
+                for (i, new_value) in next.into_iter().enumerate() {
+                    let mut task_sig = task_slots[i];
+                    let mut phys_sig = card_physics[i];
+                    if *task_sig.peek() != new_value.task {
+                        task_sig.set(new_value.task);
+                    }
+                    if *phys_sig.peek() != new_value.physics {
+                        phys_sig.set(new_value.physics);
                     }
                 }
             }
@@ -92,12 +110,15 @@ fn app() -> Element {
         }
     });
 
-    // Physics loop at PHYSICS_FRAME_MS Hz (40 times per second).
-    // Reads physics state from each SlotState, advances simulation, writes back.
+    // Physics loop at PHYSICS_FRAME_MS Hz. Reads task progress from task_slots
+    // (via peek — non-reactive) and reads/writes only card_physics signals.
+    // Never touches task_slots, so physics ticks never cause app() to re-render.
     {
         let task_slots = task_slots.clone();
+        let card_physics = card_physics.clone();
         use_effect(move || {
             let task_slots = task_slots.clone();
+            let card_physics = card_physics.clone();
             dioxus::prelude::spawn(async move {
                 use wasmtimer::tokio::sleep;
                 let dt = PHYSICS_FRAME_MS as f64 / 1000.0;
@@ -108,11 +129,11 @@ fn app() -> Element {
                     // Extract physics cards, inject current progress.
                     let mut cards: Vec<physics::Card> = task_slots
                         .iter()
-                        .map(|slot_signal| {
-                            let slot = slot_signal.peek();
-                            let mut card = slot.physics;
-                            card.progress = slot
-                                .task
+                        .zip(card_physics.iter())
+                        .map(|(task_sig, phys_sig)| {
+                            let mut card = *phys_sig.peek();
+                            card.progress = task_sig
+                                .peek()
                                 .as_ref()
                                 .map(task_progress)
                                 .filter(|p| *p > 0.0 && *p < 1.0);
@@ -122,13 +143,11 @@ fn app() -> Element {
 
                     physics::step(&mut cards, dt);
 
-                    // Write updated physics back into the slot; skip if position unchanged.
-                    for (new_card, slot_signal) in cards.into_iter().zip(task_slots.iter()) {
-                        let mut slot_signal = *slot_signal;
-                        if slot_signal.peek().physics.position != new_card.position {
-                            let mut new_slot = slot_signal.peek().clone();
-                            new_slot.physics = new_card;
-                            slot_signal.set(new_slot);
+                    // Write updated physics back; skip if position unchanged.
+                    for (new_card, phys_sig) in cards.into_iter().zip(card_physics.iter()) {
+                        let mut phys_sig = *phys_sig;
+                        if phys_sig.peek().position != new_card.position {
+                            phys_sig.set(new_card);
                         }
                     }
                 }
@@ -141,7 +160,7 @@ fn app() -> Element {
 
     let mut lowest_rank_backlog = usize::MAX;
     for slot in task_slots.iter() {
-        if let Some(task) = slot().task {
+        if let Some(task) = slot() {
             if task_progress(&task) == 0.0 {
                 if task.rank < lowest_rank_backlog {
                     lowest_rank_backlog = task.rank;
@@ -155,7 +174,7 @@ fn app() -> Element {
 
     let mut highest_rank_done = 0;
     for slot in task_slots.iter() {
-        if let Some(task) = slot().task {
+        if let Some(task) = slot() {
             if task_progress(&task) >= 1.0 {
                 if task.rank > highest_rank_done {
                     highest_rank_done = task.rank;
@@ -169,11 +188,11 @@ fn app() -> Element {
             div { class: "separator1" }
             div { class: "separator2" }
 
-            for (i, slot_signal) in task_slots.iter().enumerate() {
-                if let Some(task) = slot_signal().task {
+            for (i, task_slot) in task_slots.iter().enumerate() {
+                if let Some(task) = task_slot() {
                     TaskCard {
                         task,
-                        position: slot_signal().physics.position,
+                        physics_signal: card_physics[i],
                         z_index: if current_front == Some(i) { 100 } else { 0 },
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));
@@ -203,7 +222,7 @@ fn app() -> Element {
 #[component]
 fn TaskCard(
     task: TaskView,
-    position: physics::CardPosition,
+    physics_signal: Signal<physics::Card>,
     z_index: usize,
     on_click: EventHandler<TaskView>,
     on_hover: EventHandler<TaskView>,
@@ -211,6 +230,9 @@ fn TaskCard(
     highest_rank_done: usize,
 ) -> Element {
     let progress = task_progress(&task);
+    // Subscribe this component directly to the physics signal.
+    // Physics-loop writes trigger only this card's re-render, not app().
+    let position = physics_signal().position;
 
     let z = format!(" z-index: {z_index};");
 
