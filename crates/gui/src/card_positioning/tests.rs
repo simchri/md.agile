@@ -247,49 +247,4 @@ fn in_progress_style_uses_track_inset_constant() {
 
 
 
-// --- card_top_left_px (and agreement with diagonal_style) ---
-
-#[test]
-fn card_top_left_at_progress_zero_is_top_left_corner_of_track() {
-    let (left, top) = card_top_left_px(0.0, REFERENCE_VIEWPORT);
-    assert!((left - EDGE_MARGIN_PX).abs() < 1e-9);
-    let expected_top = DIAG_TOP_FRAC * REFERENCE_VIEWPORT.height_px + EDGE_MARGIN_PX;
-    assert!((top - expected_top).abs() < 1e-9);
-}
-
-#[test]
-fn card_top_left_at_progress_one_is_bottom_right_corner_of_track() {
-    let (left, top) = card_top_left_px(1.0, REFERENCE_VIEWPORT);
-    // At p=1, left = 5 + (vw - 230) + 0 = vw - 225.
-    let expected_left = REFERENCE_VIEWPORT.width_px - TRACK_INSET_PX + EDGE_MARGIN_PX;
-    assert!((left - expected_left).abs() < 1e-9);
-    // At p=1, top = 0.15*vh + 5 + (0.70*vh - 230) = 0.85*vh - 225.
-    let expected_top = (DIAG_TOP_FRAC + DIAG_HEIGHT_FRAC) * REFERENCE_VIEWPORT.height_px
-        - TRACK_INSET_PX
-        + EDGE_MARGIN_PX;
-    assert!((top - expected_top).abs() < 1e-9);
-}
-
-
-
-// --- card_position_normalized (normalized coordinates) ---
-
-#[test]
-fn card_position_normalized_at_progress_zero_is_top_left() {
-    let (left, top) = card_position_normalized(0.0);
-    // Left should be EDGE_MARGIN_FRAC_W ≈ 5/1440 ≈ 0.00347.
-    assert!(left > 0.0 && left < 0.01);
-    // Top should be DIAG_TOP_FRAC + EDGE_MARGIN_FRAC_H ≈ 0.15 + 5/900 ≈ 0.1556.
-    assert!(top > DIAG_TOP_FRAC && top < 0.2);
-}
-
-#[test]
-fn card_position_normalized_at_progress_one_is_bottom_right() {
-    let (left, top) = card_position_normalized(1.0);
-    // Left should be near right edge but not at 1.0 (accounting for card size).
-    assert!(left > 0.8 && left < 1.0);
-    // Top should be near bottom edge.
-    assert!(top > DIAG_TOP_FRAC + DIAG_HEIGHT_FRAC - 0.3 && top < 1.0);
-}
-
 

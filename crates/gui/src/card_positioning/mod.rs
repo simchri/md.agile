@@ -22,18 +22,6 @@ pub const DIAG_TOP_FRAC: f64 = 0.15;
 /// Vertical fraction of the viewport spanned by the diagonal.
 pub const DIAG_HEIGHT_FRAC: f64 = 0.70;
 
-/// Reference viewport used by the GUI when no real measurement is available.
-pub const REFERENCE_VIEWPORT: Viewport = Viewport {
-    width_px: 1440.0,
-    height_px: 900.0,
-};
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Viewport {
-    pub width_px: f64,
-    pub height_px: f64,
-}
-
 /// Returns the completion ratio (0.0..=1.0) used to position the post-it on
 /// the diagonal. The top-level checkbox is worth a flat 10% of the total —
 /// reserved for the moment the user actually ticks the parent task done — so
@@ -87,29 +75,6 @@ pub fn in_progress_style(x: f64, y: f64) -> String {
         "top: calc({top_vh:.0}vh + {EDGE_MARGIN_PX:.0}px + {y:.3} * ({height_vh:.0}vh - {TRACK_INSET_PX:.0}px)); \
          left: calc({EDGE_MARGIN_PX:.0}px + {x:.3} * (100vw - {TRACK_INSET_PX:.0}px));"
     )
-}
-
-/// Top-left coordinates of an in-progress card in normalized space (0.0–1.0).
-/// Takes normalized progress and returns normalized (x, y) coordinates.
-pub fn card_position_normalized(progress: f64) -> (f64, f64) {
-    let p = progress.clamp(0.0, 1.0);
-    const EDGE_MARGIN_FRAC_W: f64 = EDGE_MARGIN_PX / 1440.0;
-    const EDGE_MARGIN_FRAC_H: f64 = EDGE_MARGIN_PX / 900.0;
-    const TRACK_INSET_FRAC_W: f64 = TRACK_INSET_PX / 1440.0;
-    const TRACK_INSET_FRAC_H: f64 = TRACK_INSET_PX / 900.0;
-
-    let left = EDGE_MARGIN_FRAC_W + p * (1.0 - TRACK_INSET_FRAC_W);
-    let top = DIAG_TOP_FRAC + EDGE_MARGIN_FRAC_H + p * (DIAG_HEIGHT_FRAC - TRACK_INSET_FRAC_H);
-    (left, top)
-}
-
-/// Top-left pixel coordinates of an in-progress card.
-pub fn card_top_left_px(progress: f64, viewport: Viewport) -> (f64, f64) {
-    let left = EDGE_MARGIN_PX + progress * (viewport.width_px - TRACK_INSET_PX);
-    let top = DIAG_TOP_FRAC * viewport.height_px
-        + EDGE_MARGIN_PX
-        + progress * (DIAG_HEIGHT_FRAC * viewport.height_px - TRACK_INSET_PX);
-    (left, top)
 }
 
 /// True when the task has at least one direct subtask marked Done or

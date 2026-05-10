@@ -35,13 +35,6 @@ const MAX_TASK_SLOTS: usize = 60;
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
         let tasks = server::get_tasks().await;
-        let _num_tasks = match &tasks {
-            Ok(t) => t.len(),
-            Err(e) => {
-                log::error!("error fetching tasks: {e}");
-                0
-            }
-        };
         tasks
     });
 
@@ -140,7 +133,7 @@ fn app() -> Element {
                 if let Some(task) = slot() {
                     TaskCard {
                         task,
-                        _index: i,
+                        index: i,
                         z_index: if current_front == Some(i) { 100 } else { 0 },
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));
@@ -170,7 +163,7 @@ fn app() -> Element {
 #[component]
 fn TaskCard(
     task: TaskView,
-    _index: usize,
+    index: usize,
     z_index: usize,
     on_click: EventHandler<TaskView>,
     on_hover: EventHandler<TaskView>,
@@ -201,7 +194,7 @@ fn TaskCard(
         // In progress — get position from physics module.
         let card = physics::Card { progress: Some(progress) };
         let positions = physics::step(&[card]);
-        let pos = positions[0];
+        let pos = positions[index];
         position_style = in_progress_style(pos.x, pos.y);
     }
 
