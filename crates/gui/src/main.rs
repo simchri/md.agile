@@ -75,14 +75,15 @@ fn app() -> Element {
                     }
                 }
 
-                // if a task is "done" Reset the respective physics entry, so a new task using the same card, does not start with the old cards physics state 
-                // (in the UI shows as card starting jumping to the center, then sliding back to its actual position) 
+                // if a task is "done" Reset the respective physics entry, so a new task using the same card, does not start with the old cards physics state
+                // (in the UI shows as card starting jumping to the center, then sliding back to its actual position)
                 // I guess this is necesseary, because we have two independent clocks, therefore it is not guaranteed that a physics update runs before the next re-render
                 for (slot, phys_sig) in task_slots.iter().zip(card_physics_c.iter()) {
                     if let Some(task) = slot.peek().as_ref() {
                         if task_progress(&task) >= 1.0 {
                             let mut phys_sig = *phys_sig;
-                            phys_sig.set(physics::Card::new(physics::CardPosition { x: 0.0, y: 0.0 }));
+                            phys_sig
+                                .set(physics::Card::new(physics::CardPosition { x: 0.0, y: 0.0 }));
                         }
                     }
                 }
@@ -126,7 +127,6 @@ fn app() -> Element {
                 let dt = PHYSICS_FRAME_MS as f64 / 1000.0;
 
                 loop {
-                    
                     sleep(std::time::Duration::from_millis(PHYSICS_FRAME_MS)).await;
 
                     // update progress value in cards
