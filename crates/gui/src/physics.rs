@@ -9,7 +9,7 @@ const SPRING_K: f64 = 8.0;
 /// Damping coefficient (higher = less oscillation). Critical damping ≈ 2*sqrt(k).
 const DAMPING_C: f64 = 6.0;
 /// Repulsion strength between in-progress cards (higher = stronger push-apart).
-const REPEL_K: f64 = 3.0;
+const REPEL_K: f64 = 16.0;
 /// Radius of influence for inter-card repulsion, in normalized canvas units.
 /// Repulsion in each axis is independent and linear: zero at this distance,
 /// maximum at zero separation. Cards beyond this distance do not interact.
@@ -70,31 +70,31 @@ impl Card {
 ///
 /// Returns a `Vec<CardPosition>` with the updated position of each card.
 pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
-    let n = cards.len();
-    let mut repel_ax = vec![0.0f64; n];
-    let mut repel_ay = vec![0.0f64; n];
+    let num_cards = cards.len();
+    let mut repel_ax = vec![0.0f64; num_cards];
+    let mut repel_ay = vec![0.0f64; num_cards];
 
     // Pairwise repulsion — only between in-progress cards within INFLUENCE.
-    for i in 0..n {
-        if cards[i].progress.is_none() {
+    for i_card in 0..num_cards {
+        if cards[i_card].progress.is_none() {
             continue;
         }
-        for j in (i + 1)..n {
-            if cards[j].progress.is_none() {
+        for i_other_card in (i_card + 1)..num_cards {
+            if cards[i_other_card].progress.is_none() {
                 continue;
             }
-            let dx = cards[i].position.x - cards[j].position.x;
-            let dy = cards[i].position.y - cards[j].position.y;
+            let dx = cards[i_card].position.x - cards[i_other_card].position.x;
+            let dy = cards[i_card].position.y - cards[i_other_card].position.y;
 
             if dx.abs() < INFLUENCE {
                 let fx = REPEL_K * (INFLUENCE - dx.abs()) * dx.signum();
-                repel_ax[i] += fx;
-                repel_ax[j] -= fx;
+                repel_ax[i_card] += fx;
+                repel_ax[i_other_card] -= fx;
             }
             if dy.abs() < INFLUENCE {
                 let fy = REPEL_K * (INFLUENCE - dy.abs()) * dy.signum();
-                repel_ay[i] += fy;
-                repel_ay[j] -= fy;
+                repel_ay[i_card] += fy;
+                repel_ay[i_other_card] -= fy;
             }
         }
     }
