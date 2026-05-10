@@ -8,6 +8,25 @@ The philosophy for this project is defined in [MANIFESTO.md](MANIFESTO.md). AI a
 
 ## Commands
 
+### devenv wrapper
+
+**⚠️ IMPORTANT: All build, test, and dev commands must run inside Docker using the `devenv` wrapper. Do not run them directly on the host.**
+
+All commands run through Docker via the `devenv` helper script:
+
+```bash
+devenv <directory> [options] -c "<command>"
+```
+Where `devenv` is not available, docker compose can instead be used directly.
+
+**Options:**
+- `-a, --auto-select-service` — Auto-select service (use this for CI/automated scripts)
+- `-b, --build` — Force rebuild image and container
+- `-s, --service <name>` — Select specific service by name
+- `-c, --command <cmd>` — Run command in container
+- `-v, --verbose` — Show debug output
+- `-h, --help` — Show help
+
 ### Run / develop
 ```bash
 cargo run
@@ -15,24 +34,14 @@ cargo run
 
 ### Test
 ```bash
-cargo test                                                            # full suite
-cargo test --lib -- <test_name>                                       # single unit test
-cargo test --test acceptance-tests -- --name "<scenario name>"        # acceptance test
+devenv . -a -c "cargo test"                                                            # full suite
+devenv . -a -c "cargo test --lib -- <test_name>"                                       # single unit test
+devenv . -a -c 'cargo test --test acceptance-tests -- --name "<scenario name>"'        # acceptance test
 ```
 
 count tests in the project: (don't run)
 ```bash
-cargo test -- --list | grep -c "^" # count tests
-```
-
-### Docker dev environment
-
-The project is configured for development in a docker container, where the project sources are mounted.
-Claude runs inside this container, so host resources are not accessible.
-
-```bash
-docker compose run dev-container-no-gpu    # start dev container (no GPU needed)
-docker compose build                       # rebuild after Dockerfile changes
+devenv . -a -c 'cargo test -- --list | grep -c "^"' # count tests
 ```
 
 ## Toolchain
