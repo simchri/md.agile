@@ -6,8 +6,10 @@
 
 use rand;
 
-/// Spring stiffness constant (higher = snappier).
-const SPRING_K: f64 = 3.0;
+/// Spring stiffness in the x axis (higher = snappier horizontal tracking).
+const SPRING_K_X: f64 = 3.0;
+/// Spring stiffness in the y axis (higher = snappier vertical tracking).
+const SPRING_K_Y: f64 = 3.0;
 /// Damping coefficient (higher = less oscillation). Critical damping ≈ 2*sqrt(k).
 const DAMPING_C: f64 = 6.0;
 /// Repulsion strength between in-progress cards (higher = stronger push-apart).
@@ -15,10 +17,12 @@ const REPEL_K: f64 = 6.0;
 
 const HEAT_K: f64 = 0.0;
 
-/// Radius of influence for inter-card repulsion, in normalized canvas units.
-/// Repulsion in each axis is independent and linear: zero at this distance,
-/// maximum at zero separation. Cards beyond this distance do not interact.
-pub const INFLUENCE: f64 = 0.1;
+/// Radius of x-axis influence for inter-card repulsion, in normalized canvas units.
+/// Repulsion in x is independent and linear: zero at this distance, maximum at
+/// zero separation. Cards beyond this distance do not interact in x.
+pub const INFLUENCE_X: f64 = 0.1;
+/// Radius of y-axis influence for inter-card repulsion, in normalized canvas units.
+pub const INFLUENCE_Y: f64 = 0.1;
 
 /// Normalized (x, y) position on the canvas (0.0 = left/top, 1.0 = right/bottom).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -64,22 +68,23 @@ impl Card {
 /// Advance the physics simulation by one time step `dt` (seconds).
 ///
 /// For each card with `progress = Some(p)`, applies a spring-damper that pulls
-/// the card toward its target position `(p, p)` on the diagonal.
+/// the card toward its target position `(p, p)` on the diagonal, using
+/// independent stiffness constants [`SPRING_K_X`] and [`SPRING_K_Y`].
 ///
 /// Additionally, every pair of in-progress cards exerts a repulsive force on each
-/// other when they are within [`INFLUENCE`] distance in either axis. The force in
-/// each axis is independent and linear: maximum at zero separation, zero at
-/// [`INFLUENCE`]. This keeps crowded cards spread apart without coupling axes.
+/// other when they are within [`INFLUENCE_X`] (x-axis) or [`INFLUENCE_Y`] (y-axis)
+/// distance. The force in each axis is independent and linear: maximum at zero
+/// separation, zero at the respective influence radius. This lets x and y dynamics
+/// be tuned independently — e.g. a tighter x-influence keeps cards ordered by
+/// progress while a wider y-influence spreads them vertically.
 ///
 /// Cards with `progress = None` are not moved; their position is unchanged.
-///
-/// Returns a `Vec<CardPosition>` with the updated position of each card.
 pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
     let num_cards = cards.len();
     let mut repel_ax = vec![0.0f64; num_cards];
     let mut repel_ay = vec![0.0f64; num_cards];
 
-    // Pairwise repulsion — only between in-progress cards within INFLUENCE.
+    // Pairwise repulsion — only between in-progress cards within INFLUENCE_X / INFLUENCE_Y.
     for i_card in 0..num_cards {
         if cards[i_card].progress.is_none() {
             continue;
@@ -91,13 +96,13 @@ pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
             let dx = cards[i_card].position.x - cards[i_other_card].position.x;
             let dy = cards[i_card].position.y - cards[i_other_card].position.y;
 
-            if dx.abs() < INFLUENCE {
-                let fx = REPEL_K * (INFLUENCE - dx.abs()) * dx.signum();
+            if dx.abs() < INFLUENCE_X {
+                let fx = REPEL_K * (INFLUENCE_X - dx.abs()) * dx.signum();
                 repel_ax[i_card] += fx;
                 repel_ax[i_other_card] -= fx;
             }
-            if dy.abs() < INFLUENCE {
-                let fy = REPEL_K * (INFLUENCE - dy.abs()) * dy.signum();
+            if dy.abs() < INFLUENCE_Y {
+                let fy = REPEL_K * (INFLUENCE_Y - dy.abs()) * dy.signum();
                 repel_ay[i_card] += fy;
                 repel_ay[i_other_card] -= fy;
             }
@@ -107,10 +112,10 @@ pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
     for (i, card) in cards.iter_mut().enumerate() {
         if let Some(p) = card.progress {
             let target = p.clamp(0.0, 1.0);
-            let ax =
-                -SPRING_K * (card.position.x - target) - DAMPING_C * card.velocity.vx + repel_ax[i];
-            let ay =
-                -SPRING_K * (card.position.y - target) - DAMPING_C * card.velocity.vy + repel_ay[i];
+            let ax = -SPRING_K_X * (card.position.x - target) - DAMPING_C * card.velocity.vx
+                + repel_ax[i];
+            let ay = -SPRING_K_Y * (card.position.y - target) - DAMPING_C * card.velocity.vy
+                + repel_ay[i];
             card.velocity.vx += ax * dt;
             card.velocity.vy += ay * dt;
             card.position.x += card.velocity.vx * dt;
@@ -255,7 +260,7 @@ mod tests {
 
     #[test]
     fn close_in_progress_cards_repel_each_other() {
-        // Cards are 0.08 apart in each axis (within INFLUENCE=0.1).
+        // Cards are 0.08 apart in each axis (within INFLUENCE_X=0.1 and INFLUENCE_Y=0.1).
         // Both are at their spring targets so spring force is zero.
         // Any movement after one step must come from repulsion alone.
         let mut cards = [card_at(0.46, 0.46, 0.46), card_at(0.54, 0.54, 0.54)];
