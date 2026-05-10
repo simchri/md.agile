@@ -110,25 +110,25 @@ fn count_nested_children_recursive() {
 
 #[test]
 fn diagonal_at_zero_anchors_top_left() {
-    let s = diagonal_style(0.0, 0.0);
+    let s = diagonal_style(0.0);
     assert!(s.contains("0.000"), "expected 0.000 in: {s}");
 }
 
 #[test]
 fn diagonal_at_one_anchors_bottom_right() {
-    let s = diagonal_style(1.0, 0.0);
+    let s = diagonal_style(1.0);
     assert!(s.contains("1.000"), "expected 1.000 in: {s}");
 }
 
 #[test]
 fn diagonal_clamps_below_zero() {
-    let s = diagonal_style(-5.0, 0.0);
+    let s = diagonal_style(-5.0);
     assert!(s.contains("0.000"), "expected clamp to 0 in: {s}");
 }
 
 #[test]
 fn diagonal_clamps_above_one() {
-    let s = diagonal_style(2.0, 0.0);
+    let s = diagonal_style(2.0);
     assert!(s.contains("1.000"), "expected clamp to 1 in: {s}");
 }
 
@@ -232,32 +232,26 @@ fn done_rank_above_highest_clamps_to_right_anchor() {
 
 #[test]
 fn diagonal_style_at_zero_anchors_top_left() {
-    let s = diagonal_style(0.0, 0.0);
+    let s = diagonal_style(0.0);
     assert!(s.contains("top: calc(15vh + 5px"), "got: {s}");
     assert!(s.contains("left: calc(5px"), "got: {s}");
 }
 
 #[test]
 fn diagonal_style_uses_track_inset_constant() {
-    let s = diagonal_style(0.5, 0.0);
+    let s = diagonal_style(0.5);
     // Both axes use the same TRACK_INSET_PX (= 230 by default).
     assert!(s.contains("(70vh - 230px)"), "got: {s}");
     assert!(s.contains("(100vw - 230px)"), "got: {s}");
 }
 
-#[test]
-fn diagonal_style_perp_offset_splits_per_axis_with_perp_axis_constant() {
-    // 100 * PERP_AXIS (0.707) = 70.7, formatted to one decimal.
-    let s = diagonal_style(0.5, 100.0);
-    assert!(s.contains("70.7px"), "got: {s}");
-    assert!(s.contains("-70.7px"), "got: {s}");
-}
+
 
 // --- card_top_left_px (and agreement with diagonal_style) ---
 
 #[test]
 fn card_top_left_at_progress_zero_is_top_left_corner_of_track() {
-    let (left, top) = card_top_left_px(0.0, 0.0, REFERENCE_VIEWPORT);
+    let (left, top) = card_top_left_px(0.0, REFERENCE_VIEWPORT);
     assert!((left - EDGE_MARGIN_PX).abs() < 1e-9);
     let expected_top = DIAG_TOP_FRAC * REFERENCE_VIEWPORT.height_px + EDGE_MARGIN_PX;
     assert!((top - expected_top).abs() < 1e-9);
@@ -265,7 +259,7 @@ fn card_top_left_at_progress_zero_is_top_left_corner_of_track() {
 
 #[test]
 fn card_top_left_at_progress_one_is_bottom_right_corner_of_track() {
-    let (left, top) = card_top_left_px(1.0, 0.0, REFERENCE_VIEWPORT);
+    let (left, top) = card_top_left_px(1.0, REFERENCE_VIEWPORT);
     // At p=1, left = 5 + (vw - 230) + 0 = vw - 225.
     let expected_left = REFERENCE_VIEWPORT.width_px - TRACK_INSET_PX + EDGE_MARGIN_PX;
     assert!((left - expected_left).abs() < 1e-9);
@@ -276,20 +270,13 @@ fn card_top_left_at_progress_one_is_bottom_right_corner_of_track() {
     assert!((top - expected_top).abs() < 1e-9);
 }
 
-#[test]
-fn card_top_left_perp_offset_uses_perp_axis_constant() {
-    let (left_zero, top_zero) = card_top_left_px(0.5, 0.0, REFERENCE_VIEWPORT);
-    let (left_pos, top_pos) = card_top_left_px(0.5, 100.0, REFERENCE_VIEWPORT);
-    // Positive perp_offset shifts upper-right: +left, -top, magnitude = 100 * PERP_AXIS.
-    assert!(((left_pos - left_zero) - 100.0 * PERP_AXIS).abs() < 1e-9);
-    assert!(((top_zero - top_pos) - 100.0 * PERP_AXIS).abs() < 1e-9);
-}
+
 
 // --- card_position_normalized (normalized coordinates) ---
 
 #[test]
 fn card_position_normalized_at_progress_zero_is_top_left() {
-    let (left, top) = card_position_normalized(0.0, 0.0);
+    let (left, top) = card_position_normalized(0.0);
     // Left should be EDGE_MARGIN_FRAC_W ≈ 5/1440 ≈ 0.00347.
     assert!(left > 0.0 && left < 0.01);
     // Top should be DIAG_TOP_FRAC + EDGE_MARGIN_FRAC_H ≈ 0.15 + 5/900 ≈ 0.1556.
@@ -298,20 +285,11 @@ fn card_position_normalized_at_progress_zero_is_top_left() {
 
 #[test]
 fn card_position_normalized_at_progress_one_is_bottom_right() {
-    let (left, top) = card_position_normalized(1.0, 0.0);
+    let (left, top) = card_position_normalized(1.0);
     // Left should be near right edge but not at 1.0 (accounting for card size).
     assert!(left > 0.8 && left < 1.0);
     // Top should be near bottom edge.
     assert!(top > DIAG_TOP_FRAC + DIAG_HEIGHT_FRAC - 0.3 && top < 1.0);
 }
 
-#[test]
-fn card_position_normalized_perp_offset_shifts_position() {
-    let (left_zero, top_zero) = card_position_normalized(0.5, 0.0);
-    // Normalized offset ≈ 100px / 900px ≈ 0.111.
-    let (left_pos, top_pos) = card_position_normalized(0.5, 0.111);
-    // Positive offset shifts upper-right: +left, -top, magnitude = 0.111 * PERP_AXIS.
-    let expected_delta = 0.111 * PERP_AXIS;
-    assert!(((left_pos - left_zero) - expected_delta).abs() < 1e-9);
-    assert!(((top_zero - top_pos) - expected_delta).abs() < 1e-9);
-}
+

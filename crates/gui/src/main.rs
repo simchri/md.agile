@@ -8,7 +8,7 @@ mod slots;
 
 use card_positioning::{
     backlog_position_style, diagonal_style, done_position_style, status_box, status_class,
-    task_progress, REFERENCE_VIEWPORT,
+    task_progress,
 };
 use server::TaskView;
 
@@ -31,9 +31,6 @@ fn init_logger() {
 /// pre-allocates this many `Signal<Option<TaskView>>` slots; any tasks the
 /// backend reports beyond the limit are dropped on the GUI side.
 const MAX_TASK_SLOTS: usize = 60;
-
-/// Tick interval for the perpendicular-repulsion physics loop.
-const PHYSICS_MS: u64 = 60;
 
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
@@ -59,12 +56,9 @@ fn app() -> Element {
             .collect()
     });
 
-    // Per-slot physics state: perpendicular offset from the diagonal (px) and velocity (px/tick).
-    // Passed as signals to TaskCard so only the affected card re-renders on each physics tick.
-    let perp_offsets: Vec<Signal<f64>> =
-        use_hook(|| (0..MAX_TASK_SLOTS).map(|_| Signal::new(0.0f64)).collect());
-    let perp_vels: Vec<Signal<f64>> =
-        use_hook(|| (0..MAX_TASK_SLOTS).map(|_| Signal::new(0.0f64)).collect());
+
+    // Physics simulation will be calculated here in the future.
+    // For now, all in-progress cards are positioned on the diagonal.
 
     // Sync the resource into the per-slot signals whenever a fresh task list
     // arrives. Reconciliation is delegated to `slots::reconcile`; we only
@@ -109,76 +103,6 @@ fn app() -> Element {
         }
     });
 
-    use_effect({
-        // Physics loop at PHYSICS_MS Hz (60ms), runs purely in the WASM frontend.
-        // Applies spring-damper repulsion between in-progress cards that would overlap
-        // along the diagonal, spreading them perpendicular to it.
-        let task_slots = task_slots.clone();
-        let perp_offsets = perp_offsets.clone();
-        let perp_vels = perp_vels.clone();
-        move || {
-            // Vec<Signal<T>> is not Copy, so it cannot be moved from an FnMut closure.
-            // Clone inside the body so each invocation owns its own copies.
-            let task_slots = task_slots.clone();
-            let perp_offsets = perp_offsets.clone();
-            let perp_vels = perp_vels.clone();
-            dioxus::prelude::spawn(async move {
-                use wasmtimer::tokio::sleep;
-                loop {
-                    sleep(std::time::Duration::from_millis(PHYSICS_MS)).await;
-
-                    // Snapshot every slot's physics-relevant state.
-                    let snapshot: Vec<physics::Slot> = task_slots
-                        .iter()
-                        .enumerate()
-                        .map(|(i, slot)| {
-                            let progress = slot
-                                .peek()
-                                .as_ref()
-                                .map(task_progress)
-                                .filter(|p| *p > 0.0 && *p < 1.0);
-                            physics::Slot {
-                                progress,
-                                physics: physics::SlotPhysics {
-                                    perp_offset: *perp_offsets[i].peek(),
-                                    perp_velocity: *perp_vels[i].peek(),
-                                },
-                            }
-                        })
-                        .collect();
-
-                    let next = physics::step(&snapshot, REFERENCE_VIEWPORT);
-
-                    // Apply with skip-if-unchanged so unrelated cards don't re-render.
-                    // Active cards: write velocity always; write offset only on a
-                    // visible-magnitude change. Inactive cards: zero out only if not
-                    // already zero.
-                    for (i, new) in next.iter().enumerate() {
-                        let active = snapshot[i].progress.is_some();
-                        let mut vel = perp_vels[i];
-                        let cur_v = *vel.peek();
-                        if active {
-                            if cur_v != new.perp_velocity {
-                                vel.set(new.perp_velocity);
-                            }
-                        } else if cur_v != 0.0 {
-                            vel.set(0.0);
-                        }
-
-                        let mut off = perp_offsets[i];
-                        let cur_o = *off.peek();
-                        if active {
-                            if (new.perp_offset - cur_o).abs() > 0.05 {
-                                off.set(new.perp_offset);
-                            }
-                        } else if cur_o != 0.0 {
-                            off.set(0.0);
-                        }
-                    }
-                }
-            });
-        }
-    });
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
 
@@ -218,7 +142,6 @@ fn app() -> Element {
                         task,
                         _index: i,
                         z_index: if current_front == Some(i) { 100 } else { 0 },
-                        perp_offset_signal: perp_offsets[i],
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));
                             modal_task.set(Some(t));
@@ -249,14 +172,12 @@ fn TaskCard(
     task: TaskView,
     _index: usize,
     z_index: usize,
-    perp_offset_signal: Signal<f64>,
     on_click: EventHandler<TaskView>,
     on_hover: EventHandler<TaskView>,
     lowest_rank_backlog: usize,
     highest_rank_done: usize,
 ) -> Element {
     let progress = task_progress(&task);
-    let perp_offset = perp_offset_signal();
 
     let z = format!(" z-index: {z_index};");
 
@@ -277,8 +198,8 @@ fn TaskCard(
         title_style = "done-card-title";
         position_style = format!("{}{z}", done_position_style(task.rank, highest_rank_done));
     } else {
-        // In progress — physics offset applied here.
-        position_style = diagonal_style(progress, perp_offset);
+        // In progress — positioned on the diagonal.
+        position_style = diagonal_style(progress);
     }
 
     let t = task.clone();
