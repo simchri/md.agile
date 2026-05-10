@@ -188,6 +188,9 @@
   rough position; the spread is only the local adjustment needed to avoid overlap.
   - [x] refactor the current code, to easily accomodate setting both x and y postion for each card explicitly.
   - [x] the normal target position is the current diagonal postion
+- [x] rework repel to be fully 2D (also spread left-right, not just perp to axis)
+- [x] repel fixes
+- [ ] experiment with other designs for backlog and done sections
 
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
