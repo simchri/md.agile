@@ -7,22 +7,26 @@
 use rand;
 
 /// Spring stiffness in the x axis (higher = snappier horizontal tracking).
-const SPRING_K_X: f64 = 3.0;
+const SPRING_K_X: f64 = 10.0;
 /// Spring stiffness in the y axis (higher = snappier vertical tracking).
-const SPRING_K_Y: f64 = 3.0;
-/// Damping coefficient (higher = less oscillation). Critical damping ≈ 2*sqrt(k).
-const DAMPING_C: f64 = 6.0;
+const SPRING_K_Y: f64 = 2.0;
+/// Damping ratio relative to critical damping per axis.
+/// 1.0 = critically damped (fastest settle, no overshoot).
+/// < 1.0 = underdamped (bouncy). > 1.0 = overdamped (sluggish).
+/// Actual coefficient per axis: damping_c = 2 * sqrt(k) * DAMPING_RATIO.
+const DAMPING_RATIO: f64 = 1.0;
 /// Repulsion strength between in-progress cards (higher = stronger push-apart).
-const REPEL_K: f64 = 6.0;
+const REPEL_K_X: f64 = 2.0;
+const REPEL_K_Y: f64 = 6.0;
 
 const HEAT_K: f64 = 0.0;
 
 /// Radius of x-axis influence for inter-card repulsion, in normalized canvas units.
 /// Repulsion in x is independent and linear: zero at this distance, maximum at
 /// zero separation. Cards beyond this distance do not interact in x.
-pub const INFLUENCE_X: f64 = 0.1;
+pub const INFLUENCE_X: f64 = 0.4;
 /// Radius of y-axis influence for inter-card repulsion, in normalized canvas units.
-pub const INFLUENCE_Y: f64 = 0.1;
+pub const INFLUENCE_Y: f64 = 0.4;
 
 /// Normalized (x, y) position on the canvas (0.0 = left/top, 1.0 = right/bottom).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -96,13 +100,12 @@ pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
             let dx = cards[i_card].position.x - cards[i_other_card].position.x;
             let dy = cards[i_card].position.y - cards[i_other_card].position.y;
 
-            if dx.abs() < INFLUENCE_X {
-                let fx = REPEL_K * (INFLUENCE_X - dx.abs()) * dx.signum();
+            if dx.abs() < INFLUENCE_X && dy.abs() < INFLUENCE_Y {
+                let fx = REPEL_K_X * (INFLUENCE_X - dx.abs()) * dx.signum();
                 repel_ax[i_card] += fx;
                 repel_ax[i_other_card] -= fx;
-            }
-            if dy.abs() < INFLUENCE_Y {
-                let fy = REPEL_K * (INFLUENCE_Y - dy.abs()) * dy.signum();
+
+                let fy = REPEL_K_Y * (INFLUENCE_Y - dy.abs()) * dy.signum();
                 repel_ay[i_card] += fy;
                 repel_ay[i_other_card] -= fy;
             }
@@ -112,9 +115,11 @@ pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
     for (i, card) in cards.iter_mut().enumerate() {
         if let Some(p) = card.progress {
             let target = p.clamp(0.0, 1.0);
-            let ax = -SPRING_K_X * (card.position.x - target) - DAMPING_C * card.velocity.vx
+            let damping_cx = 2.0 * SPRING_K_X.sqrt() * DAMPING_RATIO;
+            let damping_cy = 2.0 * SPRING_K_Y.sqrt() * DAMPING_RATIO;
+            let ax = -SPRING_K_X * (card.position.x - target) - damping_cx * card.velocity.vx
                 + repel_ax[i];
-            let ay = -SPRING_K_Y * (card.position.y - target) - DAMPING_C * card.velocity.vy
+            let ay = -SPRING_K_Y * (card.position.y - target) - damping_cy * card.velocity.vy
                 + repel_ay[i];
             card.velocity.vx += ax * dt;
             card.velocity.vy += ay * dt;
