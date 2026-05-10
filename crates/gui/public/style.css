@@ -20,20 +20,22 @@ body {
 .separator1 {
     position: absolute;
     left: 0;
-    top: 15%;
+    top: 0;
     width: 100vw;
-    height: 4px;
-    background: black;
+    height: 15%;
+    background: #ffeb99;
     pointer-events: none;
+    z-index: -1;
 }
 .separator2 {
     position: absolute;
     left: 0;
     top: 85%;
     width: 100vw;
-    height: 4px;
-    background: black;
+    height: 15%;
+    background: #d8e6c8;
     pointer-events: none;
+    z-index: -1;
 }
 
 .smooth-movement {
