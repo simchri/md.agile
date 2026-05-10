@@ -194,7 +194,7 @@ fn TaskCard(
         // In progress — get position from physics module.
         let card = physics::Card { progress: Some(progress) };
         let positions = physics::step(&[card]);
-        let pos = positions[index];
+        let pos = positions[0];
         position_style = in_progress_style(pos.x, pos.y);
     }
 
