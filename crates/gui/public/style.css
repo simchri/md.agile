@@ -23,7 +23,7 @@ body {
     top: 0;
     width: 100vw;
     height: 18%;
-    background: #fff7d6;
+    background: #e6c84a;
     pointer-events: none;
     z-index: -1;
     /* fade: left, right, and bottom (inner) edges */
@@ -44,7 +44,7 @@ body {
     top: 82%;
     width: 100vw;
     height: 18%;
-    background: #e8f3e0;
+    background: #a8c898;
     pointer-events: none;
     z-index: -1;
     /* fade: right, left, and top (inner) edges */
