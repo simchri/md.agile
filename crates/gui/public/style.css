@@ -22,20 +22,38 @@ body {
     left: 0;
     top: 0;
     width: 100vw;
-    height: 15%;
+    height: 18%;
     background: #ffeb99;
     pointer-events: none;
     z-index: -1;
+    /* fade: left edge → right, bottom edge → top */
+    mask:
+        linear-gradient(to right, transparent 0%, black 20%),
+        linear-gradient(to top,   transparent 0%, black 20%);
+    mask-composite: intersect;
+    -webkit-mask:
+        linear-gradient(to right, transparent 0%, black 20%),
+        linear-gradient(to top,   transparent 0%, black 20%);
+    -webkit-mask-composite: source-in;
 }
 .separator2 {
     position: absolute;
     left: 0;
-    top: 85%;
+    top: 82%;
     width: 100vw;
-    height: 15%;
+    height: 18%;
     background: #d8e6c8;
     pointer-events: none;
     z-index: -1;
+    /* fade: right edge → left, top edge → bottom */
+    mask:
+        linear-gradient(to left,   transparent 0%, black 20%),
+        linear-gradient(to bottom, transparent 0%, black 20%);
+    mask-composite: intersect;
+    -webkit-mask:
+        linear-gradient(to left,   transparent 0%, black 20%),
+        linear-gradient(to bottom, transparent 0%, black 20%);
+    -webkit-mask-composite: source-in;
 }
 
 .smooth-movement {
