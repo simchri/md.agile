@@ -63,6 +63,27 @@ pub fn has_started(task: &TaskView) -> bool {
         .any(|c| matches!(c.status, TaskStatus::Done | TaskStatus::Cancelled))
 }
 
+/// Backlog cards are laid out left-to-right at the top of the canvas. The
+/// lowest-ranked task on screen anchors x = `CARD_GAP_PX`; subsequent ranks
+/// step right by one card width plus a gap.
+pub fn backlog_position_style(task_rank: usize, lowest_rank_on_screen: usize) -> String {
+    let pos_index = task_rank.saturating_sub(lowest_rank_on_screen);
+    let x_px = CARD_GAP_PX + pos_index * (CARD_WIDTH_PX + CARD_GAP_PX);
+    format!("top: 5px; bottom: unset; left: {x_px}px;")
+}
+
+/// Done cards are laid out right-to-left at the bottom of the canvas. The
+/// highest-ranked done task on screen sits flush against the right edge;
+/// lower ranks step left.
+pub fn done_position_style(task_rank: usize, highest_rank_on_screen: usize) -> String {
+    let pos_index = highest_rank_on_screen.saturating_sub(task_rank);
+    let x_px = CARD_GAP_PX + (pos_index + 1) * (CARD_WIDTH_PX + CARD_GAP_PX);
+    format!("top: calc(85vh + 5px); left: calc(100vw - {x_px}px);")
+}
+
+const CARD_WIDTH_PX: usize = 110;
+const CARD_GAP_PX: usize = 8;
+
 pub fn status_box(status: &TaskStatus) -> &'static str {
     match status {
         TaskStatus::Todo => "[ ]",

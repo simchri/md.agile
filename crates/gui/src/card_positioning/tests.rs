@@ -174,3 +174,51 @@ fn status_class_values() {
     assert_eq!(status_class(&TaskStatus::Done), "status-done");
     assert_eq!(status_class(&TaskStatus::Cancelled), "status-cancelled");
 }
+
+// --- backlog_position_style ---
+
+#[test]
+fn backlog_lowest_rank_anchors_at_left_gap() {
+    // Task at the lowest rank on screen → pos_index = 0 → left = 8 (CARD_GAP_PX).
+    let s = backlog_position_style(5, 5);
+    assert!(s.contains("left: 8px"), "got: {s}");
+    assert!(s.contains("top: 5px"), "got: {s}");
+}
+
+#[test]
+fn backlog_steps_right_by_card_plus_gap() {
+    // Second-lowest rank → pos_index = 1 → left = 8 + 1*(110+8) = 126.
+    let s = backlog_position_style(6, 5);
+    assert!(s.contains("left: 126px"), "got: {s}");
+}
+
+#[test]
+fn backlog_rank_below_lowest_clamps_to_left_anchor() {
+    // Defensive: a rank lower than the on-screen minimum shouldn't underflow.
+    let s = backlog_position_style(2, 5);
+    assert!(s.contains("left: 8px"), "got: {s}");
+}
+
+// --- done_position_style ---
+
+#[test]
+fn done_highest_rank_anchors_one_card_from_right() {
+    // Highest-ranked done task on screen → pos_index = 0 → x_px = 8 + 1*(110+8) = 126.
+    let s = done_position_style(10, 10);
+    assert!(s.contains("left: calc(100vw - 126px)"), "got: {s}");
+    assert!(s.contains("top: calc(85vh + 5px)"), "got: {s}");
+}
+
+#[test]
+fn done_steps_left_for_lower_ranks() {
+    // pos_index = 1 → x_px = 8 + 2*(110+8) = 244.
+    let s = done_position_style(9, 10);
+    assert!(s.contains("left: calc(100vw - 244px)"), "got: {s}");
+}
+
+#[test]
+fn done_rank_above_highest_clamps_to_right_anchor() {
+    // Defensive: a rank above the on-screen max shouldn't underflow.
+    let s = done_position_style(15, 10);
+    assert!(s.contains("left: calc(100vw - 126px)"), "got: {s}");
+}
