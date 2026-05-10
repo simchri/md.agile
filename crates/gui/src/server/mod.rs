@@ -65,7 +65,7 @@ const DONE_LIMIT: usize = 10;
 /// Returns an error if the working directory cannot be initialized or if task files cannot be parsed.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// let tasks = get_tasks().await?;
 /// ```
 #[server]
