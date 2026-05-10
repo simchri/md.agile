@@ -56,7 +56,7 @@ fn app() -> Element {
     // velocity). Updated by the physics loop at 20 Hz; the UI reads `.position`.
     let phys_cards: Vec<Signal<physics::Card>> = use_hook(|| {
         (0..MAX_TASK_SLOTS)
-            .map(|_| Signal::new(physics::Card::new(physics::CardPosition { x: 0.5, y: 0.5 })))
+            .map(|_| Signal::new(physics::Card::new(physics::CardPosition { x: 0.0, y: 0.0 })))
             .collect()
     });
 
