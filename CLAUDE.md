@@ -97,6 +97,9 @@ Follow red-green cycle strictly:
 
 Never write production code without a failing test that justifies it.
 
+**Exceptions:**
+- The GUI physics module does not need unit tests
+
 ### Auto-commit on vibe branches
 
 Whenever a prompt results in code changes (modifications to versioned files or new files to be versioned), **automatically create a commit** — but **only if**:
