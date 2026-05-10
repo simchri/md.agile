@@ -7,7 +7,7 @@ mod server;
 mod slots;
 
 use card_positioning::{
-    backlog_position_style, diagonal_style, done_position_style, status_box, status_class,
+    backlog_position_style, in_progress_style, done_position_style, status_box, status_class,
     task_progress,
 };
 use server::TaskView;
@@ -198,8 +198,11 @@ fn TaskCard(
         title_style = "done-card-title";
         position_style = format!("{}{z}", done_position_style(task.rank, highest_rank_done));
     } else {
-        // In progress — positioned on the diagonal.
-        position_style = diagonal_style(progress);
+        // In progress — get position from physics module.
+        let card = physics::Card { progress: Some(progress) };
+        let positions = physics::step(&[card]);
+        let pos = positions[0];
+        position_style = in_progress_style(pos.x, pos.y);
     }
 
     let t = task.clone();

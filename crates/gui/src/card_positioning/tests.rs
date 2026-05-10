@@ -106,29 +106,29 @@ fn count_nested_children_recursive() {
     assert_eq!(count_subtasks(&task), (2, 3));
 }
 
-// --- diagonal_style ---
+// --- in_progress_style (CSS positioning from physics output) ---
 
 #[test]
-fn diagonal_at_zero_anchors_top_left() {
-    let s = diagonal_style(0.0);
+fn in_progress_style_at_origin_top_left() {
+    let s = in_progress_style(0.0, 0.0);
     assert!(s.contains("0.000"), "expected 0.000 in: {s}");
 }
 
 #[test]
-fn diagonal_at_one_anchors_bottom_right() {
-    let s = diagonal_style(1.0);
+fn in_progress_style_at_bottom_right() {
+    let s = in_progress_style(1.0, 1.0);
     assert!(s.contains("1.000"), "expected 1.000 in: {s}");
 }
 
 #[test]
-fn diagonal_clamps_below_zero() {
-    let s = diagonal_style(-5.0);
+fn in_progress_style_clamps_below_zero() {
+    let s = in_progress_style(-5.0, -5.0);
     assert!(s.contains("0.000"), "expected clamp to 0 in: {s}");
 }
 
 #[test]
-fn diagonal_clamps_above_one() {
-    let s = diagonal_style(2.0);
+fn in_progress_style_clamps_above_one() {
+    let s = in_progress_style(2.0, 2.0);
     assert!(s.contains("1.000"), "expected clamp to 1 in: {s}");
 }
 
@@ -223,7 +223,7 @@ fn done_rank_above_highest_clamps_to_right_anchor() {
     assert!(s.contains("left: calc(100vw - 126px)"), "got: {s}");
 }
 
-// --- diagonal_style ---
+// --- in_progress_style ---
 //
 // These tests anchor the constants embedded in the CSS string. They will
 // fail if anyone changes EDGE_MARGIN_PX, TRACK_INSET_PX, DIAG_TOP_FRAC,
@@ -231,15 +231,15 @@ fn done_rank_above_highest_clamps_to_right_anchor() {
 // constant — which is exactly what we want.
 
 #[test]
-fn diagonal_style_at_zero_anchors_top_left() {
-    let s = diagonal_style(0.0);
+fn in_progress_style_at_origin_anchors_top_left() {
+    let s = in_progress_style(0.0, 0.0);
     assert!(s.contains("top: calc(15vh + 5px"), "got: {s}");
     assert!(s.contains("left: calc(5px"), "got: {s}");
 }
 
 #[test]
-fn diagonal_style_uses_track_inset_constant() {
-    let s = diagonal_style(0.5);
+fn in_progress_style_uses_track_inset_constant() {
+    let s = in_progress_style(0.5, 0.5);
     // Both axes use the same TRACK_INSET_PX (= 230 by default).
     assert!(s.contains("(70vh - 230px)"), "got: {s}");
     assert!(s.contains("(100vw - 230px)"), "got: {s}");

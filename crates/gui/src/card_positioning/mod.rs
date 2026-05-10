@@ -3,7 +3,7 @@ use crate::server::{TaskStatus, TaskView};
 // --- Diagonal-track geometry -----------------------------------------------
 //
 // Single source of truth for the in-progress card layout. Both
-// [`diagonal_style`] (CSS `calc()` consumed by Dioxus) and
+// [`in_progress_style`] (CSS `calc()` consumed by Dioxus) and
 // [`card_top_left_px`] (pixel coords consumed by the physics integrator's
 // boundary checks) derive from these constants, so a change here flows
 // through to both.
@@ -71,15 +71,21 @@ pub fn count_subtasks(task: &TaskView) -> (usize, usize) {
     (done, total)
 }
 
-/// Builds a CSS positioning rule that places the post-it along the top-left to
-/// bottom-right diagonal at `progress` (0.0 = top-left, 1.0 = bottom-right).
-pub fn diagonal_style(progress: f64) -> String {
-    let p = progress.clamp(0.0, 1.0);
+/// Builds a CSS positioning rule for an in-progress card at the given relative position.
+///
+/// Input:
+/// - `x`: normalized x coordinate (0.0 = left, 1.0 = right)
+/// - `y`: normalized y coordinate (0.0 = top, 1.0 = bottom)
+///
+/// Returns CSS positioning (top/left) in a mix of viewport units and pixels.
+pub fn in_progress_style(x: f64, y: f64) -> String {
+    let x = x.clamp(0.0, 1.0);
+    let y = y.clamp(0.0, 1.0);
     let top_vh = DIAG_TOP_FRAC * 100.0;
     let height_vh = DIAG_HEIGHT_FRAC * 100.0;
     format!(
-        "top: calc({top_vh:.0}vh + {EDGE_MARGIN_PX:.0}px + {p:.3} * ({height_vh:.0}vh - {TRACK_INSET_PX:.0}px)); \
-         left: calc({EDGE_MARGIN_PX:.0}px + {p:.3} * (100vw - {TRACK_INSET_PX:.0}px));"
+        "top: calc({top_vh:.0}vh + {EDGE_MARGIN_PX:.0}px + {y:.3} * ({height_vh:.0}vh - {TRACK_INSET_PX:.0}px)); \
+         left: calc({EDGE_MARGIN_PX:.0}px + {x:.3} * (100vw - {TRACK_INSET_PX:.0}px));"
     )
 }
 
