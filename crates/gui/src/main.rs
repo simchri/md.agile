@@ -32,8 +32,8 @@ fn init_logger() {
 /// backend reports beyond the limit are dropped on the GUI side.
 const MAX_TASK_SLOTS: usize = 60;
 
-/// Target frequency for physics simulation: 20 times per second (50ms per frame).
-const PHYSICS_FRAME_MS: u64 = 50;
+/// Target frequency for physics simulation: 40 times per second (25ms per frame).
+const PHYSICS_FRAME_MS: u64 = 25;
 
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
@@ -103,7 +103,7 @@ fn app() -> Element {
         }
     });
 
-    // Physics loop at PHYSICS_FRAME_MS Hz (20 times per second).
+    // Physics loop at PHYSICS_FRAME_MS Hz (40 times per second).
     // Updates progress on each Card, then advances the spring-damper simulation.
     {
         let task_slots = task_slots.clone();
