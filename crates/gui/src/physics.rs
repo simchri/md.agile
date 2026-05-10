@@ -1,24 +1,22 @@
 //! Spring-damper repulsion that spreads in-progress cards perpendicular to
 //! the diagonal.
 //!
-//! Pure, signal-free integrator. The caller snapshots its slot signals
-//! into a `Vec<Slot>`, runs [`step`] once per tick, and writes the
-//! returned [`SlotPhysics`] back to the signals (typically with a
-//! "skip-if-unchanged" filter so unrelated cards don't re-render).
+//! Pure, signal-free integrator. The caller maintains a list of card progress
+//! values and internal physics state (`CardPhysicsState`). Each tick, call [`step`]
+//! with current progress and state to get back normalized (x, y) coordinates for
+//! rendering and the new state for the next tick.
 //!
 //! All coordinates are **normalized** (0.0–1.0 fractions of viewport dimensions):
-//! - Progress: 0.0 = top-left, 1.0 = bottom-right (unchanged from before)
-//! - Perpendicular offset: fraction of viewport height
+//! - Progress: 0.0 = top-left, 1.0 = bottom-right (input)
+//! - Output coordinates: (x, y) as fractions of viewport width and height
+//! - Perpendicular offset: fraction of viewport height (internal state)
 //! - Card size: `ASSUMED_CARD_SIZE_FRAC` as fraction of viewport height
 //! - Boundary zone: `BOUNDARY_ZONE_FRAC` as fraction of viewport width/height
 //!
 //! This makes the physics engine **viewport-size-agnostic**: the same behavior
 //! applies whether the screen is 1440×900 or 1920×1080.
-//!
-//! Boundary checks and CSS positioning happen in [`crate::card_positioning`],
-//! which converts these normalized coordinates to pixels for rendering.
 
-use crate::card_positioning::{card_position_normalized, Viewport, CARD_PX};
+use crate::card_positioning::card_position_normalized;
 
 // --- Tunables (all normalized) ---
 
@@ -56,41 +54,70 @@ pub const MAX_OFFSET_FRAC: f64 = 0.333;
 
 // --- Public types ---
 
+/// Internal state for a single card's physics.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct SlotPhysics {
+pub struct CardPhysicsState {
+    /// Perpendicular offset as fraction of viewport height.
     pub perp_offset: f64,
+    /// Perpendicular velocity as fraction of height per tick.
     pub perp_velocity: f64,
 }
 
+/// Card input for physics simulation: progress percentage and current state.
 #[derive(Debug, Clone, Copy)]
-pub struct Slot {
-    /// `Some(p)` if this slot holds an in-progress card with `0.0 < p < 1.0`;
-    /// `None` if the slot is empty or holds a backlog/done card.
+pub struct Card {
+    /// `Some(p)` if this card is in-progress with `0.0 < p < 1.0`;
+    /// `None` if the card is inactive (backlog/done).
     pub progress: Option<f64>,
-    pub physics: SlotPhysics,
+    /// Current physics state (offset and velocity).
+    pub state: CardPhysicsState,
+}
+
+/// Output from physics simulation: normalized (x, y) coordinates and new state.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CardPosition {
+    /// Normalized x coordinate (0.0 = left edge, 1.0 = right edge).
+    pub x: f64,
+    /// Normalized y coordinate (0.0 = top edge, 1.0 = bottom edge).
+    pub y: f64,
+    /// New physics state after this tick (to be fed back into next step call).
+    pub state: CardPhysicsState,
 }
 
 // --- Integrator ---
 
-/// Computes the next-tick physics state for every slot.
+/// Computes physics and positions for every card.
 ///
-/// In-progress slots get pairwise repulsion + boundary springs + a
-/// centering spring + damping applied. Empty / non-in-progress slots
-/// always return [`SlotPhysics::default`] (offset = 0, velocity = 0).
+/// Input:
+/// - `cards`: slice of progress values (0.0–1.0) and current physics state
 ///
-/// All calculations use normalized coordinates (fractions of viewport dimensions).
-pub fn step(slots: &[Slot], viewport: Viewport) -> Vec<SlotPhysics> {
-    let mut out: Vec<SlotPhysics> = vec![SlotPhysics::default(); slots.len()];
+/// Output:
+/// - `Vec<CardPosition>`: normalized (x, y) coordinates and new state for each card
+///
+/// In-progress cards (progress = Some) get pairwise repulsion + boundary springs +
+/// centering spring + damping applied. Inactive cards (progress = None) return
+/// coordinates at (x=0, y=0) with zeroed state.
+///
+/// All calculations use normalized coordinates independent of viewport size.
+pub fn step(cards: &[Card]) -> Vec<CardPosition> {
+    let mut out: Vec<CardPosition> = cards
+        .iter()
+        .map(|_| CardPosition {
+            x: 0.0,
+            y: 0.0,
+            state: CardPhysicsState::default(),
+        })
+        .collect();
 
-    let active: Vec<(usize, f64, f64)> = slots
+    let active: Vec<(usize, f64, f64)> = cards
         .iter()
         .enumerate()
-        .filter_map(|(i, s)| s.progress.map(|p| (i, p, s.physics.perp_offset)))
+        .filter_map(|(i, c)| c.progress.map(|p| (i, p, c.state.perp_offset)))
         .collect();
 
     // Pairwise repulsion: cards within COLLISION_THRESHOLD progress units
     // push each other apart in the perpendicular direction.
-    let mut dv = vec![0.0_f64; slots.len()];
+    let mut dv = vec![0.0_f64; cards.len()];
     for a in 0..active.len() {
         for b in (a + 1)..active.len() {
             let (ia, pa, oa) = active[a];
@@ -110,36 +137,39 @@ pub fn step(slots: &[Slot], viewport: Viewport) -> Vec<SlotPhysics> {
     }
 
     // Per-card integration: repulsion + boundary springs + centering + damping.
-    // Boundary checks work by getting normalized card position, converting to pixels,
-    // and checking against pixel-based boundary zones.
-    const BOUNDARY_ZONE_PX: f64 = 80.0;
-
+    // Boundary checks work in normalized space without needing viewport dimensions.
     for &(i, p, offset) in &active {
-        let mut v = slots[i].physics.perp_velocity + dv[i];
+        let mut v = cards[i].state.perp_velocity + dv[i];
 
-        // Get normalized card position (0.0–1.0 fractions of viewport).
-        let (left_norm, top_norm) = card_position_normalized(p, offset);
+        // Get normalized card position (0.0–1.0 fractions).
+        let (x_norm, y_norm) = card_position_normalized(p, offset);
 
-        // Convert to pixels for boundary checking.
-        let left = left_norm * viewport.width_px;
-        let top = top_norm * viewport.height_px;
-        let right = left + CARD_PX;
-        let bottom = top + CARD_PX;
+        // Boundary springs: activate when normalized position is within
+        // BOUNDARY_ZONE_FRAC of the edges (0.0 or 1.0 in normalized space).
+        let card_half_size = ASSUMED_CARD_SIZE_FRAC / 2.0;
 
-        // Boundary impulses: scale from pixel space to normalized space by dividing by viewport.height_px.
-        // This ensures that K_BOUNDARY works the same way regardless of viewport size.
-        if left < BOUNDARY_ZONE_PX {
-            v += K_BOUNDARY * (BOUNDARY_ZONE_PX - left) / viewport.height_px;
+        // Left boundary: when card goes below left edge + boundary zone.
+        if x_norm < BOUNDARY_ZONE_FRAC + card_half_size {
+            let penetration = (BOUNDARY_ZONE_FRAC + card_half_size) - x_norm;
+            v += K_BOUNDARY * penetration;
         }
-        if right > viewport.width_px - BOUNDARY_ZONE_PX {
-            v -= K_BOUNDARY * (right - (viewport.width_px - BOUNDARY_ZONE_PX)) / viewport.height_px;
+
+        // Right boundary: when card goes past right edge - boundary zone.
+        if x_norm > 1.0 - BOUNDARY_ZONE_FRAC - card_half_size {
+            let penetration = x_norm - (1.0 - BOUNDARY_ZONE_FRAC - card_half_size);
+            v -= K_BOUNDARY * penetration;
         }
-        if top < BOUNDARY_ZONE_PX {
-            v -= K_BOUNDARY * (BOUNDARY_ZONE_PX - top) / viewport.height_px;
+
+        // Top boundary: when card goes above top edge + boundary zone.
+        if y_norm < BOUNDARY_ZONE_FRAC + card_half_size {
+            let penetration = (BOUNDARY_ZONE_FRAC + card_half_size) - y_norm;
+            v -= K_BOUNDARY * penetration;
         }
-        if bottom > viewport.height_px - BOUNDARY_ZONE_PX {
-            v += K_BOUNDARY * (bottom - (viewport.height_px - BOUNDARY_ZONE_PX))
-                / viewport.height_px;
+
+        // Bottom boundary: when card goes below bottom edge - boundary zone.
+        if y_norm > 1.0 - BOUNDARY_ZONE_FRAC - card_half_size {
+            let penetration = y_norm - (1.0 - BOUNDARY_ZONE_FRAC - card_half_size);
+            v += K_BOUNDARY * penetration;
         }
 
         // Centering spring: pulls offset back toward 0.
@@ -149,9 +179,13 @@ pub fn step(slots: &[Slot], viewport: Viewport) -> Vec<SlotPhysics> {
         v *= DAMPING;
         let new_offset = (offset + v).clamp(-MAX_OFFSET_FRAC, MAX_OFFSET_FRAC);
 
-        out[i] = SlotPhysics {
-            perp_offset: new_offset,
-            perp_velocity: v,
+        out[i] = CardPosition {
+            x: x_norm,
+            y: y_norm,
+            state: CardPhysicsState {
+                perp_offset: new_offset,
+                perp_velocity: v,
+            },
         };
     }
 
