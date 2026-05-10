@@ -26,15 +26,17 @@ body {
     background: #fff7d6;
     pointer-events: none;
     z-index: -1;
-    /* fade: left edge → right, bottom edge → top */
+    /* fade: left, right, and bottom (inner) edges */
     mask:
-        linear-gradient(to right, transparent 0%, black 20%),
-        linear-gradient(to top,   transparent 0%, black 20%);
-    mask-composite: intersect;
+        linear-gradient(to right,  transparent 0%, black 40%),
+        linear-gradient(to left,   transparent 0%, black 40%),
+        linear-gradient(to top,    transparent 0%, black 40%);
+    mask-composite: intersect, intersect;
     -webkit-mask:
-        linear-gradient(to right, transparent 0%, black 20%),
-        linear-gradient(to top,   transparent 0%, black 20%);
-    -webkit-mask-composite: source-in;
+        linear-gradient(to right,  transparent 0%, black 40%),
+        linear-gradient(to left,   transparent 0%, black 40%),
+        linear-gradient(to top,    transparent 0%, black 40%);
+    -webkit-mask-composite: source-in, source-in;
 }
 .separator2 {
     position: absolute;
@@ -45,15 +47,17 @@ body {
     background: #e8f3e0;
     pointer-events: none;
     z-index: -1;
-    /* fade: right edge → left, top edge → bottom */
+    /* fade: right, left, and top (inner) edges */
     mask:
-        linear-gradient(to left,   transparent 0%, black 20%),
-        linear-gradient(to bottom, transparent 0%, black 20%);
-    mask-composite: intersect;
+        linear-gradient(to left,   transparent 0%, black 40%),
+        linear-gradient(to right,  transparent 0%, black 40%),
+        linear-gradient(to bottom, transparent 0%, black 40%);
+    mask-composite: intersect, intersect;
     -webkit-mask:
-        linear-gradient(to left,   transparent 0%, black 20%),
-        linear-gradient(to bottom, transparent 0%, black 20%);
-    -webkit-mask-composite: source-in;
+        linear-gradient(to left,   transparent 0%, black 40%),
+        linear-gradient(to right,  transparent 0%, black 40%),
+        linear-gradient(to bottom, transparent 0%, black 40%);
+    -webkit-mask-composite: source-in, source-in;
 }
 
 .smooth-movement {
