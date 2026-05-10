@@ -96,9 +96,35 @@ pub fn diagonal_style(progress: f64, perp_offset_px: f64) -> String {
     )
 }
 
+/// Top-left coordinates of an in-progress card in normalized space (0.0–1.0).
+/// Takes normalized progress and perpendicular offset (as fractions of viewport height).
+/// Returns normalized coordinates as fractions of viewport width and height.
+///
+/// Mirrors the formula in [`diagonal_style`] so the physics integrator's boundary
+/// checks line up with where CSS actually places the card.
+pub fn card_position_normalized(progress: f64, perp_offset_norm: f64) -> (f64, f64) {
+    let p = progress.clamp(0.0, 1.0);
+    // Normalize EDGE_MARGIN_PX and TRACK_INSET_PX to viewport dimensions.
+    // Width: 5px margin / assumed 1440px = 0.00347; 230px track / 1440px = 0.1597
+    // Height: 5px margin / assumed 900px = 0.00556; 230px track / 900px = 0.2556
+    // Use these computed fractions directly (independent of actual viewport size).
+    const EDGE_MARGIN_FRAC_W: f64 = EDGE_MARGIN_PX / 1440.0;
+    const EDGE_MARGIN_FRAC_H: f64 = EDGE_MARGIN_PX / 900.0;
+    const TRACK_INSET_FRAC_W: f64 = TRACK_INSET_PX / 1440.0;
+    const TRACK_INSET_FRAC_H: f64 = TRACK_INSET_PX / 900.0;
+
+    let left = EDGE_MARGIN_FRAC_W + p * (1.0 - TRACK_INSET_FRAC_W) + perp_offset_norm * PERP_AXIS;
+    let top = DIAG_TOP_FRAC + EDGE_MARGIN_FRAC_H + p * (DIAG_HEIGHT_FRAC - TRACK_INSET_FRAC_H)
+        - perp_offset_norm * PERP_AXIS;
+    (left, top)
+}
+
 /// Top-left pixel coordinates of an in-progress card. Mirrors the formula in
 /// [`diagonal_style`] so the physics integrator's boundary checks line up
 /// with where CSS actually places the card.
+///
+/// **Deprecated**: Use [`card_position_normalized`] instead. This function is kept
+/// for compatibility with CSS rendering functions.
 pub fn card_top_left_px(progress: f64, perp_offset_px: f64, viewport: Viewport) -> (f64, f64) {
     let left = EDGE_MARGIN_PX
         + progress * (viewport.width_px - TRACK_INSET_PX)

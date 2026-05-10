@@ -18,7 +18,7 @@
 //! Boundary checks and CSS positioning happen in [`crate::card_positioning`],
 //! which converts these normalized coordinates to pixels for rendering.
 
-use crate::card_positioning::{card_top_left_px, Viewport, CARD_PX};
+use crate::card_positioning::{card_position_normalized, Viewport, CARD_PX};
 
 // --- Tunables (all normalized) ---
 
@@ -110,17 +110,19 @@ pub fn step(slots: &[Slot], viewport: Viewport) -> Vec<SlotPhysics> {
     }
 
     // Per-card integration: repulsion + boundary springs + centering + damping.
-    // Boundary checks work by converting normalized offset to pixels, computing
-    // the card position, and checking against pixel-based boundary zones.
-    // The boundary impulses are scaled to work in normalized velocity space.
+    // Boundary checks work by getting normalized card position, converting to pixels,
+    // and checking against pixel-based boundary zones.
     const BOUNDARY_ZONE_PX: f64 = 80.0;
 
     for &(i, p, offset) in &active {
         let mut v = slots[i].physics.perp_velocity + dv[i];
 
-        // Convert normalized offset to pixels for boundary checking.
-        let offset_px = offset * viewport.height_px;
-        let (left, top) = card_top_left_px(p, offset_px, viewport);
+        // Get normalized card position (0.0–1.0 fractions of viewport).
+        let (left_norm, top_norm) = card_position_normalized(p, offset);
+
+        // Convert to pixels for boundary checking.
+        let left = left_norm * viewport.width_px;
+        let top = top_norm * viewport.height_px;
         let right = left + CARD_PX;
         let bottom = top + CARD_PX;
 

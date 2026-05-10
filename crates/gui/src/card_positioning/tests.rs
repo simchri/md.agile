@@ -284,3 +284,34 @@ fn card_top_left_perp_offset_uses_perp_axis_constant() {
     assert!(((left_pos - left_zero) - 100.0 * PERP_AXIS).abs() < 1e-9);
     assert!(((top_zero - top_pos) - 100.0 * PERP_AXIS).abs() < 1e-9);
 }
+
+// --- card_position_normalized (normalized coordinates) ---
+
+#[test]
+fn card_position_normalized_at_progress_zero_is_top_left() {
+    let (left, top) = card_position_normalized(0.0, 0.0);
+    // Left should be EDGE_MARGIN_FRAC_W ≈ 5/1440 ≈ 0.00347.
+    assert!(left > 0.0 && left < 0.01);
+    // Top should be DIAG_TOP_FRAC + EDGE_MARGIN_FRAC_H ≈ 0.15 + 5/900 ≈ 0.1556.
+    assert!(top > DIAG_TOP_FRAC && top < 0.2);
+}
+
+#[test]
+fn card_position_normalized_at_progress_one_is_bottom_right() {
+    let (left, top) = card_position_normalized(1.0, 0.0);
+    // Left should be near right edge but not at 1.0 (accounting for card size).
+    assert!(left > 0.8 && left < 1.0);
+    // Top should be near bottom edge.
+    assert!(top > DIAG_TOP_FRAC + DIAG_HEIGHT_FRAC - 0.3 && top < 1.0);
+}
+
+#[test]
+fn card_position_normalized_perp_offset_shifts_position() {
+    let (left_zero, top_zero) = card_position_normalized(0.5, 0.0);
+    // Normalized offset ≈ 100px / 900px ≈ 0.111.
+    let (left_pos, top_pos) = card_position_normalized(0.5, 0.111);
+    // Positive offset shifts upper-right: +left, -top, magnitude = 0.111 * PERP_AXIS.
+    let expected_delta = 0.111 * PERP_AXIS;
+    assert!(((left_pos - left_zero) - expected_delta).abs() < 1e-9);
+    assert!(((top_zero - top_pos) - expected_delta).abs() < 1e-9);
+}
