@@ -55,6 +55,7 @@ fn app() -> Element {
             .map(|_| Signal::new(physics::Card::new(physics::CardPosition { x: 0.0, y: 0.0 })))
             .collect()
     });
+    let card_physics_c = card_physics.clone();
 
     // Sync the resource into the per-slot signals whenever a fresh task list
     // arrives. We build a SlotState view for the reconcile function, then
@@ -74,6 +75,17 @@ fn app() -> Element {
                     }
                 }
 
+                // if a task is "done" Reset the respective physics entry, so a new task using the same card, does not start with the old cards physics state 
+                // (in the UI shows as card starting jumping to the center, then sliding back to its actual position) 
+                // I guess this is necesseary, because we have two independent clocks, therefore it is not guaranteed that a physics update runs before the next re-render
+                for (slot, phys_sig) in task_slots.iter().zip(card_physics_c.iter()) {
+                    if let Some(task) = slot.peek().as_ref() {
+                        if task_progress(&task) >= 1.0 {
+                            let mut phys_sig = *phys_sig;
+                            phys_sig.set(physics::Card::new(physics::CardPosition { x: 0.0, y: 0.0 }));
+                        }
+                    }
+                }
             }
         });
     }
@@ -147,7 +159,9 @@ fn app() -> Element {
                     // write updated physics properties to signals
                     for (new_card, phys_sig) in cards.into_iter().zip(card_physics.iter()) {
                         let mut phys_sig = *phys_sig;
-                        phys_sig.set(new_card);
+                        if phys_sig.peek().position != new_card.position {
+                            phys_sig.set(new_card);
+                        }
                     }
 
                     log::info!("use_effect: physics tick");
