@@ -241,7 +241,7 @@ run_many() {
 
 echo "[demo] Building and starting dx serve (log: $DX_LOG)"
 echo "[demo] First build may take ~60s..."
-(cd "$GUI_DIR" && MDAGILE_WORKDIR="$FIXTURE_DIR" dx serve --hot-patch >"$DX_LOG" 2>&1) &
+(cd "$GUI_DIR" && MDAGILE_WORKDIR="$FIXTURE_DIR" dx serve --hot-patch --hot-reload=true >"$DX_LOG" 2>&1) &
 DX_PID=$!
 
 echo "[demo] Waiting for server on :8080 ..."

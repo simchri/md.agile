@@ -242,7 +242,7 @@ fn TaskCard(
         position_style = format!("{}{z}", done_position_style(task.rank, highest_rank_done));
     } else {
         // In progress — use position from physics loop.
-        position_style = in_progress_style(position.x, position.y);
+        position_style = format!("{}{z}", in_progress_style(position.x, position.y));
     }
 
     let t = task.clone();
