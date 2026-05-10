@@ -1,4 +1,5 @@
 use super::*;
+use crate::card_positioning::{Viewport, REFERENCE_VIEWPORT};
 
 fn slot(progress: Option<f64>, perp_offset: f64, perp_velocity: f64) -> Slot {
     Slot {

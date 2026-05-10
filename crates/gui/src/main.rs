@@ -8,7 +8,7 @@ mod slots;
 
 use card_positioning::{
     backlog_position_style, diagonal_style, done_position_style, status_box, status_class,
-    task_progress,
+    task_progress, REFERENCE_VIEWPORT,
 };
 use server::TaskView;
 
@@ -147,7 +147,7 @@ fn app() -> Element {
                         })
                         .collect();
 
-                    let next = physics::step(&snapshot, physics::REFERENCE_VIEWPORT);
+                    let next = physics::step(&snapshot, REFERENCE_VIEWPORT);
 
                     // Apply with skip-if-unchanged so unrelated cards don't re-render.
                     // Active cards: write velocity always; write offset only on a

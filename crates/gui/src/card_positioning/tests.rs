@@ -222,3 +222,65 @@ fn done_rank_above_highest_clamps_to_right_anchor() {
     let s = done_position_style(15, 10);
     assert!(s.contains("left: calc(100vw - 126px)"), "got: {s}");
 }
+
+// --- diagonal_style ---
+//
+// These tests anchor the constants embedded in the CSS string. They will
+// fail if anyone changes EDGE_MARGIN_PX, TRACK_INSET_PX, DIAG_TOP_FRAC,
+// or DIAG_HEIGHT_FRAC, forcing the tests to be updated alongside the
+// constant — which is exactly what we want.
+
+#[test]
+fn diagonal_style_at_zero_anchors_top_left() {
+    let s = diagonal_style(0.0, 0.0);
+    assert!(s.contains("top: calc(15vh + 5px"), "got: {s}");
+    assert!(s.contains("left: calc(5px"), "got: {s}");
+}
+
+#[test]
+fn diagonal_style_uses_track_inset_constant() {
+    let s = diagonal_style(0.5, 0.0);
+    // Both axes use the same TRACK_INSET_PX (= 230 by default).
+    assert!(s.contains("(70vh - 230px)"), "got: {s}");
+    assert!(s.contains("(100vw - 230px)"), "got: {s}");
+}
+
+#[test]
+fn diagonal_style_perp_offset_splits_per_axis_with_perp_axis_constant() {
+    // 100 * PERP_AXIS (0.707) = 70.7, formatted to one decimal.
+    let s = diagonal_style(0.5, 100.0);
+    assert!(s.contains("70.7px"), "got: {s}");
+    assert!(s.contains("-70.7px"), "got: {s}");
+}
+
+// --- card_top_left_px (and agreement with diagonal_style) ---
+
+#[test]
+fn card_top_left_at_progress_zero_is_top_left_corner_of_track() {
+    let (left, top) = card_top_left_px(0.0, 0.0, REFERENCE_VIEWPORT);
+    assert!((left - EDGE_MARGIN_PX).abs() < 1e-9);
+    let expected_top = DIAG_TOP_FRAC * REFERENCE_VIEWPORT.height_px + EDGE_MARGIN_PX;
+    assert!((top - expected_top).abs() < 1e-9);
+}
+
+#[test]
+fn card_top_left_at_progress_one_is_bottom_right_corner_of_track() {
+    let (left, top) = card_top_left_px(1.0, 0.0, REFERENCE_VIEWPORT);
+    // At p=1, left = 5 + (vw - 230) + 0 = vw - 225.
+    let expected_left = REFERENCE_VIEWPORT.width_px - TRACK_INSET_PX + EDGE_MARGIN_PX;
+    assert!((left - expected_left).abs() < 1e-9);
+    // At p=1, top = 0.15*vh + 5 + (0.70*vh - 230) = 0.85*vh - 225.
+    let expected_top = (DIAG_TOP_FRAC + DIAG_HEIGHT_FRAC) * REFERENCE_VIEWPORT.height_px
+        - TRACK_INSET_PX
+        + EDGE_MARGIN_PX;
+    assert!((top - expected_top).abs() < 1e-9);
+}
+
+#[test]
+fn card_top_left_perp_offset_uses_perp_axis_constant() {
+    let (left_zero, top_zero) = card_top_left_px(0.5, 0.0, REFERENCE_VIEWPORT);
+    let (left_pos, top_pos) = card_top_left_px(0.5, 100.0, REFERENCE_VIEWPORT);
+    // Positive perp_offset shifts upper-right: +left, -top, magnitude = 100 * PERP_AXIS.
+    assert!(((left_pos - left_zero) - 100.0 * PERP_AXIS).abs() < 1e-9);
+    assert!(((top_zero - top_pos) - 100.0 * PERP_AXIS).abs() < 1e-9);
+}

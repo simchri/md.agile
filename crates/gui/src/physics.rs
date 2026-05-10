@@ -5,6 +5,12 @@
 //! into a `Vec<Slot>`, runs [`step`] once per tick, and writes the
 //! returned [`SlotPhysics`] back to the signals (typically with a
 //! "skip-if-unchanged" filter so unrelated cards don't re-render).
+//!
+//! Card geometry (size, diagonal track, viewport reference) lives in
+//! [`crate::card_positioning`] so the boundary checks here always agree
+//! with where CSS places the cards.
+
+use crate::card_positioning::{card_top_left_px, Viewport, CARD_PX};
 
 // --- Tunables ---
 
@@ -28,27 +34,6 @@ const K_BOUNDARY: f64 = 0.08;
 /// configurations.
 const MAX_OFFSET_PX: f64 = 300.0;
 
-// --- Card geometry constants ---
-//
-// These mirror the layout used by `card_positioning::diagonal_style`. If
-// they're ever changed in one place, change them in the other too — see
-// refactor_notes.tmp.md item #4.
-
-/// Card edge length on the canvas (cards are square).
-const CARD_PX: f64 = 220.0;
-/// Total px the card occupies including its 5px diagonal-end margins.
-const CARD_PLUS_MARGIN_PX: f64 = CARD_PX + 10.0;
-/// 5px gap from the left edge of the canvas at progress = 0.
-const LEFT_MARGIN_PX: f64 = 5.0;
-/// Vertical fraction of the viewport at which the diagonal starts (just
-/// below the top separator).
-const DIAG_TOP_FRAC: f64 = 0.15;
-/// Vertical fraction of the viewport spanned by the diagonal.
-const DIAG_HEIGHT_FRAC: f64 = 0.70;
-/// 45° approximation of the perpendicular to the diagonal: positive
-/// `perp_offset` moves the card upper-right.
-const PERP_AXIS: f64 = 0.707;
-
 // --- Public types ---
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -64,18 +49,6 @@ pub struct Slot {
     pub progress: Option<f64>,
     pub physics: SlotPhysics,
 }
-
-#[derive(Debug, Clone, Copy)]
-pub struct Viewport {
-    pub width_px: f64,
-    pub height_px: f64,
-}
-
-/// Reference viewport used by the GUI when no real measurement is available.
-pub const REFERENCE_VIEWPORT: Viewport = Viewport {
-    width_px: 1440.0,
-    height_px: 900.0,
-};
 
 // --- Integrator ---
 
@@ -146,20 +119,6 @@ pub fn step(slots: &[Slot], viewport: Viewport) -> Vec<SlotPhysics> {
     }
 
     out
-}
-
-/// Top-left pixel coordinates of a card at `progress` with `perp_offset` px
-/// perpendicular displacement. Mirrors the formula in
-/// `card_positioning::diagonal_style`.
-fn card_top_left_px(progress: f64, perp_offset: f64, viewport: Viewport) -> (f64, f64) {
-    let left = LEFT_MARGIN_PX
-        + progress * (viewport.width_px - CARD_PLUS_MARGIN_PX)
-        + perp_offset * PERP_AXIS;
-    let top = DIAG_TOP_FRAC * viewport.height_px
-        + LEFT_MARGIN_PX
-        + progress * (DIAG_HEIGHT_FRAC * viewport.height_px - CARD_PLUS_MARGIN_PX)
-        - perp_offset * PERP_AXIS;
-    (left, top)
 }
 
 #[cfg(test)]
