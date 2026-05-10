@@ -23,20 +23,14 @@ body {
     top: 0;
     width: 100vw;
     height: 18%;
-    background: #e6c84a;
     pointer-events: none;
     z-index: -1;
-    /* fade: left, right, and bottom (inner) edges */
-    mask:
-        linear-gradient(to right,  transparent 0%, black 40%),
-        linear-gradient(to left,   transparent 0%, black 40%),
-        linear-gradient(to top,    transparent 0%, black 40%);
-    mask-composite: intersect, intersect;
-    -webkit-mask:
-        linear-gradient(to right,  transparent 0%, black 40%),
-        linear-gradient(to left,   transparent 0%, black 40%),
-        linear-gradient(to top,    transparent 0%, black 40%);
-    -webkit-mask-composite: source-in, source-in;
+    /* Zone color fades into page background (#f5eedd) on left, right, and bottom. */
+    background:
+        linear-gradient(to right,  #f5eedd 0%, transparent 40%),
+        linear-gradient(to left,   #f5eedd 0%, transparent 40%),
+        linear-gradient(to top,    #f5eedd 0%, transparent 40%),
+        #e6c84a;
 }
 .separator2 {
     position: absolute;
@@ -44,20 +38,14 @@ body {
     top: 82%;
     width: 100vw;
     height: 18%;
-    background: #a8c898;
     pointer-events: none;
     z-index: -1;
-    /* fade: right, left, and top (inner) edges */
-    mask:
-        linear-gradient(to left,   transparent 0%, black 40%),
-        linear-gradient(to right,  transparent 0%, black 40%),
-        linear-gradient(to bottom, transparent 0%, black 40%);
-    mask-composite: intersect, intersect;
-    -webkit-mask:
-        linear-gradient(to left,   transparent 0%, black 40%),
-        linear-gradient(to right,  transparent 0%, black 40%),
-        linear-gradient(to bottom, transparent 0%, black 40%);
-    -webkit-mask-composite: source-in, source-in;
+    /* Zone color fades into page background (#f5eedd) on right, left, and top. */
+    background:
+        linear-gradient(to left,   #f5eedd 0%, transparent 40%),
+        linear-gradient(to right,  #f5eedd 0%, transparent 40%),
+        linear-gradient(to bottom, #f5eedd 0%, transparent 40%),
+        #a8c898;
 }
 
 .smooth-movement {
