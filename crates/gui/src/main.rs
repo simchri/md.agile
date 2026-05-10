@@ -124,23 +124,11 @@ fn app() -> Element {
                         .zip(task_slots.iter())
                         .map(|(card_signal, slot)| {
                             let mut card = *card_signal.peek();
-                            let new_progress = slot
+                            card.progress = slot
                                 .peek()
                                 .as_ref()
                                 .map(task_progress)
                                 .filter(|p| *p > 0.0 && *p < 1.0);
-                            // Snap to target on first appearance (None → Some).
-                            if card.progress.is_none() {
-                                if let Some(p) = new_progress {
-                                    let target = p.clamp(0.0, 1.0);
-                                    card.position = physics::CardPosition {
-                                        x: target,
-                                        y: target,
-                                    };
-                                    card.velocity = physics::CardVelocity { vx: 0.0, vy: 0.0 };
-                                }
-                            }
-                            card.progress = new_progress;
                             card
                         })
                         .collect();
