@@ -1,7 +1,5 @@
 use dioxus::prelude::*;
 use log::info;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 mod card_positioning;
 mod physics;
@@ -54,22 +52,12 @@ fn app() -> Element {
             .collect()
     });
 
-    // One signal per task slot for physics-calculated positions. These are
-    // updated by the physics loop at 20 Hz.
-    let card_positions: Vec<Signal<physics::CardPosition>> = use_hook(|| {
+    // One signal per task slot holding the full Card physics state (position +
+    // velocity). Updated by the physics loop at 20 Hz; the UI reads `.position`.
+    let phys_cards: Vec<Signal<physics::Card>> = use_hook(|| {
         (0..MAX_TASK_SLOTS)
-            .map(|_| Signal::new(physics::CardPosition { x: 0.5, y: 0.5 }))
+            .map(|_| Signal::new(physics::Card::new(physics::CardPosition { x: 0.5, y: 0.5 })))
             .collect()
-    });
-
-    // Persistent physics state: one Card per slot, carrying position + velocity
-    // across frames. Wrapped in Rc<RefCell> for shared access inside the async loop.
-    let phys_cards: Rc<RefCell<Vec<physics::Card>>> = use_hook(|| {
-        Rc::new(RefCell::new(
-            (0..MAX_TASK_SLOTS)
-                .map(|_| physics::Card::new(physics::CardPosition { x: 0.5, y: 0.5 }))
-                .collect(),
-        ))
     });
 
     // Sync the resource into the per-slot signals whenever a fresh task list
@@ -119,11 +107,9 @@ fn app() -> Element {
     // Updates progress on each Card, then advances the spring-damper simulation.
     {
         let task_slots = task_slots.clone();
-        let card_positions = card_positions.clone();
         let phys_cards = phys_cards.clone();
         use_effect(move || {
             let task_slots = task_slots.clone();
-            let card_positions = card_positions.clone();
             let phys_cards = phys_cards.clone();
             dioxus::prelude::spawn(async move {
                 use wasmtimer::tokio::sleep;
@@ -132,24 +118,28 @@ fn app() -> Element {
                 loop {
                     sleep(std::time::Duration::from_millis(PHYSICS_FRAME_MS)).await;
 
-                    {
-                        let mut cards = phys_cards.borrow_mut();
-                        // Update progress for each slot, preserving velocity state.
-                        for (card, slot) in cards.iter_mut().zip(task_slots.iter()) {
+                    // Collect current card state, update progress, run physics.
+                    let mut cards: Vec<physics::Card> = phys_cards
+                        .iter()
+                        .zip(task_slots.iter())
+                        .map(|(card_signal, slot)| {
+                            let mut card = *card_signal.peek();
                             card.progress = slot
                                 .peek()
                                 .as_ref()
                                 .map(task_progress)
                                 .filter(|p| *p > 0.0 && *p < 1.0);
-                        }
-                        // Advance physics simulation and push results into signals.
-                        let positions = physics::step(&mut cards, dt);
-                        drop(cards);
-                        for (i, new_pos) in positions.iter().enumerate() {
-                            let mut pos_signal = card_positions[i];
-                            if *pos_signal.peek() != *new_pos {
-                                pos_signal.set(*new_pos);
-                            }
+                            card
+                        })
+                        .collect();
+
+                    physics::step(&mut cards, dt);
+
+                    // Write updated state back; skip if unchanged to avoid re-renders.
+                    for (new_card, card_signal) in cards.into_iter().zip(phys_cards.iter()) {
+                        let mut card_signal = *card_signal;
+                        if card_signal.peek().position != new_card.position {
+                            card_signal.set(new_card);
                         }
                     }
                 }
@@ -194,7 +184,7 @@ fn app() -> Element {
                 if let Some(task) = slot() {
                     TaskCard {
                         task,
-                        position: card_positions[i](),
+                        position: phys_cards[i]().position,
                         z_index: if current_front == Some(i) { 100 } else { 0 },
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));
