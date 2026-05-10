@@ -16,10 +16,17 @@ pub struct CardPosition {
     pub y: f64,
 }
 
+/// Velocity in normalized units per second.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CardVelocity {
+    pub vx: f64,
+    pub vy: f64,
+}
+
 /// A card's full state: target (progress) plus physics state (position + velocity).
 ///
 /// The caller holds a `Vec<Card>` across frames and passes `&mut [Card]` to `step()`.
-/// Between frames, callers update only `progress`; `position` and velocity are
+/// Between frames, callers update only `progress`; `position` and `velocity` are
 /// preserved and evolved by `step()`.
 #[derive(Debug, Clone, Copy)]
 pub struct Card {
@@ -28,10 +35,8 @@ pub struct Card {
     pub progress: Option<f64>,
     /// Current position in normalized coordinates.
     pub position: CardPosition,
-    /// Current x velocity (normalized units per second).
-    pub vx: f64,
-    /// Current y velocity (normalized units per second).
-    pub vy: f64,
+    /// Current velocity in normalized units per second.
+    pub velocity: CardVelocity,
 }
 
 impl Card {
@@ -40,8 +45,7 @@ impl Card {
         Card {
             progress: None,
             position,
-            vx: 0.0,
-            vy: 0.0,
+            velocity: CardVelocity { vx: 0.0, vy: 0.0 },
         }
     }
 }
@@ -58,12 +62,12 @@ pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
     for card in cards.iter_mut() {
         if let Some(p) = card.progress {
             let target = p.clamp(0.0, 1.0);
-            let ax = -SPRING_K * (card.position.x - target) - DAMPING_C * card.vx;
-            let ay = -SPRING_K * (card.position.y - target) - DAMPING_C * card.vy;
-            card.vx += ax * dt;
-            card.vy += ay * dt;
-            card.position.x += card.vx * dt;
-            card.position.y += card.vy * dt;
+            let ax = -SPRING_K * (card.position.x - target) - DAMPING_C * card.velocity.vx;
+            let ay = -SPRING_K * (card.position.y - target) - DAMPING_C * card.velocity.vy;
+            card.velocity.vx += ax * dt;
+            card.velocity.vy += ay * dt;
+            card.position.x += card.velocity.vx * dt;
+            card.position.y += card.velocity.vy * dt;
         }
     }
 
@@ -78,8 +82,7 @@ mod tests {
         Card {
             progress: Some(progress),
             position: CardPosition { x, y },
-            vx: 0.0,
-            vy: 0.0,
+            velocity: CardVelocity { vx: 0.0, vy: 0.0 },
         }
     }
 
@@ -92,8 +95,7 @@ mod tests {
         let mut cards = [card_inactive()];
         let pos = step(&mut cards, 0.05);
         assert_eq!(pos[0], CardPosition { x: 0.5, y: 0.5 });
-        assert_eq!(cards[0].vx, 0.0);
-        assert_eq!(cards[0].vy, 0.0);
+        assert_eq!(cards[0].velocity, CardVelocity { vx: 0.0, vy: 0.0 });
     }
 
     #[test]
@@ -141,12 +143,17 @@ mod tests {
         let mut cards = [Card {
             progress: Some(0.5),
             position: CardPosition { x: 0.5, y: 0.5 },
-            vx: 1.0,
-            vy: 1.0,
+            velocity: CardVelocity { vx: 1.0, vy: 1.0 },
         }];
         let _ = step(&mut cards, 0.05);
-        assert!(cards[0].vx < 1.0, "damping should reduce x velocity");
-        assert!(cards[0].vy < 1.0, "damping should reduce y velocity");
+        assert!(
+            cards[0].velocity.vx < 1.0,
+            "damping should reduce x velocity"
+        );
+        assert!(
+            cards[0].velocity.vy < 1.0,
+            "damping should reduce y velocity"
+        );
     }
 
     #[test]
@@ -182,7 +189,7 @@ mod tests {
         let mut cards = [card_at(0.0, 0.0, 1.0)];
         let _ = step(&mut cards, 0.05);
         assert!(
-            cards[0].vx > 0.0,
+            cards[0].velocity.vx > 0.0,
             "velocity should be non-zero after first step"
         );
     }
