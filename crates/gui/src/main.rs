@@ -32,6 +32,9 @@ fn init_logger() {
 /// backend reports beyond the limit are dropped on the GUI side.
 const MAX_TASK_SLOTS: usize = 60;
 
+/// Target frequency for physics simulation: 20 times per second (50ms per frame).
+const PHYSICS_FRAME_MS: u64 = 50;
+
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
         let tasks = server::get_tasks().await;
@@ -49,9 +52,13 @@ fn app() -> Element {
             .collect()
     });
 
-
-    // Physics simulation will be calculated here in the future.
-    // For now, all in-progress cards are positioned on the diagonal.
+    // One signal per task slot for physics-calculated positions. These are
+    // updated by the physics loop at 20 Hz.
+    let card_positions: Vec<Signal<physics::CardPosition>> = use_hook(|| {
+        (0..MAX_TASK_SLOTS)
+            .map(|_| Signal::new(physics::CardPosition { x: 0.5, y: 0.5 }))
+            .collect()
+    });
 
     // Sync the resource into the per-slot signals whenever a fresh task list
     // arrives. Reconciliation is delegated to `slots::reconcile`; we only
@@ -96,6 +103,47 @@ fn app() -> Element {
         }
     });
 
+    // Physics loop at PHYSICS_FRAME_MS Hz (20 times per second).
+    // Calculates normalized (x, y) positions for all in-progress cards.
+    {
+        let task_slots = task_slots.clone();
+        let card_positions = card_positions.clone();
+        use_effect(move || {
+            dioxus::prelude::spawn(async move {
+                use wasmtimer::tokio::sleep;
+
+                loop {
+                    sleep(std::time::Duration::from_millis(PHYSICS_FRAME_MS)).await;
+
+                    // Collect progress from all slots (None for backlog/done cards).
+                    let card_inputs: Vec<physics::Card> = task_slots
+                        .iter()
+                        .map(|slot| {
+                            let progress = slot
+                                .peek()
+                                .as_ref()
+                                .map(task_progress)
+                                .filter(|p| *p > 0.0 && *p < 1.0);
+                            physics::Card { progress }
+                        })
+                        .collect();
+
+                    // Calculate positions for all cards.
+                    let positions = physics::step(&card_inputs);
+
+                    // Update each position signal. Only update if the position changed,
+                    // to avoid unnecessary re-renders.
+                    for (i, new_pos) in positions.iter().enumerate() {
+                        let mut pos_signal = card_positions[i];
+                        if *pos_signal.peek() != *new_pos {
+                            pos_signal.set(*new_pos);
+                        }
+                    }
+                }
+            });
+        });
+    }
+
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
 
@@ -133,7 +181,7 @@ fn app() -> Element {
                 if let Some(task) = slot() {
                     TaskCard {
                         task,
-                        index: i,
+                        position: card_positions[i](),
                         z_index: if current_front == Some(i) { 100 } else { 0 },
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));
@@ -163,7 +211,7 @@ fn app() -> Element {
 #[component]
 fn TaskCard(
     task: TaskView,
-    index: usize,
+    position: physics::CardPosition,
     z_index: usize,
     on_click: EventHandler<TaskView>,
     on_hover: EventHandler<TaskView>,
@@ -191,11 +239,8 @@ fn TaskCard(
         title_style = "done-card-title";
         position_style = format!("{}{z}", done_position_style(task.rank, highest_rank_done));
     } else {
-        // In progress — get position from physics module.
-        let card = physics::Card { progress: Some(progress) };
-        let positions = physics::step(&[card]);
-        let pos = positions[0];
-        position_style = in_progress_style(pos.x, pos.y);
+        // In progress — use position from physics loop.
+        position_style = in_progress_style(position.x, position.y);
     }
 
     let t = task.clone();
