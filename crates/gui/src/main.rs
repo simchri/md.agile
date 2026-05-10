@@ -135,11 +135,28 @@ fn app() -> Element {
                         .zip(card_physics.iter())
                         .map(|(task_sig, phys_sig)| {
                             let mut card = *phys_sig.peek();
-                            card.progress = task_sig
+                            let new_progress = task_sig
                                 .peek()
                                 .as_ref()
                                 .map(task_progress)
                                 .filter(|p| *p > 0.0 && *p < 1.0);
+
+                            // Break x==y symmetry on first activation.
+                            // Without this, spring target (p,p) and equal initial
+                            // conditions guarantee x==y forever, so all cards are
+                            // locked to the diagonal regardless of repulsion forces.
+                            if card.progress.is_none() {
+                                if let Some(p) = new_progress {
+                                    use rand::RngExt;
+                                    let offset: f64 = rand::rng().random_range(-0.15_f64..0.15_f64);
+                                    card.position = physics::CardPosition {
+                                        x: p,
+                                        y: p + offset,
+                                    };
+                                }
+                            }
+
+                            card.progress = new_progress;
                             card
                         })
                         .collect();

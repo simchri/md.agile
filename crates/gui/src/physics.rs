@@ -7,18 +7,18 @@
 use rand;
 
 /// Spring stiffness constant (higher = snappier).
-const SPRING_K: f64 = 8.0;
+const SPRING_K: f64 = 3.0;
 /// Damping coefficient (higher = less oscillation). Critical damping ≈ 2*sqrt(k).
 const DAMPING_C: f64 = 6.0;
 /// Repulsion strength between in-progress cards (higher = stronger push-apart).
 const REPEL_K: f64 = 6.0;
 
-const HEAT_K: f64 = 0.00;
+const HEAT_K: f64 = 0.0;
 
 /// Radius of influence for inter-card repulsion, in normalized canvas units.
 /// Repulsion in each axis is independent and linear: zero at this distance,
 /// maximum at zero separation. Cards beyond this distance do not interact.
-pub const INFLUENCE: f64 = 0.2;
+pub const INFLUENCE: f64 = 0.1;
 
 /// Normalized (x, y) position on the canvas (0.0 = left/top, 1.0 = right/bottom).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -118,8 +118,8 @@ pub fn step(cards: &mut [Card], dt: f64) -> Vec<CardPosition> {
 
             let x_rand: f64 = rand::random(); // [0.0, 1.0)
 
-            // randomize postion with 
-            card.position.x += x_rand  * HEAT_K;
+            // randomize postion with
+            card.position.x += x_rand * HEAT_K;
         }
     }
 
@@ -255,26 +255,27 @@ mod tests {
 
     #[test]
     fn close_in_progress_cards_repel_each_other() {
-        // Both cards are exactly at their spring targets so spring force is zero.
+        // Cards are 0.08 apart in each axis (within INFLUENCE=0.1).
+        // Both are at their spring targets so spring force is zero.
         // Any movement after one step must come from repulsion alone.
-        let mut cards = [card_at(0.45, 0.45, 0.45), card_at(0.55, 0.55, 0.55)];
+        let mut cards = [card_at(0.46, 0.46, 0.46), card_at(0.54, 0.54, 0.54)];
         let _ = step(&mut cards, 0.1);
         assert!(
-            cards[0].position.x < 0.45,
+            cards[0].position.x < 0.46,
             "card 0 should be pushed left by repulsion"
         );
         assert!(
-            cards[1].position.x > 0.55,
+            cards[1].position.x > 0.54,
             "card 1 should be pushed right by repulsion"
         );
     }
 
     #[test]
     fn repulsion_is_symmetric() {
-        let mut cards = [card_at(0.45, 0.45, 0.45), card_at(0.55, 0.55, 0.55)];
+        let mut cards = [card_at(0.46, 0.46, 0.46), card_at(0.54, 0.54, 0.54)];
         let _ = step(&mut cards, 0.1);
-        let delta_0 = 0.45 - cards[0].position.x;
-        let delta_1 = cards[1].position.x - 0.55;
+        let delta_0 = 0.46 - cards[0].position.x;
+        let delta_1 = cards[1].position.x - 0.54;
         assert!(
             (delta_0 - delta_1).abs() < 1e-10,
             "repulsion must be equal and opposite (Newton 3rd)"
