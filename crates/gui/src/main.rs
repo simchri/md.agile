@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 use log::info;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 mod card_positioning;
 mod physics;
@@ -7,7 +9,7 @@ mod server;
 mod slots;
 
 use card_positioning::{
-    backlog_position_style, in_progress_style, done_position_style, status_box, status_class,
+    backlog_position_style, done_position_style, in_progress_style, status_box, status_class,
     task_progress,
 };
 use server::TaskView;
@@ -60,6 +62,16 @@ fn app() -> Element {
             .collect()
     });
 
+    // Persistent physics state: one Card per slot, carrying position + velocity
+    // across frames. Wrapped in Rc<RefCell> for shared access inside the async loop.
+    let phys_cards: Rc<RefCell<Vec<physics::Card>>> = use_hook(|| {
+        Rc::new(RefCell::new(
+            (0..MAX_TASK_SLOTS)
+                .map(|_| physics::Card::new(0.5, 0.5))
+                .collect(),
+        ))
+    });
+
     // Sync the resource into the per-slot signals whenever a fresh task list
     // arrives. Reconciliation is delegated to `slots::reconcile`; we only
     // write a signal when its slot's value actually changed, to keep
@@ -104,41 +116,40 @@ fn app() -> Element {
     });
 
     // Physics loop at PHYSICS_FRAME_MS Hz (20 times per second).
-    // Calculates normalized (x, y) positions for all in-progress cards.
+    // Updates progress on each Card, then advances the spring-damper simulation.
     {
         let task_slots = task_slots.clone();
         let card_positions = card_positions.clone();
+        let phys_cards = phys_cards.clone();
         use_effect(move || {
             let task_slots = task_slots.clone();
             let card_positions = card_positions.clone();
+            let phys_cards = phys_cards.clone();
             dioxus::prelude::spawn(async move {
                 use wasmtimer::tokio::sleep;
+                let dt = PHYSICS_FRAME_MS as f64 / 1000.0;
 
                 loop {
                     sleep(std::time::Duration::from_millis(PHYSICS_FRAME_MS)).await;
 
-                    // Collect progress from all slots (None for backlog/done cards).
-                    let card_inputs: Vec<physics::Card> = task_slots
-                        .iter()
-                        .map(|slot| {
-                            let progress = slot
+                    {
+                        let mut cards = phys_cards.borrow_mut();
+                        // Update progress for each slot, preserving velocity state.
+                        for (card, slot) in cards.iter_mut().zip(task_slots.iter()) {
+                            card.progress = slot
                                 .peek()
                                 .as_ref()
                                 .map(task_progress)
                                 .filter(|p| *p > 0.0 && *p < 1.0);
-                            physics::Card { progress }
-                        })
-                        .collect();
-
-                    // Calculate positions for all cards.
-                    let positions = physics::step(&card_inputs);
-
-                    // Update each position signal. Only update if the position changed,
-                    // to avoid unnecessary re-renders.
-                    for (i, new_pos) in positions.iter().enumerate() {
-                        let mut pos_signal = card_positions[i];
-                        if *pos_signal.peek() != *new_pos {
-                            pos_signal.set(*new_pos);
+                        }
+                        // Advance physics simulation and push results into signals.
+                        let positions = physics::step(&mut cards, dt);
+                        drop(cards);
+                        for (i, new_pos) in positions.iter().enumerate() {
+                            let mut pos_signal = card_positions[i];
+                            if *pos_signal.peek() != *new_pos {
+                                pos_signal.set(*new_pos);
+                            }
                         }
                     }
                 }

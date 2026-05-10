@@ -244,7 +244,3 @@ fn in_progress_style_uses_track_inset_constant() {
     assert!(s.contains("(70vh - 230px)"), "got: {s}");
     assert!(s.contains("(100vw - 230px)"), "got: {s}");
 }
-
-
-
-
