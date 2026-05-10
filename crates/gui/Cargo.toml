@@ -20,7 +20,7 @@ tokio = { version = "1.52.1", features = ["sync"] }
 wasmtimer = "0.4.3"
 
 [features]
-default = ["dioxus/server"]
+default = ["dioxus/web"]
 web = ["dioxus/web"]
 server = ["dioxus/server", "dep:mdagile"]
 desktop = ["dioxus/desktop"]

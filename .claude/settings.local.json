@@ -38,7 +38,15 @@
       "Bash(dx *)",
       "Bash(curl -s http://localhost:8080/wasm/)",
       "Bash(cargo fmt *)",
-      "Bash(rustup component *)"
+      "Bash(rustup component *)",
+      "Bash(agile check *)",
+      "Bash(git -C /home/massmde/private/md.agile add /home/massmde/private/md.agile/crates/cli/src/cli/mod.rs /home/massmde/private/md.agile/crates/cli/tests/)",
+      "Bash(git -C /home/massmde/private/md.agile commit -m ' *)",
+      "Bash(git -C /home/massmde/private/md.agile add crates/cli/tests/ tests/)",
+      "Bash(git -C /home/massmde/private/md.agile status)",
+      "Bash(git *)",
+      "Bash(devenv . *)",
+      "Bash(devenv *)"
     ]
   }
 }

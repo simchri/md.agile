@@ -33,7 +33,10 @@ fn directory_prefix_determines_order() {
 
     let files = find_task_files(dir.path());
     // root-level files (bravo, charlie) sort before zzz-subdir/alpha
-    assert_eq!(filenames(&files), vec!["bravo.agile.md", "charlie.agile.md", "alpha.agile.md"]);
+    assert_eq!(
+        filenames(&files),
+        vec!["bravo.agile.md", "charlie.agile.md", "alpha.agile.md"]
+    );
 }
 
 #[test]
@@ -76,5 +79,8 @@ fn format_file_list_empty() {
 #[test]
 fn empty_directory_returns_no_files() {
     let dir = tempdir().unwrap();
-    assert_eq!(find_task_files(dir.path()), Vec::<std::path::PathBuf>::new());
+    assert_eq!(
+        find_task_files(dir.path()),
+        Vec::<std::path::PathBuf>::new()
+    );
 }

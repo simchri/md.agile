@@ -44,15 +44,6 @@ ENV TERM=xterm-256color
 RUN useradd -m -u ${UID} ${USER}
 USER ${USER}
 
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
 ENV PATH="/home/${USER}/.local/bin:${PATH}"
-
-# Claude
-RUN curl -fsSL https://claude.ai/install.sh | bash
-ENV PATH="/home/${USER}/.local/bin:${PATH}"
-
-# Copilot Cli
-RUN curl -fsSL https://gh.io/copilot-install | bash
 
 ENV VISUAL=vim

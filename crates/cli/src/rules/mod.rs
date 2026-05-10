@@ -12,6 +12,7 @@ mod incomplete_parent;
 mod invalid_box;
 mod missing_space_after_box;
 mod orphaned_subtask;
+mod undefined_property;
 mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
@@ -20,6 +21,7 @@ pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
 pub use missing_space_after_box::missing_space_after_box;
 pub use orphaned_subtask::orphaned_subtask;
+pub use undefined_property::undefined_property;
 pub use uppercase_x::uppercase_x;
 pub use wrong_body_indent::wrong_body_indent;
 pub use wrong_indentation::wrong_indentation;
@@ -41,6 +43,8 @@ pub enum ErrorCode {
     BoxStyleInvalid,
     /// E007: Uppercase X used instead of lowercase x
     UppercaseX,
+    /// E008: Property marker not declared in mdagile.toml
+    UndefinedProperty,
 }
 
 impl ErrorCode {
@@ -55,23 +59,8 @@ impl ErrorCode {
             ErrorCode::MissingSpaceAfterBox => "E005",
             ErrorCode::BoxStyleInvalid => "E006",
             ErrorCode::UppercaseX => "E007",
+            ErrorCode::UndefinedProperty => "E008",
         }
-    }
-
-    /// True if an LSP quickfix is registered for this code.
-    ///
-    /// Source of truth for the "(fix avail.)" hint shown in CLI and LSP
-    /// diagnostic messages. Must stay in sync with the dispatcher in
-    /// `lsp::quickfix::build_quickfix`.
-    pub fn has_quickfix(&self) -> bool {
-        matches!(
-            self,
-            ErrorCode::WrongIndentation
-                | ErrorCode::WrongBodyIndentation
-                | ErrorCode::MissingSpaceAfterBox
-                | ErrorCode::BoxStyleInvalid
-                | ErrorCode::UppercaseX
-        )
     }
 }
 
@@ -81,6 +70,25 @@ impl std::fmt::Display for ErrorCode {
     }
 }
 
+impl std::str::FromStr for ErrorCode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "E001" => ErrorCode::OrphanedSubtask,
+            "E002" => ErrorCode::WrongIndentation,
+            "E003" => ErrorCode::WrongBodyIndentation,
+            "E004" => ErrorCode::IncompleteParent,
+            "E005" => ErrorCode::MissingSpaceAfterBox,
+            "E006" => ErrorCode::BoxStyleInvalid,
+            "E007" => ErrorCode::UppercaseX,
+            "E008" => ErrorCode::UndefinedProperty,
+            _ => return Err(()),
+        })
+    }
+}
+
+use crate::config::Config;
 use crate::parser::{FileItem, Location};
 use serde::{Deserialize, Serialize};
 
@@ -121,7 +129,7 @@ pub struct Issue {
 }
 
 /// Runs all lint rules and returns a concatenated list of issues.
-pub fn check_all(items: &[FileItem]) -> Vec<Issue> {
+pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
     issues.extend(orphaned_subtask(items));
     issues.extend(wrong_indentation(items));
@@ -130,6 +138,7 @@ pub fn check_all(items: &[FileItem]) -> Vec<Issue> {
     issues.extend(missing_space_after_box(items));
     issues.extend(invalid_box(items));
     issues.extend(uppercase_x(items));
+    issues.extend(undefined_property(items, config));
     issues
 }
 

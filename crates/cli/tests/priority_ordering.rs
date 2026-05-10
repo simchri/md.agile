@@ -76,7 +76,7 @@ fn next_task_falls_through_to_backlog_when_current_is_done() {
 - [x] current task two
 ";
     let backlog = "- [ ] backlog task one\n";
-    let inbox   = "- [ ] inbox task one\n";
+    let inbox = "- [ ] inbox task one\n";
     fs::write(tasks.join("a_current.agile.md"), current).unwrap();
     fs::write(tasks.join("b_backlog.agile.md"), backlog).unwrap();
     fs::write(tasks.join("c_inbox.agile.md"), inbox).unwrap();

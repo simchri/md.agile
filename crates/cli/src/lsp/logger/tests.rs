@@ -11,6 +11,6 @@ fn init_logging_creates_log_file() {
 
     let log_path = result.unwrap();
     // Note: We can't reliably test that the file exists immediately because
-    // tracing may buffer writes. But we can verify the path is correct.
+    // env_logger may buffer writes. But we can verify the path is correct.
     assert!(log_path.ends_with("agilels.log"));
 }

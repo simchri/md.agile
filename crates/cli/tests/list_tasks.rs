@@ -18,7 +18,12 @@ fn active_excludes_done_and_cancelled() {
 [ ] active task
 [ ] another active task
 ";
-    assert_eq!(active_task_blocks(&p(input)).into_iter().collect::<String>(), expected);
+    assert_eq!(
+        active_task_blocks(&p(input))
+            .into_iter()
+            .collect::<String>(),
+        expected
+    );
 }
 
 #[test]
@@ -30,7 +35,12 @@ fn active_includes_todo_parent_with_done_subtasks() {
   - [x] done subtask
 ";
     let expected = "[ ] active parent\n  [x] done subtask\n";
-    assert_eq!(active_task_blocks(&p(input)).into_iter().collect::<String>(), expected);
+    assert_eq!(
+        active_task_blocks(&p(input))
+            .into_iter()
+            .collect::<String>(),
+        expected
+    );
 }
 
 #[test]
@@ -39,7 +49,12 @@ fn active_empty_when_nothing_todo() {
 - [x] done one
 - [-] cancelled one
 ";
-    assert_eq!(active_task_blocks(&p(input)).into_iter().collect::<String>(), "".to_string());
+    assert_eq!(
+        active_task_blocks(&p(input))
+            .into_iter()
+            .collect::<String>(),
+        "".to_string()
+    );
 }
 
 #[test]

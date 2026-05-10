@@ -38,21 +38,10 @@ pub struct TaskView {
     pub rank: usize,
 }
 
-/// Tasks bundle delivered to the GUI on every poll. The frontend renders a
-/// post-it for each entry; the bucket determines where it sits on the canvas:
-/// `in_progress` floats in the middle along the diagonal, `backlog` lives in
-/// the top row, `done` in the bottom row.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct TaskList {
-    pub in_progress: Vec<TaskView>,
-    pub backlog: Vec<TaskView>,
-    pub done: Vec<TaskView>,
-}
-
 #[cfg(feature = "server")]
 const BACKLOG_LIMIT: usize = 10;
 #[cfg(feature = "server")]
-const IN_PROGRESS_LIMIT: usize = 10;
+const IN_PROGRESS_LIMIT: usize = 40;
 #[cfg(feature = "server")]
 const DONE_LIMIT: usize = 10;
 
@@ -85,6 +74,7 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
     use mdagile::parser::{FileItem, Status};
 
     let root = get_or_init_working_dir()?;
+    log::info!("scanning for tasks in {}", root.display());
     let items = parse_files(&find_task_files(&root));
 
     let mut in_progress = Vec::new();
@@ -99,7 +89,7 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
             match task.status {
                 Status::Todo => {
                     let view = task_to_view(task, task_rank);
-                    if has_started(&view) {
+                    if crate::card_positioning::has_started(&view) {
                         if in_progress.len() < IN_PROGRESS_LIMIT {
                             in_progress.push(view);
                         }
@@ -124,15 +114,6 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
         .collect();
 
     Ok(tasks)
-}
-
-/// True when the task has at least one direct subtask marked Done or
-/// Cancelled — i.e. work has begun on it. Used both for server-side
-/// categorization and frontend size-class selection.
-pub fn has_started(task: &TaskView) -> bool {
-    task.children
-        .iter()
-        .any(|c| matches!(c.status, TaskStatus::Done | TaskStatus::Cancelled))
 }
 
 #[cfg(feature = "server")]

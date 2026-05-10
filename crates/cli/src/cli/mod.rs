@@ -4,10 +4,13 @@
 //! [`run`]. Subcommand-specific logic lives in [`subcommands`]; helpers shared
 //! across subcommands live in [`common`].
 
+use crate::config;
 use clap::{Parser, Subcommand};
+use log::error;
 use std::path::Path;
 
 pub mod common;
+pub mod logger;
 pub mod subcommands;
 
 #[derive(Parser)]
@@ -119,6 +122,13 @@ pub enum TaskAction {
 /// binary needs to call.
 pub fn run() {
     let root = Path::new(".");
+    let config = match config::Config::load(root) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("{e}");
+            std::process::exit(1);
+        }
+    };
     match Cli::parse().command {
         None => subcommands::default::run(root),
         Some(Command::List {
@@ -145,7 +155,7 @@ pub fn run() {
             subcommands::task::run_next(root);
         }
         Some(Command::Check) => {
-            subcommands::check::run(root);
+            subcommands::check::run(root, &config);
         }
     }
 }

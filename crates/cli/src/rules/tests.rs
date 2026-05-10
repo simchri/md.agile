@@ -28,25 +28,13 @@ fn wrong_indentation_vs_orphan_distinction_1() {
   - [ ] ORPHAN
 ";
 
-    let mut issues = check_all(&p(input));
+    let mut issues = check_all(&p(input), &crate::config::Config::default());
     issues.sort_by_key(|i| i.location.line);
 
     assert_eq!(issues[0].code, ErrorCode::WrongIndentation);
     assert_eq!(issues[1].code, ErrorCode::WrongIndentation);
     assert_eq!(issues[2].code, ErrorCode::OrphanedSubtask);
     assert_eq!(issues[3].code, ErrorCode::OrphanedSubtask);
-}
-
-#[test]
-fn has_quickfix_for_each_code() {
-    use ErrorCode::*;
-    assert!(!OrphanedSubtask.has_quickfix());
-    assert!(WrongIndentation.has_quickfix());
-    assert!(WrongBodyIndentation.has_quickfix());
-    assert!(!IncompleteParent.has_quickfix());
-    assert!(MissingSpaceAfterBox.has_quickfix());
-    assert!(BoxStyleInvalid.has_quickfix());
-    assert!(UppercaseX.has_quickfix());
 }
 
 #[test]
@@ -58,7 +46,7 @@ fn missing_space_behind_box_vs_wrong_body_indent() {
 WRONG INDENT tasks description
 ";
 
-    let mut issues = check_all(&p(input));
+    let mut issues = check_all(&p(input), &crate::config::Config::default());
     issues.sort_by_key(|i| i.location.line);
 
     assert_eq!(issues[0].code, ErrorCode::MissingSpaceAfterBox);

@@ -5,8 +5,8 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: white;
+    font-family: "Consolas", "JetBrains Mono", "Fira Code", "Cascadia Code", "Liberation Mono", monospace;
+    background-color: #f5eedd;
     height: 100vh;
     display: flex;
 }
@@ -33,25 +33,6 @@ body {
     width: 100vw;
     height: 4px;
     background: black;
-    pointer-events: none;
-}
-
-.middle-row {
-    position: absolute;
-    top: calc(15% + 4px);
-    left: 0;
-    width: 100%;
-    width: 100vw;
-    height: calc(70% - 4px);
-    pointer-events: none;
-}
-
-.bottom-row {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 15%;
     pointer-events: none;
 }
 
@@ -143,15 +124,27 @@ body {
     color: #333;
 }
 
-.subtask.status-done .subtask-title,
-.subtask.status-cancelled .subtask-title {
+.subtask.status-done .subtask-title {
     text-decoration: line-through;
-    opacity: 0.6;
+    color: #6aaa6a;
 }
 
-.status-todo  {
+.subtask.status-cancelled .subtask-title {
+    text-decoration: line-through;
+    color: #cc7777;
+}
+
+.status-todo {
     opacity: 1;
     min-width: 30px;
+}
+
+.status-done {
+    color: #6aaa6a;
+}
+
+.status-cancelled {
+    color: #cc7777;
 }
 
 .subtask-markers {
@@ -330,8 +323,7 @@ body {
     position: absolute;
     /* `left` is set inline per-card from the index in BacklogCard */
     width: 110px;
-    height: calc(15vh - 16px);
-    max-height: 110px;
+    height: calc(15vh - 10px);
     padding: 6px 8px;
     background: #ffeb99;
     border-radius: 3px;
@@ -369,15 +361,14 @@ body {
     position: absolute;
     /* `left` is set inline per-card from the index in DoneCard */
     width: 110px;
-    height: calc(15vh - 16px);
-    max-height: 110px;
+    height: calc(15vh - 10px);
     padding: 6px 8px;
     background: #d8e6c8;
     border-radius: 3px;
     box-shadow: 0 2px 3px rgba(0, 0, 0, 0.08);
     font-size: 11px;
     line-height: 1.3;
-    color: #555;
+    color: #5a8a5a;
     overflow: hidden;
     pointer-events: auto;
     opacity: 0.85;
@@ -396,5 +387,39 @@ body {
     line-height: 1.25;
     overflow: hidden;
     text-decoration: line-through;
-    color: #666;
+    color: #4a7a4a;
+}
+
+/* Fade-out gradient at the bottom of each card type to gracefully clip overflow. */
+.task-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    background: linear-gradient(to bottom, transparent, #ffd666);
+    pointer-events: none;
+}
+
+.backlog-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, transparent, #ffeb99);
+    pointer-events: none;
+}
+
+.done-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, transparent, #d8e6c8);
+    pointer-events: none;
 }

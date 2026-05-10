@@ -8,6 +8,29 @@ The philosophy for this project is defined in [MANIFESTO.md](MANIFESTO.md). AI a
 
 ## Commands
 
+### devenv wrapper
+
+**⚠️ IMPORTANT: All build, test, and dev commands must run inside Docker using the `devenv` wrapper. Do not run them directly on the host.**
+
+All commands run through Docker via the `devenv` helper script:
+
+```bash
+devenv <directory> [options] -c "<command>"
+```
+This is done **from the project root**, any changes of directory can be done inside of the command, .e.g:
+```
+devenv . -a -c --no-tty "cd src/cli && cargo install"
+```
+Where `devenv` is not available, docker compose can instead be used directly.
+
+**Options:**
+- `-a, --auto-select-service` — Auto-select service (use this for CI/automated scripts)
+- `-b, --build` — Force rebuild image and container
+- `-s, --service <name>` — Select specific service by name
+- `-c, --command <cmd>` — Run command in container
+- `-v, --verbose` — Show debug output
+- `-h, --help` — Show help
+
 ### Run / develop
 ```bash
 cargo run
@@ -15,24 +38,14 @@ cargo run
 
 ### Test
 ```bash
-cargo test                                                            # full suite
-cargo test --lib -- <test_name>                                       # single unit test
-cargo test --test acceptance-tests -- --name "<scenario name>"        # acceptance test
+devenv . -a -c --no-tty "cargo test"                                                            # full suite
+devenv . -a -c --no-tty "cargo test --lib -- <test_name>"                                       # single unit test
+devenv . -a -c --no-tty 'cargo test --test acceptance-tests -- --name "<scenario name>"'        # acceptance test
 ```
 
 count tests in the project: (don't run)
 ```bash
-cargo test -- --list | grep -c "^" # count tests
-```
-
-### Docker dev environment
-
-The project is configured for development in a docker container, where the project sources are mounted.
-Claude runs inside this container, so host resources are not accessible.
-
-```bash
-docker compose run dev-container-no-gpu    # start dev container (no GPU needed)
-docker compose build                       # rebuild after Dockerfile changes
+devenv . -a -c --no-tty 'cargo test -- --list | grep -c "^"' # count tests
 ```
 
 ## Toolchain
@@ -83,8 +96,6 @@ Follow red-green cycle strictly:
 5. **Run the full suite** (`cargo test`) to check for regressions before finishing.
 
 Never write production code without a failing test that justifies it.
-
-**Exception**: `src/components/` is exempt — GUI changes are hard to unit-test and do not require a failing test first. However, keep business logic out of components: any logic that can be tested belongs in `src/rules/` (or another non-UI module), not in a component. Components should only read state and dispatch actions.
 
 ### Auto-commit on vibe branches
 

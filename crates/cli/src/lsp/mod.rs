@@ -5,7 +5,7 @@
 //! and offers `quickfix` code actions for fixable diagnostics (E002/E003/E005).
 
 pub mod logger;
-mod quickfix;
+pub mod quickfix;
 
 use quickfix::build_quickfix;
 
@@ -13,16 +13,35 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use log::info;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use tracing::info;
 
-use crate::{checker, parser, rules::Issue};
+use crate::{checker, config::Config, parser, rules::Issue};
+
+fn load_config_for_file(file_path: &std::path::Path) -> Config {
+    let mut dir = match file_path.parent() {
+        Some(p) => p,
+        None => return Config::default(),
+    };
+    loop {
+        let has_config = dir.join("mdagile.toml").exists() || dir.join(".mdagile.toml").exists();
+        if has_config {
+            return Config::load(dir).unwrap_or_default();
+        }
+        match dir.parent() {
+            Some(parent) => dir = parent,
+            None => return Config::default(),
+        }
+    }
+}
 
 struct Backend {
     client: Client,
+    /// Project root received from the editor's initialize request.
+    root: Arc<RwLock<Option<PathBuf>>>,
     /// Latest text of every open document, keyed by URI.
     docs: Arc<RwLock<HashMap<Url, String>>>,
     /// Last diagnostics published for each URI, keyed by URI. Stored
@@ -36,8 +55,18 @@ impl Backend {
         let path = uri
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let config = match self.root.read().await.as_deref() {
+            Some(root) => Config::load(root).unwrap_or_default(),
+            None => {
+                log::warn!(
+                    "No project root set. Your editor is supposed to transmit a project root dir. Trying fallback approach - find a config file via heuristics starting from current file path: {} ",
+                    path.display()
+                );
+                load_config_for_file(&path)
+            }
+        };
         let items = parser::parse(text, path);
-        let diagnostics: Vec<Diagnostic> = checker::run(&items)
+        let diagnostics: Vec<Diagnostic> = checker::run(&items, &config)
             .into_iter()
             .map(issue_to_diagnostic)
             .collect();
@@ -77,7 +106,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
         .and_then(|d| serde_json::to_value(d).ok());
 
     let head = format_message(issue.message);
-    let head = if issue.code.has_quickfix() {
+    let head = if quickfix::has_quickfix(issue.code) {
         format!("{head} (fix avail.)")
     } else {
         head
@@ -100,8 +129,10 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _params: InitializeParams) -> Result<InitializeResult> {
-        info!("initialize");
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        let root = params.root_uri.and_then(|u| u.to_file_path().ok());
+        info!("initialize, root: {:?}", root);
+        *self.root.write().await = root;
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
@@ -202,6 +233,7 @@ pub fn run() -> std::io::Result<()> {
         let stdout = tokio::io::stdout();
         let (service, socket) = LspService::new(|client| Backend {
             client,
+            root: Arc::new(RwLock::new(None)),
             docs: Arc::new(RwLock::new(HashMap::new())),
             diagnostics: Arc::new(RwLock::new(HashMap::new())),
         });

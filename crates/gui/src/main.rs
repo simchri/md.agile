@@ -1,11 +1,16 @@
 use dioxus::prelude::*;
 use log::info;
 
+mod card_positioning;
+mod physics;
 mod server;
+mod slots;
 
-use std::collections::{HashMap, HashSet};
-
-use server::{TaskStatus, TaskView};
+use card_positioning::{
+    backlog_position_style, diagonal_style, done_position_style, status_box, status_class,
+    task_progress, REFERENCE_VIEWPORT,
+};
+use server::TaskView;
 
 fn main() {
     init_logger();
@@ -25,74 +30,70 @@ fn init_logger() {
 /// Maximum number of task cards rendered on the canvas at once. The frontend
 /// pre-allocates this many `Signal<Option<TaskView>>` slots; any tasks the
 /// backend reports beyond the limit are dropped on the GUI side.
-const MAX_TASK_SLOTS: usize = 50;
+const MAX_TASK_SLOTS: usize = 60;
+
+/// Tick interval for the perpendicular-repulsion physics loop.
+const PHYSICS_MS: u64 = 60;
 
 fn app() -> Element {
-    let mut tasks_resource = use_resource(|| async { server::get_tasks().await });
+    let mut tasks_resource = use_resource(|| async {
+        let tasks = server::get_tasks().await;
+        let _num_tasks = match &tasks {
+            Ok(t) => t.len(),
+            Err(e) => {
+                log::error!("error fetching tasks: {e}");
+                0
+            }
+        };
+        tasks
+    });
 
     // One signal per visible task slot. Empty slots hold `None`. Each slot is
     // its own signal so that a change to one task does not invalidate the
-    // others.
-    let task_slots: Vec<Signal<Option<TaskView>>> = (0..MAX_TASK_SLOTS)
-        .map(|_| use_signal(|| None::<TaskView>))
-        .collect();
+    // others. Initialised with use_hook (runs once on mount) so that
+    // Signal::new is not called inside an iterator closure, which would
+    // violate the Rules of Hooks.
+    let task_slots: Vec<Signal<Option<TaskView>>> = use_hook(|| {
+        (0..MAX_TASK_SLOTS)
+            .map(|_| Signal::new(None::<TaskView>))
+            .collect()
+    });
+
+    // Per-slot physics state: perpendicular offset from the diagonal (px) and velocity (px/tick).
+    // Passed as signals to TaskCard so only the affected card re-renders on each physics tick.
+    let perp_offsets: Vec<Signal<f64>> =
+        use_hook(|| (0..MAX_TASK_SLOTS).map(|_| Signal::new(0.0f64)).collect());
+    let perp_vels: Vec<Signal<f64>> =
+        use_hook(|| (0..MAX_TASK_SLOTS).map(|_| Signal::new(0.0f64)).collect());
 
     // Sync the resource into the per-slot signals whenever a fresh task list
-    // arrives. Matching is by title so the slot a task occupies is stable
-    // across polls: unchanged tasks stay in place (no signal write, no
-    // re-render), gone tasks vacate their slot, and new tasks fill any
-    // available empty slot.
+    // arrives. Reconciliation is delegated to `slots::reconcile`; we only
+    // write a signal when its slot's value actually changed, to keep
+    // unrelated cards from re-rendering.
     {
         let task_slots = task_slots.clone();
         use_effect(move || {
             if let Some(Ok(new_list)) = &*tasks_resource.read() {
-                let new_by_title: HashMap<String, TaskView> = new_list
-                    .iter()
-                    .map(|t| (t.title.clone(), t.clone()))
-                    .collect();
-
-                let mut handled: HashSet<String> = HashSet::new();
-
-                // Pass 1: update in-place or evict tasks whose title is gone.
-                for slot in &task_slots {
+                let current: Vec<Option<TaskView>> =
+                    task_slots.iter().map(|s| s.peek().clone()).collect();
+                let next = slots::reconcile(&current, new_list);
+                for (slot, new_value) in task_slots.iter().zip(next) {
                     let mut slot = *slot;
-                    let current: Option<TaskView> = (*slot.peek()).clone();
-                    if let Some(cur) = current {
-                        if let Some(updated) = new_by_title.get(&cur.title) {
-                            if &cur != updated {
-                                slot.set(Some(updated.clone()));
-                            }
-                            handled.insert(cur.title);
-                        } else {
-                            slot.set(None);
-                        }
-                    }
-                }
-
-                // Pass 2: place arriving tasks into empty slots, lowest rank first.
-                let mut arrivals: Vec<&TaskView> = new_by_title
-                    .values()
-                    .filter(|t| !handled.contains(&t.title))
-                    .collect();
-                arrivals.sort_by_key(|t| t.rank);
-                let mut arrivals = arrivals.into_iter();
-
-                for slot in &task_slots {
-                    let mut slot = *slot;
-                    if slot.peek().is_none() {
-                        match arrivals.next() {
-                            Some(task) => slot.set(Some(task.clone())),
-                            None => break,
-                        }
+                    if *slot.peek() != new_value {
+                        slot.set(new_value);
                     }
                 }
             }
         });
     }
 
+    let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
+
     use_effect({
         // Clock, frequency 1s.
-        // Poll updates from the server side (e.g. update task list)
+        // Poll updates from the server side (e.g. update task list).
+        // Paused while a task is open in the modal so the card list does not
+        // refresh under the user while they are reading it.
         move || {
             dioxus::prelude::spawn(async move {
                 log::info!("use_effect: clock START");
@@ -100,13 +101,84 @@ fn app() -> Element {
 
                 loop {
                     sleep(std::time::Duration::from_millis(1000)).await;
-                    tasks_resource.restart();
+                    if modal_task.peek().is_none() {
+                        tasks_resource.restart();
+                    }
                 }
             });
         }
     });
 
-    let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
+    use_effect({
+        // Physics loop at PHYSICS_MS Hz (60ms), runs purely in the WASM frontend.
+        // Applies spring-damper repulsion between in-progress cards that would overlap
+        // along the diagonal, spreading them perpendicular to it.
+        let task_slots = task_slots.clone();
+        let perp_offsets = perp_offsets.clone();
+        let perp_vels = perp_vels.clone();
+        move || {
+            // Vec<Signal<T>> is not Copy, so it cannot be moved from an FnMut closure.
+            // Clone inside the body so each invocation owns its own copies.
+            let task_slots = task_slots.clone();
+            let perp_offsets = perp_offsets.clone();
+            let perp_vels = perp_vels.clone();
+            dioxus::prelude::spawn(async move {
+                use wasmtimer::tokio::sleep;
+                loop {
+                    sleep(std::time::Duration::from_millis(PHYSICS_MS)).await;
+
+                    // Snapshot every slot's physics-relevant state.
+                    let snapshot: Vec<physics::Slot> = task_slots
+                        .iter()
+                        .enumerate()
+                        .map(|(i, slot)| {
+                            let progress = slot
+                                .peek()
+                                .as_ref()
+                                .map(task_progress)
+                                .filter(|p| *p > 0.0 && *p < 1.0);
+                            physics::Slot {
+                                progress,
+                                physics: physics::SlotPhysics {
+                                    perp_offset: *perp_offsets[i].peek(),
+                                    perp_velocity: *perp_vels[i].peek(),
+                                },
+                            }
+                        })
+                        .collect();
+
+                    let next = physics::step(&snapshot, REFERENCE_VIEWPORT);
+
+                    // Apply with skip-if-unchanged so unrelated cards don't re-render.
+                    // Active cards: write velocity always; write offset only on a
+                    // visible-magnitude change. Inactive cards: zero out only if not
+                    // already zero.
+                    for (i, new) in next.iter().enumerate() {
+                        let active = snapshot[i].progress.is_some();
+                        let mut vel = perp_vels[i];
+                        let cur_v = *vel.peek();
+                        if active {
+                            if cur_v != new.perp_velocity {
+                                vel.set(new.perp_velocity);
+                            }
+                        } else if cur_v != 0.0 {
+                            vel.set(0.0);
+                        }
+
+                        let mut off = perp_offsets[i];
+                        let cur_o = *off.peek();
+                        if active {
+                            if (new.perp_offset - cur_o).abs() > 0.05 {
+                                off.set(new.perp_offset);
+                            }
+                        } else if cur_o != 0.0 {
+                            off.set(0.0);
+                        }
+                    }
+                }
+            });
+        }
+    });
     let mut front_index: Signal<Option<usize>> = use_signal(|| None);
     let current_front = front_index();
 
@@ -146,6 +218,7 @@ fn app() -> Element {
                         task,
                         _index: i,
                         z_index: if current_front == Some(i) { 100 } else { 0 },
+                        perp_offset_signal: perp_offsets[i],
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));
                             modal_task.set(Some(t));
@@ -171,95 +244,41 @@ fn app() -> Element {
     }
 }
 
-/// Horizontal step (in px) between two adjacent backlog post-its. The card
-/// itself is 110px wide; the extra 10px is the visual gap between cards.
-const BACKLOG_OFFSET_PX: usize = 120;
-/// The first two slots from the left are reserved for the top-of-backlog
-/// post-it, so the rest of the backlog starts two widths in.
-const BACKLOG_LEFT_PX: usize = 12 + 0 * BACKLOG_OFFSET_PX;
-
-/// Step (px) and starting offset (px) shared with the backlog row but rendered
-/// at the bottom of the canvas. The 12px left inset matches the backlog so
-/// the two rows align visually.
-const DONE_LEFT_PX: usize = 12;
-
-enum TaskCardState {
-    Progress,
-    Backlog,
-    Done,
-}
-
 #[component]
 fn TaskCard(
     task: TaskView,
     _index: usize,
     z_index: usize,
+    perp_offset_signal: Signal<f64>,
     on_click: EventHandler<TaskView>,
     on_hover: EventHandler<TaskView>,
     lowest_rank_backlog: usize,
     highest_rank_done: usize,
 ) -> Element {
     let progress = task_progress(&task);
+    let perp_offset = perp_offset_signal();
 
-    let z = if z_index > 0 {
-        format!(" z-index: {z_index};")
-    } else {
-        format!(" z-index: 0;")
-    };
+    let z = format!(" z-index: {z_index};");
 
-    let mut card_style = "task-card".to_string();
-    let mut title_style = "task-card-title".to_string();
-    let markers_style = "task-card-markers".to_string();
-    let mut position_style = "".to_string();
-
-    let CARD_WIDTH_PX = 110;
-    let CARD_GAP_PX = 8;
+    let mut card_style = "task-card";
+    let mut title_style = "task-card-title";
+    let markers_style = "task-card-markers";
+    let position_style;
 
     if progress == 0.0 {
-        // backlog card style and pos
-        card_style = "backlog-card".to_string();
-        title_style = "backlog-card-title".to_string();
-
-        let mut pos_index = task.rank;
-        if pos_index >= lowest_rank_backlog {
-            pos_index = task.rank - lowest_rank_backlog;
-        } else {
-            pos_index = 0;
-        }
-
-        let x_px = CARD_GAP_PX + ((pos_index) * (CARD_WIDTH_PX + CARD_GAP_PX));
-        let left = format!("{x_px}px");
-
-        position_style = format!("top: 8px; bottom: unset; left: {};{z}", left);
-    } else if progress >= 1.0 {
-        // done card style and position
-        let pos_index;
-        if task.rank <= highest_rank_done {
-            pos_index = highest_rank_done - task.rank;
-        } else {
-            pos_index = 0;
-        }
-
-        log::info!("task: {}", task.title);
-        log::info!(
-            "rank: {}, lowest_rank_done: {}, pos_index: {}",
-            task.rank,
-            highest_rank_done,
-            pos_index
+        card_style = "backlog-card";
+        title_style = "backlog-card-title";
+        position_style = format!(
+            "{}{z}",
+            backlog_position_style(task.rank, lowest_rank_backlog)
         );
-
-        let done_top = format!("calc(100vh - {}px)", (110 + 8));
-
-        let x_px = CARD_GAP_PX + ((pos_index + 1) * (CARD_WIDTH_PX + CARD_GAP_PX));
-        let left = format!("calc(100vw - {x_px}px)");
-
-        position_style = format!("top: {}; left: {};{z}", done_top, left);
-
-        card_style = "done-card".to_string();
-        title_style = "done-card-title".to_string();
+    } else if progress >= 1.0 {
+        card_style = "done-card";
+        title_style = "done-card-title";
+        position_style = format!("{}{z}", done_position_style(task.rank, highest_rank_done));
     } else {
-        // Else: In Progress style
-        position_style = diagonal_style(progress);
+        // In progress — physics offset applied here.
+        position_style = diagonal_style(progress, perp_offset);
     }
 
     let t = task.clone();
@@ -380,68 +399,5 @@ fn TaskModal(task: TaskView, on_close: EventHandler<MouseEvent>) -> Element {
                 }
             }
         }
-    }
-}
-
-/// Returns the completion ratio (0.0..=1.0) used to position the post-it on
-/// the diagonal. The top-level checkbox is worth a flat 10% of the total —
-/// reserved for the moment the user actually ticks the parent task done — so
-/// even a Todo task with every subtask complete tops out at 0.9. Subtasks
-/// (counted recursively, with Done and Cancelled treated as complete) fill
-/// the remaining 90% proportionally.
-fn task_progress(task: &TaskView) -> f64 {
-    const PARENT_WEIGHT: f64 = 0.1;
-    const SUBTASKS_WEIGHT: f64 = 1.0 - PARENT_WEIGHT;
-
-    if matches!(task.status, TaskStatus::Done | TaskStatus::Cancelled) {
-        return 1.0;
-    }
-    let (done, total) = count_subtasks(task);
-    let subtasks_share = if total == 0 {
-        0.0
-    } else {
-        done as f64 / total as f64
-    };
-    SUBTASKS_WEIGHT * subtasks_share
-}
-
-fn count_subtasks(task: &TaskView) -> (usize, usize) {
-    let mut done = 0;
-    let mut total = 0;
-    for child in &task.children {
-        total += 1;
-        if matches!(child.status, TaskStatus::Done | TaskStatus::Cancelled) {
-            done += 1;
-        }
-        let (cd, ct) = count_subtasks(child);
-        done += cd;
-        total += ct;
-    }
-    (done, total)
-}
-
-/// Builds a CSS positioning rule that places the post-it along the top-left to
-/// bottom-right diagonal at `progress` (0.0 = top-left, 1.0 = bottom-right).
-/// 280px = 220px card + 60px combined margin from the viewport edges.
-fn diagonal_style(progress: f64) -> String {
-    let p = progress.clamp(0.0, 1.0);
-    format!(
-        "top: calc({p:.3} * (100vh - 280px) + 30px); left: calc({p:.3} * (100vw - 280px) + 30px);"
-    )
-}
-
-fn status_box(status: &TaskStatus) -> &'static str {
-    match status {
-        TaskStatus::Todo => "[ ]",
-        TaskStatus::Done => "[x]",
-        TaskStatus::Cancelled => "[-]",
-    }
-}
-
-fn status_class(status: &TaskStatus) -> &'static str {
-    match status {
-        TaskStatus::Todo => "status-todo",
-        TaskStatus::Done => "status-done",
-        TaskStatus::Cancelled => "status-cancelled",
     }
 }

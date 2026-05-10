@@ -144,22 +144,71 @@
 
 ##  Properties and first Settings
 
+- [x] Create config module: parse property definitions from mdagile.toml
+  Adds `src/config/` with `Config::from_str` and `Config::load`. Reads `[Properties.<name>]`
+  sections using the `toml` crate; validates the file is well-formed TOML.
+
+- [x] BUG: board broken
+- [x] BUG: language server not found by nvim (some config stuff?) 
+  --> cany needed update. Since we added the tty flag as default in devenv, cany needs to do --no-tty
+
+- [x] post mortem: add some non-regression checks to the GUI
+  Seems like we are kind of limited here, unit test, ok, otherwise best idea seems to be
+  - [x] add some UTs
+  - [-] smoke test, that checks if warnings are issued.
+    Will be slow and require playwright to find any actual issues (server dormant with no clients connected) -> don't do
+
+- [x] some GUI fixes - for the fun of it!
+  - [x] tasks properly sized and positioned
+    - [x] scale size of task post-its (done and backlog) with viewport size. height should match exactly the height of the "separator" sections
+    - [x] post-its positions in backlog and progress exactly aligned with the separator sections
+    - [x] .. then make the post-its just a little bit smaller (like 5px or so)
+
+- [x] GUI style improvements, red, green coloring, sepia tint, monospace
+  - [x] pastel green text color for done tasks
+  - [x] pastel red color for cancelled tasks
+  - [x] sepia tint of the board
+  - [x] use a monospace font
+  - [x] Problem: text on some tasks does not fit on the card. Don't render text all the way to the bottom of the task, but have a fade-out shadow gradually hide it (fading into the color of the task card). Make tasks with a lot of overflowing text more visually appealing
+
+- [x] GUI: don't update (get tasks) while a task is maximized
+
+## GUI 1.0
+- [x] test case / script:
+  - [x] launches a gui instance via dx pointing to a fixture directory
+  - [x] simulates tasks with subtasks being created (backlog)
+  - [x] lorem ipsum text in tasks
+  - [x] simulates tasks being marked done, so that they continuously progress over the board
+  - [x] multiple tasks are in progress at the same time
+  - [x] at least one task "overtakes" other tasks
+  - [x] plays the whole thing on repeat
+- [x] Repel/spread: overlapping in-progress cards push each other apart
+  Cards that would overlap negotiate their position along (or perpendicular to)
+  the diagonal so none fully obscure another. Progress still determines the
+  rough position; the spread is only the local adjustment needed to avoid overlap.
+  - [x] refactor the current code, to easily accomodate setting both x and y postion for each card explicitly.
+  - [x] the normal target position is the current diagonal postion
+
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
-  - [ ] Read mdagile.toml config in checker; pass config to rules
-  - [ ] Detect undefined #property markers in tasks
+  - [x] Read mdagile.toml config in checker; pass config to rules
+  - [ ] Detect undefined '#property' markers in tasks
+    - [ ] basic detection and errors '#foo'
+      - [x] agile check
+      - [x] language server
+    - [ ] quickfix to add a respective toml entry 
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
-    - [ ] Test with common typos: #Feature, #feat, etc.
+    - [ ] Test with common typos: '#Feature', '#feat', etc.
   - [ ] Detect undefined @user and @group assignments
     - [ ] Suggest close matches for misspelled names
-    - [ ] Handle OR connections: @markus or @josh
+    - [ ] Handle OR connections: '@markus' or '@josh'
   - [ ] Update error formatter for new error codes
 
 - [ ] Missing required subtasks
-  Detect when a task has a property (e.g. #feature) but lacks required subtasks
+  Detect when a task has a property (e.g. '#feature') but lacks required subtasks
   - [ ] Match quoted subtasks in tasks against property definitions from mdagile.toml
   - [ ] Handle multiple properties on same task
-  - [ ] Handle nested properties (e.g., #feature that includes #review)
+  - [ ] Handle nested properties (e.g., '#feature' that includes '#review')
   - [ ] Provide helpful error with list of missing subtasks
   - [ ] Tests: single property, multiple properties, nested properties
 
@@ -182,6 +231,7 @@
   - [ ] list of subcommands and their functions
   - [ ] most important flags to each subcommand
   - [ ] let human review and adjust the overview
+- [x] introduce a logging library for the CLI crate and replace raw `eprintln!` calls with structured log calls (uses `tracing`, controlled by `AGILE_LOG`)
 
 
 ## LSP documentation
@@ -201,15 +251,6 @@
   - [ ] File diagnostics on save with `agile check --fix`
 
 
-## GUI 1.0
-- [ ] Repel/spread: overlapping in-progress cards push each other apart
-  Cards that would overlap negotiate their position along (or perpendicular to)
-  the diagonal so none fully obscure another. Progress still determines the
-  rough position; the spread is only the local adjustment needed to avoid overlap.
-  - [ ] Detect overlapping cards (same or close diagonal position)
-  - [ ] Spread overlapping cards perpendicular to the diagonal
-  - [ ] Animate the spread smoothly so cards feel like they're sliding apart
-  - [ ] Ensure spread cards snap back when progress changes move them apart naturally
 
 ### Writing back to file from GUI
 - [ ] Mark task as done from GUI
