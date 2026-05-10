@@ -12,6 +12,13 @@ fn task(title: &str, rank: usize) -> TaskView {
     }
 }
 
+fn done_task(title: &str, rank: usize) -> TaskView {
+    TaskView {
+        status: TaskStatus::Done,
+        ..task(title, rank)
+    }
+}
+
 fn tasks(slots: &[SlotState]) -> Vec<Option<TaskView>> {
     slots.iter().map(|s| s.task.clone()).collect()
 }
@@ -159,4 +166,22 @@ fn new_in_progress_card_starts_at_progress_position() {
     let slot = SlotState::arriving(t);
     // Progress = 1 done / 2 total, weighted: 0.9 * 0.5 = 0.45.
     assert_eq!(slot.physics.position, CardPosition { x: 0.45, y: 0.45 });
+}
+
+#[test]
+fn done_task_physics_is_reset_on_reconcile() {
+    use crate::physics::CardVelocity;
+    let mut slot = SlotState::arriving(task("a", 0));
+    slot.physics.position = CardPosition { x: 0.3, y: 0.3 };
+    slot.physics.velocity = CardVelocity { vx: 0.1, vy: 0.1 };
+
+    let current = vec![slot];
+    let new = vec![done_task("a", 0)];
+    let result = reconcile(&current, &new);
+
+    assert_eq!(result[0].physics.position, CardPosition { x: 0.0, y: 0.0 });
+    assert_eq!(
+        result[0].physics.velocity,
+        CardVelocity { vx: 0.0, vy: 0.0 }
+    );
 }

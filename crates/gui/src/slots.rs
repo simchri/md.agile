@@ -8,7 +8,7 @@
 
 use crate::card_positioning::task_progress;
 use crate::physics::{Card as PhysCard, CardPosition, CardVelocity};
-use crate::server::TaskView;
+use crate::server::{TaskStatus, TaskView};
 use std::collections::{HashMap, HashSet};
 
 /// The full state of a single slot: task data plus physics state.
@@ -73,9 +73,14 @@ pub fn reconcile(current: &[SlotState], new_tasks: &[TaskView]) -> Vec<SlotState
             Some(cur) => match new_by_title.get(cur.title.as_str()) {
                 Some(updated) => {
                     handled.insert(cur.title.as_str());
+                    let physics = if updated.status == TaskStatus::Done {
+                        PhysCard::new(CardPosition { x: 0.0, y: 0.0 })
+                    } else {
+                        slot.physics
+                    };
                     SlotState {
                         task: Some((*updated).clone()),
-                        physics: slot.physics, // preserve velocity/position
+                        physics,
                     }
                 }
                 None => SlotState::empty(),
