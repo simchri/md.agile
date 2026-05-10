@@ -7,8 +7,10 @@
 use crate::config;
 use clap::{Parser, Subcommand};
 use std::path::Path;
+use tracing::error;
 
 pub mod common;
+pub mod logger;
 pub mod subcommands;
 
 #[derive(Parser)]
@@ -123,7 +125,7 @@ pub fn run() {
     let config = match config::Config::load(root) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("agile: {e}");
+            error!("{e}");
             std::process::exit(1);
         }
     };

@@ -231,6 +231,7 @@
   - [ ] list of subcommands and their functions
   - [ ] most important flags to each subcommand
   - [ ] let human review and adjust the overview
+- [x] introduce a logging library for the CLI crate and replace raw `eprintln!` calls with structured log calls (uses `tracing`, controlled by `AGILE_LOG`)
 
 
 ## LSP documentation

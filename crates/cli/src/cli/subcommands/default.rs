@@ -5,13 +5,14 @@
 use crate::cli::common::{find_task_files, parse_file};
 use crate::parser::{FileItem, Status};
 use std::path::{Path, PathBuf};
+use tracing::{error, info};
 
 /// Default-action entry point. Opens the editor at the next active task, or
-/// prints a message to stderr if every task is done.
+/// logs an informational message if every task is done.
 pub fn run(root: &Path) {
     match find_next_task(root) {
         Some((path, line)) => open_editor(&path, line),
-        None => eprintln!("agile: no active tasks found"),
+        None => info!("no active tasks found"),
     }
 }
 
@@ -40,13 +41,13 @@ fn open_editor(path: &Path, line: usize) {
     let editor = std::env::var("VISUAL")
         .or_else(|_| std::env::var("EDITOR"))
         .unwrap_or_else(|_| {
-            eprintln!("agile: neither $VISUAL nor $EDITOR is set");
+            error!("neither $VISUAL nor $EDITOR is set");
             std::process::exit(1);
         });
     let args = editor_open_args(&editor, path, line);
     let status = std::process::Command::new(&editor).args(&args).status();
     if let Err(e) = status {
-        eprintln!("agile: failed to launch editor '{editor}': {e}");
+        error!("failed to launch editor '{editor}': {e}");
         std::process::exit(1);
     }
 }

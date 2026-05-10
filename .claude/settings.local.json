@@ -44,7 +44,9 @@
       "Bash(git -C /home/massmde/private/md.agile commit -m ' *)",
       "Bash(git -C /home/massmde/private/md.agile add crates/cli/tests/ tests/)",
       "Bash(git -C /home/massmde/private/md.agile status)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(devenv . *)",
+      "Bash(devenv *)"
     ]
   }
 }
