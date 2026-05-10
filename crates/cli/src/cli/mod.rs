@@ -6,8 +6,8 @@
 
 use crate::config;
 use clap::{Parser, Subcommand};
+use log::error;
 use std::path::Path;
-use tracing::error;
 
 pub mod common;
 pub mod logger;

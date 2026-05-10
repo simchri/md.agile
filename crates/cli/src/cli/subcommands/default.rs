@@ -4,8 +4,8 @@
 
 use crate::cli::common::{find_task_files, parse_file};
 use crate::parser::{FileItem, Status};
+use log::{error, info};
 use std::path::{Path, PathBuf};
-use tracing::{error, info};
 
 /// Default-action entry point. Opens the editor at the next active task, or
 /// logs an informational message if every task is done.
