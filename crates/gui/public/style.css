@@ -28,8 +28,8 @@ body {
     /* Zone color fades into page background (#f5eedd) on left, right, and bottom. */
     background:
         linear-gradient(to right,  #f5eedd 0%, transparent 40%),
-        linear-gradient(to top,    #f5eedd 0%, transparent 20%),
-        #d4a832;
+        linear-gradient(to top,    #f5eedd 0%, transparent 5%),
+        #ffde84;
 }
 .separator2 {
     position: absolute;
@@ -42,8 +42,8 @@ body {
     /* Zone color fades into page background (#f5eedd) on right, left, and top. */
     background:
         linear-gradient(to left,   #f5eedd 0%, transparent 40%),
-        linear-gradient(to bottom, #f5eedd 0%, transparent 20%),
-        #9ab88a;
+        linear-gradient(to bottom, #f5eedd 0%, transparent 5%),
+        #b1cf92;
 }
 
 .smooth-movement {
