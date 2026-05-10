@@ -242,11 +242,19 @@ run_many() {
 echo "[demo] Building and starting dx serve (log: $DX_LOG)"
 echo "[demo] First build may take ~60s..."
 (cd "$GUI_DIR" && MDAGILE_WORKDIR="$FIXTURE_DIR" dx serve --hot-patch >"$DX_LOG" 2>&1) &
+DX_PID=$!
 
 echo "[demo] Waiting for server on :8080 ..."
 WAIT=0
 set +e
 until curl -sf http://localhost:8080 >/dev/null 2>&1; do
+    # Check if dx process is still running
+    if ! kill -0 "$DX_PID" 2>/dev/null; then
+        echo ""
+        echo "[demo] ERROR: dx process crashed or failed to start. Check $DX_LOG for errors."
+        cat "$DX_LOG"
+        exit 1
+    fi
     sleep 2
     WAIT=$((WAIT + 2))
     printf "[demo]   ...%ds elapsed\r" "$WAIT"
