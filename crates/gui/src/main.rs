@@ -67,7 +67,7 @@ fn app() -> Element {
     let phys_cards: Rc<RefCell<Vec<physics::Card>>> = use_hook(|| {
         Rc::new(RefCell::new(
             (0..MAX_TASK_SLOTS)
-                .map(|_| physics::Card::new(0.5, 0.5))
+                .map(|_| physics::Card::new(physics::CardPosition { x: 0.5, y: 0.5 }))
                 .collect(),
         ))
     });
