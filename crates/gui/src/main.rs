@@ -41,39 +41,28 @@ fn app() -> Element {
         tasks
     });
 
-    // One signal per visible task slot. Empty slots hold `None`. Each slot is
-    // its own signal so that a change to one task does not invalidate the
-    // others. Initialised with use_hook (runs once on mount) so that
-    // Signal::new is not called inside an iterator closure, which would
-    // violate the Rules of Hooks.
-    let task_slots: Vec<Signal<Option<TaskView>>> = use_hook(|| {
+    // One signal per visible task slot. Each SlotState holds the task data
+    // and its physics state together, so both can be updated atomically and
+    // the physics loop operates on a single collection.
+    let task_slots: Vec<Signal<slots::SlotState>> = use_hook(|| {
         (0..MAX_TASK_SLOTS)
-            .map(|_| Signal::new(None::<TaskView>))
-            .collect()
-    });
-
-    // One signal per task slot holding the full Card physics state (position +
-    // velocity). Updated by the physics loop at 20 Hz; the UI reads `.position`.
-    let phys_cards: Vec<Signal<physics::Card>> = use_hook(|| {
-        (0..MAX_TASK_SLOTS)
-            .map(|_| Signal::new(physics::Card::new(physics::CardPosition { x: 0.0, y: 0.0 })))
+            .map(|_| Signal::new(slots::SlotState::empty()))
             .collect()
     });
 
     // Sync the resource into the per-slot signals whenever a fresh task list
-    // arrives. Reconciliation is delegated to `slots::reconcile`; we only
-    // write a signal when its slot's value actually changed, to keep
-    // unrelated cards from re-rendering.
+    // arrives. Reconciliation preserves physics state for existing tasks and
+    // initializes new cards at their correct target position.
     {
         let task_slots = task_slots.clone();
         use_effect(move || {
             if let Some(Ok(new_list)) = &*tasks_resource.read() {
-                let current: Vec<Option<TaskView>> =
+                let current: Vec<slots::SlotState> =
                     task_slots.iter().map(|s| s.peek().clone()).collect();
                 let next = slots::reconcile(&current, new_list);
                 for (slot, new_value) in task_slots.iter().zip(next) {
                     let mut slot = *slot;
-                    if *slot.peek() != new_value {
+                    if slot.peek().task != new_value.task {
                         slot.set(new_value);
                     }
                 }
@@ -104,13 +93,11 @@ fn app() -> Element {
     });
 
     // Physics loop at PHYSICS_FRAME_MS Hz (40 times per second).
-    // Updates progress on each Card, then advances the spring-damper simulation.
+    // Reads physics state from each SlotState, advances simulation, writes back.
     {
         let task_slots = task_slots.clone();
-        let phys_cards = phys_cards.clone();
         use_effect(move || {
             let task_slots = task_slots.clone();
-            let phys_cards = phys_cards.clone();
             dioxus::prelude::spawn(async move {
                 use wasmtimer::tokio::sleep;
                 let dt = PHYSICS_FRAME_MS as f64 / 1000.0;
@@ -118,14 +105,14 @@ fn app() -> Element {
                 loop {
                     sleep(std::time::Duration::from_millis(PHYSICS_FRAME_MS)).await;
 
-                    // Collect current card state, update progress, run physics.
-                    let mut cards: Vec<physics::Card> = phys_cards
+                    // Extract physics cards, inject current progress.
+                    let mut cards: Vec<physics::Card> = task_slots
                         .iter()
-                        .zip(task_slots.iter())
-                        .map(|(card_signal, slot)| {
-                            let mut card = *card_signal.peek();
+                        .map(|slot_signal| {
+                            let slot = slot_signal.peek();
+                            let mut card = slot.physics;
                             card.progress = slot
-                                .peek()
+                                .task
                                 .as_ref()
                                 .map(task_progress)
                                 .filter(|p| *p > 0.0 && *p < 1.0);
@@ -135,11 +122,13 @@ fn app() -> Element {
 
                     physics::step(&mut cards, dt);
 
-                    // Write updated state back; skip if unchanged to avoid re-renders.
-                    for (new_card, card_signal) in cards.into_iter().zip(phys_cards.iter()) {
-                        let mut card_signal = *card_signal;
-                        if card_signal.peek().position != new_card.position {
-                            card_signal.set(new_card);
+                    // Write updated physics back into the slot; skip if position unchanged.
+                    for (new_card, slot_signal) in cards.into_iter().zip(task_slots.iter()) {
+                        let mut slot_signal = *slot_signal;
+                        if slot_signal.peek().physics.position != new_card.position {
+                            let mut new_slot = slot_signal.peek().clone();
+                            new_slot.physics = new_card;
+                            slot_signal.set(new_slot);
                         }
                     }
                 }
@@ -152,7 +141,7 @@ fn app() -> Element {
 
     let mut lowest_rank_backlog = usize::MAX;
     for slot in task_slots.iter() {
-        if let Some(task) = slot() {
+        if let Some(task) = slot().task {
             if task_progress(&task) == 0.0 {
                 if task.rank < lowest_rank_backlog {
                     lowest_rank_backlog = task.rank;
@@ -166,7 +155,7 @@ fn app() -> Element {
 
     let mut highest_rank_done = 0;
     for slot in task_slots.iter() {
-        if let Some(task) = slot() {
+        if let Some(task) = slot().task {
             if task_progress(&task) >= 1.0 {
                 if task.rank > highest_rank_done {
                     highest_rank_done = task.rank;
@@ -180,11 +169,11 @@ fn app() -> Element {
             div { class: "separator1" }
             div { class: "separator2" }
 
-            for (i, slot) in task_slots.iter().enumerate() {
-                if let Some(task) = slot() {
+            for (i, slot_signal) in task_slots.iter().enumerate() {
+                if let Some(task) = slot_signal().task {
                     TaskCard {
                         task,
-                        position: phys_cards[i]().position,
+                        position: slot_signal().physics.position,
                         z_index: if current_front == Some(i) { 100 } else { 0 },
                         on_click: move |t: TaskView| {
                             front_index.set(Some(i));

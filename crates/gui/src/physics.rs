@@ -28,7 +28,7 @@ pub struct CardVelocity {
 /// The caller holds a `Vec<Card>` across frames and passes `&mut [Card]` to `step()`.
 /// Between frames, callers update only `progress`; `position` and `velocity` are
 /// preserved and evolved by `step()`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Card {
     /// `Some(p)` if this card is in-progress with `0.0 < p < 1.0`;
     /// `None` if the card is inactive (backlog/done).
@@ -87,14 +87,14 @@ mod tests {
     }
 
     fn card_inactive() -> Card {
-        Card::new(CardPosition { x: 0.5, y: 0.5 })
+        Card::new(CardPosition { x: 0.0, y: 0.0 })
     }
 
     #[test]
     fn inactive_card_does_not_move() {
         let mut cards = [card_inactive()];
         let pos = step(&mut cards, 0.05);
-        assert_eq!(pos[0], CardPosition { x: 0.5, y: 0.5 });
+        assert_eq!(pos[0], CardPosition { x: 0.0, y: 0.0 });
         assert_eq!(cards[0].velocity, CardVelocity { vx: 0.0, vy: 0.0 });
     }
 
