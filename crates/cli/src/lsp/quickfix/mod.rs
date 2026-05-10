@@ -10,30 +10,38 @@ mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
 
-/// Routes a diagnostic to the appropriate quickfix handler.
-/// Dispatches based on error code; handlers don't re-check the code.
+/// Function shape every quickfix builder satisfies.
+type Builder = fn(&Diagnostic, &str, &Url) -> Option<CodeAction>;
+
+/// Single source of truth for which [`ErrorCode`]s have a quickfix and which
+/// builder produces it. Used by both [`build_quickfix`] (LSP dispatch) and
+/// [`has_quickfix`] (CLI's "(fix avail.)" hint).
+const REGISTRY: &[(ErrorCode, Builder)] = &[
+    (ErrorCode::WrongIndentation, wrong_indentation::build),
+    (ErrorCode::WrongBodyIndentation, wrong_body_indent::build),
+    (
+        ErrorCode::MissingSpaceAfterBox,
+        missing_space_after_box::build,
+    ),
+    (ErrorCode::BoxStyleInvalid, invalid_box::build),
+    (ErrorCode::UppercaseX, uppercase_x::build),
+    // E001 OrphanedSubtask, E004 IncompleteParent, E008 UndefinedProperty:
+    // no quickfix (user has to make a structural decision the linter can't).
+];
+
+/// Routes a diagnostic to the appropriate quickfix handler via [`REGISTRY`].
 pub fn build_quickfix(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
-    match &diagnostic.code {
-        Some(NumberOrString::String(s)) => match s.as_str() {
-            code if code == ErrorCode::WrongIndentation.as_str() => {
-                wrong_indentation::build(diagnostic, doc_text, uri)
-            }
-            code if code == ErrorCode::WrongBodyIndentation.as_str() => {
-                wrong_body_indent::build(diagnostic, doc_text, uri)
-            }
-            code if code == ErrorCode::MissingSpaceAfterBox.as_str() => {
-                missing_space_after_box::build(diagnostic, doc_text, uri)
-            }
-            code if code == ErrorCode::BoxStyleInvalid.as_str() => {
-                invalid_box::build(diagnostic, doc_text, uri)
-            }
-            code if code == ErrorCode::UppercaseX.as_str() => {
-                uppercase_x::build(diagnostic, doc_text, uri)
-            }
-            _ => None,
-        },
-        _ => None,
-    }
+    let Some(NumberOrString::String(s)) = &diagnostic.code else {
+        return None;
+    };
+    let code: ErrorCode = s.parse().ok()?;
+    let builder = REGISTRY.iter().find(|(c, _)| *c == code).map(|(_, b)| *b)?;
+    builder(diagnostic, doc_text, uri)
+}
+
+/// Returns true if `code` has a registered quickfix builder.
+pub fn has_quickfix(code: ErrorCode) -> bool {
+    REGISTRY.iter().any(|(c, _)| *c == code)
 }
 
 /// Wraps a single [`TextEdit`] in the canonical [`CodeAction`] shape used by

@@ -5,7 +5,7 @@
 //! and offers `quickfix` code actions for fixable diagnostics (E002/E003/E005).
 
 pub mod logger;
-mod quickfix;
+pub mod quickfix;
 
 use quickfix::build_quickfix;
 
@@ -106,7 +106,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
         .and_then(|d| serde_json::to_value(d).ok());
 
     let head = format_message(issue.message);
-    let head = if issue.code.has_quickfix() {
+    let head = if quickfix::has_quickfix(issue.code) {
         format!("{head} (fix avail.)")
     } else {
         head

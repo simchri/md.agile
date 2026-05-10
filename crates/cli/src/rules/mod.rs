@@ -62,28 +62,29 @@ impl ErrorCode {
             ErrorCode::UndefinedProperty => "E008",
         }
     }
-
-    /// True if an LSP quickfix is registered for this code.
-    ///
-    /// Source of truth for the "(fix avail.)" hint shown in CLI and LSP
-    /// diagnostic messages. Must stay in sync with the dispatcher in
-    /// `lsp::quickfix::build_quickfix`.
-    pub fn has_quickfix(&self) -> bool {
-        matches!(
-            self,
-            ErrorCode::WrongIndentation
-                | ErrorCode::WrongBodyIndentation
-                | ErrorCode::MissingSpaceAfterBox
-                | ErrorCode::BoxStyleInvalid
-                | ErrorCode::UppercaseX
-        )
-        // E008 UndefinedProperty: no quickfix (user must edit mdagile.toml manually)
-    }
 }
 
 impl std::fmt::Display for ErrorCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::str::FromStr for ErrorCode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "E001" => ErrorCode::OrphanedSubtask,
+            "E002" => ErrorCode::WrongIndentation,
+            "E003" => ErrorCode::WrongBodyIndentation,
+            "E004" => ErrorCode::IncompleteParent,
+            "E005" => ErrorCode::MissingSpaceAfterBox,
+            "E006" => ErrorCode::BoxStyleInvalid,
+            "E007" => ErrorCode::UppercaseX,
+            "E008" => ErrorCode::UndefinedProperty,
+            _ => return Err(()),
+        })
     }
 }
 

@@ -4,6 +4,7 @@
 //! with source context and visual indicators, following the style of ESLint,
 //! Clippy, and other standard linters.
 
+use crate::lsp::quickfix;
 use crate::rules::Issue;
 use std::fs;
 
@@ -28,7 +29,7 @@ pub fn format_issue(issue: &Issue) -> String {
     let mut output = String::new();
 
     // Header line: error[CODE]: message [(fix avail.)]
-    let fix_hint = if issue.code.has_quickfix() {
+    let fix_hint = if quickfix::has_quickfix(issue.code) {
         " (fix avail.)"
     } else {
         ""

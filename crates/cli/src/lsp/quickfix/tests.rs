@@ -388,3 +388,16 @@ fn build_quickfix_e007_returns_none_when_no_uppercase_x() {
     let diag = diag_e007(0);
     assert!(build_quickfix(&diag, doc, &uri).is_none());
 }
+
+#[test]
+fn has_quickfix_for_each_code() {
+    use crate::rules::ErrorCode::*;
+    assert!(!has_quickfix(OrphanedSubtask));
+    assert!(has_quickfix(WrongIndentation));
+    assert!(has_quickfix(WrongBodyIndentation));
+    assert!(!has_quickfix(IncompleteParent));
+    assert!(has_quickfix(MissingSpaceAfterBox));
+    assert!(has_quickfix(BoxStyleInvalid));
+    assert!(has_quickfix(UppercaseX));
+    assert!(!has_quickfix(UndefinedProperty));
+}
