@@ -62,28 +62,18 @@ fn app() -> Element {
     // independently. Only task_slots writes can trigger app() re-renders.
     {
         let task_slots = task_slots.clone();
-        let card_physics = card_physics.clone();
         use_effect(move || {
             if let Some(Ok(new_list)) = &*tasks_resource.read() {
-                let current: Vec<slots::SlotState> = task_slots
-                    .iter()
-                    .zip(card_physics.iter())
-                    .map(|(t, p)| slots::SlotState {
-                        task: t.peek().clone(),
-                        physics: *p.peek(),
-                    })
-                    .collect();
+                let current: Vec<Option<TaskView>> =
+                    task_slots.iter().map(|s| s.peek().clone()).collect();
                 let next = slots::reconcile(&current, new_list);
-                for (i, new_value) in next.into_iter().enumerate() {
-                    let mut task_sig = task_slots[i];
-                    let mut phys_sig = card_physics[i];
-                    if *task_sig.peek() != new_value.task {
-                        task_sig.set(new_value.task);
-                    }
-                    if *phys_sig.peek() != new_value.physics {
-                        phys_sig.set(new_value.physics);
+                for (slot, new_value) in task_slots.iter().zip(next) {
+                    let mut slot = *slot;
+                    if *slot.peek() != new_value {
+                        slot.set(new_value);
                     }
                 }
+
             }
         });
     }
@@ -124,9 +114,10 @@ fn app() -> Element {
                 let dt = PHYSICS_FRAME_MS as f64 / 1000.0;
 
                 loop {
+                    
                     sleep(std::time::Duration::from_millis(PHYSICS_FRAME_MS)).await;
 
-                    // Extract physics cards, inject current progress.
+                    // update progress value in cards
                     let mut cards: Vec<physics::Card> = task_slots
                         .iter()
                         .zip(card_physics.iter())
@@ -143,13 +134,23 @@ fn app() -> Element {
 
                     physics::step(&mut cards, dt);
 
-                    // Write updated physics back; skip if position unchanged.
+                    // if a task is "done" Reset the respective physics entry, so a new task using the same card, does not start with the old cards physics state (in the UI shows as card starting jumping to the center, then sliding back to its actual position) 
+                    // for (task_sig, phys_sig) in task_slots.iter().zip(card_physics.iter()) {
+                    //     if let Some(task) = task_sig.peek().as_ref() {
+                    //         if task_progress(&task) >= 1.0 {
+                    //             let mut phys_sig = *phys_sig;
+                    //             phys_sig.set(physics::Card::new(physics::CardPosition { x: 0.0, y: 0.0 }));
+                    //         }
+                    //     }
+                    // }
+
+                    // write updated physics properties to signals
                     for (new_card, phys_sig) in cards.into_iter().zip(card_physics.iter()) {
                         let mut phys_sig = *phys_sig;
-                        if phys_sig.peek().position != new_card.position {
-                            phys_sig.set(new_card);
-                        }
+                        phys_sig.set(new_card);
                     }
+
+                    log::info!("use_effect: physics tick");
                 }
             });
         });

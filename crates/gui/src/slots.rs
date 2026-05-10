@@ -50,42 +50,35 @@ impl SlotState {
 
 /// Reconciles a slot pool against an incoming task list.
 ///
-/// `current` is the slot pool's state at the start of the tick. `new_tasks`
-/// is the fresh task list from the backend.
+/// `current` is the slot pool's state at the start of the tick (`None` for
+/// empty slots). `new_tasks` is the fresh task list from the backend.
 ///
 /// Returns a `Vec` of the same length as `current` containing the desired
-/// post-tick slot states. Tasks beyond the pool capacity are dropped silently.
+/// post-tick contents of each slot. Tasks beyond the pool capacity are
+/// dropped silently.
 ///
 /// # Algorithm
 /// 1. For each existing slot: if its task's title is still in `new_tasks`,
-///    update task fields while **preserving physics state**; otherwise evict.
+///    update with the new fields (preserves slot identity); otherwise
+///    evict to `None`.
 /// 2. New tasks (in `new_tasks` but not previously in any slot) are placed
-///    into empty slots in slot-index order, lowest `rank` first,
-///    **initialized at their progress target position**.
-pub fn reconcile(current: &[SlotState], new_tasks: &[TaskView]) -> Vec<SlotState> {
+///    into empty slots in slot-index order, lowest `rank` first.
+pub fn reconcile(current: &[Option<TaskView>], new_tasks: &[TaskView]) -> Vec<Option<TaskView>> {
     let new_by_title: HashMap<&str, &TaskView> =
         new_tasks.iter().map(|t| (t.title.as_str(), t)).collect();
 
     let mut handled: HashSet<&str> = HashSet::new();
-    let mut result: Vec<SlotState> = current
+    let mut result: Vec<Option<TaskView>> = current
         .iter()
-        .map(|slot| match &slot.task {
+        .map(|slot| match slot {
             Some(cur) => match new_by_title.get(cur.title.as_str()) {
                 Some(updated) => {
                     handled.insert(cur.title.as_str());
-                    let physics = if updated.status == TaskStatus::Done {
-                        PhysCard::new(CardPosition { x: 0.0, y: 0.0 })
-                    } else {
-                        slot.physics
-                    };
-                    SlotState {
-                        task: Some((*updated).clone()),
-                        physics,
-                    }
+                    Some((*updated).clone())
                 }
-                None => SlotState::empty(),
+                None => None,
             },
-            None => SlotState::empty(),
+            None => None,
         })
         .collect();
 
@@ -97,9 +90,9 @@ pub fn reconcile(current: &[SlotState], new_tasks: &[TaskView]) -> Vec<SlotState
     let mut arrivals = arrivals.into_iter();
 
     for slot in result.iter_mut() {
-        if slot.task.is_none() {
+        if slot.is_none() {
             match arrivals.next() {
-                Some(t) => *slot = SlotState::arriving(t.clone()),
+                Some(t) => *slot = Some(t.clone()),
                 None => break,
             }
         }
