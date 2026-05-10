@@ -28,7 +28,6 @@ body {
     /* Zone color fades into page background (#f5eedd) on left, right, and bottom. */
     background:
         linear-gradient(to right,  #f5eedd 0%, transparent 40%),
-        linear-gradient(to left,   #f5eedd 0%, transparent 40%),
         linear-gradient(to top,    #f5eedd 0%, transparent 40%),
         #e6c84a;
 }
@@ -43,7 +42,6 @@ body {
     /* Zone color fades into page background (#f5eedd) on right, left, and top. */
     background:
         linear-gradient(to left,   #f5eedd 0%, transparent 40%),
-        linear-gradient(to right,  #f5eedd 0%, transparent 40%),
         linear-gradient(to bottom, #f5eedd 0%, transparent 40%),
         #a8c898;
 }
