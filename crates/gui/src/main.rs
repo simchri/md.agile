@@ -170,8 +170,6 @@ fn app() -> Element {
                             phys_sig.set(new_card);
                         }
                     }
-
-                    log::info!("use_effect: physics tick");
                 }
             });
         });
