@@ -201,6 +201,7 @@
       - [x] agile check
       - [x] language server
     - [ ] quickfix to add a respective toml entry 
+  - [ ] "go to definition" to toml entry
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
     - [ ] Test with common typos: '#Feature', '#feat', etc.
   - [ ] Detect undefined @user and @group assignments
@@ -254,7 +255,10 @@
   - [ ] textDocument/completion — suggest properties, users, groups
   - [ ] File diagnostics on save with `agile check --fix`
 
+- [ ] mark tasks done from CLI
+  - [ ] tasks
+  - [ ] subtasks
 
-
+## GUI 2.0
 ### Writing back to file from GUI
 - [ ] Mark task as done from GUI
