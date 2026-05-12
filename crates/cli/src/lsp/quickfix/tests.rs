@@ -390,6 +390,125 @@ fn build_quickfix_e007_returns_none_when_no_uppercase_x() {
 }
 
 #[test]
+fn build_quickfix_e008_adds_property_to_empty_toml() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+
+    // Create an empty mdagile.toml
+    std::fs::write(project_dir.join("mdagile.toml"), "").unwrap();
+
+    // Create a tasks file in the project directory
+    let tasks_file = project_dir.join("tasks.agile.md");
+    let uri: Url = Url::from_file_path(&tasks_file).unwrap();
+    let doc = "\
+- [ ] task #undefined
+";
+
+    // Create a diagnostic for E008 with property name in data
+    let diag = Diagnostic {
+        range: Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 1,
+            },
+        },
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: Some(NumberOrString::String("E008".into())),
+        source: Some("agilels".into()),
+        message: "undefined property".into(),
+        data: Some(serde_json::json!({
+            "kind": "undefined_property",
+            "property_name": "undefined",
+        })),
+        ..Diagnostic::default()
+    };
+
+    let action = build_quickfix(&diag, doc, &uri).expect("should produce a quickfix");
+
+    assert_eq!(action.kind, Some(CodeActionKind::QUICKFIX));
+    assert_eq!(action.is_preferred, Some(true));
+
+    // The quickfix should target mdagile.toml
+    let toml_uri: Url = Url::from_file_path(project_dir.join("mdagile.toml")).unwrap();
+    let changes = action
+        .edit
+        .as_ref()
+        .and_then(|w| w.changes.as_ref())
+        .expect("should have changes");
+
+    assert!(
+        changes.contains_key(&toml_uri),
+        "should have changes for mdagile.toml"
+    );
+
+    let edits = &changes[&toml_uri];
+    assert_eq!(edits.len(), 1);
+    assert!(edits[0].new_text.contains("[Properties.undefined]"));
+}
+
+#[test]
+fn build_quickfix_e008_appends_to_existing_toml() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+
+    // Create mdagile.toml with existing properties
+    std::fs::write(
+        project_dir.join("mdagile.toml"),
+        "[Properties.feature]\n[Properties.bug]\n",
+    )
+    .unwrap();
+
+    let tasks_file = project_dir.join("tasks.agile.md");
+    let uri: Url = Url::from_file_path(&tasks_file).unwrap();
+    let doc = "- [ ] task #newprop\n";
+
+    let diag = Diagnostic {
+        range: Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 1,
+            },
+        },
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: Some(NumberOrString::String("E008".into())),
+        source: Some("agilels".into()),
+        message: "undefined property".into(),
+        data: Some(serde_json::json!({
+            "kind": "undefined_property",
+            "property_name": "newprop",
+        })),
+        ..Diagnostic::default()
+    };
+
+    let action = build_quickfix(&diag, doc, &uri).expect("should produce a quickfix");
+
+    let toml_uri: Url = Url::from_file_path(project_dir.join("mdagile.toml")).unwrap();
+    let edits = action
+        .edit
+        .as_ref()
+        .and_then(|w| w.changes.as_ref())
+        .and_then(|c| c.get(&toml_uri))
+        .expect("should have changes for mdagile.toml");
+
+    let new_content = &edits[0].new_text;
+    assert!(new_content.contains("[Properties.feature]"));
+    assert!(new_content.contains("[Properties.bug]"));
+    assert!(new_content.contains("[Properties.newprop]"));
+}
+
+#[test]
 fn has_quickfix_for_each_code() {
     use crate::rules::ErrorCode::*;
     assert!(!has_quickfix(OrphanedSubtask));
@@ -399,5 +518,5 @@ fn has_quickfix_for_each_code() {
     assert!(has_quickfix(MissingSpaceAfterBox));
     assert!(has_quickfix(BoxStyleInvalid));
     assert!(has_quickfix(UppercaseX));
-    assert!(!has_quickfix(UndefinedProperty));
+    assert!(has_quickfix(UndefinedProperty));
 }

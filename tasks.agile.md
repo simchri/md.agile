@@ -203,7 +203,7 @@
           - [ ] reproduce in a test case (failing)
           - [ ] fix (make test pass)
       - [x] language server
-    - [ ] quickfix to add a respective toml entry 
+    - [x] quickfix to add a respective toml entry 
   - [ ] "go to definition" to toml entry
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
     - [ ] Test with common typos: '#Feature', '#feat', etc.

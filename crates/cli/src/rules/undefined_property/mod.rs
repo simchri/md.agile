@@ -38,7 +38,9 @@ fn check_markers(
                     ),
                     column: 1,
                     help: None,
-                    data: None,
+                    data: Some(crate::rules::IssueData::UndefinedProperty {
+                        property_name: prop.name.clone(),
+                    }),
                 });
             }
         }

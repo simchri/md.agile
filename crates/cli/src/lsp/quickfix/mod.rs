@@ -6,6 +6,7 @@ use tower_lsp::lsp_types::{
 
 mod invalid_box;
 mod missing_space_after_box;
+mod undefined_property;
 mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
@@ -25,7 +26,8 @@ const REGISTRY: &[(ErrorCode, Builder)] = &[
     ),
     (ErrorCode::BoxStyleInvalid, invalid_box::build),
     (ErrorCode::UppercaseX, uppercase_x::build),
-    // E001 OrphanedSubtask, E004 IncompleteParent, E008 UndefinedProperty:
+    (ErrorCode::UndefinedProperty, undefined_property::build),
+    // E001 OrphanedSubtask, E004 IncompleteParent:
     // no quickfix (user has to make a structural decision the linter can't).
 ];
 

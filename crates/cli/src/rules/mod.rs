@@ -108,6 +108,8 @@ pub enum IssueData {
     WrongBodyIndent { expected_indent: usize },
     /// Payload for E005 "Missing Space After Box": marker to add space after status box.
     MissingSpaceAfterBox,
+    /// Payload for E008 "Undefined Property": the property name that is undefined.
+    UndefinedProperty { property_name: String },
 }
 
 /// A single problem found by a rule.
