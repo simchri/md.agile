@@ -31,6 +31,7 @@ fn can_construct_task_with_all_node_kinds() {
         markers: vec![Marker::Property(PropertyRef {
             name: "feature".to_string(),
             form: PropertyForm::Full,
+            column: 1,
         })],
         children: vec![
             Subtask {
@@ -126,6 +127,7 @@ fn branch_property_form_carries_resolved_branch_name() {
     let marker = Marker::Property(PropertyRef {
         name: "review".to_string(),
         form: PropertyForm::BranchResolved("passed".to_string()),
+        column: 1,
     });
     if let Marker::Property(r) = marker {
         assert!(matches!(r.form, PropertyForm::BranchResolved(_)));
@@ -239,6 +241,7 @@ fn parse_property_marker_in_title() {
         vec![Marker::Property(PropertyRef {
             name: "feature".to_string(),
             form: PropertyForm::Full,
+            column: 1,
         })]
     );
 }
@@ -330,6 +333,7 @@ fn parse_branch_pending_marker() {
         &vec![Marker::Property(PropertyRef {
             name: "review".to_string(),
             form: PropertyForm::BranchPending,
+            column: 9,
         })]
     );
 }
@@ -346,6 +350,7 @@ fn parse_branch_resolved_marker() {
         &vec![Marker::Property(PropertyRef {
             name: "review".to_string(),
             form: PropertyForm::BranchResolved("passed".to_string()),
+            column: 9,
         })]
     );
 }

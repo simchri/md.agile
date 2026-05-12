@@ -139,3 +139,17 @@ fn branch_form_property_is_also_checked() {
         issues[0].message
     );
 }
+
+#[test]
+fn diagnostic_column_points_to_marker() {
+    let input = "\
+- [ ] a task with #feature marker
+";
+    let issues = undefined_property(&p(input), &Config::default());
+    assert_eq!(issues.len(), 1);
+    // The #feature marker starts at column 18 (0-indexed)
+    // "- [ ] a task with #feature marker"
+    //  0         1         2
+    //  0123456789012345678901234567890
+    assert_eq!(issues[0].column, 19, "Column should point to the '#' of #feature");
+}

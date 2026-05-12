@@ -197,7 +197,7 @@
   Detect undefined #property markers and @user/@group assignments
   - [x] Read mdagile.toml config in checker; pass config to rules
   - [ ] Detect undefined '#property' markers in tasks
-    - [ ] basic detection and errors #foo
+    - [ ] basic detection and errors #foo #bar
       - [ ] agile check
         - [ ] bug: diagnostic column indication is wrong (seems to be always at 0)
           - [ ] reproduce in a test case (failing)

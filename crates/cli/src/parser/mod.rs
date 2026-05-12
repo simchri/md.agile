@@ -35,6 +35,7 @@ pub enum Marker {
 pub struct PropertyRef {
     pub name: String,
     pub form: PropertyForm,
+    pub column: usize, // 1-based column position of the '#' in the source line
 }
 
 // PropertyForm carries the variant state so the checker can enforce rules
@@ -429,9 +430,21 @@ fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str) {
 fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
     let mut words = Vec::new();
+    let mut current_pos = 0; // track position in original title
+    
     for token in title.split_whitespace() {
+        // Find the position of this token in the original string
+        let token_pos = match title[current_pos..].find(token) {
+            Some(rel_pos) => current_pos + rel_pos,
+            None => 0,
+        };
+        current_pos = token_pos + token.len();
+        
+        // token_pos is 0-indexed; convert to 1-indexed column (like LSP but offset from task title start)
+        let col = token_pos + 1;
+        
         if let Some(after) = token.strip_prefix('#') {
-            if let Some(m) = parse_hash_token(after) {
+            if let Some(m) = parse_hash_token(after, col) {
                 markers.push(m);
                 continue;
             }
@@ -447,7 +460,7 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     (markers, words.join(" "))
 }
 
-fn parse_hash_token(name: &str) -> Option<Marker> {
+fn parse_hash_token(name: &str, column: usize) -> Option<Marker> {
     if name.is_empty() {
         return None;
     }
@@ -467,6 +480,7 @@ fn parse_hash_token(name: &str) -> Option<Marker> {
             return Some(Marker::Property(PropertyRef {
                 name: base.to_string(),
                 form: PropertyForm::BranchPending,
+                column,
             }));
         }
     }
@@ -478,6 +492,7 @@ fn parse_hash_token(name: &str) -> Option<Marker> {
             return Some(Marker::Property(PropertyRef {
                 name: base.to_string(),
                 form: PropertyForm::BranchResolved(branch.to_string()),
+                column,
             }));
         }
     }
@@ -490,6 +505,7 @@ fn parse_hash_token(name: &str) -> Option<Marker> {
     Some(Marker::Property(PropertyRef {
         name: clean.to_string(),
         form: PropertyForm::Full,
+        column,
     }))
 }
 
