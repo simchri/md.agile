@@ -12,6 +12,7 @@ use quickfix::build_quickfix;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use log::info;
 use tokio::sync::RwLock;
@@ -48,6 +49,8 @@ struct Backend {
     /// server-side so code_action can look them up without relying on the
     /// client echoing the `data` field back (Neovim strips it).
     diagnostics: Arc<RwLock<HashMap<Url, Vec<Diagnostic>>>>,
+    /// Last known modification time of the config file (for polling).
+    config_mtime: Arc<RwLock<Option<SystemTime>>>,
 }
 
 impl Backend {
@@ -77,6 +80,45 @@ impl Backend {
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;
+    }
+
+    /// Find the config file path for the given root directory.
+    fn find_config_file(root: &std::path::Path) -> Option<PathBuf> {
+        for name in &["mdagile.toml", ".mdagile.toml"] {
+            let path = root.join(name);
+            if path.exists() {
+                return Some(path);
+            }
+        }
+        None
+    }
+
+    /// Check if config file has been modified since last check, and re-validate all docs if so.
+    async fn check_config_changed(&self) {
+        let root = match self.root.read().await.as_ref() {
+            Some(r) => r.clone(),
+            None => return,
+        };
+
+        let config_path = match Self::find_config_file(&root) {
+            Some(p) => p,
+            None => return,
+        };
+
+        let current_mtime = std::fs::metadata(&config_path)
+            .and_then(|m| m.modified())
+            .ok();
+
+        let mut last_mtime = self.config_mtime.write().await;
+        if current_mtime.is_some() && *last_mtime != current_mtime {
+            *last_mtime = current_mtime;
+
+            // Config changed, re-validate all open documents.
+            let docs = self.docs.read().await.clone();
+            for (uri, text) in docs {
+                self.validate(uri, &text, None).await;
+            }
+        }
     }
 }
 
@@ -153,6 +195,28 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "agilels ready")
             .await;
+
+        // Spawn a background task to poll the config file once per second.
+        let client = self.client.clone();
+        let root = self.root.clone();
+        let docs = self.docs.clone();
+        let diagnostics = self.diagnostics.clone();
+        let config_mtime = self.config_mtime.clone();
+
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                let backend = Backend {
+                    client: client.clone(),
+                    root: root.clone(),
+                    docs: docs.clone(),
+                    diagnostics: diagnostics.clone(),
+                    config_mtime: config_mtime.clone(),
+                };
+                backend.check_config_changed().await;
+            }
+        });
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
@@ -236,6 +300,7 @@ pub fn run() -> std::io::Result<()> {
             root: Arc::new(RwLock::new(None)),
             docs: Arc::new(RwLock::new(HashMap::new())),
             diagnostics: Arc::new(RwLock::new(HashMap::new())),
+            config_mtime: Arc::new(RwLock::new(None)),
         });
         Server::new(stdin, stdout, socket).serve(service).await;
     });
