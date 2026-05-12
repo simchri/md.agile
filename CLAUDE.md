@@ -45,8 +45,9 @@ devenv . -a -c --no-tty 'cargo test --test acceptance-tests -- --name "<scenario
 
 count tests in the project: (don't run)
 ```bash
-devenv . -a -c --no-tty 'cargo test -- --list | grep -c "^"' # count tests
+devenv . -a --no-tty -c 'cargo test -- --list | grep -c "^"' # count tests
 ```
+Before every commit, write the current date (format YYYY-MM-DD) and the result of this "count tests command" to a new line of file `tests_count.txt` at the project root.
 
 ## Toolchain
 
