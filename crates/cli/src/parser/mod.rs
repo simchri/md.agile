@@ -302,7 +302,7 @@ pub trait DropNChars {
     ///
     /// # Examples
     /// ```
-    /// use mdagile::parser::DropNChars; // <-- Add this line
+    /// use mdagile::parser::DropNChars;
     /// let s = "héllo";
     /// assert_eq!(s.drop_n_chars(2), "llo");
     /// ```
