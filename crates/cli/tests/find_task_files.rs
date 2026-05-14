@@ -144,3 +144,33 @@ fn finds_tasks_inside_symlinked_directory() {
     assert!(task.is_some(), "no task parsed from file inside symlinked directory");
     assert_eq!(task.unwrap().title, "my task inside symlinked directory");
 }
+
+#[test]
+fn finds_tasks_even_when_gitignored_by_parent() {
+    // Reproduces the real-world case: MDAGILE_WORKDIR points at a directory
+    // that a parent repo's .gitignore excludes.  The walker must not honour
+    // that rule — task files should always be found.
+    let parent_dir = tempdir().unwrap();
+    let work_dir = parent_dir.path().join("myproject");
+    fs::create_dir(&work_dir).unwrap();
+
+    // Make parent_dir look like a git repo so the ignore crate reads its .gitignore
+    fs::create_dir(parent_dir.path().join(".git")).unwrap();
+    // Parent repo ignores "myproject/"
+    fs::write(parent_dir.path().join(".gitignore"), "/myproject\n").unwrap();
+
+    fs::write(
+        work_dir.join("tasks.agile.md"),
+        "\
+- [ ] task that must not be gitignored away
+",
+    )
+    .unwrap();
+
+    let files = find_task_files(&work_dir);
+    assert_eq!(
+        filenames(&files),
+        vec!["tasks.agile.md"],
+        "file was hidden by parent .gitignore"
+    );
+}
