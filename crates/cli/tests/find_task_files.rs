@@ -1,5 +1,6 @@
-use mdagile::cli::common::find_task_files;
+use mdagile::cli::common::{find_task_files, parse_files};
 use mdagile::cli::subcommands::list::format_file_list;
+use mdagile::parser::FileItem;
 use std::fs;
 use tempfile::tempdir;
 
@@ -83,4 +84,35 @@ fn empty_directory_returns_no_files() {
         find_task_files(dir.path()),
         Vec::<std::path::PathBuf>::new()
     );
+}
+
+#[test]
+fn finds_tasks_via_symlinked_files() {
+    let real_dir = tempdir().unwrap();
+    let link_dir = tempdir().unwrap();
+
+    fs::write(
+        real_dir.path().join("tasks.agile.md"),
+        "\
+- [ ] my task from symlinked file
+",
+    )
+    .unwrap();
+
+    std::os::unix::fs::symlink(
+        real_dir.path().join("tasks.agile.md"),
+        link_dir.path().join("tasks.agile.md"),
+    )
+    .unwrap();
+
+    let files = find_task_files(link_dir.path());
+    assert_eq!(filenames(&files), vec!["tasks.agile.md"]);
+
+    let items = parse_files(&files);
+    let task = items.iter().find_map(|item| match item {
+        FileItem::Task(t) => Some(t),
+        _ => None,
+    });
+    assert!(task.is_some(), "no task parsed from symlinked file");
+    assert_eq!(task.unwrap().title, "my task from symlinked file");
 }

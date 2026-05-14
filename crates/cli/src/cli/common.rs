@@ -48,6 +48,7 @@ pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
     let mut paths: Vec<PathBuf> = WalkBuilder::new(root)
         .follow_links(true)
         .ignore(false)
+        .git_ignore(false)
         .build()
         .filter_map(|e| e.ok())
         .filter(|e| {
