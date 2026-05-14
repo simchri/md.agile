@@ -27,7 +27,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 16gb # (5) Limits container memory usage
+          memory: 8gb # (5) Limits container memory usage
         reservations:
           devices:
             - driver: nvidia # (3)
@@ -116,7 +116,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 16gb # (5) Limits container memory usage
+          memory: 8gb # (5) Limits container memory usage
     volumes:
 
        - /tmp/.X11-unix:/tmp/.X11-unix # (1)
