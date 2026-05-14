@@ -116,3 +116,31 @@ fn finds_tasks_via_symlinked_files() {
     assert!(task.is_some(), "no task parsed from symlinked file");
     assert_eq!(task.unwrap().title, "my task from symlinked file");
 }
+
+#[test]
+fn finds_tasks_inside_symlinked_directory() {
+    let real_dir = tempdir().unwrap();
+    let root_dir = tempdir().unwrap();
+
+    fs::write(
+        real_dir.path().join("tasks.agile.md"),
+        "\
+- [ ] my task inside symlinked directory
+",
+    )
+    .unwrap();
+
+    // root_dir/linked -> real_dir  (directory symlink)
+    std::os::unix::fs::symlink(real_dir.path(), root_dir.path().join("linked")).unwrap();
+
+    let files = find_task_files(root_dir.path());
+    assert_eq!(filenames(&files), vec!["tasks.agile.md"]);
+
+    let items = parse_files(&files);
+    let task = items.iter().find_map(|item| match item {
+        FileItem::Task(t) => Some(t),
+        _ => None,
+    });
+    assert!(task.is_some(), "no task parsed from file inside symlinked directory");
+    assert_eq!(task.unwrap().title, "my task inside symlinked directory");
+}
