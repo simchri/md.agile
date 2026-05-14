@@ -163,6 +163,22 @@ fn format_marker(marker: &mdagile::parser::Marker) -> String {
 
 #[cfg(feature = "server")]
 fn get_or_init_working_dir() -> Result<PathBuf, ServerFnError> {
+    fn is_file_or_symlink(path: &PathBuf) -> bool {
+        use std::fs;
+        match fs::symlink_metadata(path) {
+            Ok(metadata) => {
+                if metadata.is_file() {
+                    true
+                } else if metadata.file_type().is_symlink() {
+                    true
+                } else {
+                    false
+                }
+            }
+            Err(_) => false,
+        }
+    }
+
     let mut cached = WORKING_DIR.lock().unwrap();
 
     if let Some(dir) = cached.as_ref() {
@@ -182,7 +198,8 @@ fn get_or_init_working_dir() -> Result<PathBuf, ServerFnError> {
 
     let dir = match working_dir_res {
         Ok(dir) => {
-            if dir.join("mdagile.toml").is_file() {
+            let toml_path = dir.join("mdagile.toml");
+            if is_file_or_symlink(&toml_path) {
                 info!("found project root at {}", dir.display());
                 dir
             } else {

@@ -4,6 +4,40 @@ use crate::parser::{self, FileItem};
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
+pub trait IsFileOrSymlink {
+    /// Returns `true` if the path points to a file or a symbolic link.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mdagile::cli::common::IsFileOrSymlink;
+    /// use std::path::PathBuf;
+    /// let path = PathBuf::from("some_file.txt");
+    /// let result = path.is_file_or_symlink();
+    /// ```
+    fn is_file_or_symlink(&self) -> bool;
+}
+
+/// Implementation of `IsFileOrSymlink` for `PathBuf`.
+impl IsFileOrSymlink for std::path::PathBuf {
+    /// Checks if the `PathBuf` is a file or a symbolic link.
+    fn is_file_or_symlink(&self) -> bool {
+        use std::fs;
+        match fs::symlink_metadata(self) {
+            Ok(metadata) => {
+                if metadata.is_file() {
+                    true
+                } else if metadata.file_type().is_symlink() {
+                    true
+                } else {
+                    false
+                }
+            }
+            Err(_) => false,
+        }
+    }
+}
+
 /// Finds all `*.agile.md` files anywhere under `root`, respecting `.gitignore`.
 ///
 /// Results are sorted by their path relative to `root`. This means directory
@@ -12,11 +46,13 @@ use std::path::{Path, PathBuf};
 /// This sort order defines the global task priority across files.
 pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
     let mut paths: Vec<PathBuf> = WalkBuilder::new(root)
+        .follow_links(true)
+        .ignore(false)
         .build()
         .filter_map(|e| e.ok())
         .filter(|e| {
-            e.file_type().map(|t| t.is_file()).unwrap_or(false)
-                && e.file_name().to_string_lossy().ends_with(".agile.md")
+            let path = e.path().to_path_buf();
+            path.is_file_or_symlink() && e.file_name().to_string_lossy().ends_with(".agile.md")
         })
         .map(|e| e.into_path())
         .collect();
