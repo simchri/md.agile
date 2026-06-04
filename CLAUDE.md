@@ -101,10 +101,9 @@ Never write production code without a failing test that justifies it.
 **Exceptions:**
 - The GUI physics module does not need unit tests
 
-### Auto-commit on vibe branches
+### Auto-commit
 
-Whenever a prompt results in code changes (modifications to versioned files or new files to be versioned), **automatically create a commit** — but **only if**:
-- the current branch starts with `vibe` (e.g., `vibes01`, `vibe-feature-x`)
+Whenever a prompt results in code changes (modifications to versioned files or new files to be versioned), **automatically create a commit**
 
 **Test requirements**:
 - If only `.md` files are modified: commit directly without running tests.
@@ -112,8 +111,6 @@ Whenever a prompt results in code changes (modifications to versioned files or n
 - **Exception**: `tasks.agile.md` must be validated with `agile check` before committing (it's a `.agile.md` file, not documentation).
 
 If tests fail, fix them first — do not commit a red suite.
-
-If the branch does **not** start with `vibe`, warn the user instead and do not commit.
 
 **Commit format**:
 - **Short summary**: `(Claude) <description>` — e.g., `(Claude) add confetti animation to Done button`
