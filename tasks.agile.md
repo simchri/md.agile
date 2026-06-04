@@ -259,10 +259,16 @@
   - [ ] textDocument/completion — suggest properties, users, groups
   - [ ] File diagnostics on save with `agile check --fix`
 
-- [ ] mark tasks done from CLI
-  - [ ] tasks
-  - [ ] subtasks
 
 ## GUI 2.0
+- [ ] find tasks by search string - list with done state, rank, full name
+- [ ] mark tasks done from CLI
+  - [ ] tasks
+    - [ ] by rank
+    - [ ] directly by search term
+  - [ ] subtasks
+    - [ ] by rank (34.1.3 etc, where subtasks get a nested rank)
+    - [ ] directly by search term
+
 ### Writing back to file from GUI
 - [ ] Mark task as done from GUI
