@@ -54,6 +54,13 @@ devenv . --no-tty -a -c "cargo install --path crates/cli" && cp target/release/a
 ```
 
 # Full (hacky) installation:
+
+What it does:
+- build project
+- copy bins to project root
+- create convenient symlinks to the executables (adding the commands to the users path)
+- chmod +x
 ```
-devenv . -a -c "cd crates/gui && dx bundle" && cp target/dx/mdagile-gui/debug/web/server mdagile-gui && cp -r target/dx/mdagile-gui/debug/web/public/ . && cargo install --path crates/cli && cp target/release/agilels ~/.local/bin && cp target/release/agile ~/.local/bin/
+devenv . -a -c "cd crates/gui && dx bundle" && cp target/dx/mdagile-gui/debug/web/server agilegui && cp -r target/dx/mdagile-gui/debug/web/public/ . && cargo install --path crates/cli && cp target/release/agilels . && cp target/release/agile . ; ln -sf $(pwd)/agilels ~/.local/bin/agilels ; ln -sf $(pwd)/agile ~/.local/bin/agile ; ln -sf $(pwd)/agilegui ~/.local/bin/agilegui ; chmod +x ~/.local/bin/agilels ; chmod +x ~/.local/bin/agile ; chmod +x ~/.local/bin/agilegui
 ```
+
