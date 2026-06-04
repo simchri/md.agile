@@ -1,8 +1,11 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## General Interaction Rules for AI Agents:
+- Never make any file changes unprompted. When the user asks a question, investigate and answer the question. Do not automatically assume the user wants you to change any code. 
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 ## Project 
+
 The vision for this project is defined in [README.vision.md](README.vision.md). AI agents should never change this file, unless explicitly requested by the user.
 The philosophy for this project is defined in [MANIFESTO.md](MANIFESTO.md). AI agents should never change this file, unless explicitly requested by the user.
 
