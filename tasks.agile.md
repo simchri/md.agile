@@ -193,6 +193,8 @@
 - [x] experiment with other designs for backlog and done sections
   Style with gradients
 
+- [ ] some installability improvements
+
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
   - [x] Read mdagile.toml config in checker; pass config to rules

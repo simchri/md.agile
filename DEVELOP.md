@@ -41,11 +41,19 @@ Test scripts, to simulate card movement, using a temporary directory with fake t
 Hacky install for gui:
 ```
 devenv . -a -c "cd crates/gui && dx bundle" && cp target/dx/mdagile-gui/debug/web/server mdagile-gui && cp -r target/dx/mdagile-gui/debug/web/public/ .
-
 ```
 (alt: use --release flag and take binary from dir "..release..") 
 
 The server is then callable like so (on the host)
 ```
 MDAGILE_WORKDIR=.. ./mdagile-gui
+```
+Hacky install for cli + ls:
+```
+devenv . --no-tty -a -c "cargo install --path crates/cli" && cp target/release/agilels ~/.local/bin && cp target/release/agile ~/.local/bin/
+```
+
+# Full (hacky) installation:
+```
+devenv . -a -c "cd crates/gui && dx bundle" && cp target/dx/mdagile-gui/debug/web/server mdagile-gui && cp -r target/dx/mdagile-gui/debug/web/public/ . && cargo install --path crates/cli && cp target/release/agilels ~/.local/bin && cp target/release/agile ~/.local/bin/
 ```
