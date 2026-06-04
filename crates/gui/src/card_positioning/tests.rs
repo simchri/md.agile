@@ -134,23 +134,27 @@ fn in_progress_style_clamps_above_one() {
 
 // --- has_started ---
 
+#[cfg(feature = "server")]
 #[test]
 fn has_started_no_children_false() {
     assert!(!has_started(&todo_task("t", vec![])));
 }
 
+#[cfg(feature = "server")]
 #[test]
 fn has_started_only_todo_children_false() {
     let task = todo_task("t", vec![todo_task("a", vec![]), todo_task("b", vec![])]);
     assert!(!has_started(&task));
 }
 
+#[cfg(feature = "server")]
 #[test]
 fn has_started_one_done_child_true() {
     let task = todo_task("t", vec![todo_task("a", vec![]), done_task("b")]);
     assert!(has_started(&task));
 }
 
+#[cfg(feature = "server")]
 #[test]
 fn has_started_cancelled_child_counts() {
     let task = todo_task("t", vec![cancelled_task("a")]);

@@ -79,6 +79,7 @@ pub fn in_progress_style(x: f64, y: f64) -> String {
 
 /// True when the task has at least one direct subtask marked Done or
 /// Cancelled — i.e. work has begun on it.
+#[cfg(feature = "server")]
 pub fn has_started(task: &TaskView) -> bool {
     task.children
         .iter()

@@ -6,47 +6,8 @@
 //! in the same slot (so they don't visually jump), gone tasks vacate, and
 //! new tasks fill empty slots in priority order.
 
-use crate::card_positioning::task_progress;
-use crate::physics::{Card as PhysCard, CardPosition, CardVelocity};
-use crate::server::{TaskStatus, TaskView};
+use crate::server::TaskView;
 use std::collections::{HashMap, HashSet};
-
-/// The full state of a single slot: task data plus physics state.
-///
-/// Merging these into one type means the physics state travels with the task —
-/// reconciliation can preserve velocity/position across server updates, and
-/// initialize new cards at the correct position immediately.
-#[derive(Debug, Clone)]
-pub struct SlotState {
-    /// The task currently occupying this slot, or `None` if empty.
-    pub task: Option<TaskView>,
-    /// Physics state for this card (position, velocity, progress target).
-    pub physics: PhysCard,
-}
-
-impl SlotState {
-    /// Empty slot with physics at rest at the top-left corner.
-    pub fn empty() -> Self {
-        SlotState {
-            task: None,
-            physics: PhysCard::new(CardPosition { x: 0.0, y: 0.0 }),
-        }
-    }
-
-    /// New slot for a freshly arriving task, positioned at its progress target.
-    fn arriving(task: TaskView) -> Self {
-        let p = task_progress(&task).clamp(0.0, 1.0);
-        let initial = if p > 0.0 && p < 1.0 {
-            CardPosition { x: p, y: p }
-        } else {
-            CardPosition { x: 0.0, y: 0.0 }
-        };
-        SlotState {
-            task: Some(task),
-            physics: PhysCard::new(initial),
-        }
-    }
-}
 
 /// Reconciles a slot pool against an incoming task list.
 ///
