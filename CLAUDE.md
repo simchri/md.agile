@@ -19,7 +19,8 @@ devenv <directory> [options] -c "<command>"
 ```
 This is done **from the project root**, any changes of directory can be done inside of the command, .e.g:
 ```
-devenv . -a -c --no-tty "cd src/cli && cargo install"
+devenv . --no-tty -a -c "cd crates && ls"
+devenv . --no-tty -a -c "cargo install --path crates/cli"
 ```
 Where `devenv` is not available, docker compose can instead be used directly.
 
@@ -33,19 +34,19 @@ Where `devenv` is not available, docker compose can instead be used directly.
 
 ### Run / develop
 ```bash
-cargo run
+devenv . --no-tty -a -c "cargo run --bin agile"
 ```
 
 ### Test
 ```bash
-devenv . -a -c --no-tty "cargo test"                                                            # full suite
-devenv . -a -c --no-tty "cargo test --lib -- <test_name>"                                       # single unit test
-devenv . -a -c --no-tty 'cargo test --test acceptance-tests -- --name "<scenario name>"'        # acceptance test
+devenv . --no-tty -a -c  "cargo test"                               # full suite
+devenv . --no-tty -a -c  "cargo test --lib [test_name]"             # single unit test
+devenv . --no-tty -a -c  'cargo test --test [file] [case] '         # specific test from specific file 
 ```
 
 count tests in the project: (don't run)
 ```bash
-devenv . -a --no-tty -c 'cargo test -- --list | grep -c "^"' # count tests
+devenv . --no-tty -a -c 'cargo test -- --list 2>/dev/null | grep -c ": test$"' # count tests
 ```
 Before every commit, write the current date (format YYYY-MM-DD) and the result of this "count tests command" to a new line of file `tests_count.txt` at the project root.
 
