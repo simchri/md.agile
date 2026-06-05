@@ -3749,6 +3749,7 @@ version = "0.1.0"
 dependencies = [
  "console_log",
  "dioxus",
+ "dioxus-cli-config",
  "dioxus-logger",
  "env_logger 0.10.2",
  "getrandom 0.4.2",

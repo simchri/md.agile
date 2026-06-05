@@ -18,8 +18,8 @@ fn main() {
 
     #[cfg(feature = "server")]
     {
-        let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
-        info!("server starting on http://0.0.0.0:{port}");
+        let addr = dioxus_cli_config::fullstack_address_or_localhost();
+        info!("server starting on http://{addr}");
     }
 
     dioxus::launch(app);
