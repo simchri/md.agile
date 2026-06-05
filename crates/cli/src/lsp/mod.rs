@@ -24,23 +24,6 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::{checker, config::Config, parser, rules::Issue};
 
-fn load_config_for_file(file_path: &std::path::Path) -> Config {
-    let mut dir = match file_path.parent() {
-        Some(p) => p,
-        None => return Config::default(),
-    };
-    loop {
-        let has_config = dir.join("mdagile.toml").exists() || dir.join(".mdagile.toml").exists();
-        if has_config {
-            return Config::load(dir).unwrap_or_default();
-        }
-        match dir.parent() {
-            Some(parent) => dir = parent,
-            None => return Config::default(),
-        }
-    }
-}
-
 struct Backend {
     client: Client,
     /// Project root received from the editor's initialize request.
@@ -60,14 +43,17 @@ impl Backend {
         let path = uri
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
-        let config = match self.root.read().await.as_deref() {
-            Some(root) => Config::load(root).unwrap_or_default(),
+        let config = match self.resolve_config_path(&uri).await {
+            Some(config_path) => {
+                Config::load(config_path.parent().unwrap_or(config_path.as_path()))
+                    .unwrap_or_default()
+            }
             None => {
                 log::warn!(
-                    "No project root set. Your editor is supposed to transmit a project root dir. Trying fallback approach - find a config file via heuristics starting from current file path: {} ",
+                    "No config file found for {}. Falling back to empty config.",
                     path.display()
                 );
-                load_config_for_file(&path)
+                Config::default()
             }
         };
         let items = parser::parse(text, path);
@@ -82,6 +68,23 @@ impl Backend {
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;
+    }
+
+    /// Resolve the config file path for the given document URI.
+    ///
+    /// This is the single source of truth for config discovery in the LSP server.
+    /// Uses the editor-supplied project root when set; otherwise walks up from
+    /// the document's directory.
+    async fn resolve_config_path(&self, uri: &Url) -> Option<PathBuf> {
+        let root = self.root.read().await;
+        if let Some(root) = root.as_ref() {
+            Self::find_config_file(root)
+        } else {
+            let file_path = uri
+                .to_file_path()
+                .unwrap_or_else(|_| PathBuf::from(uri.path()));
+            config_file_for_path(&file_path)
+        }
     }
 
     /// Find the config file path for the given root directory.
@@ -302,22 +305,7 @@ impl LanguageServer for Backend {
             None => return Ok(None),
         };
 
-        // Resolve the config file path, consistent with how validate() resolves
-        // config: prefer the editor-supplied root, fall back to walking up from
-        // the document's own path.
-        let config_path = {
-            let root = self.root.read().await;
-            if let Some(root) = root.as_ref() {
-                Self::find_config_file(root)
-            } else {
-                let file_path = uri
-                    .to_file_path()
-                    .unwrap_or_else(|_| PathBuf::from(uri.path()));
-                config_file_for_path(&file_path)
-            }
-        };
-
-        let config_path = match config_path {
+        let config_path = match self.resolve_config_path(uri).await {
             Some(p) => p,
             None => return Ok(None),
         };
@@ -388,8 +376,7 @@ fn ranges_overlap(a: &Range, b: &Range) -> bool {
     a.start.line <= b.end.line && b.start.line <= a.end.line
 }
 
-/// Walk up from `file_path`'s directory looking for an mdagile config file.
-/// Used as a fallback when no project root was supplied by the editor.
+/// Walk up from `file_path`'s directory to find the nearest mdagile config file.
 fn config_file_for_path(file_path: &std::path::Path) -> Option<PathBuf> {
     let mut dir = file_path.parent()?;
     loop {
