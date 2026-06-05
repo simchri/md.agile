@@ -6,7 +6,13 @@ pub fn undefined_property(items: &[FileItem], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
     for item in items {
         if let FileItem::Task(task) = item {
-            check_markers(&task.markers, &task.location, task.indent, config, &mut issues);
+            check_markers(
+                &task.markers,
+                &task.location,
+                task.indent,
+                config,
+                &mut issues,
+            );
             walk_subtasks(&task.children, config, &mut issues);
         }
     }

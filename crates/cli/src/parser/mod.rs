@@ -431,7 +431,7 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
     let mut words = Vec::new();
     let mut current_pos = 0; // track position in original title
-    
+
     for token in title.split_whitespace() {
         // Find the position of this token in the original string
         let token_pos = match title[current_pos..].find(token) {
@@ -439,10 +439,10 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
             None => 0,
         };
         current_pos = token_pos + token.len();
-        
+
         // token_pos is 0-indexed; convert to 1-indexed column (like LSP but offset from task title start)
         let col = token_pos + 1;
-        
+
         if let Some(after) = token.strip_prefix('#') {
             if let Some(m) = parse_hash_token(after, col) {
                 markers.push(m);

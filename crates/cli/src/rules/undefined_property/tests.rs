@@ -151,5 +151,8 @@ fn diagnostic_column_points_to_marker() {
     // "- [ ] a task with #feature marker"
     //  0         1         2
     //  0123456789012345678901234567890
-    assert_eq!(issues[0].column, 19, "Column should point to the '#' of #feature");
+    assert_eq!(
+        issues[0].column, 19,
+        "Column should point to the '#' of #feature"
+    );
 }

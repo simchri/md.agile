@@ -106,7 +106,12 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
     let skip = dones.len().saturating_sub(DONE_LIMIT);
     let done: Vec<TaskView> = dones.into_iter().skip(skip).collect();
 
-    log::info!("tasks found : in_progress={}, backlog={}, done={}", in_progress.len(), backlog.len(), done.len());
+    log::info!(
+        "tasks found : in_progress={}, backlog={}, done={}",
+        in_progress.len(),
+        backlog.len(),
+        done.len()
+    );
 
     // concatenate the three categories into one vector:
     let tasks = in_progress
@@ -114,7 +119,6 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
         .chain(backlog.into_iter())
         .chain(done.into_iter())
         .collect();
-
 
     Ok(tasks)
 }

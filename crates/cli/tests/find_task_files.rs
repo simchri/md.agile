@@ -141,7 +141,10 @@ fn finds_tasks_inside_symlinked_directory() {
         FileItem::Task(t) => Some(t),
         _ => None,
     });
-    assert!(task.is_some(), "no task parsed from file inside symlinked directory");
+    assert!(
+        task.is_some(),
+        "no task parsed from file inside symlinked directory"
+    );
     assert_eq!(task.unwrap().title, "my task inside symlinked directory");
 }
 
