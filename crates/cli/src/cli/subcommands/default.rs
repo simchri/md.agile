@@ -4,7 +4,7 @@
 
 use crate::cli::common::{find_task_files, parse_file};
 use crate::parser::{FileItem, Status};
-use log::{error, info};
+use log::{debug, error, info};
 use std::path::{Path, PathBuf};
 
 /// Default-action entry point. Opens the editor at the next active task, or
@@ -45,6 +45,14 @@ fn open_editor(path: &Path, line: usize) {
             std::process::exit(1);
         });
     let args = editor_open_args(&editor, path, line);
+    debug!(
+        "launching editor: {} {}",
+        editor,
+        args.iter()
+            .map(|a| a.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
     let status = std::process::Command::new(&editor).args(&args).status();
     if let Err(e) = status {
         error!("failed to launch editor '{editor}': {e}");
@@ -70,7 +78,10 @@ pub fn editor_open_args(editor: &str, path: &Path, line: usize) -> Vec<std::ffi:
             OsString::from("--goto"),
             OsString::from(format!("{}:{line}", path.display())),
         ],
-        _ => vec![path.into()],
+        other => {
+            debug!("unrecognised editor '{other}': opening without line number");
+            vec![path.into()]
+        }
     }
 }
 

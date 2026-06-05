@@ -121,6 +121,8 @@ pub enum TaskAction {
 /// This is the entry point used by `src/main.rs`. It is the only function the
 /// binary needs to call.
 pub fn run() {
+    log::debug!("agile cli run()");
+
     let root = Path::new(".");
     let config = match config::Config::load(root) {
         Ok(c) => c,
@@ -129,6 +131,7 @@ pub fn run() {
             std::process::exit(1);
         }
     };
+
     match Cli::parse().command {
         None => subcommands::default::run(root),
         Some(Command::List {

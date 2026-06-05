@@ -196,7 +196,7 @@
 - [x] some installability improvements
 
 - [ ] Property & Assignment validation
-  Detect undefined #property markers and @user/@group assignments
+  Detect undefined #paaroperty markers and @user/@group assignments
   - [x] Read mdagile.toml config in checker; pass config to rules
   - [x] Detect undefined '#property' markers in tasks
     - [x] basic detection and errors "#foo" '#bar'

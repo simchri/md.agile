@@ -2,6 +2,7 @@
 
 use crate::parser::{self, FileItem};
 use ignore::WalkBuilder;
+use log::{debug, warn};
 use std::path::{Path, PathBuf};
 
 pub trait IsFileOrSymlink {
@@ -63,6 +64,12 @@ pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
             .map(|r| r.to_path_buf())
             .unwrap_or_else(|_| p.clone())
     });
+
+    for p in &paths {
+        debug!("found task file: {}", p.display());
+    }
+    debug!("total task files: {}", paths.len());
+
     paths
 }
 
@@ -73,7 +80,10 @@ pub fn find_task_files(root: &Path) -> Vec<PathBuf> {
 pub fn parse_file(path: &Path) -> Vec<FileItem> {
     match std::fs::read_to_string(path) {
         Ok(content) => parser::parse(&content, path.to_path_buf()),
-        Err(_) => Vec::new(),
+        Err(e) => {
+            warn!("could not read {}: {e}", path.display());
+            Vec::new()
+        }
     }
 }
 
