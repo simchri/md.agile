@@ -4,9 +4,11 @@
 //! the existing checker rules on every open/change to publish diagnostics,
 //! and offers `quickfix` code actions for fixable diagnostics (E002/E003/E005).
 
+pub mod goto_definition;
 pub mod logger;
 pub mod quickfix;
 
+use goto_definition::{find_property_line_in_config, property_name_at_position};
 use quickfix::build_quickfix;
 
 use std::collections::HashMap;
@@ -181,6 +183,7 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
+                definition_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo {
@@ -281,6 +284,78 @@ impl LanguageServer for Backend {
         info!("shutdown");
         Ok(())
     }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+        let pos = params.text_document_position_params.position;
+
+        let doc_text = match self.docs.read().await.get(uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+
+        let prop_name = match property_name_at_position(&doc_text, pos.line, pos.character) {
+            Some(n) => n,
+            None => return Ok(None),
+        };
+
+        // Resolve the config file path, consistent with how validate() resolves
+        // config: prefer the editor-supplied root, fall back to walking up from
+        // the document's own path.
+        let config_path = {
+            let root = self.root.read().await;
+            if let Some(root) = root.as_ref() {
+                Self::find_config_file(root)
+            } else {
+                let file_path = uri
+                    .to_file_path()
+                    .unwrap_or_else(|_| PathBuf::from(uri.path()));
+                config_file_for_path(&file_path)
+            }
+        };
+
+        let config_path = match config_path {
+            Some(p) => p,
+            None => return Ok(None),
+        };
+
+        let config_uri = match Url::from_file_path(&config_path) {
+            Ok(u) => u,
+            Err(_) => return Ok(None),
+        };
+
+        // Use the in-editor buffer if the config file is open (respects unsaved edits).
+        let config_text = {
+            let docs = self.docs.read().await;
+            if let Some(t) = docs.get(&config_uri) {
+                t.clone()
+            } else {
+                drop(docs);
+                match std::fs::read_to_string(&config_path) {
+                    Ok(t) => t,
+                    Err(_) => return Ok(None),
+                }
+            }
+        };
+
+        let line = match find_property_line_in_config(&config_text, &prop_name) {
+            Some(l) => l,
+            None => return Ok(None),
+        };
+
+        let location = Location {
+            uri: config_uri,
+            range: Range {
+                start: Position { line, character: 0 },
+                end: Position { line, character: 0 },
+            },
+        };
+
+        Ok(Some(GotoDefinitionResponse::Scalar(location)))
+    }
 }
 
 /// Run the LSP server on stdin/stdout.
@@ -311,6 +386,21 @@ pub fn run() -> std::io::Result<()> {
 
 fn ranges_overlap(a: &Range, b: &Range) -> bool {
     a.start.line <= b.end.line && b.start.line <= a.end.line
+}
+
+/// Walk up from `file_path`'s directory looking for an mdagile config file.
+/// Used as a fallback when no project root was supplied by the editor.
+fn config_file_for_path(file_path: &std::path::Path) -> Option<PathBuf> {
+    let mut dir = file_path.parent()?;
+    loop {
+        for name in &["mdagile.toml", ".mdagile.toml"] {
+            let p = dir.join(name);
+            if p.exists() {
+                return Some(p);
+            }
+        }
+        dir = dir.parent()?;
+    }
 }
 
 fn format_message(msg: String) -> String {

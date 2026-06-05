@@ -193,7 +193,7 @@
 - [x] experiment with other designs for backlog and done sections
   Style with gradients
 
-- [ ] some installability improvements
+- [x] some installability improvements
 
 - [ ] Property & Assignment validation
   Detect undefined #property markers and @user/@group assignments
@@ -207,9 +207,9 @@
       - [x] language server
         - [x] quickfix to add a respective toml entry 
         - [x] dynamically update the diagnostics, after e.g. quickfix was applied
-  - [ ] "go to definition" to toml entry
-    - [ ] Implement fuzzy matching to suggest close matches (typo detection)
-    - [ ] Test with common typos: '#Feature', '#feat', etc.
+  - [x] "go to definition" to toml entry
+    - [ ] Implement fuzzy matching to suggest close matches (typo detection) #OPT
+    - [ ] Test with common typos: '#Feature', '#feat', etc. #OPT
   - [ ] Detect undefined @user and @group assignments
     - [ ] Suggest close matches for misspelled names
     - [ ] Handle OR connections: '@markus' or '@josh'
