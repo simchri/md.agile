@@ -16,6 +16,12 @@ fn main() {
     init_logger();
     info!("mdagile-gui main");
 
+    #[cfg(feature = "server")]
+    {
+        let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+        info!("server starting on http://0.0.0.0:{port}");
+    }
+
     dioxus::launch(app);
 }
 
