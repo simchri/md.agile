@@ -209,8 +209,7 @@
         - [x] quickfix to add a respective toml entry 
         - [x] dynamically update the diagnostics, after e.g. quickfix was applied
   - [ ] "go to definition" to toml entry
-    - [x] go to def in lsp, impl. in principle - not yet functional in editor
-    - [ ] debug go to def.
+    - [x] go to def in lsp
     - [ ] Implement fuzzy matching to suggest close matches (typo detection)
     - [ ] Test with common typos: '#Feature', '#feat', etc.
   - [ ] Detect undefined @user and @group assignments
