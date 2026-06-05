@@ -141,6 +141,7 @@ Use `tasks.agile.md` as the authoritative record of work completed and planned:
 - **When work is completed**: Mark it as done `[x]` in `tasks.agile.md` immediately, even if it's already committed.
 - **When the user prompts something new**: If it's not already in `tasks.agile.md`, create a new task in a suitable location (under an appropriate section/heading, or create a new section if needed).
 - **Keep it current**: This file serves as a running history of what's been built and what's planned next. Use it to avoid duplicate work and to understand project momentum.
+- **Never modify the user's task text, markers, or structure** — the only permitted change is ticking a task to done (`[ ]` → `[x]`) for work you have actually completed. Do not reword tasks, add or remove markers (e.g. `#OPT`), restructure sections, or make any other edits unless the user explicitly asks.
 
 ## Terminology
 
