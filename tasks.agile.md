@@ -207,6 +207,8 @@
       - [x] language server
         - [x] quickfix to add a respective toml entry 
         - [x] dynamically update the diagnostics, after e.g. quickfix was applied
+  - [ ] BUG: Somewhere between d705c83df0697ad826d7f85490b37b9d849fbddb and 9ab03a50 the property validation in both agile check and language server broke completely
+    - [ ] add better tests that can actually detect failures like this
   - [x] "go to definition" to toml entry
     - [ ] Implement fuzzy matching to suggest close matches (typo detection) #OPT
     - [ ] Test with common typos: '#Feature', '#feat', etc. #OPT
