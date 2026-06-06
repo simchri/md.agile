@@ -551,29 +551,26 @@ fn build_quickfixes_e008_suggests_typo_correction() {
 
     let actions = build_quickfixes(&diag, doc, &uri);
 
-    // Must have exactly 2 actions: add-to-toml + correct-spelling
+    // Must have exactly 2 actions: correct-spelling (preferred) + add-to-toml
     assert_eq!(
         actions.len(),
         2,
-        "expected add+correct actions, got: {actions:?}"
+        "expected correct+add actions, got: {actions:?}"
     );
 
-    // First action: add to mdagile.toml
-    let add_action = &actions[0];
-    assert!(
-        add_action.title.contains("Add"),
-        "first action should be 'Add …': {}",
-        add_action.title
-    );
-
-    // Second action: correct spelling in the document
-    let fix_action = &actions[1];
+    // First action: correct spelling in the document (preferred)
+    let fix_action = &actions[0];
     assert!(
         fix_action.title.contains("feature"),
-        "correction action title should mention 'feature': {}",
+        "first action should be the spelling correction mentioning 'feature': {}",
         fix_action.title
     );
     assert_eq!(fix_action.kind, Some(CodeActionKind::QUICKFIX));
+    assert_eq!(
+        fix_action.is_preferred,
+        Some(true),
+        "correction should be marked is_preferred"
+    );
 
     // The correction edit must target the .agile.md file (not toml)
     let fix_edits = fix_action
@@ -601,6 +598,19 @@ fn build_quickfixes_e008_suggests_typo_correction() {
         }
     ); // 11 + 7
     assert_eq!(e.new_text, "#feature");
+
+    // Second action: add to mdagile.toml (not preferred when correction exists)
+    let add_action = &actions[1];
+    assert!(
+        add_action.title.contains("Add"),
+        "second action should be 'Add …': {}",
+        add_action.title
+    );
+    assert_eq!(
+        add_action.is_preferred,
+        Some(false),
+        "add-to-toml should not be preferred when a correction is available"
+    );
 }
 
 /// No correction is offered when the typed name is too different from every

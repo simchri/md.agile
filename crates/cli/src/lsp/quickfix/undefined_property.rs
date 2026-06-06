@@ -3,9 +3,11 @@ use tower_lsp::lsp_types::*;
 const MAX_EDIT_DISTANCE: usize = 2;
 
 /// E008 quickfix builder — may return up to two actions:
-/// 1. Always: add the undefined property to `mdagile.toml`.
-/// 2. When the typed name is within [`MAX_EDIT_DISTANCE`] edits of an
-///    existing property: correct the spelling in the `.agile.md` document.
+/// 1. When the typed name is within [`MAX_EDIT_DISTANCE`] edits of an
+///    existing property: correct the spelling in the `.agile.md` document
+///    (preferred; listed first).
+/// 2. Always: add the undefined property to `mdagile.toml` (deprioritised
+///    when a spelling correction is available).
 pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
     let issue_data = match super::issue_data(diagnostic) {
         Some(d) => d,
@@ -18,14 +20,21 @@ pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeActi
 
     let mut actions = Vec::new();
 
-    // --- Action 1: add the property to mdagile.toml ---
-    if let Some(add_action) = build_add_to_toml(diagnostic, &property_name, uri) {
-        actions.push(add_action);
-    }
-
-    // --- Action 2: suggest spelling corrections (if close match exists) ---
+    // --- Spelling corrections (preferred when available) ---
     let corrections = build_spelling_corrections(diagnostic, doc_text, uri, &property_name);
-    actions.extend(corrections);
+
+    // --- Add to mdagile.toml (always available, but deprioritised when a
+    //     correction is offered since the typo is more likely the real issue) ---
+    if let Some(mut add_action) = build_add_to_toml(diagnostic, &property_name, uri) {
+        if !corrections.is_empty() {
+            add_action.is_preferred = Some(false);
+        }
+        // Corrections go first so editors surface the most relevant fix first
+        actions.extend(corrections);
+        actions.push(add_action);
+    } else {
+        actions.extend(corrections);
+    }
 
     actions
 }
