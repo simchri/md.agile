@@ -3,7 +3,11 @@ use tower_lsp::lsp_types::*;
 
 /// E003: re-indent a body line to the depth carried in the diagnostic's
 /// [`IssueData::WrongBodyIndent`] payload.
-pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
+pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
+    build_one(diagnostic, doc_text, uri).into_iter().collect()
+}
+
+fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
     let IssueData::WrongBodyIndent { expected_indent } = super::issue_data(diagnostic)? else {
         return None;
     };

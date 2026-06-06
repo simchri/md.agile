@@ -9,7 +9,7 @@ pub mod logger;
 pub mod quickfix;
 
 use goto_definition::{find_property_line_in_config, property_name_at_position};
-use quickfix::build_quickfix;
+use quickfix::build_quickfixes;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -272,7 +272,7 @@ impl LanguageServer for Backend {
         let actions: Vec<CodeActionOrCommand> = diags
             .iter()
             .filter(|d| ranges_overlap(&d.range, &params.range))
-            .filter_map(|d| build_quickfix(d, &doc_text, &params.text_document.uri))
+            .flat_map(|d| build_quickfixes(d, &doc_text, &params.text_document.uri))
             .map(CodeActionOrCommand::CodeAction)
             .collect();
 

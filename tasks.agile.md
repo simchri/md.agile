@@ -195,7 +195,7 @@
 
 - [x] some installability improvements
 
-- [ ] #feature: Property & Assignment validation 
+- [ ] #feature: Property & Assignment validation #feture
   Detect undefined #property markers and @user/@group assignments
   Note: property markers are only recognized in the task title (#here #they #are #ignored)
   - [x] Read mdagile.toml config in checker; pass config to rules

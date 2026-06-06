@@ -3,7 +3,11 @@ use tower_lsp::lsp_types::*;
 
 /// E002: re-indent a misaligned task line to the depth carried in the
 /// diagnostic's [`IssueData::WrongIndent`] payload.
-pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
+pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
+    build_one(diagnostic, doc_text, uri).into_iter().collect()
+}
+
+fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
     let IssueData::WrongIndent { expected_indent } = super::issue_data(diagnostic)? else {
         return None;
     };

@@ -12,10 +12,11 @@ mod wrong_body_indent;
 mod wrong_indentation;
 
 /// Function shape every quickfix builder satisfies.
-type Builder = fn(&Diagnostic, &str, &Url) -> Option<CodeAction>;
+/// Returns all applicable code actions for the diagnostic (zero or more).
+type Builder = fn(&Diagnostic, &str, &Url) -> Vec<CodeAction>;
 
 /// Single source of truth for which [`ErrorCode`]s have a quickfix and which
-/// builder produces it. Used by both [`build_quickfix`] (LSP dispatch) and
+/// builder produces it. Used by both [`build_quickfixes`] (LSP dispatch) and
 /// [`has_quickfix`] (CLI's "(fix avail.)" hint).
 const REGISTRY: &[(ErrorCode, Builder)] = &[
     (ErrorCode::WrongIndentation, wrong_indentation::build),
@@ -31,14 +32,31 @@ const REGISTRY: &[(ErrorCode, Builder)] = &[
     // no quickfix (user has to make a structural decision the linter can't).
 ];
 
-/// Routes a diagnostic to the appropriate quickfix handler via [`REGISTRY`].
-pub fn build_quickfix(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
+/// Routes a diagnostic to all applicable quickfix handlers via [`REGISTRY`].
+///
+/// Returns every [`CodeAction`] produced by the matching builder — usually one,
+/// but E008 (undefined property) can return multiple when a close-match
+/// spelling correction is also available.
+pub fn build_quickfixes(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
     let Some(NumberOrString::String(s)) = &diagnostic.code else {
-        return None;
+        return vec![];
     };
-    let code: ErrorCode = s.parse().ok()?;
-    let builder = REGISTRY.iter().find(|(c, _)| *c == code).map(|(_, b)| *b)?;
-    builder(diagnostic, doc_text, uri)
+    let Ok(code) = s.parse::<ErrorCode>() else {
+        return vec![];
+    };
+    match REGISTRY.iter().find(|(c, _)| *c == code).map(|(_, b)| *b) {
+        Some(builder) => builder(diagnostic, doc_text, uri),
+        None => vec![],
+    }
+}
+
+/// Convenience wrapper — returns the first (preferred) action, if any.
+///
+/// Use [`build_quickfixes`] when you need all available actions.
+pub fn build_quickfix(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
+    build_quickfixes(diagnostic, doc_text, uri)
+        .into_iter()
+        .next()
 }
 
 /// Returns true if `code` has a registered quickfix builder.

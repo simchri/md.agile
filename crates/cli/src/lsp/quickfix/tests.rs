@@ -508,6 +508,145 @@ fn build_quickfix_e008_appends_to_existing_toml() {
     assert!(new_content.contains("[Properties.newprop]"));
 }
 
+/// `build_quickfixes` returns both an "add to toml" action AND a "correct
+/// typo" action when the typed property closely matches an existing one.
+#[test]
+fn build_quickfixes_e008_suggests_typo_correction() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+
+    // Existing property is "feature"; user typed "feture" (one char deleted)
+    std::fs::write(project_dir.join("mdagile.toml"), "[Properties.feature]\n").unwrap();
+
+    let tasks_file = project_dir.join("tasks.agile.md");
+    let uri: Url = Url::from_file_path(&tasks_file).unwrap();
+    // "- [ ] task #feture"
+    // "#" sits at character 11 (0-indexed): "- [ ] task " = 11 chars
+    let doc = "- [ ] task #feture\n";
+
+    let diag = Diagnostic {
+        range: Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            // end.character = 11 = 0-indexed column of '#'
+            end: Position {
+                line: 0,
+                character: 11,
+            },
+        },
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: Some(NumberOrString::String("E008".into())),
+        source: Some("agilels".into()),
+        message: "undefined property".into(),
+        data: Some(serde_json::json!({
+            "kind": "undefined_property",
+            "property_name": "feture",
+        })),
+        ..Diagnostic::default()
+    };
+
+    let actions = build_quickfixes(&diag, doc, &uri);
+
+    // Must have exactly 2 actions: add-to-toml + correct-spelling
+    assert_eq!(
+        actions.len(),
+        2,
+        "expected add+correct actions, got: {actions:?}"
+    );
+
+    // First action: add to mdagile.toml
+    let add_action = &actions[0];
+    assert!(
+        add_action.title.contains("Add"),
+        "first action should be 'Add …': {}",
+        add_action.title
+    );
+
+    // Second action: correct spelling in the document
+    let fix_action = &actions[1];
+    assert!(
+        fix_action.title.contains("feature"),
+        "correction action title should mention 'feature': {}",
+        fix_action.title
+    );
+    assert_eq!(fix_action.kind, Some(CodeActionKind::QUICKFIX));
+
+    // The correction edit must target the .agile.md file (not toml)
+    let fix_edits = fix_action
+        .edit
+        .as_ref()
+        .and_then(|w| w.changes.as_ref())
+        .and_then(|c| c.get(&uri))
+        .expect("correction action should edit the agile.md file");
+
+    assert_eq!(fix_edits.len(), 1);
+    let e = &fix_edits[0];
+    // Replace "#feture" (7 chars) starting at column 11
+    assert_eq!(
+        e.range.start,
+        Position {
+            line: 0,
+            character: 11
+        }
+    );
+    assert_eq!(
+        e.range.end,
+        Position {
+            line: 0,
+            character: 18
+        }
+    ); // 11 + 7
+    assert_eq!(e.new_text, "#feature");
+}
+
+/// No correction is offered when the typed name is too different from every
+/// known property.
+#[test]
+fn build_quickfixes_e008_no_correction_when_no_close_match() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+
+    std::fs::write(project_dir.join("mdagile.toml"), "[Properties.xyz]\n").unwrap();
+
+    let tasks_file = project_dir.join("tasks.agile.md");
+    let uri: Url = Url::from_file_path(&tasks_file).unwrap();
+    let doc = "- [ ] task #completelydifferent\n";
+
+    let diag = Diagnostic {
+        range: Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 11,
+            },
+        },
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: Some(NumberOrString::String("E008".into())),
+        source: Some("agilels".into()),
+        message: "undefined property".into(),
+        data: Some(serde_json::json!({
+            "kind": "undefined_property",
+            "property_name": "completelydifferent",
+        })),
+        ..Diagnostic::default()
+    };
+
+    let actions = build_quickfixes(&diag, doc, &uri);
+
+    // Only the "add to toml" action, no correction
+    assert_eq!(actions.len(), 1);
+    assert!(actions[0].title.contains("Add"));
+}
+
 #[test]
 fn has_quickfix_for_each_code() {
     use crate::rules::ErrorCode::*;

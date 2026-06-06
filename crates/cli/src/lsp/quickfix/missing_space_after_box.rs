@@ -2,7 +2,11 @@ use crate::rules::IssueData;
 use tower_lsp::lsp_types::*;
 
 /// E005: insert a space after the first `]` on the line.
-pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
+pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
+    build_one(diagnostic, doc_text, uri).into_iter().collect()
+}
+
+fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeAction> {
     let IssueData::MissingSpaceAfterBox = super::issue_data(diagnostic)? else {
         return None;
     };
