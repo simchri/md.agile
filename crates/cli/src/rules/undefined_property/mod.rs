@@ -42,7 +42,7 @@ fn check_markers(
                     location: location.clone(),
                     code: ErrorCode::UndefinedProperty,
                     message: format!(
-                        "Undefined property '#{}' — add '[Properties.{}]' to mdagile.toml",
+                        "Undefined property '#{}' — '[Properties.{}]' not in mdagile.toml",
                         prop.name, prop.name
                     ),
                     column: full_column,
