@@ -1,10 +1,11 @@
 //! LSP Semantic Tokens for `.agile.md` files.
 //!
-//! Highlights the three built-in special markers (`#OPT`, `#MILESTONE`,
-//! `#MDAGILE`) as `keyword` tokens so editors can colour them distinctly from
-//! ordinary property markers and plain text.
+//! Highlights built-in special markers as `keyword` tokens:
 //!
-//! Standalone `#MILESTONE: Name` header lines are also highlighted.
+//! - `#OPT` and `#MDAGILE` appear as markers on task/subtask lines.
+//! - `#MILESTONE: Name` appears as a standalone header line
+//!   (`FileItem::Milestone`) — the `#MILESTONE` keyword is highlighted
+//!   at column 0 of that line.
 
 use crate::parser::{FileItem, Marker, SpecialMarker, Subtask};
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
@@ -172,21 +173,6 @@ mod tests {
         assert_eq!(tokens.len(), 1);
         assert_eq!(tokens[0].delta_start, 23);
         assert_eq!(tokens[0].length, 4);
-    }
-
-    // ── #MILESTONE as task marker ─────────────────────────────────────────────
-
-    #[test]
-    fn milestone_marker_on_task_line() {
-        // "- [ ] deploy #MILESTONE\n"
-        // title text: "deploy #MILESTONE"
-        // "#MILESTONE" at position 7 → col = 8 (1-based)
-        // Full line (indent=0): char = 0 + 5 + 8 = 13
-        let items = p("- [ ] deploy #MILESTONE\n");
-        let tokens = build_tokens(&items);
-        assert_eq!(tokens.len(), 1);
-        assert_eq!(tokens[0].delta_start, 13);
-        assert_eq!(tokens[0].length, 10); // "#MILESTONE"
     }
 
     // ── #MILESTONE header line ────────────────────────────────────────────────

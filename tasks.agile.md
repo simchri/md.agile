@@ -204,7 +204,7 @@
       - [x] agile check
         - [x] bug: diagnostic column indication is wrong (seems to be always at 0)
           - [x] reproduce in a test case (failing)
-          - [x] fix (make test pass)
+          - [x] fix (make test pass) #OPT
       - [x] language server
         - [x] quickfix to add a respective toml entry 
         - [x] dynamically update the diagnostics, after e.g. quickfix was applied
@@ -216,6 +216,8 @@
     - [ ] Suggest close matches for misspelled names
     - [ ] Handle OR connections: '@markus' or '@josh'
   - [ ] Update error formatter for new error codes
+
+#MILESTONE: Some milestone
 
 - [ ] Missing required subtasks
   Detect when a task has a property (e.g. '#feature') but lacks required subtasks
