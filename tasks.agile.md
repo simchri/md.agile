@@ -217,6 +217,11 @@
     - [ ] Handle OR connections: '@markus' or '@josh'
   - [ ] Update error formatter for new error codes
 
+- [x] #feature syntax highlighting for #OPT
+- [ ] #feature syntax highlighting for '#MILESTONES'
+  - [x] basic implementation
+  - [ ] double check details of MILESTONE handling. AI did something weird here. Handled it a bit like a normal property 
+
 #MILESTONE: Some milestone
 
 - [ ] Missing required subtasks
