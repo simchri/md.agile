@@ -64,7 +64,7 @@ fn check_children_complete(
         let is_optional = child
             .markers
             .iter()
-            .any(|m| matches!(m, crate::parser::Marker::Special(SpecialMarker::Opt)));
+            .any(|m| matches!(m, crate::parser::Marker::Special(SpecialMarker::Opt { .. })));
 
         if is_optional {
             continue;

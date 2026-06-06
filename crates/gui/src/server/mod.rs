@@ -162,9 +162,9 @@ fn format_marker(marker: &mdagile::parser::Marker) -> String {
     match marker {
         Marker::Property(p) => format!("#{}", p.name),
         Marker::Assignment(name) => format!("@{}", name),
-        Marker::Special(SpecialMarker::Opt) => "#OPT".to_string(),
-        Marker::Special(SpecialMarker::Milestone) => "#MILESTONE".to_string(),
-        Marker::Special(SpecialMarker::MdAgile) => "#MDAGILE".to_string(),
+        Marker::Special(SpecialMarker::Opt { .. }) => "#OPT".to_string(),
+        Marker::Special(SpecialMarker::Milestone { .. }) => "#MILESTONE".to_string(),
+        Marker::Special(SpecialMarker::MdAgile { .. }) => "#MDAGILE".to_string(),
     }
 }
 

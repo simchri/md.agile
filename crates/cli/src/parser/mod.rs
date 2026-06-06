@@ -50,9 +50,9 @@ pub enum PropertyForm {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SpecialMarker {
-    Opt,       // #OPT -- subtask does not block parent completion
-    Milestone, // #MILESTONE -- file-level divider; see FileItem
-    MdAgile,   // #MDAGILE -- file-level directive
+    Opt { column: usize },       // #OPT -- subtask does not block parent completion
+    Milestone { column: usize }, // #MILESTONE -- file-level divider; see FileItem
+    MdAgile { column: usize },   // #MDAGILE -- file-level directive
 }
 
 // ── Parsing issues ────────────────────────────────────────────────────────────
@@ -139,6 +139,7 @@ pub struct Task {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Milestone {
     pub name: String,
+    pub line: usize, // 1-based source line of the #MILESTONE: header
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -227,7 +228,10 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
 
         if let Some(name) = parse_milestone_name(line) {
             flush_stack(&mut stack, &mut items);
-            items.push(FileItem::Milestone(Milestone { name }));
+            items.push(FileItem::Milestone(Milestone {
+                name,
+                line: line_no,
+            }));
             prev_was_blank = false;
             continue;
         }
@@ -468,9 +472,9 @@ fn parse_hash_token(name: &str, column: usize) -> Option<Marker> {
     // Known ALL-CAPS special markers checked explicitly; avoids misidentifying
     // a user property whose name happens to be all-caps.
     match name {
-        "OPT" => return Some(Marker::Special(SpecialMarker::Opt)),
-        "MILESTONE" => return Some(Marker::Special(SpecialMarker::Milestone)),
-        "MDAGILE" => return Some(Marker::Special(SpecialMarker::MdAgile)),
+        "OPT" => return Some(Marker::Special(SpecialMarker::Opt { column })),
+        "MILESTONE" => return Some(Marker::Special(SpecialMarker::Milestone { column })),
+        "MDAGILE" => return Some(Marker::Special(SpecialMarker::MdAgile { column })),
         _ => {}
     }
 

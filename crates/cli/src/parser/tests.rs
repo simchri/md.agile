@@ -54,7 +54,7 @@ fn can_construct_task_with_all_node_kinds() {
                 kind: SubtaskKind::Custom,
                 title: "extra polish".to_string(),
                 body: vec![],
-                markers: vec![Marker::Special(SpecialMarker::Opt)],
+                markers: vec![Marker::Special(SpecialMarker::Opt { column: 1 })],
                 children: vec![],
                 parsing_issues: vec![],
             },
@@ -105,6 +105,7 @@ fn file_items_interleave_tasks_and_milestones() {
         }),
         FileItem::Milestone(Milestone {
             name: "Release of MVP".to_string(),
+            line: 3,
         }),
         FileItem::Task(Task {
             location: loc(5),
@@ -266,7 +267,10 @@ fn parse_opt_subtask() {
     let items = p(input);
     let sub = &task(&items, 0).children[0];
     assert_eq!(sub.title, "optional thing");
-    assert_eq!(sub.markers, vec![Marker::Special(SpecialMarker::Opt)]);
+    assert_eq!(
+        sub.markers,
+        vec![Marker::Special(SpecialMarker::Opt { column: 1 })]
+    );
 }
 
 #[test]

@@ -7,9 +7,11 @@
 pub mod goto_definition;
 pub mod logger;
 pub mod quickfix;
+pub mod semantic_tokens;
 
 use goto_definition::{find_property_line_in_config, property_name_at_position};
 use quickfix::build_quickfixes;
+use semantic_tokens::{TOKEN_TYPES, build_tokens};
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -187,6 +189,18 @@ impl LanguageServer for Backend {
                 )),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
+                semantic_tokens_provider: Some(
+                    SemanticTokensServerCapabilities::SemanticTokensOptions(
+                        SemanticTokensOptions {
+                            legend: SemanticTokensLegend {
+                                token_types: TOKEN_TYPES.to_vec(),
+                                token_modifiers: vec![],
+                            },
+                            full: Some(SemanticTokensFullOptions::Bool(true)),
+                            ..Default::default()
+                        },
+                    ),
+                ),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo {
@@ -281,6 +295,26 @@ impl LanguageServer for Backend {
         } else {
             Ok(Some(actions))
         }
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        let uri = &params.text_document.uri;
+        let doc_text = match self.docs.read().await.get(uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let items = parser::parse(&doc_text, path);
+        let data = build_tokens(&items);
+        Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
+            result_id: None,
+            data,
+        })))
     }
 
     async fn shutdown(&self) -> Result<()> {
