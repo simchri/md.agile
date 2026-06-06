@@ -195,7 +195,7 @@
 
 - [x] some installability improvements
 
-- [ ] #feature: Property & Assignment validation #feture
+- [ ] #feature: Property & Assignment validation #foo
   Detect undefined #property markers and @user/@group assignments
   Note: property markers are only recognized in the task title (#here #they #are #ignored)
   - [x] Read mdagile.toml config in checker; pass config to rules
@@ -210,8 +210,8 @@
         - [x] dynamically update the diagnostics, after e.g. quickfix was applied
   - [ ] "go to definition" to toml entry
     - [x] go to def in lsp
-    - [ ] Implement fuzzy matching to suggest close matches (typo detection)
-    - [ ] Test with common typos: '#Feature', '#feat', etc.
+    - [x] Implement fuzzy matching to suggest close matches (typo detection)
+    - [x] Test with common typos: '#Feature', '#feat', etc.
   - [ ] Detect undefined @user and @group assignments
     - [ ] Suggest close matches for misspelled names
     - [ ] Handle OR connections: '@markus' or '@josh'
