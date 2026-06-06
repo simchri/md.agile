@@ -242,6 +242,7 @@ body {
 }
 
 .modal-status {
+    flex-shrink: 0;
     font-family: monospace;
     font-size: 18px;
     color: #444;
