@@ -49,31 +49,38 @@ pub enum PropertyForm {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum SpecialMarker {
-    Opt { column: usize },       // #OPT -- subtask does not block parent completion
-    Milestone { column: usize }, // #MILESTONE -- file-level divider; see FileItem
-    MdAgile { column: usize },   // #MDAGILE -- file-level directive
+pub enum SpecialMarkerKind {
+    Opt,       // #OPT -- subtask does not block parent completion
+    Milestone, // #MILESTONE -- file-level divider; see FileItem
+    MdAgile,   // #MDAGILE -- file-level directive
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpecialMarker {
+    pub column: usize,
+    pub kind: SpecialMarkerKind,
 }
 
 impl SpecialMarker {
     /// The ALL-CAPS keyword that represents this marker in source (e.g. `"OPT"`).
     pub fn as_str(&self) -> &'static str {
-        match self {
-            SpecialMarker::Opt { .. } => "OPT",
-            SpecialMarker::Milestone { .. } => "MILESTONE",
-            SpecialMarker::MdAgile { .. } => "MDAGILE",
+        match self.kind {
+            SpecialMarkerKind::Opt => "OPT",
+            SpecialMarkerKind::Milestone => "MILESTONE",
+            SpecialMarkerKind::MdAgile => "MDAGILE",
         }
     }
 
     /// Construct a `SpecialMarker` from its ALL-CAPS keyword, or `None` if the
     /// name is not a known special marker.
     pub fn from_name(name: &str, column: usize) -> Option<Self> {
-        match name {
-            "OPT" => Some(SpecialMarker::Opt { column }),
-            "MILESTONE" => Some(SpecialMarker::Milestone { column }),
-            "MDAGILE" => Some(SpecialMarker::MdAgile { column }),
-            _ => None,
-        }
+        let kind = match name {
+            "OPT" => SpecialMarkerKind::Opt,
+            "MILESTONE" => SpecialMarkerKind::Milestone,
+            "MDAGILE" => SpecialMarkerKind::MdAgile,
+            _ => return None,
+        };
+        Some(SpecialMarker { column, kind })
     }
 }
 

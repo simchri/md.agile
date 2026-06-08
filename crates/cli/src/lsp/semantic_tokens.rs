@@ -7,7 +7,7 @@
 //!   (`FileItem::Milestone`) — the `#MILESTONE` keyword is highlighted
 //!   at column 0 of that line.
 
-use crate::parser::{FileItem, Marker, SpecialMarker, Subtask};
+use crate::parser::{FileItem, Marker, Subtask};
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
 
 // ── Legend ────────────────────────────────────────────────────────────────────
@@ -81,11 +81,7 @@ fn collect_markers(
     let line = (location_line - 1) as u32;
     for marker in markers {
         if let Marker::Special(special) = marker {
-            let column = match special {
-                SpecialMarker::Opt { column }
-                | SpecialMarker::Milestone { column }
-                | SpecialMarker::MdAgile { column } => *column,
-            };
+            let column = special.column;
             let name_len = special.as_str().len();
             // indent spaces + "- [ ] " (6 chars) + 1-based column → 0-based char
             let character = (indent + 5 + column) as u32;

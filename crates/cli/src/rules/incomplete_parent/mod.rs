@@ -1,6 +1,6 @@
 //! E004 — flags done parents with incomplete non-optional children.
 
-use crate::parser::{FileItem, SpecialMarker, Status, Subtask};
+use crate::parser::{FileItem, SpecialMarkerKind, Status, Subtask};
 use crate::rules::Issue;
 
 /// Flags tasks/subtasks marked done `[x]` that have incomplete children.
@@ -61,10 +61,9 @@ fn check_children_complete(
 
     for child in children {
         // Skip checking optional children - they don't block parent completion
-        let is_optional = child
-            .markers
-            .iter()
-            .any(|m| matches!(m, crate::parser::Marker::Special(SpecialMarker::Opt { .. })));
+        let is_optional = child.markers.iter().any(
+            |m| matches!(m, crate::parser::Marker::Special(s) if s.kind == SpecialMarkerKind::Opt),
+        );
 
         if is_optional {
             continue;
