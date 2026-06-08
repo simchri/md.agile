@@ -39,7 +39,7 @@ ETA estimation is only as good as the information available in the backlog. If n
 A local todo list is easy to use, flexible, and informal. A centralized task management tool creates transparency, a common vision, and can be used to strengthen common rules for collaboration ("A task is done when ...").
 Mdagile is a compromise between these approaches. You can quickly and easily take notes—but they will be shared with everyone. You can keep a task completely informal (just a bullet point)—or make it adhere to a predefined workflow. The decision can be made task by task.
 
-## Trust but Control
+## Trust through Transparency
 Centralized task management allows you to restrict lifecycle transitions to specific users. This is difficult when everything is text-based. Mdagile provides some constraints, but does not aim to be "secure".
 If necessary, you can analyze your git history to figure out if something went wrong.
 
