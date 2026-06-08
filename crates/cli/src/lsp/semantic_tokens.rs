@@ -81,11 +81,12 @@ fn collect_markers(
     let line = (location_line - 1) as u32;
     for marker in markers {
         if let Marker::Special(special) = marker {
-            let (column, name_len) = match special {
-                SpecialMarker::Opt { column } => (*column, "OPT".len()),
-                SpecialMarker::Milestone { column } => (*column, "MILESTONE".len()),
-                SpecialMarker::MdAgile { column } => (*column, "MDAGILE".len()),
+            let column = match special {
+                SpecialMarker::Opt { column }
+                | SpecialMarker::Milestone { column }
+                | SpecialMarker::MdAgile { column } => *column,
             };
+            let name_len = special.as_str().len();
             // indent spaces + "- [ ] " (6 chars) + 1-based column → 0-based char
             let character = (indent + 5 + column) as u32;
             let length = (1 + name_len) as u32; // '#' + name

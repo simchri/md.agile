@@ -2,6 +2,7 @@
 ///
 /// Both functions are free of I/O and async so they can be unit-tested
 /// without spinning up the full LSP server.
+use crate::parser::SpecialMarker;
 
 /// Given the full text of an open `.agile.md` document and a cursor
 /// position, return the canonical property name that the cursor sits on,
@@ -58,9 +59,8 @@ fn normalize_property_name(raw: &str) -> Option<String> {
     }
 
     // Reject special ALL-CAPS markers.
-    match raw {
-        "OPT" | "MILESTONE" | "MDAGILE" => return None,
-        _ => {}
+    if SpecialMarker::from_name(raw, 0).is_some() {
+        return None;
     }
 
     // BranchPending: `review...`

@@ -55,6 +55,28 @@ pub enum SpecialMarker {
     MdAgile { column: usize },   // #MDAGILE -- file-level directive
 }
 
+impl SpecialMarker {
+    /// The ALL-CAPS keyword that represents this marker in source (e.g. `"OPT"`).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SpecialMarker::Opt { .. } => "OPT",
+            SpecialMarker::Milestone { .. } => "MILESTONE",
+            SpecialMarker::MdAgile { .. } => "MDAGILE",
+        }
+    }
+
+    /// Construct a `SpecialMarker` from its ALL-CAPS keyword, or `None` if the
+    /// name is not a known special marker.
+    pub fn from_name(name: &str, column: usize) -> Option<Self> {
+        match name {
+            "OPT" => Some(SpecialMarker::Opt { column }),
+            "MILESTONE" => Some(SpecialMarker::Milestone { column }),
+            "MDAGILE" => Some(SpecialMarker::MdAgile { column }),
+            _ => None,
+        }
+    }
+}
+
 // ── Parsing issues ────────────────────────────────────────────────────────────
 
 /// Problems detected while parsing a single task line.
@@ -471,11 +493,8 @@ fn parse_hash_token(name: &str, column: usize) -> Option<Marker> {
 
     // Known ALL-CAPS special markers checked explicitly; avoids misidentifying
     // a user property whose name happens to be all-caps.
-    match name {
-        "OPT" => return Some(Marker::Special(SpecialMarker::Opt { column })),
-        "MILESTONE" => return Some(Marker::Special(SpecialMarker::Milestone { column })),
-        "MDAGILE" => return Some(Marker::Special(SpecialMarker::MdAgile { column })),
-        _ => {}
+    if let Some(special) = SpecialMarker::from_name(name, column) {
+        return Some(Marker::Special(special));
     }
 
     // `#review...`  -- branch outcome not yet chosen
