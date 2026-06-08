@@ -7,7 +7,7 @@
 //!   (`FileItem::Milestone`) — the `#MILESTONE` keyword is highlighted
 //!   at column 0 of that line.
 
-use crate::parser::{FileItem, Marker, Subtask};
+use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask};
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
 
 // ── Legend ────────────────────────────────────────────────────────────────────
@@ -81,6 +81,12 @@ fn collect_markers(
     let line = (location_line - 1) as u32;
     for marker in markers {
         if let Marker::Special(special) = marker {
+            if special.kind == SpecialMarkerKind::Milestone {
+                continue;
+            }
+            if special.kind == SpecialMarkerKind::MdAgile {
+                continue;
+            }
             let column = special.column;
             let name_len = special.as_str().len();
             // indent spaces + "- [ ] " (6 chars) + 1-based column → 0-based char
@@ -202,21 +208,64 @@ mod tests {
         assert_eq!(tokens[0].length, 10);
     }
 
+    // ── #MILESTONE edge cases ────────────────────────────────────────────────
+
+    #[test]
+    fn milestone_in_tasks_not_semantic_token() {
+        let items = p("\
+- [ ] task one #MILESTONE: Sprint 2
+");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 0);
+    }
+
+    #[test]
+    fn milestone_in_subtasks_not_semantic_token() {
+        let items = p("\
+- [ ] parent task
+  - [ ] #MILESTONE not a highlighted as keyword here 
+");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 0);
+    }
+
     // ── #MDAGILE ─────────────────────────────────────────────────────────────
 
     #[test]
-    fn mdagile_marker_on_task_line() {
-        // "- [ ] config #MDAGILE\n"
-        // title text: "config #MDAGILE"
-        // "#MDAGILE" at position 7 → col = 8
-        // char = 0 + 5 + 8 = 13
-        let items = p("- [ ] config #MDAGILE\n");
+    #[ignore = "Config keys not yet fully implemented, more work to do, conecptually and in parser"]
+    fn mdagile_marker_on_free_line() {
+        let items = p("\
+Something something
+
+#MDAGILE.something.something
+
+- [ ] some task
+  - [ ] and subtask
+");
         let tokens = build_tokens(&items);
         assert_eq!(tokens.len(), 1);
-        assert_eq!(tokens[0].delta_start, 13);
+        assert_eq!(tokens[0].delta_start, 1);
         assert_eq!(tokens[0].length, 8); // "#MDAGILE"
     }
 
+    #[test]
+    fn mdagile_in_tasks_not_semantic_token() {
+        let items = p("\
+- [ ] task one #MDAGILE: Not highlighted here
+");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 0);
+    }
+
+    #[test]
+    fn mdagile_in_subtasks_not_semantic_token() {
+        let items = p("\
+- [ ] parent task
+  - [ ] #MDAGILE not a highlighted as keyword here 
+");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 0);
+    }
     // ── Multiple markers / delta encoding ────────────────────────────────────
 
     #[test]
@@ -228,7 +277,7 @@ mod tests {
         // char for #MDAGILE = 2 + 5 + 12 = 19
         let items = p("\
 - [ ] parent
-  - [ ] #OPT thing #MDAGILE
+  - [ ] #OPT thing #OPT
 ");
         let tokens = build_tokens(&items);
         assert_eq!(tokens.len(), 2);
@@ -236,10 +285,10 @@ mod tests {
         assert_eq!(tokens[0].delta_line, 1);
         assert_eq!(tokens[0].delta_start, 8);
         assert_eq!(tokens[0].length, 4);
-        // Second token: #MDAGILE — same line, delta_start relative to prev
+        // Second token: #OPT — same line, delta_start relative to prev
         assert_eq!(tokens[1].delta_line, 0);
-        assert_eq!(tokens[1].delta_start, 19 - 8); // 11
-        assert_eq!(tokens[1].length, 8);
+        assert_eq!(tokens[1].delta_start, 19 - 8);
+        assert_eq!(tokens[1].length, 4);
     }
 
     #[test]

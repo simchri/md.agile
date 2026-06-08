@@ -218,9 +218,13 @@
   - [ ] Update error formatter for new error codes
 
 - [x] #feature syntax highlighting for #OPT
-- [ ] #feature syntax highlighting for '#MILESTONES'
+- [x] #feature syntax highlighting for '#MILESTONES'
   - [x] basic implementation
-  - [ ] double check details of MILESTONE handling. AI did something weird here. Handled it a bit like a normal property 
+  - [x] double check details of #MILESTONE handling. AI did something weird here. Handled it a bit like a normal property 
+    - [x] '#Milestone' --> undef property. OK 
+    - [x] #MILESTONE not a highlighted as keyword here 
+  - [x] #MDAGILE double check #MDAGILE special marker handling - should this be highlighted as keyword here?
+    No! config keys still to be implemented - re-visit later. N.B. MDAGILE tag currently never highlighted, but that's ok since keys are not implemented anyways
 
 #MILESTONE: Some milestone
 
