@@ -171,7 +171,6 @@ pub struct Milestone {
     pub line: usize, // 1-based source line of the #MILESTONE: header
 }
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileItem {
     Task(Task),

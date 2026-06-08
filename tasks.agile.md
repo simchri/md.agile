@@ -226,6 +226,8 @@
   - [x] #MDAGILE double check #MDAGILE special marker handling - should this be highlighted as keyword here?
     No! config keys still to be implemented - re-visit later. N.B. MDAGILE tag currently never highlighted, but that's ok since keys are not implemented anyways
 
+- [x] syntax highlighting for '#properties' 
+
 #MILESTONE: Some milestone
 
 - [ ] Missing required subtasks

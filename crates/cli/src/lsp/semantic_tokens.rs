@@ -1,11 +1,15 @@
 //! LSP Semantic Tokens for `.agile.md` files.
 //!
-//! Highlights built-in special markers as `keyword` tokens:
+//! Highlights two kinds of markers:
 //!
-//! - `#OPT` and `#MDAGILE` appear as markers on task/subtask lines.
-//! - `#MILESTONE: Name` appears as a standalone header line
-//!   (`FileItem::Milestone`) — the `#MILESTONE` keyword is highlighted
-//!   at column 0 of that line.
+//! - Built-in special markers as `keyword` tokens:
+//!   - `#OPT` appears as a marker on task/subtask lines.
+//!   - `#MILESTONE: Name` appears as a standalone header line
+//!     (`FileItem::Milestone`) — the `#MILESTONE` keyword is highlighted
+//!     at column 0 of that line.
+//! - User-defined `#property` markers as `property` tokens. For branch-form
+//!   properties (`#review...`, `#review:passed`) only the base name is
+//!   highlighted.
 
 use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask};
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
@@ -15,10 +19,12 @@ use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
 /// Token type legend to advertise in `initialize`.
 /// Index positions correspond to `SemanticToken.token_type` values.
 pub const TOKEN_TYPES: &[SemanticTokenType] = &[
-    SemanticTokenType::KEYWORD, // 0 — #OPT / #MILESTONE / #MDAGILE
+    SemanticTokenType::KEYWORD,  // 0 — #OPT / #MILESTONE / #MDAGILE
+    SemanticTokenType::PROPERTY, // 1 — user-defined #property markers
 ];
 
 const KEYWORD: u32 = 0;
+const PROPERTY: u32 = 1;
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -42,6 +48,7 @@ pub fn build_tokens(items: &[FileItem]) -> Vec<SemanticToken> {
                     line: (m.line - 1) as u32,
                     character: 0,
                     length: "#MILESTONE".len() as u32,
+                    token_type: KEYWORD,
                 });
             }
         }
@@ -57,6 +64,7 @@ struct RawToken {
     line: u32,
     character: u32,
     length: u32,
+    token_type: u32,
 }
 
 fn collect_subtasks(subtasks: &[Subtask], raw: &mut Vec<RawToken>) {
@@ -66,12 +74,16 @@ fn collect_subtasks(subtasks: &[Subtask], raw: &mut Vec<RawToken>) {
     }
 }
 
-/// Collect semantic tokens for all special markers on a single task/subtask line.
+/// Collect semantic tokens for all markers on a single task/subtask line.
 ///
 /// `location_line` is 1-based; `indent` is the number of leading spaces.
-/// Each `SpecialMarker` stores the 1-based column of `#` within the title
-/// text (after the `"  - [ ] "` prefix). The 0-based character in the full
-/// source line is therefore `indent + 5 + column`.
+/// Each marker stores the 1-based column of `#` within the title text (after
+/// the `"  - [ ] "` prefix). The 0-based character in the full source line is
+/// therefore `indent + 5 + column`.
+///
+/// Special markers are highlighted as `keyword`; user-defined properties as
+/// `property`. For branch-form properties (`#review...`, `#review:passed`)
+/// only the base name (`#review`) is highlighted, not the suffix.
 fn collect_markers(
     markers: &[Marker],
     location_line: usize,
@@ -79,24 +91,33 @@ fn collect_markers(
     raw: &mut Vec<RawToken>,
 ) {
     let line = (location_line - 1) as u32;
+    // indent spaces + "- [ ] " (6 chars) + 1-based column → 0-based char
+    let char_of = |column: usize| (indent + 5 + column) as u32;
     for marker in markers {
-        if let Marker::Special(special) = marker {
-            if special.kind == SpecialMarkerKind::Milestone {
-                continue;
+        match marker {
+            Marker::Special(special) => {
+                if matches!(
+                    special.kind,
+                    SpecialMarkerKind::Milestone | SpecialMarkerKind::MdAgile
+                ) {
+                    continue;
+                }
+                raw.push(RawToken {
+                    line,
+                    character: char_of(special.column),
+                    length: (1 + special.as_str().len()) as u32, // '#' + name
+                    token_type: KEYWORD,
+                });
             }
-            if special.kind == SpecialMarkerKind::MdAgile {
-                continue;
+            Marker::Property(prop) => {
+                raw.push(RawToken {
+                    line,
+                    character: char_of(prop.column),
+                    length: (1 + prop.name.len()) as u32, // '#' + base name
+                    token_type: PROPERTY,
+                });
             }
-            let column = special.column;
-            let name_len = special.as_str().len();
-            // indent spaces + "- [ ] " (6 chars) + 1-based column → 0-based char
-            let character = (indent + 5 + column) as u32;
-            let length = (1 + name_len) as u32; // '#' + name
-            raw.push(RawToken {
-                line,
-                character,
-                length,
-            });
+            Marker::Assignment(_) => {}
         }
     }
 }
@@ -119,7 +140,7 @@ fn encode_delta(sorted: Vec<RawToken>) -> Vec<SemanticToken> {
             delta_line,
             delta_start,
             length: t.length,
-            token_type: KEYWORD,
+            token_type: t.token_type,
             token_modifiers_bitset: 0,
         });
         prev_line = t.line;
@@ -211,12 +232,18 @@ mod tests {
     // ── #MILESTONE edge cases ────────────────────────────────────────────────
 
     #[test]
-    fn milestone_in_tasks_not_semantic_token() {
+    fn milestone_colon_form_in_task_is_property_not_keyword() {
+        // Inline `#MILESTONE: ...` on a task line is NOT the milestone keyword.
+        // The trailing colon prevents an exact special-keyword match, so the
+        // parser demotes it to a property named "MILESTONE" — highlighted as a
+        // `property`, never as a `keyword`.
         let items = p("\
 - [ ] task one #MILESTONE: Sprint 2
 ");
         let tokens = build_tokens(&items);
-        assert_eq!(tokens.len(), 0);
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_type, PROPERTY);
+        assert_eq!(tokens[0].length, 10); // "#MILESTONE"
     }
 
     #[test]
@@ -249,12 +276,18 @@ Something something
     }
 
     #[test]
-    fn mdagile_in_tasks_not_semantic_token() {
+    fn mdagile_colon_form_in_task_is_property_not_keyword() {
+        // Inline `#MDAGILE: ...` on a task line is NOT the mdagile keyword.
+        // The trailing colon prevents an exact special-keyword match, so the
+        // parser demotes it to a property named "MDAGILE" — highlighted as a
+        // `property`, never as a `keyword`.
         let items = p("\
 - [ ] task one #MDAGILE: Not highlighted here
 ");
         let tokens = build_tokens(&items);
-        assert_eq!(tokens.len(), 0);
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_type, PROPERTY);
+        assert_eq!(tokens[0].length, 8); // "#MDAGILE"
     }
 
     #[test]
@@ -312,9 +345,57 @@ Something something
     }
 
     #[test]
-    fn property_markers_do_not_emit_tokens() {
-        // #feature is a property, not a special marker
+    fn property_marker_emits_property_token() {
+        // #feature is a property, not a special marker.
+        // Full line: "- [ ] task #feature" → '#' at 0-based char 11.
         let items = p("- [ ] task #feature\n");
-        assert!(build_tokens(&items).is_empty());
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 1);
+        let t = &tokens[0];
+        assert_eq!(t.delta_line, 0);
+        assert_eq!(t.delta_start, 11);
+        assert_eq!(t.length, 8); // "#feature"
+        assert_eq!(t.token_type, PROPERTY);
+        assert_eq!(t.token_modifiers_bitset, 0);
+    }
+
+    #[test]
+    fn branch_pending_property_highlights_base_name_only() {
+        // "#review..." → base name "review"; suffix "..." is not highlighted.
+        // Full line: "- [ ] task #review..." → '#' at char 11, length 1+6 = 7.
+        let items = p("- [ ] task #review...\n");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].delta_start, 11);
+        assert_eq!(tokens[0].length, 7); // "#review"
+        assert_eq!(tokens[0].token_type, PROPERTY);
+    }
+
+    #[test]
+    fn branch_resolved_property_highlights_base_name_only() {
+        // "#review:passed" → base name "review"; ":passed" is not highlighted.
+        let items = p("- [ ] task #review:passed\n");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].delta_start, 11);
+        assert_eq!(tokens[0].length, 7); // "#review"
+        assert_eq!(tokens[0].token_type, PROPERTY);
+    }
+
+    #[test]
+    fn property_and_special_marker_get_distinct_token_types() {
+        // Subtask "  - [ ] #OPT #feature": #OPT keyword, #feature property.
+        let items = p("\
+- [ ] parent
+  - [ ] #OPT #feature
+");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 2);
+        // #OPT at indent=2: char = 2 + 5 + 1 = 8
+        assert_eq!(tokens[0].delta_start, 8);
+        assert_eq!(tokens[0].token_type, KEYWORD);
+        // #feature follows "#OPT " in title → col 6, char = 2 + 5 + 6 = 13
+        assert_eq!(tokens[1].delta_start, 13 - 8);
+        assert_eq!(tokens[1].token_type, PROPERTY);
     }
 }
