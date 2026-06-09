@@ -482,3 +482,91 @@ fn parse_uppercase_x_sets_flag() {
     assert!(!t.parsing_issues.contains(&ParsingIssue::InvalidBox));
     assert_eq!(t.title, "task title");
 }
+
+#[test]
+fn markers_in_parens_are_detected() {
+    // (@bob) and (#myprop) should be parsed as assignment / property markers
+    let input = "\
+- [ ] some task (@bob) (#myprop)
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Assignment(a) if a.name == "bob")),
+        "expected @bob assignment, got {:?}",
+        t.markers
+    );
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Property(p) if p.name == "myprop")),
+        "expected #myprop property, got {:?}",
+        t.markers
+    );
+}
+
+#[test]
+fn marker_attached_to_preceding_word_is_detected() {
+    // asdf#marker — the '#' is not space-separated from the preceding word
+    let input = "\
+- [ ] asdf#myprop
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Property(p) if p.name == "myprop")),
+        "expected #myprop property, got {:?}",
+        t.markers
+    );
+}
+
+#[test]
+fn all_three_inline_markers_in_user_example() {
+    // The sample from the bug report: three markers not all space-separated
+    let input = "\
+- [ ] (@bob) (#someundefproperty) asdf#anotherundefprop
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Assignment(a) if a.name == "bob")),
+        "expected @bob, got {:?}",
+        t.markers
+    );
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Property(p) if p.name == "someundefproperty")),
+        "expected #someundefproperty, got {:?}",
+        t.markers
+    );
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Property(p) if p.name == "anotherundefprop")),
+        "expected #anotherundefprop, got {:?}",
+        t.markers
+    );
+}
+
+#[test]
+fn marker_preceded_by_quote_is_not_detected() {
+    // '#marker' and "@user" — the '#'/'@' is immediately after a quote char,
+    // so it is treated as prose, not a marker.
+    let input = "\
+- [ ] refer to '#feat' and \"@alice\" in prose
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers.is_empty(),
+        "expected no markers, got {:?}",
+        t.markers
+    );
+}

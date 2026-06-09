@@ -36,6 +36,8 @@ fn no_issues_when_no_properties_used() {
 
 #[test]
 fn no_issues_when_properties_quoted() {
+    // '#marker' in single quotes: the '#' is immediately preceded by a quote
+    // character, so it is treated as prose, not a marker.
     let input = "\
 - [ ] a plain task with no actual markers, but a quoted '#marker'
 ";

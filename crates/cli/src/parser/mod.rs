@@ -464,42 +464,95 @@ fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str) {
     }
 }
 
-// Splits whitespace-delimited tokens into markers (`#...`, `@...`) and plain
-// title words, then re-joins the plain words.
+// Scans the full title for `#` and `@` markers at any position (not just at
+// whitespace boundaries). Markers may be embedded inside tokens, e.g.
+// `(@bob)`, `(#feature)`, or `asdf#prop`. Everything that is not consumed
+// as a marker is collected back into the returned title string.
+//
+// Exception: `#`/`@` immediately preceded by a quote character (`'` or `"`)
+// is treated as descriptive text, not a marker (e.g. `"@alice"`, `'#feat'`).
 fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
-    let mut words = Vec::new();
-    let mut current_pos = 0; // track position in original title
+    let bytes = title.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    // Byte offset of the start of the next title fragment to keep.
+    let mut title_keep_from = 0;
+    // Fragments of the reconstructed plain title.
+    let mut title_frags: Vec<&str> = Vec::new();
 
-    for token in title.split_whitespace() {
-        // Find the position of this token in the original string
-        let token_pos = match title[current_pos..].find(token) {
-            Some(rel_pos) => current_pos + rel_pos,
-            None => 0,
-        };
-        current_pos = token_pos + token.len();
-
-        // token_pos is 0-indexed; convert to 1-indexed column (like LSP but offset from task title start)
-        let col = token_pos + 1;
-
-        if let Some(after) = token.strip_prefix('#') {
-            if let Some(m) = parse_hash_token(after, col) {
-                markers.push(m);
+    while i < len {
+        let b = bytes[i];
+        if b == b'#' || b == b'@' {
+            // Skip when immediately preceded by a quote — treat as prose.
+            let preceded_by_quote = i > 0 && (bytes[i - 1] == b'\'' || bytes[i - 1] == b'"');
+            if preceded_by_quote {
+                i += 1;
                 continue;
             }
-        } else if let Some(name) = token.strip_prefix('@') {
-            let name = name.trim_end_matches(|c: char| ":;,.".contains(c));
-            if !name.is_empty() {
-                markers.push(Marker::Assignment(AssignmentRef {
-                    name: name.to_string(),
-                    column: col,
-                }));
-                continue;
+
+            // 1-based column of this `#`/`@` within the title string.
+            let col = i + 1;
+            let marker_byte = b;
+            let name_start = i + 1;
+
+            // Advance past the marker name: stop at whitespace or delimiter chars.
+            let mut j = name_start;
+            while j < len && !is_marker_stop_byte(bytes[j]) {
+                j += 1;
             }
+            let name = &title[name_start..j];
+
+            let recognized = if marker_byte == b'#' {
+                if let Some(m) = parse_hash_token(name, col) {
+                    markers.push(m);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                // '@'
+                let clean = name.trim_end_matches(|c: char| ":;,.".contains(c));
+                if !clean.is_empty() {
+                    markers.push(Marker::Assignment(AssignmentRef {
+                        name: clean.to_string(),
+                        column: col,
+                    }));
+                    true
+                } else {
+                    false
+                }
+            };
+
+            if recognized {
+                // Keep everything before this marker in the title.
+                title_frags.push(&title[title_keep_from..i]);
+                title_keep_from = j;
+            }
+            i = j;
+        } else {
+            i += 1;
         }
-        words.push(token);
     }
-    (markers, words.join(" "))
+
+    // Keep any trailing text after the last marker.
+    title_frags.push(&title[title_keep_from..]);
+
+    let raw = title_frags.concat();
+    let clean_title = raw.split_whitespace().collect::<Vec<_>>().join(" ");
+    (markers, clean_title)
+}
+
+fn is_marker_stop_byte(b: u8) -> bool {
+    b == b' '
+        || b == b'('
+        || b == b')'
+        || b == b'['
+        || b == b']'
+        || b == b'{'
+        || b == b'}'
+        || b == b'\''
+        || b == b'"'
 }
 
 fn parse_hash_token(name: &str, column: usize) -> Option<Marker> {

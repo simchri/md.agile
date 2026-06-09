@@ -212,10 +212,13 @@
     - [x] go to def in lsp
     - [x] Implement fuzzy matching to suggest close matches (typo detection)
     - [x] Test with common typos: '#Feature', '#feat', etc.
-  - [x] Detect undefined "@user" and "@group" assignments (@bob) 
+  - [ ] Detect undefined "@user" and "@group" assignments 
+    - [x] basic implementation
+    - [x] bug: (@bob) (#someundefproperty) asdf#anotherundefprop --> should be flagged
     - [ ] Suggest close matches for misspelled names
     - [ ] Handle OR connections: '@markus' or '@josh'
   - [ ] Update error formatter for new error codes
+  - [ ] GoTo for "@assignments"
 
 - [x] #feature syntax highlighting for #OPT
 - [x] #feature syntax highlighting for '#MILESTONES'
