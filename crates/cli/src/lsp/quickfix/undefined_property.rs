@@ -1,11 +1,13 @@
 use tower_lsp::lsp_types::*;
 
-/// E008 quickfix builder — may return up to two actions:
+/// E008 quickfix builder.
+///
+/// May return up to two actions:
 /// 1. When the typed name is within [`super::MAX_EDIT_DISTANCE`] edits of an
 ///    existing property: correct the spelling in the `.agile.md` document
 ///    (preferred; listed first).
-/// 2. Always: add the undefined property to `mdagile.toml` (deprioritised
-///    when a spelling correction is available).
+/// 2. Add the undefined property to `mdagile.toml` (deprioritised when a
+///    spelling correction is available).
 pub fn build(diagnostic: &Diagnostic, _doc_text: &str, uri: &Url) -> Vec<CodeAction> {
     let issue_data = match super::issue_data(diagnostic) {
         Some(d) => d,
@@ -16,129 +18,33 @@ pub fn build(diagnostic: &Diagnostic, _doc_text: &str, uri: &Url) -> Vec<CodeAct
         _ => return vec![],
     };
 
-    let mut actions = Vec::new();
-    let corrections = build_spelling_corrections(diagnostic, uri, &property_name);
+    let Some((toml_path, toml_content)) = super::read_toml(uri) else {
+        return vec![];
+    };
 
-    if let Some(mut add_action) = build_add_to_toml(diagnostic, &property_name, uri) {
-        if !corrections.is_empty() {
-            add_action.is_preferred = Some(false);
+    let corrections = super::build_spelling_corrections(
+        diagnostic,
+        uri,
+        &property_name,
+        &toml_content,
+        &["Properties"],
+        '#',
+    );
+    let have_corrections = !corrections.is_empty();
+    let mut actions: Vec<CodeAction> = corrections;
+
+    if let Some(mut add) = super::build_add_to_toml(
+        diagnostic,
+        &property_name,
+        &toml_path,
+        &toml_content,
+        "Properties",
+    ) {
+        if have_corrections {
+            add.is_preferred = Some(false);
         }
-        actions.extend(corrections);
-        actions.push(add_action);
-    } else {
-        actions.extend(corrections);
+        actions.push(add);
     }
 
     actions
-}
-
-fn build_add_to_toml(
-    diagnostic: &Diagnostic,
-    property_name: &str,
-    uri: &Url,
-) -> Option<CodeAction> {
-    let toml_path = super::find_toml_path(uri)?;
-    let current_content = std::fs::read_to_string(&toml_path).unwrap_or_default();
-
-    let new_content = if current_content.is_empty() {
-        format!("[Properties.{}]\n", property_name)
-    } else {
-        let mut content = current_content;
-        if !content.ends_with('\n') {
-            content.push('\n');
-        }
-        content.push_str(&format!("[Properties.{}]\n", property_name));
-        content
-    };
-
-    let toml_uri = Url::from_file_path(&toml_path).ok()?;
-    let edit = TextEdit {
-        range: Range {
-            start: Position {
-                line: 0,
-                character: 0,
-            },
-            end: Position {
-                line: u32::MAX,
-                character: u32::MAX,
-            },
-        },
-        new_text: new_content,
-    };
-
-    Some(super::make_quickfix(
-        format!("Add '[Properties.{}]' to mdagile.toml", property_name),
-        &toml_uri,
-        diagnostic,
-        edit,
-    ))
-}
-
-fn build_spelling_corrections(
-    diagnostic: &Diagnostic,
-    uri: &Url,
-    typed_name: &str,
-) -> Vec<CodeAction> {
-    let toml_path = match super::find_toml_path(uri) {
-        Some(p) => p,
-        None => return vec![],
-    };
-    let toml_content = match std::fs::read_to_string(&toml_path) {
-        Ok(s) => s,
-        Err(_) => return vec![],
-    };
-
-    let existing: Vec<String> = toml_content
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim();
-            let inner = line.strip_prefix("[Properties.")?;
-            let name = inner.strip_suffix(']')?;
-            if name.is_empty() {
-                None
-            } else {
-                Some(name.to_string())
-            }
-        })
-        .collect();
-
-    let hash_col = diagnostic.range.end.character;
-    let line = diagnostic.range.start.line;
-    let token_len = (1 + typed_name.len()) as u32; // '#' + name
-
-    existing
-        .into_iter()
-        .filter(|known| super::levenshtein(typed_name, known) <= super::MAX_EDIT_DISTANCE)
-        .map(|correct_name| {
-            let edit = TextEdit {
-                range: Range {
-                    start: Position {
-                        line,
-                        character: hash_col,
-                    },
-                    end: Position {
-                        line,
-                        character: hash_col + token_len,
-                    },
-                },
-                new_text: format!("#{}", correct_name),
-            };
-            super::make_quickfix(
-                format!("Fix typo: replace '#{typed_name}' with '#{correct_name}'"),
-                uri,
-                diagnostic,
-                edit,
-            )
-        })
-        .collect()
-}
-
-#[cfg(test)]
-mod levenshtein_tests {
-    #[test]
-    fn levenshtein_helpers_delegated_to_mod() {
-        // Verify the shared levenshtein function via the public interface.
-        assert_eq!(super::super::levenshtein("feature", "feature"), 0);
-        assert_eq!(super::super::levenshtein("feture", "feature"), 1);
-    }
 }

@@ -1,8 +1,9 @@
 use crate::rules::{ErrorCode, IssueData};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tower_lsp::lsp_types::{
-    CodeAction, CodeActionKind, Diagnostic, NumberOrString, TextEdit, Url, WorkspaceEdit,
+    CodeAction, CodeActionKind, Diagnostic, NumberOrString, Position, Range, TextEdit, Url,
+    WorkspaceEdit,
 };
 
 mod invalid_box;
@@ -103,7 +104,7 @@ fn issue_data(diagnostic: &Diagnostic) -> Option<IssueData> {
 
 /// Walk up from the directory of `uri` to find the nearest `mdagile.toml`
 /// or `.mdagile.toml`. Returns `None` if neither is found.
-pub(super) fn find_toml_path(uri: &Url) -> Option<PathBuf> {
+fn find_toml_path(uri: &Url) -> Option<PathBuf> {
     let file_path = uri.to_file_path().ok()?;
     let mut dir = file_path.parent()?;
     loop {
@@ -117,6 +118,18 @@ pub(super) fn find_toml_path(uri: &Url) -> Option<PathBuf> {
         }
         dir = dir.parent()?;
     }
+}
+
+/// Finds and reads the nearest `mdagile.toml`. Returns the resolved path and
+/// file contents, or `None` if no toml file is found or it cannot be read.
+///
+/// Callers that need both spelling corrections and add-to-toml actions should
+/// call this once and pass the results to [`build_spelling_corrections`] and
+/// [`build_add_to_toml`], avoiding multiple I/O round-trips.
+pub(super) fn read_toml(uri: &Url) -> Option<(PathBuf, String)> {
+    let path = find_toml_path(uri)?;
+    let content = std::fs::read_to_string(&path).ok()?;
+    Some((path, content))
 }
 
 pub(super) const MAX_EDIT_DISTANCE: usize = 2;
@@ -151,6 +164,116 @@ pub(super) fn levenshtein(a: &str, b: &str) -> usize {
         }
     }
     dp[m][n]
+}
+
+/// Collects names declared under any of `sections` in `toml_content`.
+///
+/// E.g. `sections = &["Properties"]` matches `[Properties.feature]` → `"feature"`.
+fn extract_toml_names(toml_content: &str, sections: &[&str]) -> Vec<String> {
+    toml_content
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            sections.iter().find_map(|section| {
+                let prefix = format!("[{}.", section);
+                let inner = line.strip_prefix(&prefix)?;
+                let name = inner.strip_suffix(']')?;
+                if name.is_empty() {
+                    None
+                } else {
+                    Some(name.to_string())
+                }
+            })
+        })
+        .collect()
+}
+
+/// Builds "Fix typo" quickfixes for `typed_name` against all names declared
+/// under any of `sections` in `toml_content`.
+///
+/// `sigil` is `'#'` for properties or `'@'` for assignments. The column of the
+/// sigil in the document is read from `diagnostic.range.end.character`.
+pub(super) fn build_spelling_corrections(
+    diagnostic: &Diagnostic,
+    uri: &Url,
+    typed_name: &str,
+    toml_content: &str,
+    sections: &[&str],
+    sigil: char,
+) -> Vec<CodeAction> {
+    let existing = extract_toml_names(toml_content, sections);
+    let marker_col = diagnostic.range.end.character;
+    let line = diagnostic.range.start.line;
+    let token_len = (1 + typed_name.len()) as u32; // sigil + name
+
+    existing
+        .into_iter()
+        .filter(|known| levenshtein(typed_name, known) <= MAX_EDIT_DISTANCE)
+        .map(|correct_name| {
+            let edit = TextEdit {
+                range: Range {
+                    start: Position {
+                        line,
+                        character: marker_col,
+                    },
+                    end: Position {
+                        line,
+                        character: marker_col + token_len,
+                    },
+                },
+                new_text: format!("{}{}", sigil, correct_name),
+            };
+            make_quickfix(
+                format!("Fix typo: replace '{sigil}{typed_name}' with '{sigil}{correct_name}'"),
+                uri,
+                diagnostic,
+                edit,
+            )
+        })
+        .collect()
+}
+
+/// Builds an "Add '[section.name]' to mdagile.toml" quickfix by appending a
+/// new TOML section header to the file, preserving existing content.
+pub(super) fn build_add_to_toml(
+    diagnostic: &Diagnostic,
+    name: &str,
+    toml_path: &Path,
+    toml_content: &str,
+    section: &str,
+) -> Option<CodeAction> {
+    let new_content = if toml_content.is_empty() {
+        format!("[{}.{}]\n", section, name)
+    } else {
+        let mut content = toml_content.to_string();
+        if !content.ends_with('\n') {
+            content.push('\n');
+        }
+        content.push_str(&format!("[{}.{}]\n", section, name));
+        content
+    };
+
+    let toml_uri = Url::from_file_path(toml_path).ok()?;
+    let edit = TextEdit {
+        range: Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: u32::MAX,
+                character: u32::MAX,
+            },
+        },
+        new_text: new_content,
+    };
+
+    Some(make_quickfix(
+        format!("Add '[{}.{}]' to mdagile.toml", section, name),
+        &toml_uri,
+        diagnostic,
+        edit,
+    ))
 }
 
 #[cfg(test)]

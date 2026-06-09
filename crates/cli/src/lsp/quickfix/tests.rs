@@ -851,3 +851,31 @@ fn build_quickfixes_e009_no_correction_when_no_close_match() {
     assert_eq!(actions.len(), 2);
     assert!(actions.iter().all(|a| a.title.contains("Add")));
 }
+
+// --- levenshtein unit tests (function lives in mod.rs) ---
+
+#[test]
+fn levenshtein_identical_strings() {
+    assert_eq!(super::levenshtein("feature", "feature"), 0);
+}
+
+#[test]
+fn levenshtein_single_deletion() {
+    assert_eq!(super::levenshtein("feture", "feature"), 1);
+}
+
+#[test]
+fn levenshtein_single_substitution() {
+    assert_eq!(super::levenshtein("feaxure", "feature"), 1);
+}
+
+#[test]
+fn levenshtein_single_insertion() {
+    assert_eq!(super::levenshtein("features", "feature"), 1);
+}
+
+#[test]
+fn levenshtein_far_apart_strings() {
+    // Length diff alone exceeds MAX_EDIT_DISTANCE -> capped at MAX+1
+    assert!(super::levenshtein("xyz", "completelydifferent") > super::MAX_EDIT_DISTANCE);
+}
