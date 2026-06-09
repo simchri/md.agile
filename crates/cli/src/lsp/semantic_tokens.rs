@@ -29,6 +29,9 @@ const KEYWORD: u32 = 0;
 const PROPERTY: u32 = 1;
 const PARAMETER: u32 = 2;
 
+/// Length of the `#MILESTONE` token (sigil + keyword name).
+const MILESTONE_TOKEN_LEN: u32 = "#MILESTONE".len() as u32;
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /// Build the semantic token list for a parsed document.
@@ -50,7 +53,7 @@ pub fn build_tokens(items: &[FileItem]) -> Vec<SemanticToken> {
                 raw.push(RawToken {
                     line: (m.line - 1) as u32,
                     character: 0,
-                    length: "#MILESTONE".len() as u32,
+                    length: MILESTONE_TOKEN_LEN,
                     token_type: KEYWORD,
                 });
             }
@@ -157,6 +160,19 @@ mod tests {
 
     fn p(input: &str) -> Vec<FileItem> {
         parse(input, PathBuf::from("test.agile.md"))
+    }
+
+    /// Guard that TOKEN_TYPES order matches the KEYWORD/PROPERTY/PARAMETER
+    /// index constants. If these ever drift apart, all highlighting breaks
+    /// silently — this test catches it immediately.
+    #[test]
+    fn token_type_indices_match_legend() {
+        assert_eq!(TOKEN_TYPES[KEYWORD as usize], SemanticTokenType::KEYWORD);
+        assert_eq!(TOKEN_TYPES[PROPERTY as usize], SemanticTokenType::PROPERTY);
+        assert_eq!(
+            TOKEN_TYPES[PARAMETER as usize],
+            SemanticTokenType::PARAMETER
+        );
     }
 
     // ── #OPT on a subtask ─────────────────────────────────────────────────────
@@ -301,11 +317,11 @@ Something something
 
     #[test]
     fn two_markers_on_same_line_have_correct_deltas() {
-        // Subtask: "  - [ ] #OPT thing #MDAGILE"
-        // title: "#OPT thing #MDAGILE"
-        // #OPT at col 1, char = 2+5+1 = 8, len 4
-        // #MDAGILE: "#OPT thing #MDAGILE" — #MDAGILE starts at pos 11 → col 12
-        // char for #MDAGILE = 2 + 5 + 12 = 19
+        // Subtask: "  - [ ] #OPT thing #OPT"
+        // title: "#OPT thing #OPT"
+        // First #OPT at col 1, char = 2+5+1 = 8, len 4
+        // Second #OPT: "thing #OPT" — #OPT starts at title pos 11 → col 12
+        // char for second #OPT = 2 + 5 + 12 = 19
         let items = p("\
 - [ ] parent
   - [ ] #OPT thing #OPT
