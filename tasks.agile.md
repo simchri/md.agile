@@ -212,7 +212,7 @@
     - [x] go to def in lsp
     - [x] Implement fuzzy matching to suggest close matches (typo detection)
     - [x] Test with common typos: '#Feature', '#feat', etc.
-  - [ ] Detect undefined @user and @group assignments
+  - [x] Detect undefined "@user" and "@group" assignments (@bob) 
     - [ ] Suggest close matches for misspelled names
     - [ ] Handle OR connections: '@markus' or '@josh'
   - [ ] Update error formatter for new error codes

@@ -37,6 +37,42 @@ subtasks = [\"dev implementation\", \"test\"]
 }
 
 #[test]
+fn single_user_is_parsed() {
+    let config = Config::from_str("[Users.alice]\n").unwrap();
+    assert_eq!(config.users.len(), 1);
+    assert!(config.users.contains_key("alice"));
+}
+
+#[test]
+fn single_group_is_parsed() {
+    let config = Config::from_str("[Groups.devs]\n").unwrap();
+    assert_eq!(config.groups.len(), 1);
+    assert!(config.groups.contains_key("devs"));
+}
+
+#[test]
+fn users_and_groups_and_properties_parsed_together() {
+    let input = "\
+[Properties.feature]
+
+[Users.alice]
+
+[Groups.devs]
+";
+    let config = Config::from_str(input).unwrap();
+    assert!(config.properties.contains_key("feature"));
+    assert!(config.users.contains_key("alice"));
+    assert!(config.groups.contains_key("devs"));
+}
+
+#[test]
+fn empty_toml_gives_empty_users_and_groups() {
+    let config = Config::from_str("").unwrap();
+    assert!(config.users.is_empty());
+    assert!(config.groups.is_empty());
+}
+
+#[test]
 fn invalid_toml_returns_error() {
     let result = Config::from_str("[Properties.feature\n");
     assert!(result.is_err());

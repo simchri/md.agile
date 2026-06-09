@@ -12,6 +12,7 @@ mod incomplete_parent;
 mod invalid_box;
 mod missing_space_after_box;
 mod orphaned_subtask;
+mod undefined_assignment;
 mod undefined_property;
 mod uppercase_x;
 mod wrong_body_indent;
@@ -21,6 +22,7 @@ pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
 pub use missing_space_after_box::missing_space_after_box;
 pub use orphaned_subtask::orphaned_subtask;
+pub use undefined_assignment::undefined_assignment;
 pub use undefined_property::undefined_property;
 pub use uppercase_x::uppercase_x;
 pub use wrong_body_indent::wrong_body_indent;
@@ -45,6 +47,8 @@ pub enum ErrorCode {
     UppercaseX,
     /// E008: Property marker not declared in mdagile.toml
     UndefinedProperty,
+    /// E009: Assignment marker not declared in mdagile.toml
+    UndefinedAssignment,
 }
 
 impl ErrorCode {
@@ -60,6 +64,7 @@ impl ErrorCode {
             ErrorCode::BoxStyleInvalid => "E006",
             ErrorCode::UppercaseX => "E007",
             ErrorCode::UndefinedProperty => "E008",
+            ErrorCode::UndefinedAssignment => "E009",
         }
     }
 }
@@ -83,6 +88,7 @@ impl std::str::FromStr for ErrorCode {
             "E006" => ErrorCode::BoxStyleInvalid,
             "E007" => ErrorCode::UppercaseX,
             "E008" => ErrorCode::UndefinedProperty,
+            "E009" => ErrorCode::UndefinedAssignment,
             _ => return Err(()),
         })
     }
@@ -110,6 +116,8 @@ pub enum IssueData {
     MissingSpaceAfterBox,
     /// Payload for E008 "Undefined Property": the property name that is undefined.
     UndefinedProperty { property_name: String },
+    /// Payload for E009 "Undefined Assignment": the assignment name that is undefined.
+    UndefinedAssignment { assignment_name: String },
 }
 
 /// A single problem found by a rule.
@@ -141,6 +149,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(invalid_box(items));
     issues.extend(uppercase_x(items));
     issues.extend(undefined_property(items, config));
+    issues.extend(undefined_assignment(items, config));
     issues
 }
 

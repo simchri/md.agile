@@ -21,6 +21,7 @@ fn config_with(names: &[&str]) -> Config {
                 )
             })
             .collect(),
+        ..Config::default()
     }
 }
 
@@ -75,6 +76,7 @@ fn flags_undefined_property_on_task() {
         &p(input),
         &Config {
             properties: HashMap::new(),
+            ..Config::default()
         },
     );
     assert_eq!(issues.len(), 1);

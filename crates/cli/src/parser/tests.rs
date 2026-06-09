@@ -81,7 +81,10 @@ fn can_construct_task_with_all_node_kinds() {
                 kind: SubtaskKind::Custom,
                 title: "implement".to_string(),
                 body: vec![],
-                markers: vec![Marker::Assignment("markus".to_string())],
+                markers: vec![Marker::Assignment(AssignmentRef {
+                    name: "markus".to_string(),
+                    column: 11,
+                })],
                 children: vec![],
                 parsing_issues: vec![],
             },
@@ -258,7 +261,13 @@ fn parse_assignment_marker_in_title() {
     let items = p(input);
     let t = task(&items, 0);
     assert_eq!(t.title, "implement");
-    assert_eq!(t.markers, vec![Marker::Assignment("markus".to_string())]);
+    assert_eq!(
+        t.markers,
+        vec![Marker::Assignment(AssignmentRef {
+            name: "markus".to_string(),
+            column: 11,
+        })]
+    );
 }
 
 #[test]

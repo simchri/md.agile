@@ -4,10 +4,22 @@ use std::path::Path;
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Config {
     pub properties: HashMap<String, PropertyConfig>,
+    pub users: HashMap<String, UserConfig>,
+    pub groups: HashMap<String, GroupConfig>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyConfig {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UserConfig {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupConfig {
     pub name: String,
 }
 
@@ -51,6 +63,10 @@ impl From<toml::de::Error> for ConfigError {
 struct RawConfig {
     #[serde(rename = "Properties", default)]
     properties: HashMap<String, toml::Value>,
+    #[serde(rename = "Users", default)]
+    users: HashMap<String, toml::Value>,
+    #[serde(rename = "Groups", default)]
+    groups: HashMap<String, toml::Value>,
 }
 
 impl Config {
@@ -61,7 +77,21 @@ impl Config {
             .into_keys()
             .map(|name| (name.clone(), PropertyConfig { name }))
             .collect();
-        Ok(Config { properties })
+        let users = raw
+            .users
+            .into_keys()
+            .map(|name| (name.clone(), UserConfig { name }))
+            .collect();
+        let groups = raw
+            .groups
+            .into_keys()
+            .map(|name| (name.clone(), GroupConfig { name }))
+            .collect();
+        Ok(Config {
+            properties,
+            users,
+            groups,
+        })
     }
 
     pub fn load(root: &Path) -> Result<Self, ConfigError> {

@@ -25,9 +25,15 @@ pub enum Status {
 // A single enum covers all marker kinds (#word and @word) so the checker can
 // walk task.markers in one pass regardless of which kind it's looking for.
 #[derive(Debug, Clone, PartialEq)]
+pub struct AssignmentRef {
+    pub name: String,
+    pub column: usize, // 1-based column position of the '@' in the source line
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Marker {
     Property(PropertyRef),
-    Assignment(String), // the @name token; validated against mdagile.toml at check time
+    Assignment(AssignmentRef),
     Special(SpecialMarker),
 }
 
@@ -484,7 +490,10 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
         } else if let Some(name) = token.strip_prefix('@') {
             let name = name.trim_end_matches(|c: char| ":;,.".contains(c));
             if !name.is_empty() {
-                markers.push(Marker::Assignment(name.to_string()));
+                markers.push(Marker::Assignment(AssignmentRef {
+                    name: name.to_string(),
+                    column: col,
+                }));
                 continue;
             }
         }

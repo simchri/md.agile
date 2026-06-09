@@ -2,3 +2,7 @@
 [Properties.bug]
 [Properties.foo]
 [Properties.feat]
+
+[Users.alice]
+
+[Group.devs]
