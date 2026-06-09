@@ -95,8 +95,33 @@ impl std::str::FromStr for ErrorCode {
 }
 
 use crate::config::Config;
-use crate::parser::{FileItem, Location};
+use crate::parser::{FileItem, Location, Marker, Subtask};
 use serde::{Deserialize, Serialize};
+
+/// Walks every task and subtask in `items`, calling `f` with the markers,
+/// location, and indent of each node. Eliminates the boilerplate tree-walk
+/// duplicated across rules.
+pub fn for_each_node<F>(items: &[FileItem], mut f: F)
+where
+    F: FnMut(&[Marker], &Location, usize),
+{
+    for item in items {
+        if let FileItem::Task(task) = item {
+            f(&task.markers, &task.location, task.indent);
+            walk_subtask_nodes(&task.children, &mut f);
+        }
+    }
+}
+
+fn walk_subtask_nodes<F>(subtasks: &[Subtask], f: &mut F)
+where
+    F: FnMut(&[Marker], &Location, usize),
+{
+    for sub in subtasks {
+        f(&sub.markers, &sub.location, sub.indent);
+        walk_subtask_nodes(&sub.children, f);
+    }
+}
 
 /// Machine-readable, rule-specific payload attached to an [`Issue`].
 ///

@@ -11,7 +11,7 @@
 //!   properties (`#review...`, `#review:passed`) only the base name is
 //!   highlighted.
 
-use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask};
+use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask, TASK_LINE_PREFIX_LEN};
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
 
 // ── Legend ────────────────────────────────────────────────────────────────────
@@ -91,8 +91,9 @@ fn collect_markers(
     raw: &mut Vec<RawToken>,
 ) {
     let line = (location_line - 1) as u32;
-    // indent spaces + "- [ ] " (6 chars) + 1-based column → 0-based char
-    let char_of = |column: usize| (indent + 5 + column) as u32;
+    // Convert 1-based title column to 0-based source-line character:
+    // indent + (TASK_LINE_PREFIX_LEN - 1) + column
+    let char_of = |column: usize| (indent + TASK_LINE_PREFIX_LEN - 1 + column) as u32;
     for marker in markers {
         match marker {
             Marker::Special(special) => {

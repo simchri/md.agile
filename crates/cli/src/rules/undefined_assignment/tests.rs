@@ -1,6 +1,6 @@
 use super::*;
 use crate::config::{Config, GroupConfig, UserConfig};
-use crate::parser::parse;
+use crate::parser::{FileItem, parse};
 use std::collections::HashMap;
 use std::path::PathBuf;
 

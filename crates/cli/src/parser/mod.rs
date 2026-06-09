@@ -27,7 +27,10 @@ pub enum Status {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssignmentRef {
     pub name: String,
-    pub column: usize, // 1-based column position of the '@' in the source line
+    /// 1-based column of the `@` within the task **title text** (the portion
+    /// after `"- [ ] "`). The full source-line column is
+    /// `indent + TASK_LINE_PREFIX_LEN + column`.
+    pub column: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,8 +44,15 @@ pub enum Marker {
 pub struct PropertyRef {
     pub name: String,
     pub form: PropertyForm,
-    pub column: usize, // 1-based column position of the '#' in the source line
+    /// 1-based column of the `#` within the task **title text** (the portion
+    /// after `"- [ ] "`). The full source-line column is
+    /// `indent + TASK_LINE_PREFIX_LEN + column`.
+    pub column: usize,
 }
+
+/// Length of the `"- [ ] "` prefix on every task/subtask line.
+/// Used by rules to convert a title-relative column to a source-line column.
+pub const TASK_LINE_PREFIX_LEN: usize = 6;
 
 // PropertyForm carries the variant state so the checker can enforce rules
 // directly: e.g. BranchPending && status == Done is always an error.
@@ -469,8 +479,13 @@ fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str) {
 // `(@bob)`, `(#feature)`, or `asdf#prop`. Everything that is not consumed
 // as a marker is collected back into the returned title string.
 //
-// Exception: `#`/`@` immediately preceded by a quote character (`'` or `"`)
-// is treated as descriptive text, not a marker (e.g. `"@alice"`, `'#feat'`).
+// Quote policy — two cooperating mechanisms implement one rule:
+//   1. `'` and `"` are stop bytes for name scanning, so a trailing quote is
+//      never absorbed into a marker name (e.g. `feat'` → name is `feat`).
+//   2. A `#`/`@` that is *immediately preceded* by `'` or `"` is skipped
+//      entirely (not recognised as a marker start).
+// Together these ensure that `'#feat'` and `"@alice"` are prose, while
+// `(#feat)` and `asdf#feat` are markers.
 fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
     let bytes = title.as_bytes();
