@@ -215,7 +215,7 @@
   - [ ] Detect undefined "@user" and "@group" assignments 
     - [x] basic implementation
     - [x] bug: ("@bob") ("#someundefproperty") asdf"#anotherundefprop" -> Done
-    - [ ] Suggest close matches for misspelled names
+    - [x] Suggest close matches for misspelled names
     - [ ] Handle OR connections: '@markus' or '@josh'
   - [ ] Update error formatter for new error codes
   - [ ] GoTo for "@assignments"

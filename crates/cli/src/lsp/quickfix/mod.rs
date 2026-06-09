@@ -1,11 +1,13 @@
 use crate::rules::{ErrorCode, IssueData};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, Diagnostic, NumberOrString, TextEdit, Url, WorkspaceEdit,
 };
 
 mod invalid_box;
 mod missing_space_after_box;
+mod undefined_assignment;
 mod undefined_property;
 mod uppercase_x;
 mod wrong_body_indent;
@@ -28,6 +30,7 @@ const REGISTRY: &[(ErrorCode, Builder)] = &[
     (ErrorCode::BoxStyleInvalid, invalid_box::build),
     (ErrorCode::UppercaseX, uppercase_x::build),
     (ErrorCode::UndefinedProperty, undefined_property::build),
+    (ErrorCode::UndefinedAssignment, undefined_assignment::build),
     // E001 OrphanedSubtask, E004 IncompleteParent:
     // no quickfix (user has to make a structural decision the linter can't).
 ];
@@ -96,6 +99,58 @@ fn make_quickfix(
 /// match any [`IssueData`] variant.
 fn issue_data(diagnostic: &Diagnostic) -> Option<IssueData> {
     serde_json::from_value(diagnostic.data.as_ref()?.clone()).ok()
+}
+
+/// Walk up from the directory of `uri` to find the nearest `mdagile.toml`
+/// or `.mdagile.toml`. Returns `None` if neither is found.
+pub(super) fn find_toml_path(uri: &Url) -> Option<PathBuf> {
+    let file_path = uri.to_file_path().ok()?;
+    let mut dir = file_path.parent()?;
+    loop {
+        let plain = dir.join("mdagile.toml");
+        let dot = dir.join(".mdagile.toml");
+        if plain.exists() {
+            return Some(plain);
+        }
+        if dot.exists() {
+            return Some(dot);
+        }
+        dir = dir.parent()?;
+    }
+}
+
+pub(super) const MAX_EDIT_DISTANCE: usize = 2;
+
+/// Levenshtein edit distance between `a` and `b`.
+/// Returns `MAX_EDIT_DISTANCE + 1` early when the length difference already
+/// exceeds the threshold (avoids allocating the full DP table).
+pub(super) fn levenshtein(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let m = a.len();
+    let n = b.len();
+
+    if m.abs_diff(n) > MAX_EDIT_DISTANCE {
+        return MAX_EDIT_DISTANCE + 1;
+    }
+
+    let mut dp = vec![vec![0usize; n + 1]; m + 1];
+    for i in 0..=m {
+        dp[i][0] = i;
+    }
+    for j in 0..=n {
+        dp[0][j] = j;
+    }
+    for i in 1..=m {
+        for j in 1..=n {
+            dp[i][j] = if a[i - 1] == b[j - 1] {
+                dp[i - 1][j - 1]
+            } else {
+                1 + dp[i - 1][j - 1].min(dp[i - 1][j]).min(dp[i][j - 1])
+            };
+        }
+    }
+    dp[m][n]
 }
 
 #[cfg(test)]
