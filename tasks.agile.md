@@ -214,7 +214,7 @@
     - [x] Test with common typos: '#Feature', '#feat', etc.
   - [ ] Detect undefined "@user" and "@group" assignments 
     - [x] basic implementation
-    - [x] bug: (@bob) (#someundefproperty) asdf#anotherundefprop --> should be flagged
+    - [x] bug: ("@bob") ("#someundefproperty") asdf"#anotherundefprop" -> Done
     - [ ] Suggest close matches for misspelled names
     - [ ] Handle OR connections: '@markus' or '@josh'
   - [ ] Update error formatter for new error codes
