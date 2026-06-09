@@ -217,7 +217,11 @@
     - [x] bug: ("@bob") ("#someundefproperty") asdf"#anotherundefprop" -> Done
     - [x] Suggest close matches for misspelled names 
   - [-] Update error formatter for new error codes
-  - [x] GoTo for "@assignments"
+  - [ ] GoTo for "@assignments"
+    - [ ] basic implementation
+    - [ ] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. "some#feature" -- the used assumption is that there will always be whitespace is wrong 
+      - [ ] fix
+      - [ ] refactor: The detection logic of markers and properties in files should be centralized to avoid bugs like above
 
 - [x] #feature syntax highlighting for #OPT
 - [x] #feature syntax highlighting for '#MILESTONES'
@@ -228,7 +232,7 @@
   - [x] #MDAGILE double check #MDAGILE special marker handling - should this be highlighted as keyword here?
     No! config keys still to be implemented - re-visit later. N.B. MDAGILE tag currently never highlighted, but that's ok since keys are not implemented anyways
 
-- [x] #feature: syntax highlighting for assignments: @alice
+- [x] #feature: syntax highlighting for assignments: asdf@alice
 
 - [x] syntax highlighting for '#properties' 
 
