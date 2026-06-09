@@ -1,6 +1,6 @@
 //! LSP Semantic Tokens for `.agile.md` files.
 //!
-//! Highlights two kinds of markers:
+//! Highlights three kinds of markers:
 //!
 //! - Built-in special markers as `keyword` tokens:
 //!   - `#OPT` appears as a marker on task/subtask lines.
@@ -10,6 +10,7 @@
 //! - User-defined `#property` markers as `property` tokens. For branch-form
 //!   properties (`#review...`, `#review:passed`) only the base name is
 //!   highlighted.
+//! - `@user`/`@group` assignment markers as `parameter` tokens.
 
 use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask, TASK_LINE_PREFIX_LEN};
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
@@ -19,12 +20,14 @@ use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
 /// Token type legend to advertise in `initialize`.
 /// Index positions correspond to `SemanticToken.token_type` values.
 pub const TOKEN_TYPES: &[SemanticTokenType] = &[
-    SemanticTokenType::KEYWORD,  // 0 — #OPT / #MILESTONE / #MDAGILE
-    SemanticTokenType::PROPERTY, // 1 — user-defined #property markers
+    SemanticTokenType::KEYWORD,   // 0 — #OPT / #MILESTONE / #MDAGILE
+    SemanticTokenType::PROPERTY,  // 1 — user-defined #property markers
+    SemanticTokenType::PARAMETER, // 2 — @user/@group assignment markers
 ];
 
 const KEYWORD: u32 = 0;
 const PROPERTY: u32 = 1;
+const PARAMETER: u32 = 2;
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -77,13 +80,13 @@ fn collect_subtasks(subtasks: &[Subtask], raw: &mut Vec<RawToken>) {
 /// Collect semantic tokens for all markers on a single task/subtask line.
 ///
 /// `location_line` is 1-based; `indent` is the number of leading spaces.
-/// Each marker stores the 1-based column of `#` within the title text (after
-/// the `"  - [ ] "` prefix). The 0-based character in the full source line is
-/// therefore `indent + 5 + column`.
+/// Each marker stores the 1-based column of `#`/`@` within the title text
+/// (after the `"  - [ ] "` prefix). The 0-based character in the full source
+/// line is therefore `indent + (TASK_LINE_PREFIX_LEN - 1) + column`.
 ///
-/// Special markers are highlighted as `keyword`; user-defined properties as
-/// `property`. For branch-form properties (`#review...`, `#review:passed`)
-/// only the base name (`#review`) is highlighted, not the suffix.
+/// Each marker is mapped to `(column, name, token_type)` and pushed once;
+/// for branch-form properties (`#review...`, `#review:passed`) only the base
+/// name is highlighted, not the suffix.
 fn collect_markers(
     markers: &[Marker],
     location_line: usize,
@@ -95,7 +98,7 @@ fn collect_markers(
     // indent + (TASK_LINE_PREFIX_LEN - 1) + column
     let char_of = |column: usize| (indent + TASK_LINE_PREFIX_LEN - 1 + column) as u32;
     for marker in markers {
-        match marker {
+        let (column, name, token_type): (usize, &str, u32) = match marker {
             Marker::Special(special) => {
                 if matches!(
                     special.kind,
@@ -103,23 +106,17 @@ fn collect_markers(
                 ) {
                     continue;
                 }
-                raw.push(RawToken {
-                    line,
-                    character: char_of(special.column),
-                    length: (1 + special.as_str().len()) as u32, // '#' + name
-                    token_type: KEYWORD,
-                });
+                (special.column, special.as_str(), KEYWORD)
             }
-            Marker::Property(prop) => {
-                raw.push(RawToken {
-                    line,
-                    character: char_of(prop.column),
-                    length: (1 + prop.name.len()) as u32, // '#' + base name
-                    token_type: PROPERTY,
-                });
-            }
-            Marker::Assignment(_) => {}
-        }
+            Marker::Property(prop) => (prop.column, prop.name.as_str(), PROPERTY),
+            Marker::Assignment(a) => (a.column, a.name.as_str(), PARAMETER),
+        };
+        raw.push(RawToken {
+            line,
+            character: char_of(column),
+            length: (1 + name.len()) as u32, // sigil ('#' or '@') + name
+            token_type,
+        });
     }
 }
 
@@ -398,5 +395,50 @@ Something something
         // #feature follows "#OPT " in title → col 6, char = 2 + 5 + 6 = 13
         assert_eq!(tokens[1].delta_start, 13 - 8);
         assert_eq!(tokens[1].token_type, PROPERTY);
+    }
+
+    #[test]
+    fn assignment_marker_emits_parameter_token() {
+        // "- [ ] task @alice" → '@' at 0-based char 11 (indent=0, col=6 in title)
+        // length = 1 + 5 = 6 ("@alice")
+        let items = p("- [ ] task @alice\n");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 1);
+        let t = &tokens[0];
+        assert_eq!(t.delta_line, 0);
+        assert_eq!(t.delta_start, 11);
+        assert_eq!(t.length, 6); // "@alice"
+        assert_eq!(t.token_type, PARAMETER);
+        assert_eq!(t.token_modifiers_bitset, 0);
+    }
+
+    #[test]
+    fn assignment_on_indented_subtask() {
+        // "  - [ ] task @bob" → indent=2, '@' at 0-based char 13
+        let items = p("\
+- [ ] parent
+  - [ ] task @bob
+");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 1);
+        let t = &tokens[0];
+        assert_eq!(t.delta_line, 1);
+        assert_eq!(t.delta_start, 13); // 2 + 5 + 6 = 13
+        assert_eq!(t.length, 4); // "@bob"
+        assert_eq!(t.token_type, PARAMETER);
+    }
+
+    #[test]
+    fn assignment_and_property_get_distinct_token_types() {
+        // "- [ ] task #feature @alice"
+        // #feature at title col 6, char = 11; token_type PROPERTY
+        // @alice at title col 15, char = 20; token_type PARAMETER
+        let items = p("- [ ] task #feature @alice\n");
+        let tokens = build_tokens(&items);
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].delta_start, 11);
+        assert_eq!(tokens[0].token_type, PROPERTY);
+        assert_eq!(tokens[1].delta_start, 20 - 11); // delta from prev token
+        assert_eq!(tokens[1].token_type, PARAMETER);
     }
 }

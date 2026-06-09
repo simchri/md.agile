@@ -212,11 +212,10 @@
     - [x] go to def in lsp
     - [x] Implement fuzzy matching to suggest close matches (typo detection)
     - [x] Test with common typos: '#Feature', '#feat', etc.
-  - [ ] Detect undefined "@user" and "@group" assignments 
+  - [x] Detect undefined "@user" and "@group" assignments 
     - [x] basic implementation
     - [x] bug: ("@bob") ("#someundefproperty") asdf"#anotherundefprop" -> Done
-    - [x] Suggest close matches for misspelled names
-    - [ ] Handle OR connections: '@markus' or '@josh'
+    - [x] Suggest close matches for misspelled names 
   - [ ] Update error formatter for new error codes
   - [ ] GoTo for "@assignments"
 
@@ -228,6 +227,8 @@
     - [x] #MILESTONE not a highlighted as keyword here 
   - [x] #MDAGILE double check #MDAGILE special marker handling - should this be highlighted as keyword here?
     No! config keys still to be implemented - re-visit later. N.B. MDAGILE tag currently never highlighted, but that's ok since keys are not implemented anyways
+
+- [x] #feature: syntax highlighting for assignments: @alice
 
 - [x] syntax highlighting for '#properties' 
 
