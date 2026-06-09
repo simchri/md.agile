@@ -208,7 +208,7 @@
       - [x] language server
         - [x] quickfix to add a respective toml entry 
         - [x] dynamically update the diagnostics, after e.g. quickfix was applied
-  - [ ] "go to definition" to toml entry
+  - [x] "go to definition" to toml entry
     - [x] go to def in lsp
     - [x] Implement fuzzy matching to suggest close matches (typo detection)
     - [x] Test with common typos: '#Feature', '#feat', etc.
