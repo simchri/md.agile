@@ -4,17 +4,16 @@
 /// without spinning up the full LSP server.
 use crate::parser::SpecialMarker;
 
-/// Given the full text of an open `.agile.md` document and a cursor
-/// position, return the canonical property name that the cursor sits on,
-/// or `None` if the cursor is not on a `#property` token.
+// ── Shared cursor helper ──────────────────────────────────────────────────────
+
+/// Scan the source line at `line` and return the bare name of the marker
+/// token under the cursor, or `None`.
 ///
-/// Name normalisation mirrors `parse_hash_token` exactly:
-/// - `#review...`   → `"review"` (BranchPending: strip `...` suffix)
-/// - `#review:done` → `"review"` (BranchResolved: keep the part before `:`)
-/// - `#feat:`       → `"feat"`   (trailing `:;,.` stripped)
-/// - `#feat`        → `"feat"`   (Full form, no change)
-/// - `#OPT` / `#MILESTONE` / `#MDAGILE` → `None` (special markers)
-pub fn property_name_at_position(text: &str, line: u32, character: u32) -> Option<String> {
+/// A marker token is any run of non-whitespace characters that starts with
+/// `sigil` (`'#'` for properties, `'@'` for assignments). The returned string
+/// is everything **after** the sigil; the caller is responsible for any
+/// further normalisation (e.g. stripping branch suffixes for properties).
+fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) -> Option<String> {
     let line_text = text.lines().nth(line as usize)?;
     let chars: Vec<char> = line_text.chars().collect();
     let char_idx = character as usize;
@@ -29,8 +28,8 @@ pub fn property_name_at_position(text: &str, line: u32, character: u32) -> Optio
         start -= 1;
     }
 
-    // The token must begin with '#'.
-    if chars.get(start) != Some(&'#') {
+    // The token must begin with the expected sigil.
+    if chars.get(start) != Some(&sigil) {
         return None;
     }
 
@@ -45,8 +44,25 @@ pub fn property_name_at_position(text: &str, line: u32, character: u32) -> Optio
         return None;
     }
 
-    // Everything after the leading '#'.
+    // Everything after the leading sigil.
     let raw: String = chars[start + 1..end].iter().collect();
+    if raw.is_empty() { None } else { Some(raw) }
+}
+
+// ── Properties ────────────────────────────────────────────────────────────────
+
+/// Given the full text of an open `.agile.md` document and a cursor
+/// position, return the canonical property name that the cursor sits on,
+/// or `None` if the cursor is not on a `#property` token.
+///
+/// Name normalisation mirrors `parse_hash_token` exactly:
+/// - `#review...`   → `"review"` (BranchPending: strip `...` suffix)
+/// - `#review:done` → `"review"` (BranchResolved: keep the part before `:`)
+/// - `#feat:`       → `"feat"`   (trailing `:;,.` stripped)
+/// - `#feat`        → `"feat"`   (Full form, no change)
+/// - `#OPT` / `#MILESTONE` / `#MDAGILE` → `None` (special markers)
+pub fn property_name_at_position(text: &str, line: u32, character: u32) -> Option<String> {
+    let raw = token_name_at_position(text, line, character, '#')?;
     normalize_property_name(&raw)
 }
 
@@ -128,6 +144,33 @@ pub fn find_property_line_in_config(config_text: &str, name: &str) -> Option<u32
         }
     }
 
+    None
+}
+
+// ── Assignments ───────────────────────────────────────────────────────────────
+
+/// Given the full text of an open `.agile.md` document and a cursor
+/// position, return the assignment name that the cursor sits on,
+/// or `None` if the cursor is not on an `@assignment` token.
+///
+/// Assignment names have no special forms — `@alice` → `"alice"`.
+pub fn assignment_name_at_position(text: &str, line: u32, character: u32) -> Option<String> {
+    token_name_at_position(text, line, character, '@')
+}
+
+/// Scan `config_text` (the contents of `mdagile.toml`) and return the
+/// **0-based** line number where `name` is declared as a user or group,
+/// or `None`.
+///
+/// Searches `[Users.name]` and `[Groups.name]` dotted table headers.
+/// Inline TOML comments are stripped before comparison.
+pub fn find_assignment_line_in_config(config_text: &str, name: &str) -> Option<u32> {
+    for (idx, line) in config_text.lines().enumerate() {
+        let trimmed = line.split(" #").next().unwrap_or(line).trim();
+        if trimmed == format!("[Users.{}]", name) || trimmed == format!("[Groups.{}]", name) {
+            return Some(idx as u32);
+        }
+    }
     None
 }
 
@@ -233,6 +276,110 @@ mod tests {
         let doc = "- [ ] task @alice\n";
         // '@alice' doesn't start with '#'
         assert_eq!(property_name_at_position(doc, 0, 12), None);
+    }
+
+    // ── assignment_name_at_position ──────────────────────────────────────────
+
+    #[test]
+    fn assignment_returns_name_cursor_on_at_sign() {
+        let doc = "- [ ] task @alice\n";
+        assert_eq!(
+            assignment_name_at_position(doc, 0, 11),
+            Some("alice".to_string())
+        );
+    }
+
+    #[test]
+    fn assignment_returns_name_cursor_on_last_char() {
+        let doc = "- [ ] task @alice\n";
+        // '@alice' is at chars 11-16; cursor on 'e' at 16.
+        assert_eq!(
+            assignment_name_at_position(doc, 0, 16),
+            Some("alice".to_string())
+        );
+    }
+
+    #[test]
+    fn assignment_returns_none_cursor_on_plain_text() {
+        let doc = "- [ ] task @alice\n";
+        // Cursor on 't' in "task" (position 6)
+        assert_eq!(assignment_name_at_position(doc, 0, 6), None);
+    }
+
+    #[test]
+    fn assignment_returns_none_cursor_on_hash_marker() {
+        let doc = "- [ ] task #feat\n";
+        assert_eq!(assignment_name_at_position(doc, 0, 12), None);
+    }
+
+    #[test]
+    fn assignment_returns_none_for_line_out_of_range() {
+        let doc = "- [ ] task @alice\n";
+        assert_eq!(assignment_name_at_position(doc, 5, 0), None);
+    }
+
+    #[test]
+    fn assignment_returns_name_for_second_assignment_on_line() {
+        let doc = "- [ ] task @alice @bob\n";
+        // '@bob' starts at column 18
+        assert_eq!(
+            assignment_name_at_position(doc, 0, 19),
+            Some("bob".to_string())
+        );
+    }
+
+    // ── find_assignment_line_in_config ───────────────────────────────────────
+
+    #[test]
+    fn finds_user_dotted_header() {
+        let config = "\
+[Users.alice]
+[Users.bob]
+";
+        assert_eq!(find_assignment_line_in_config(config, "alice"), Some(0));
+        assert_eq!(find_assignment_line_in_config(config, "bob"), Some(1));
+    }
+
+    #[test]
+    fn finds_group_dotted_header() {
+        let config = "\
+[Groups.backend]
+[Groups.frontend]
+";
+        assert_eq!(find_assignment_line_in_config(config, "backend"), Some(0));
+        assert_eq!(find_assignment_line_in_config(config, "frontend"), Some(1));
+    }
+
+    #[test]
+    fn finds_user_before_group_with_same_name() {
+        let config = "\
+[Groups.alice]
+[Users.alice]
+";
+        // Returns the first match (Groups.alice at line 0).
+        assert_eq!(find_assignment_line_in_config(config, "alice"), Some(0));
+    }
+
+    #[test]
+    fn find_assignment_returns_none_when_absent() {
+        let config = "[Users.alice]\n";
+        assert_eq!(find_assignment_line_in_config(config, "bob"), None);
+    }
+
+    #[test]
+    fn find_assignment_handles_inline_comment() {
+        let config = "[Users.alice] # the team lead\n";
+        assert_eq!(find_assignment_line_in_config(config, "alice"), Some(0));
+    }
+
+    #[test]
+    fn find_assignment_does_not_confuse_prefix_match() {
+        // [Users.ali] must NOT match a search for "alice"
+        let config = "\
+[Users.ali]
+[Users.alice]
+";
+        assert_eq!(find_assignment_line_in_config(config, "alice"), Some(1));
     }
 
     // ── find_property_line_in_config ─────────────────────────────────────────

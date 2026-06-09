@@ -216,8 +216,8 @@
     - [x] basic implementation
     - [x] bug: ("@bob") ("#someundefproperty") asdf"#anotherundefprop" -> Done
     - [x] Suggest close matches for misspelled names 
-  - [ ] Update error formatter for new error codes
-  - [ ] GoTo for "@assignments"
+  - [-] Update error formatter for new error codes
+  - [x] GoTo for "@assignments"
 
 - [x] #feature syntax highlighting for #OPT
 - [x] #feature syntax highlighting for '#MILESTONES'

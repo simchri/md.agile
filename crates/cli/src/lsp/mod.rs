@@ -9,7 +9,10 @@ pub mod logger;
 pub mod quickfix;
 pub mod semantic_tokens;
 
-use goto_definition::{find_property_line_in_config, property_name_at_position};
+use goto_definition::{
+    assignment_name_at_position, find_assignment_line_in_config, find_property_line_in_config,
+    property_name_at_position,
+};
 use quickfix::build_quickfixes;
 use semantic_tokens::{TOKEN_TYPES, build_tokens};
 
@@ -334,9 +337,17 @@ impl LanguageServer for Backend {
             None => return Ok(None),
         };
 
-        let prop_name = match property_name_at_position(&doc_text, pos.line, pos.character) {
-            Some(n) => n,
-            None => return Ok(None),
+        // Determine what name is under the cursor and which config finder to use.
+        // Property (#name) is tried first; assignment (@name) second.
+        type Finder = fn(&str, &str) -> Option<u32>;
+        let (name, finder): (String, Finder) = if let Some(n) =
+            property_name_at_position(&doc_text, pos.line, pos.character)
+        {
+            (n, find_property_line_in_config)
+        } else if let Some(n) = assignment_name_at_position(&doc_text, pos.line, pos.character) {
+            (n, find_assignment_line_in_config)
+        } else {
+            return Ok(None);
         };
 
         let config_path = match self.resolve_config_path(uri).await {
@@ -363,7 +374,7 @@ impl LanguageServer for Backend {
             }
         };
 
-        let line = match find_property_line_in_config(&config_text, &prop_name) {
+        let line = match finder(&config_text, &name) {
             Some(l) => l,
             None => return Ok(None),
         };
