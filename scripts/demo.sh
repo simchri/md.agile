@@ -242,6 +242,7 @@ run_many() {
 
 echo "[demo] Building and starting dx serve (log: $DX_LOG)"
 echo "[demo] First build may take ~60s..."
+pkill "dx"
 (cd "$GUI_DIR" && RUST_LOG=info MDAGILE_WORKDIR="$FIXTURE_DIR" dx serve --port "$PORT" --hot-patch --hot-reload=true >"$DX_LOG" 2>&1) &
 DX_PID=$!
 
