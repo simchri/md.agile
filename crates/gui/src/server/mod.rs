@@ -158,13 +158,11 @@ fn status_to_view(status: &mdagile::parser::Status) -> TaskStatus {
 
 #[cfg(feature = "server")]
 fn format_marker(marker: &mdagile::parser::Marker) -> String {
-    use mdagile::parser::{Marker, SpecialMarker};
+    use mdagile::parser::Marker;
     match marker {
         Marker::Property(p) => format!("#{}", p.name),
-        Marker::Assignment(name) => format!("@{}", name),
-        Marker::Special(SpecialMarker::Opt { .. }) => "#OPT".to_string(),
-        Marker::Special(SpecialMarker::Milestone { .. }) => "#MILESTONE".to_string(),
-        Marker::Special(SpecialMarker::MdAgile { .. }) => "#MDAGILE".to_string(),
+        Marker::Assignment(a) => format!("@{}", a.name),
+        Marker::Special(s) => format!("#{}", s.as_str()),
     }
 }
 

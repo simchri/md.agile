@@ -107,6 +107,13 @@ Never write production code without a failing test that justifies it.
 **Exceptions:**
 - The GUI physics module does not need unit tests
 
+### GUI target
+
+Always confirm the GUI target still compiles after a change
+```
+devenv . --no-tty -a -c  "cd crates/gui && dx build --platform web"
+```
+
 ### Auto-commit
 
 Whenever a prompt results in code changes (modifications to versioned files or new files to be versioned), **automatically create a commit**
