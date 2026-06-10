@@ -219,7 +219,7 @@
   - [-] Update error formatter for new error codes
   - [ ] GoTo for "@assignments"
     - [x] basic implementation @alice
-    - [ ] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. "some#feature" -- the used assumption is that there will always be whitespace is wrong 
+    - [ ] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some#feature hernameis@alice -- the used assumption is that there will always be whitespace is wrong 
       - [x] fix
       - [ ] refactor: The detection logic of markers and properties in files should be centralized to avoid bugs like above
 

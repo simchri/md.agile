@@ -6,13 +6,37 @@ use crate::parser::SpecialMarker;
 
 // ── Shared cursor helper ──────────────────────────────────────────────────────
 
-/// Scan the source line at `line` and return the bare name of the marker
-/// token under the cursor, or `None`.
+/// Returns true for characters that end a marker name when scanned rightward.
 ///
-/// A marker token is any run of non-whitespace characters that starts with
-/// `sigil` (`'#'` for properties, `'@'` for assignments). The returned string
-/// is everything **after** the sigil; the caller is responsible for any
-/// further normalisation (e.g. stripping branch suffixes for properties).
+/// Mirrors `is_marker_stop_byte` in the parser exactly — both must be kept in
+/// sync whenever the set of delimiter characters changes.
+fn is_stop_char(c: char) -> bool {
+    c.is_ascii_whitespace()
+        || c == '('
+        || c == ')'
+        || c == '['
+        || c == ']'
+        || c == '{'
+        || c == '}'
+        || c == '\''
+        || c == '"'
+}
+
+/// Scan the source line at `line` and return the raw name of the marker token
+/// under the cursor, or `None`.
+///
+/// A marker token is a `sigil` (`'#'` or `'@'`) followed by a run of
+/// non-stop characters. The sigil may appear anywhere inside a
+/// non-whitespace run — e.g. `(@bob)`, `(#feat)`, `asdf#prop` — matching the
+/// behaviour of `parse_markers` in the parser.
+///
+/// The returned string is the **raw** name (everything after the sigil, up to
+/// the first stop character). **No normalisation or trimming is applied** —
+/// callers are responsible for that (see `normalize_property_name` and
+/// `assignment_name_at_position`).
+///
+/// Quote rule (mirrors `parse_markers`): a sigil immediately preceded by
+/// `'` or `"` is treated as prose and returns `None`.
 fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) -> Option<String> {
     let line_text = text.lines().nth(line as usize)?;
     let chars: Vec<char> = line_text.chars().collect();
@@ -22,10 +46,10 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
         return None;
     }
 
-    // Walk LEFT from the cursor to find the sigil, stopping at whitespace.
+    // Walk LEFT from the cursor (inclusive) to find the sigil, stopping at whitespace.
     //
-    // Mirrors parse_markers in the parser: sigils may be embedded anywhere inside
-    // a non-whitespace run — e.g. `(@bob)`, `(#feature)`, `asdf#prop`.
+    // Mirrors parse_markers: sigils may be embedded anywhere in a non-whitespace
+    // run — e.g. `(@bob)`, `(#feature)`, `asdf#prop`.
     let sigil_pos = if chars.get(char_idx) == Some(&sigil) {
         // Cursor is directly on the sigil.
         char_idx
@@ -36,7 +60,7 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
             pos -= 1;
             let c = chars[pos];
             if c.is_ascii_whitespace() {
-                break; // Whitespace reached before finding the sigil.
+                break; // Whitespace reached before the sigil — cursor is not in a marker.
             }
             if c == sigil {
                 found = Some(pos);
@@ -52,14 +76,10 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
     }
 
     // Walk RIGHT from sigil+1 to find the end of the marker name.
-    // Stop at whitespace or any delimiter byte (mirrors `is_marker_stop_byte` in the parser).
+    // Uses the same stop characters as `is_marker_stop_byte` in the parser.
     let name_start = sigil_pos + 1;
     let mut end = name_start;
-    while end < chars.len() {
-        let c = chars[end];
-        if c.is_ascii_whitespace() || "(){}'\",".contains(c) {
-            break;
-        }
+    while end < chars.len() && !is_stop_char(chars[end]) {
         end += 1;
     }
 
@@ -68,14 +88,8 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
         return None;
     }
 
-    // Everything after the sigil, with trailing punctuation stripped (`:;,.`).
     let raw: String = chars[name_start..end].iter().collect();
-    let clean = raw.trim_end_matches(|c: char| ":;,.".contains(c));
-    if clean.is_empty() {
-        None
-    } else {
-        Some(clean.to_string())
-    }
+    if raw.is_empty() { None } else { Some(raw) }
 }
 
 // ── Properties ────────────────────────────────────────────────────────────────
@@ -182,9 +196,16 @@ pub fn find_property_line_in_config(config_text: &str, name: &str) -> Option<u32
 /// position, return the assignment name that the cursor sits on,
 /// or `None` if the cursor is not on an `@assignment` token.
 ///
-/// Assignment names have no special forms — `@alice` → `"alice"`.
+/// Assignment names have no special forms. Trailing punctuation (`:;,.`) is
+/// stripped, mirroring what `parse_markers` does for `@` tokens.
 pub fn assignment_name_at_position(text: &str, line: u32, character: u32) -> Option<String> {
-    token_name_at_position(text, line, character, '@')
+    let raw = token_name_at_position(text, line, character, '@')?;
+    let clean = raw.trim_end_matches(|c: char| ":;,.".contains(c));
+    if clean.is_empty() {
+        None
+    } else {
+        Some(clean.to_string())
+    }
 }
 
 /// Scan `config_text` (the contents of `mdagile.toml`) and return the
@@ -419,6 +440,27 @@ mod tests {
         // cursor on 'f' (first of "feat") at column 16
         assert_eq!(
             property_name_at_position(doc, 0, 16),
+            Some("feat".to_string())
+        );
+    }
+
+    #[test]
+    fn assignment_stops_at_open_bracket() {
+        // @alice[0] — '[' is a stop byte in the parser; name must be "alice"
+        let doc = "- [ ] task @alice[0]\n";
+        // cursor on 'a' of alice (column 12)
+        assert_eq!(
+            assignment_name_at_position(doc, 0, 12),
+            Some("alice".to_string())
+        );
+    }
+
+    #[test]
+    fn property_stops_at_open_bracket() {
+        // #feat[x] — '[' is a stop byte; name must be "feat"
+        let doc = "- [ ] task #feat[x]\n";
+        assert_eq!(
+            property_name_at_position(doc, 0, 12),
             Some("feat".to_string())
         );
     }
