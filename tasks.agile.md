@@ -195,7 +195,7 @@
 
 - [x] some installability improvements
 
-- [ ] #feature: Property & Assignment validation #foo
+- [x] #feature: Property & Assignment validation #foo
   Detect undefined #property markers and @user/@group assignments
   Note: property markers are only recognized in the task title (#here #they #are #ignored)
   - [x] Read mdagile.toml config in checker; pass config to rules
@@ -217,11 +217,11 @@
     - [x] bug: ("@bob") ("#someundefproperty") asdf"#anotherundefprop" -> Done
     - [x] Suggest close matches for misspelled names 
   - [-] Update error formatter for new error codes
-  - [ ] GoTo for "@assignments"
+  - [x] GoTo for "@assignments"
     - [x] basic implementation @alice
-    - [ ] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some#feature hernameis@alice -- the used assumption is that there will always be whitespace is wrong 
+    - [x] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some#feature hernameis@alice -- the used assumption is that there will always be whitespace is wrong 
       - [x] fix
-      - [ ] refactor: The detection logic of markers and properties in files should be centralized to avoid bugs like above
+      - [x] refactor: The detection logic of markers and properties in files should be centralized to avoid bugs like above
 
 - [x] #feature syntax highlighting for #OPT
 - [x] #feature syntax highlighting for '#MILESTONES'
@@ -253,10 +253,11 @@
   - [ ] Ensure ordering is only at same sibling level
   - [ ] Tests for various invalid orderings
 
-- [ ] Data integrity: Incomplete parent tasks warning
+- [x] Data integrity: Incomplete parent tasks warning
   Warn when a parent marked done [x] still has [ ] children
-  - [ ] this is an error (exit 1)?
-  - [ ] Consider: add --strict flag to promote warnings to errors
+  - [x] this is an error (exit 1)?
+  - [-] #OPT Consider: add --strict flag to promote warnings to errors
+    Note: everything is an error, no warnings for now
 
 
 ## More CLI features
