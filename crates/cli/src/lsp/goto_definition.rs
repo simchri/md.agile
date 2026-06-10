@@ -22,31 +22,60 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
         return None;
     }
 
-    // Walk left to find the start of the whitespace-delimited token.
-    let mut start = char_idx;
-    while start > 0 && !chars[start - 1].is_ascii_whitespace() {
-        start -= 1;
-    }
+    // Walk LEFT from the cursor to find the sigil, stopping at whitespace.
+    //
+    // Mirrors parse_markers in the parser: sigils may be embedded anywhere inside
+    // a non-whitespace run — e.g. `(@bob)`, `(#feature)`, `asdf#prop`.
+    let sigil_pos = if chars.get(char_idx) == Some(&sigil) {
+        // Cursor is directly on the sigil.
+        char_idx
+    } else {
+        let mut found = None;
+        let mut pos = char_idx;
+        while pos > 0 {
+            pos -= 1;
+            let c = chars[pos];
+            if c.is_ascii_whitespace() {
+                break; // Whitespace reached before finding the sigil.
+            }
+            if c == sigil {
+                found = Some(pos);
+                break;
+            }
+        }
+        found?
+    };
 
-    // The token must begin with the expected sigil.
-    if chars.get(start) != Some(&sigil) {
+    // Quote rule (mirrors parse_markers): a sigil immediately preceded by `'` or `"` is prose.
+    if sigil_pos > 0 && (chars[sigil_pos - 1] == '\'' || chars[sigil_pos - 1] == '"') {
         return None;
     }
 
-    // Walk right to find the end of the token.
-    let mut end = start + 1;
-    while end < chars.len() && !chars[end].is_ascii_whitespace() {
+    // Walk RIGHT from sigil+1 to find the end of the marker name.
+    // Stop at whitespace or any delimiter byte (mirrors `is_marker_stop_byte` in the parser).
+    let name_start = sigil_pos + 1;
+    let mut end = name_start;
+    while end < chars.len() {
+        let c = chars[end];
+        if c.is_ascii_whitespace() || "(){}'\",".contains(c) {
+            break;
+        }
         end += 1;
     }
 
-    // The cursor must lie within the token span (start..end).
-    if char_idx < start || char_idx >= end {
+    // The cursor must lie within [sigil_pos..end).
+    if char_idx >= end {
         return None;
     }
 
-    // Everything after the leading sigil.
-    let raw: String = chars[start + 1..end].iter().collect();
-    if raw.is_empty() { None } else { Some(raw) }
+    // Everything after the sigil, with trailing punctuation stripped (`:;,.`).
+    let raw: String = chars[name_start..end].iter().collect();
+    let clean = raw.trim_end_matches(|c: char| ":;,.".contains(c));
+    if clean.is_empty() {
+        None
+    } else {
+        Some(clean.to_string())
+    }
 }
 
 // ── Properties ────────────────────────────────────────────────────────────────
@@ -325,6 +354,72 @@ mod tests {
         assert_eq!(
             assignment_name_at_position(doc, 0, 19),
             Some("bob".to_string())
+        );
+    }
+
+    // ── embedded-marker (bug) tests ──────────────────────────────────────────
+
+    #[test]
+    fn assignment_returns_name_when_embedded_in_parens() {
+        // (@alice) — sigil is not preceded by whitespace
+        let doc = "- [ ] task (@alice)\n";
+        // cursor on 'a' at column 13 (after the opening paren and @)
+        assert_eq!(
+            assignment_name_at_position(doc, 0, 13),
+            Some("alice".to_string())
+        );
+    }
+
+    #[test]
+    fn assignment_returns_none_when_quoted_with_double_quotes() {
+        // "@alice" — sigil immediately preceded by '"' → prose, not a marker
+        let doc = "- [ ] task \"@alice\"\n";
+        assert_eq!(assignment_name_at_position(doc, 0, 13), None);
+    }
+
+    #[test]
+    fn assignment_returns_none_when_quoted_with_single_quotes() {
+        // '@alice' — sigil immediately preceded by '\'' → prose
+        let doc = "- [ ] task '@alice'\n";
+        assert_eq!(assignment_name_at_position(doc, 0, 13), None);
+    }
+
+    #[test]
+    fn assignment_strips_trailing_comma() {
+        // @alice, — trailing comma must not be part of the name
+        let doc = "- [ ] task @alice, and more text\n";
+        assert_eq!(
+            assignment_name_at_position(doc, 0, 13),
+            Some("alice".to_string())
+        );
+    }
+
+    #[test]
+    fn property_returns_name_when_embedded_in_parens() {
+        // (#feat) — sigil not preceded by whitespace
+        let doc = "- [ ] task (#feat)\n";
+        // cursor on 'f' at column 13
+        assert_eq!(
+            property_name_at_position(doc, 0, 13),
+            Some("feat".to_string())
+        );
+    }
+
+    #[test]
+    fn property_returns_none_when_quoted_with_double_quotes() {
+        // "#feat" — quoted → prose
+        let doc = "- [ ] task \"#feat\"\n";
+        assert_eq!(property_name_at_position(doc, 0, 13), None);
+    }
+
+    #[test]
+    fn property_returns_name_when_directly_concatenated() {
+        // asdf#feat — embedded, no preceding whitespace
+        let doc = "- [ ] task asdf#feat\n";
+        // cursor on 'f' (first of "feat") at column 16
+        assert_eq!(
+            property_name_at_position(doc, 0, 16),
+            Some("feat".to_string())
         );
     }
 
