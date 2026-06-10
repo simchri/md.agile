@@ -21,6 +21,7 @@ FIXTURE_DIR="$(mktemp -d /tmp/mdagile-demo-XXXXXX)"
 TASKS_FILE="$FIXTURE_DIR/demo.agile.md"
 STEP_SECS="${MDAGILE_DEMO_DELAY:-4}"
 DX_LOG="$FIXTURE_DIR/dx.log"
+PORT="8081"
 
 cleanup() {
     echo ""
@@ -241,13 +242,13 @@ run_many() {
 
 echo "[demo] Building and starting dx serve (log: $DX_LOG)"
 echo "[demo] First build may take ~60s..."
-(cd "$GUI_DIR" && MDAGILE_WORKDIR="$FIXTURE_DIR" dx serve --hot-patch --hot-reload=true >"$DX_LOG" 2>&1) &
+(cd "$GUI_DIR" && RUST_LOG=info MDAGILE_WORKDIR="$FIXTURE_DIR" dx serve --port "$PORT" --hot-patch --hot-reload=true >"$DX_LOG" 2>&1) &
 DX_PID=$!
 
-echo "[demo] Waiting for server on :8080 ..."
+echo "[demo] Waiting for server on :$PORT ..."
 WAIT=0
 set +e
-until curl -sf http://localhost:8080 >/dev/null 2>&1; do
+until curl -sf http://localhost:$PORT >/dev/null 2>&1; do
     # Check if dx process is still running
     if ! kill -0 "$DX_PID" 2>/dev/null; then
         echo ""
@@ -267,7 +268,8 @@ done
 set -e
 
 echo ""
-echo "[demo] Server ready — open http://localhost:8080"
+echo "[demo] Server ready — open http://localhost:$PORT"
+echo "[demo] MDAGILE_WORKDIR=$FIXTURE_DIR"
 echo "[demo] Starting '$MODE' loop (${STEP_SECS}s per phase, Ctrl-C to stop)"
 echo ""
 
