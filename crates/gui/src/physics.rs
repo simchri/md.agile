@@ -14,7 +14,7 @@ const SPRING_K_Y: f64 = 2.0;
 /// 1.0 = critically damped (fastest settle, no overshoot).
 /// < 1.0 = underdamped (bouncy). > 1.0 = overdamped (sluggish).
 /// Actual coefficient per axis: damping_c = 2 * sqrt(k) * DAMPING_RATIO.
-const DAMPING_RATIO: f64 = 1.0;
+const DAMPING_RATIO: f64 = 1.5;
 /// Repulsion strength between in-progress cards (higher = stronger push-apart).
 const REPEL_K_X: f64 = 2.0;
 const REPEL_K_Y: f64 = 6.0;
