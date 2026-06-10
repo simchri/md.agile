@@ -2,41 +2,25 @@
 ///
 /// Both functions are free of I/O and async so they can be unit-tested
 /// without spinning up the full LSP server.
-use crate::parser::SpecialMarker;
+use crate::parser::{MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is_marker_quote};
 
 // ── Shared cursor helper ──────────────────────────────────────────────────────
-
-/// Returns true for characters that end a marker name when scanned rightward.
-///
-/// Mirrors `is_marker_stop_byte` in the parser exactly — both must be kept in
-/// sync whenever the set of delimiter characters changes.
-fn is_stop_char(c: char) -> bool {
-    c.is_ascii_whitespace()
-        || c == '('
-        || c == ')'
-        || c == '['
-        || c == ']'
-        || c == '{'
-        || c == '}'
-        || c == '\''
-        || c == '"'
-}
 
 /// Scan the source line at `line` and return the raw name of the marker token
 /// under the cursor, or `None`.
 ///
 /// A marker token is a `sigil` (`'#'` or `'@'`) followed by a run of
-/// non-stop characters. The sigil may appear anywhere inside a
+/// non-boundary characters. The sigil may appear anywhere inside a
 /// non-whitespace run — e.g. `(@bob)`, `(#feat)`, `asdf#prop` — matching the
 /// behaviour of `parse_markers` in the parser.
 ///
 /// The returned string is the **raw** name (everything after the sigil, up to
-/// the first stop character). **No normalisation or trimming is applied** —
-/// callers are responsible for that (see `normalize_property_name` and
-/// `assignment_name_at_position`).
+/// the first [`is_marker_boundary`] character). **No normalisation or trimming
+/// is applied** — callers are responsible for that (see `normalize_property_name`
+/// and `assignment_name_at_position`).
 ///
-/// Quote rule (mirrors `parse_markers`): a sigil immediately preceded by
-/// `'` or `"` is treated as prose and returns `None`.
+/// Quote rule (mirrors `parse_markers`): a sigil immediately preceded by an
+/// [`is_marker_quote`] character is treated as prose and returns `None`.
 fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) -> Option<String> {
     let line_text = text.lines().nth(line as usize)?;
     let chars: Vec<char> = line_text.chars().collect();
@@ -70,16 +54,17 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
         found?
     };
 
-    // Quote rule (mirrors parse_markers): a sigil immediately preceded by `'` or `"` is prose.
-    if sigil_pos > 0 && (chars[sigil_pos - 1] == '\'' || chars[sigil_pos - 1] == '"') {
+    // Quote rule (mirrors parse_markers): a sigil immediately preceded by an
+    // is_marker_quote character is treated as prose.
+    if sigil_pos > 0 && is_marker_quote(chars[sigil_pos - 1]) {
         return None;
     }
 
     // Walk RIGHT from sigil+1 to find the end of the marker name.
-    // Uses the same stop characters as `is_marker_stop_byte` in the parser.
+    // Uses is_marker_boundary from the parser — the single source of truth.
     let name_start = sigil_pos + 1;
     let mut end = name_start;
-    while end < chars.len() && !is_stop_char(chars[end]) {
+    while end < chars.len() && !is_marker_boundary(chars[end]) {
         end += 1;
     }
 
@@ -139,7 +124,7 @@ fn normalize_property_name(raw: &str) -> Option<String> {
     }
 
     // Full form (possibly with trailing punctuation): `feat` or `feat:`
-    let clean = raw.trim_end_matches(|c: char| ":;,.".contains(c));
+    let clean = raw.trim_end_matches(|c: char| MARKER_TRAILING_PUNCT.contains(c));
     if clean.is_empty() {
         return None;
     }
@@ -200,7 +185,7 @@ pub fn find_property_line_in_config(config_text: &str, name: &str) -> Option<u32
 /// stripped, mirroring what `parse_markers` does for `@` tokens.
 pub fn assignment_name_at_position(text: &str, line: u32, character: u32) -> Option<String> {
     let raw = token_name_at_position(text, line, character, '@')?;
-    let clean = raw.trim_end_matches(|c: char| ":;,.".contains(c));
+    let clean = raw.trim_end_matches(|c: char| MARKER_TRAILING_PUNCT.contains(c));
     if clean.is_empty() {
         None
     } else {

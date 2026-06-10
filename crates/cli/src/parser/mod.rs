@@ -100,6 +100,37 @@ impl SpecialMarker {
     }
 }
 
+// ── Marker boundary rules (shared with LSP) ───────────────────────────────────
+
+/// Characters that end a marker name (`#foo` or `@foo`) when scanned forward.
+///
+/// Used by the parser when scanning source text, and re-exported for the LSP
+/// `goto_definition` module so both operate on exactly the same rule set.
+pub(crate) fn is_marker_boundary(c: char) -> bool {
+    c.is_ascii_whitespace()
+        || c == '('
+        || c == ')'
+        || c == '['
+        || c == ']'
+        || c == '{'
+        || c == '}'
+        || c == '\''
+        || c == '"'
+}
+
+/// Returns `true` if `c` is a quoting character that, when immediately
+/// preceding a sigil, causes the sigil to be treated as prose rather than a
+/// marker start.
+pub(crate) fn is_marker_quote(c: char) -> bool {
+    c == '\'' || c == '"'
+}
+
+/// Trailing punctuation characters stripped from the end of a raw marker name.
+///
+/// Applies to both `#property` (in `parse_hash_token`) and `@assignment`
+/// (in `parse_markers`) after the name has been bounded by [`is_marker_boundary`].
+pub(crate) const MARKER_TRAILING_PUNCT: &str = ":;,.";
+
 // ── Parsing issues ────────────────────────────────────────────────────────────
 
 /// Problems detected while parsing a single task line.
@@ -500,7 +531,7 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
         let b = bytes[i];
         if b == b'#' || b == b'@' {
             // Skip when immediately preceded by a quote — treat as prose.
-            let preceded_by_quote = i > 0 && (bytes[i - 1] == b'\'' || bytes[i - 1] == b'"');
+            let preceded_by_quote = i > 0 && is_marker_quote(bytes[i - 1] as char);
             if preceded_by_quote {
                 i += 1;
                 continue;
@@ -527,7 +558,7 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
                 }
             } else {
                 // '@'
-                let clean = name.trim_end_matches(|c: char| ":;,.".contains(c));
+                let clean = name.trim_end_matches(|c: char| MARKER_TRAILING_PUNCT.contains(c));
                 if !clean.is_empty() {
                     markers.push(Marker::Assignment(AssignmentRef {
                         name: clean.to_string(),
@@ -559,15 +590,7 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
 }
 
 fn is_marker_stop_byte(b: u8) -> bool {
-    b == b' '
-        || b == b'('
-        || b == b')'
-        || b == b'['
-        || b == b']'
-        || b == b'{'
-        || b == b'}'
-        || b == b'\''
-        || b == b'"'
+    is_marker_boundary(b as char)
 }
 
 fn parse_hash_token(name: &str, column: usize) -> Option<Marker> {
@@ -605,7 +628,7 @@ fn parse_hash_token(name: &str, column: usize) -> Option<Marker> {
     }
 
     // Plain property, possibly with trailing punctuation: `#feature:`
-    let clean = name.trim_end_matches(|c: char| ":;,.".contains(c));
+    let clean = name.trim_end_matches(|c: char| MARKER_TRAILING_PUNCT.contains(c));
     if clean.is_empty() {
         return None;
     }
