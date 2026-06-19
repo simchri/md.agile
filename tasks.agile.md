@@ -246,6 +246,21 @@
   - [x] Provide helpful error with list of missing subtasks
   - [x] Tests: single property, multiple properties, nested properties
 
+- [ ] E010 acceptance test
+  End-to-end CLI test for E010 in tests/check.rs (spawns real binary with a temp project).
+  All other rules (E001, E008…) already have coverage at this level; E010 needs the same.
+  - [ ] missing required subtasks → exit 1 + E010 in stdout
+  - [ ] all required subtasks present → exit 0
+
+- [ ] LSP quickfix for E010 (insert missing required subtasks)
+  The IssueData::MissingRequiredSubtasks { missing } payload is already in place.
+  The vision explicitly calls out autofix: "use the autofix feature of your text editor
+  to quickly add the required subtasks."
+  - [ ] Add lsp/quickfix/missing_required_subtasks.rs builder
+  - [ ] Insert each missing quoted subtask as a new child line after the last existing child (or after the task line if no children)
+  - [ ] Register in the REGISTRY in lsp/quickfix/mod.rs
+  - [ ] Tests for the quickfix builder
+
 - [ ] Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
   - [ ] Extend `PropertyConfig` with `subtasks_allow_cancel: Vec<bool>` (parallel to `subtasks`)
