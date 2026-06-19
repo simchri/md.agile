@@ -20,6 +20,7 @@ fn main() {
     {
         let addr = dioxus_cli_config::fullstack_address_or_localhost();
         info!("server starting on http://{addr}");
+        println!("Server running on http://{addr}");
     }
 
     dioxus::launch(app);
