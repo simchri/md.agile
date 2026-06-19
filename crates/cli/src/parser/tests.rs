@@ -40,6 +40,7 @@ fn can_construct_task_with_all_node_kinds() {
                 status: Status::Todo,
                 order: Order::None,
                 kind: SubtaskKind::PropertyRequired,
+                raw_title: Some("PO review".to_string()),
                 title: "PO review".to_string(),
                 body: vec![],
                 markers: vec![],
@@ -52,6 +53,7 @@ fn can_construct_task_with_all_node_kinds() {
                 status: Status::Todo,
                 order: Order::None,
                 kind: SubtaskKind::Custom,
+                raw_title: None,
                 title: "extra polish".to_string(),
                 body: vec![],
                 markers: vec![Marker::Special(SpecialMarker {
@@ -67,6 +69,7 @@ fn can_construct_task_with_all_node_kinds() {
                 status: Status::Todo,
                 order: Order::Ranked(1),
                 kind: SubtaskKind::Custom,
+                raw_title: None,
                 title: "first step".to_string(),
                 body: vec![],
                 markers: vec![],
@@ -79,6 +82,7 @@ fn can_construct_task_with_all_node_kinds() {
                 status: Status::Todo,
                 order: Order::None,
                 kind: SubtaskKind::Custom,
+                raw_title: None,
                 title: "implement".to_string(),
                 body: vec![],
                 markers: vec![Marker::Assignment(AssignmentRef {
@@ -312,6 +316,34 @@ fn parse_property_required_subtask() {
     let sub = &task(&items, 0).children[0];
     assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
     assert_eq!(sub.title, "PO review");
+    assert_eq!(sub.raw_title, Some("PO review".to_string()));
+}
+
+#[test]
+fn parse_property_required_subtask_with_embedded_property_stores_raw_title() {
+    let input = "\
+- [ ] parent
+  - [ ] \"developer #review\"
+";
+    let items = p(input);
+    let sub = &task(&items, 0).children[0];
+    assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
+    // raw_title preserves the full inner text before marker extraction
+    assert_eq!(sub.raw_title, Some("developer #review".to_string()));
+    // title has the #review marker stripped out (trailing space trimmed)
+    assert_eq!(sub.title, "developer");
+}
+
+#[test]
+fn custom_subtask_has_no_raw_title() {
+    let input = "\
+- [ ] parent
+  - [ ] just a task
+";
+    let items = p(input);
+    let sub = &task(&items, 0).children[0];
+    assert_eq!(sub.kind, SubtaskKind::Custom);
+    assert_eq!(sub.raw_title, None);
 }
 
 #[test]

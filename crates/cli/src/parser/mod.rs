@@ -178,6 +178,10 @@ pub struct Subtask {
     pub status: Status,
     pub order: Order,
     pub kind: SubtaskKind,
+    /// The raw inner text of a `PropertyRequired` subtask before marker extraction
+    /// (e.g. `"developer #review"` → `Some("developer #review")`).
+    /// `None` for `Custom` subtasks.
+    pub raw_title: Option<String>,
     pub title: String,
     pub body: Vec<String>, // lines preserve structure for LSP range calculation
     pub markers: Vec<Marker>,
@@ -242,6 +246,7 @@ struct PartialItem {
     status: Status,
     order: Order,
     kind: SubtaskKind,
+    raw_title: Option<String>,
     title: String,
     body: Vec<String>,
     markers: Vec<Marker>,
@@ -270,6 +275,7 @@ impl PartialItem {
             status: self.status,
             order: self.order,
             kind: self.kind,
+            raw_title: self.raw_title,
             title: self.title,
             body: self.body,
             markers: self.markers,
@@ -321,6 +327,10 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             }
             let (order, rest) = parse_order_prefix(&rest);
             let (kind, rest) = parse_subtask_kind(rest);
+            let raw_title = match kind {
+                SubtaskKind::PropertyRequired => Some(rest.to_string()),
+                SubtaskKind::Custom => None,
+            };
             let (markers, title) = parse_markers(rest);
             stack.push(PartialItem {
                 depth,
@@ -333,6 +343,7 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
                 status,
                 order,
                 kind,
+                raw_title,
                 title,
                 body: Vec::new(),
                 markers,
