@@ -10,6 +10,7 @@
 
 mod incomplete_parent;
 mod invalid_box;
+mod missing_required_subtasks;
 mod missing_space_after_box;
 mod orphaned_subtask;
 mod undefined_assignment;
@@ -20,6 +21,7 @@ mod wrong_indentation;
 
 pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
+pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
 pub use orphaned_subtask::orphaned_subtask;
 pub use undefined_assignment::undefined_assignment;
@@ -49,6 +51,8 @@ pub enum ErrorCode {
     UndefinedProperty,
     /// E009: Assignment marker not declared in mdagile.toml
     UndefinedAssignment,
+    /// E010: Task is missing required subtasks mandated by a property
+    MissingRequiredSubtasks,
 }
 
 impl ErrorCode {
@@ -65,6 +69,7 @@ impl ErrorCode {
             ErrorCode::UppercaseX => "E007",
             ErrorCode::UndefinedProperty => "E008",
             ErrorCode::UndefinedAssignment => "E009",
+            ErrorCode::MissingRequiredSubtasks => "E010",
         }
     }
 }
@@ -89,6 +94,7 @@ impl std::str::FromStr for ErrorCode {
             "E007" => ErrorCode::UppercaseX,
             "E008" => ErrorCode::UndefinedProperty,
             "E009" => ErrorCode::UndefinedAssignment,
+            "E010" => ErrorCode::MissingRequiredSubtasks,
             _ => return Err(()),
         })
     }
@@ -143,6 +149,8 @@ pub enum IssueData {
     UndefinedProperty { property_name: String },
     /// Payload for E009 "Undefined Assignment": the assignment name that is undefined.
     UndefinedAssignment { assignment_name: String },
+    /// Payload for E010 "Missing Required Subtasks": list of required subtask titles absent from the task.
+    MissingRequiredSubtasks { missing: Vec<String> },
 }
 
 /// A single problem found by a rule.
@@ -175,6 +183,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(uppercase_x(items));
     issues.extend(undefined_property(items, config));
     issues.extend(undefined_assignment(items, config));
+    issues.extend(missing_required_subtasks(items, config));
     issues
 }
 
