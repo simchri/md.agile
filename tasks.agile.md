@@ -283,7 +283,6 @@
   - [ ] textDocument/hover — show property definitions
     - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
     - [ ] idem "@assignments" relevant, e.g. for groups
-  - [x] textDocument/codeAction — quick fixes for common errors
   - [ ] textDocument/completion — suggest properties, users, groups
   - [ ] File diagnostics on save with `agile check --fix`
 
