@@ -246,6 +246,13 @@
   - [ ] Provide helpful error with list of missing subtasks
   - [ ] Tests: single property, multiple properties, nested properties
 
+- [ ] Allow cancelling required subtasks (subtasks_allow_cancel)
+  When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
+  - [ ] Extend `PropertyConfig` with `subtasks_allow_cancel: Vec<bool>` (parallel to `subtasks`)
+  - [ ] Parse `subtasks_allow_cancel` array from `[Properties.X]` in mdagile.toml
+  - [ ] Update E010 rule: treat a cancelled required subtask as satisfied only if its allow_cancel flag is true, otherwise report error
+  - [ ] Tests: cancel allowed, cancel not allowed, mixed array
+
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
   - [ ] Validate no duplicate ranks (e.g., two "2." markers)
