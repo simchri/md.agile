@@ -11,6 +11,7 @@ pub struct Config {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyConfig {
     pub name: String,
+    pub subtasks: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -59,10 +60,16 @@ impl From<toml::de::Error> for ConfigError {
     }
 }
 
+#[derive(serde::Deserialize, Default)]
+struct RawPropertyConfig {
+    #[serde(default)]
+    subtasks: Vec<String>,
+}
+
 #[derive(serde::Deserialize)]
 struct RawConfig {
     #[serde(rename = "Properties", default)]
-    properties: HashMap<String, toml::Value>,
+    properties: HashMap<String, RawPropertyConfig>,
     #[serde(rename = "Users", default)]
     users: HashMap<String, toml::Value>,
     #[serde(rename = "Groups", default)]
@@ -74,8 +81,16 @@ impl Config {
         let raw: RawConfig = toml::from_str(s)?;
         let properties = raw
             .properties
-            .into_keys()
-            .map(|name| (name.clone(), PropertyConfig { name }))
+            .into_iter()
+            .map(|(name, raw_prop)| {
+                (
+                    name.clone(),
+                    PropertyConfig {
+                        name,
+                        subtasks: raw_prop.subtasks,
+                    },
+                )
+            })
             .collect();
         let users = raw
             .users

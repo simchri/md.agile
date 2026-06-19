@@ -33,7 +33,15 @@ fn property_with_subtasks_field_is_parsed() {
 subtasks = [\"dev implementation\", \"test\"]
 ";
     let config = Config::from_str(input).unwrap();
-    assert!(config.properties.contains_key("feature"));
+    let prop = config.properties.get("feature").unwrap();
+    assert_eq!(prop.subtasks, vec!["dev implementation", "test"]);
+}
+
+#[test]
+fn property_without_subtasks_has_empty_vec() {
+    let config = Config::from_str("[Properties.bug]\n").unwrap();
+    let prop = config.properties.get("bug").unwrap();
+    assert!(prop.subtasks.is_empty());
 }
 
 #[test]
