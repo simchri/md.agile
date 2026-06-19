@@ -238,13 +238,13 @@
 
 #MILESTONE: Some milestone
 
-- [ ] Missing required subtasks
+- [x] Missing required subtasks
   Detect when a task has a property (e.g. '#feature') but lacks required subtasks
-  - [ ] Match quoted subtasks in tasks against property definitions from mdagile.toml
-  - [ ] Handle multiple properties on same task
-  - [ ] Handle nested properties (e.g., '#feature' that includes '#review')
-  - [ ] Provide helpful error with list of missing subtasks
-  - [ ] Tests: single property, multiple properties, nested properties
+  - [x] Match quoted subtasks in tasks against property definitions from mdagile.toml
+  - [x] Handle multiple properties on same task
+  - [x] Handle nested properties (e.g., '#feature' that includes '#review')
+  - [x] Provide helpful error with list of missing subtasks
+  - [x] Tests: single property, multiple properties, nested properties
 
 - [ ] Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
