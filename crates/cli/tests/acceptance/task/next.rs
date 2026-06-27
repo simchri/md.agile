@@ -16,8 +16,14 @@ fn task_next_prints_first_active_task() {
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("[ ] first active task"), "stdout: {stdout:?}");
-    assert!(!stdout.contains("second active"), "should only show first: {stdout:?}");
+    assert!(
+        stdout.contains("[ ] first active task"),
+        "stdout: {stdout:?}"
+    );
+    assert!(
+        !stdout.contains("second active"),
+        "should only show first: {stdout:?}"
+    );
 }
 
 #[test]
@@ -48,7 +54,11 @@ fn task_next_empty_project_exits_zero_with_no_output() {
     let out = run_agile(dir.path(), &["task", "next"]);
 
     assert!(out.status.success());
-    assert!(out.stdout.is_empty(), "expected no output: {:?}", String::from_utf8_lossy(&out.stdout));
+    assert!(
+        out.stdout.is_empty(),
+        "expected no output: {:?}",
+        String::from_utf8_lossy(&out.stdout)
+    );
 }
 
 #[test]

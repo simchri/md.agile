@@ -13,7 +13,11 @@ fn list_prints_active_tasks() {
 
     let out = run_agile(dir.path(), &["list"]);
 
-    assert!(out.status.success(), "stdout: {}", String::from_utf8_lossy(&out.stdout));
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("[ ] first task"), "stdout: {stdout:?}");
     assert!(stdout.contains("[ ] second task"), "stdout: {stdout:?}");
@@ -33,8 +37,14 @@ fn list_excludes_done_and_cancelled_by_default() {
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(!stdout.contains("[x]"), "done task should be excluded: {stdout:?}");
-    assert!(!stdout.contains("[-]"), "cancelled task should be excluded: {stdout:?}");
+    assert!(
+        !stdout.contains("[x]"),
+        "done task should be excluded: {stdout:?}"
+    );
+    assert!(
+        !stdout.contains("[-]"),
+        "cancelled task should be excluded: {stdout:?}"
+    );
     assert!(stdout.contains("[ ] active task"), "stdout: {stdout:?}");
 }
 
@@ -140,5 +150,9 @@ fn list_empty_project_exits_zero_with_no_output() {
     let out = run_agile(dir.path(), &["list"]);
 
     assert!(out.status.success());
-    assert!(out.stdout.is_empty(), "expected no output: {:?}", String::from_utf8_lossy(&out.stdout));
+    assert!(
+        out.stdout.is_empty(),
+        "expected no output: {:?}",
+        String::from_utf8_lossy(&out.stdout)
+    );
 }

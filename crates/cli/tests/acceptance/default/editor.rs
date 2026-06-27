@@ -32,7 +32,11 @@ fn default_no_active_tasks_exits_zero() {
     // Even without an editor set, no tasks → normal exit before trying to open editor
     let out = run_agile_clean_env(dir.path(), &[], &[]);
 
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 #[test]
@@ -41,7 +45,11 @@ fn default_empty_project_exits_zero() {
 
     let out = run_agile_clean_env(dir.path(), &[], &[]);
 
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 #[test]
