@@ -3,26 +3,9 @@
 //! Each test spawns the real binary in a tempdir and asserts on exit code
 //! and stderr output.
 
+use crate::helpers::{run_check, run_list};
 use std::fs;
-use std::path::Path;
-use std::process::{Command, Output};
 use tempfile::tempdir;
-
-fn run_check(cwd: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_agile"))
-        .arg("check")
-        .current_dir(cwd)
-        .output()
-        .expect("failed to spawn `agile check`")
-}
-
-fn run_list(cwd: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_agile"))
-        .arg("list")
-        .current_dir(cwd)
-        .output()
-        .expect("failed to spawn `agile list`")
-}
 
 #[test]
 fn conflicting_config_files_exit_nonzero_with_error_message() {

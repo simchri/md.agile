@@ -1,15 +1,6 @@
+use crate::helpers::run_check;
 use std::fs;
-use std::path::Path;
-use std::process::{Command, Output};
 use tempfile::tempdir;
-
-fn run_check(cwd: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_agile"))
-        .arg("check")
-        .current_dir(cwd)
-        .output()
-        .expect("failed to spawn `agile check`")
-}
 
 #[test]
 fn flags_body_line_with_wrong_indentation() {

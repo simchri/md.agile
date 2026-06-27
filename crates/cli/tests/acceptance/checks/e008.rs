@@ -4,18 +4,9 @@
 //! exit code, stdout, and stderr — exercising CLI parsing, file walking,
 //! issue formatting, and exit-code behavior end-to-end.
 
+use crate::helpers::run_check;
 use std::fs;
-use std::path::Path;
-use std::process::{Command, Output};
 use tempfile::tempdir;
-
-fn run_check(cwd: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_agile"))
-        .arg("check")
-        .current_dir(cwd)
-        .output()
-        .expect("failed to spawn `agile check`")
-}
 
 #[test]
 fn undefined_property_marker_is_flagged() {
@@ -68,4 +59,3 @@ fn undefined_property_without_config_file_is_also_flagged() {
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("E008"), "stdout: {stdout:?}");
 }
-
