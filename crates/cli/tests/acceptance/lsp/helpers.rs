@@ -91,6 +91,42 @@ impl LspSession {
     pub fn read_raw_response(&mut self) -> String {
         read_lsp_response(&mut self.reader).unwrap()
     }
+
+    /// Send a `textDocument/definition` request and return the response.
+    pub fn goto_definition(&mut self, uri: &str, id: u64, line: u64, character: u64) -> Value {
+        let req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "textDocument/definition",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": line, "character": character }
+            }
+        });
+        self.send(&req.to_string());
+        self.read_response(id)
+    }
+}
+
+/// Format a filesystem path as a `file://` URI.
+pub fn file_uri(path: &std::path::Path) -> String {
+    format!("file://{}", path.display())
+}
+
+/// Create a temp project directory, write `config_toml` to `mdagile.toml`,
+/// start an LSP session with that directory as rootUri, and return
+/// `(session, file_uri)` where `file_uri` points to `tasks.agile.md`
+/// inside the project.
+pub fn start_project_session(config_toml: &str) -> (LspSession, String) {
+    let project_root = tempfile::tempdir().unwrap();
+    std::fs::write(project_root.path().join("mdagile.toml"), config_toml).unwrap();
+    let task_file_uri = file_uri(&project_root.path().join("tasks.agile.md"));
+    let root_uri = file_uri(project_root.path());
+    // Keep the tempdir alive for the lifetime of the session by leaking it.
+    // The OS will clean it up after the test process exits.
+    std::mem::forget(project_root);
+    let session = LspSession::start_with_root_uri(Some(&root_uri));
+    (session, task_file_uri)
 }
 
 pub fn send_lsp_message<W: Write>(writer: &mut W, message: &str) -> std::io::Result<()> {

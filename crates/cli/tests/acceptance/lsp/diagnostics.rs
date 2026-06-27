@@ -1,4 +1,4 @@
-use super::helpers::LspSession;
+use super::helpers::{LspSession, file_uri, start_project_session};
 
 #[test]
 fn lsp_e008_not_reported_for_declared_property() {
@@ -11,14 +11,9 @@ fn lsp_e008_not_reported_for_declared_property() {
     )
     .unwrap();
 
-    let file_path = dir.path().join("tasks.agile.md");
-    let uri = format!("file://{}", file_path.display());
-
+    let uri = file_uri(&dir.path().join("tasks.agile.md"));
     let mut session = LspSession::start();
-    let doc_text = "\
-- [ ] task #priority
-";
-    session.open_document(&uri, doc_text);
+    session.open_document(&uri, "- [ ] task #priority\n");
 
     let notification = session.read_notification("textDocument/publishDiagnostics");
     let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
@@ -33,16 +28,12 @@ fn lsp_e008_not_reported_for_declared_property() {
 
 #[test]
 fn lsp_e008_reported_for_undeclared_property() {
-    let dir = tempfile::tempdir().unwrap();
     // No mdagile.toml — all properties are undeclared.
-    let file_path = dir.path().join("tasks.agile.md");
-    let uri = format!("file://{}", file_path.display());
+    let dir = tempfile::tempdir().unwrap();
+    let uri = file_uri(&dir.path().join("tasks.agile.md"));
 
     let mut session = LspSession::start();
-    let doc_text = "\
-- [ ] task #undeclared
-";
-    session.open_document(&uri, doc_text);
+    session.open_document(&uri, "- [ ] task #undeclared\n");
 
     let notification = session.read_notification("textDocument/publishDiagnostics");
     let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
@@ -61,25 +52,16 @@ fn lsp_uses_root_uri_for_config_not_file_walk() {
     // The .agile.md file lives in a completely separate temp dir.
     // Walk-up from the file dir will never reach the project root,
     // so only a rootUri-aware server will avoid a false E008.
-    let project_root = tempfile::tempdir().unwrap();
-    std::fs::write(
-        project_root.path().join("mdagile.toml"),
+    let (mut session, _) = start_project_session(
         "\
 [Properties.priority]
 ",
-    )
-    .unwrap();
-
+    );
+    // Use a *different* tempdir for the file — walk-up will never find the config.
     let file_dir = tempfile::tempdir().unwrap();
-    let file_path = file_dir.path().join("tasks.agile.md");
-    let file_uri = format!("file://{}", file_path.display());
-    let root_uri = format!("file://{}", project_root.path().display());
+    let file_uri = file_uri(&file_dir.path().join("tasks.agile.md"));
 
-    let mut session = LspSession::start_with_root_uri(Some(&root_uri));
-    let doc_text = "\
-- [ ] task #priority
-";
-    session.open_document(&file_uri, doc_text);
+    session.open_document(&file_uri, "- [ ] task #priority\n");
 
     let notification = session.read_notification("textDocument/publishDiagnostics");
     let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();

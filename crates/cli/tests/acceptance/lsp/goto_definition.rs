@@ -1,45 +1,20 @@
-use super::helpers::LspSession;
+use super::helpers::{file_uri, start_project_session};
 
 #[test]
 fn lsp_goto_definition_resolves_assignment_to_config() {
     // GoTo Definition on `@alice` must jump to the `[Users.alice]` line in mdagile.toml.
-    let project_root = tempfile::tempdir().unwrap();
-    std::fs::write(
-        project_root.path().join("mdagile.toml"),
+    let (mut session, file_uri) = start_project_session(
         "\
 [Users.alice]
 display_name = \"Alice\"
 ",
-    )
-    .unwrap();
-
-    let file_path = project_root.path().join("tasks.agile.md");
-    let file_uri = format!("file://{}", file_path.display());
-    let root_uri = format!("file://{}", project_root.path().display());
-    let config_uri = format!(
-        "file://{}",
-        project_root.path().join("mdagile.toml").display()
     );
+    let config_uri = file_uri.replace("tasks.agile.md", "mdagile.toml");
 
-    let mut session = LspSession::start_with_root_uri(Some(&root_uri));
-    let doc_text = "\
-- [ ] task @alice
-";
-    session.open_document(&file_uri, doc_text);
+    session.open_document(&file_uri, "- [ ] task @alice\n");
     session.read_notification("textDocument/publishDiagnostics");
 
-    let goto_req = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "textDocument/definition",
-        "params": {
-            "textDocument": { "uri": file_uri },
-            "position": { "line": 0, "character": 11 }
-        }
-    });
-    session.send(&goto_req.to_string());
-
-    let response = session.read_response(2);
+    let response = session.goto_definition(&file_uri, 2, 0, 11);
 
     assert!(
         !response["result"].is_null(),
@@ -59,38 +34,15 @@ display_name = \"Alice\"
 #[test]
 fn lsp_goto_definition_resolves_group_assignment_to_config() {
     // GoTo Definition on `@backend` must jump to the `[Groups.backend]` line.
-    let project_root = tempfile::tempdir().unwrap();
-    std::fs::write(
-        project_root.path().join("mdagile.toml"),
+    let (mut session, file_uri) = start_project_session(
         "\
 [Groups.backend]
 ",
-    )
-    .unwrap();
-
-    let file_path = project_root.path().join("tasks.agile.md");
-    let file_uri = format!("file://{}", file_path.display());
-    let root_uri = format!("file://{}", project_root.path().display());
-
-    let mut session = LspSession::start_with_root_uri(Some(&root_uri));
-    let doc_text = "\
-- [ ] task @backend
-";
-    session.open_document(&file_uri, doc_text);
+    );
+    session.open_document(&file_uri, "- [ ] task @backend\n");
     session.read_notification("textDocument/publishDiagnostics");
 
-    let goto_req = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "textDocument/definition",
-        "params": {
-            "textDocument": { "uri": file_uri },
-            "position": { "line": 0, "character": 12 }
-        }
-    });
-    session.send(&goto_req.to_string());
-
-    let response = session.read_response(2);
+    let response = session.goto_definition(&file_uri, 2, 0, 12);
 
     assert!(
         !response["result"].is_null(),
@@ -105,38 +57,15 @@ fn lsp_goto_definition_resolves_group_assignment_to_config() {
 #[test]
 fn lsp_goto_definition_returns_null_for_unknown_assignment() {
     // GoTo on `@nobody` when there is no matching entry in config → null result.
-    let project_root = tempfile::tempdir().unwrap();
-    std::fs::write(
-        project_root.path().join("mdagile.toml"),
+    let (mut session, file_uri) = start_project_session(
         "\
 [Users.alice]
 ",
-    )
-    .unwrap();
-
-    let file_path = project_root.path().join("tasks.agile.md");
-    let file_uri = format!("file://{}", file_path.display());
-    let root_uri = format!("file://{}", project_root.path().display());
-
-    let mut session = LspSession::start_with_root_uri(Some(&root_uri));
-    let doc_text = "\
-- [ ] task @nobody
-";
-    session.open_document(&file_uri, doc_text);
+    );
+    session.open_document(&file_uri, "- [ ] task @nobody\n");
     session.read_notification("textDocument/publishDiagnostics");
 
-    let goto_req = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "textDocument/definition",
-        "params": {
-            "textDocument": { "uri": file_uri },
-            "position": { "line": 0, "character": 12 }
-        }
-    });
-    session.send(&goto_req.to_string());
-
-    let response = session.read_response(2);
+    let response = session.goto_definition(&file_uri, 2, 0, 12);
 
     assert!(
         response["result"].is_null(),
