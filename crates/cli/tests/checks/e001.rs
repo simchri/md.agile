@@ -18,7 +18,7 @@ fn run_check(cwd: &Path) -> Output {
 }
 
 #[test]
-fn e001_flags_orphaned_indented_top_level_task() {
+fn flags_orphaned_indented_top_level_task() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] proper top
@@ -39,7 +39,7 @@ fn e001_flags_orphaned_indented_top_level_task() {
 }
 
 #[test]
-fn e001_aggregates_issues_across_multiple_files() {
+fn aggregates_issues_across_multiple_files() {
     let dir = tempdir().unwrap();
     let file_a = "\
 - [ ] top
@@ -66,7 +66,7 @@ fn e001_aggregates_issues_across_multiple_files() {
 }
 
 #[test]
-fn e001_does_not_flag_proper_subtask_under_a_real_parent() {
+fn does_not_flag_proper_subtask_under_a_real_parent() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] parent

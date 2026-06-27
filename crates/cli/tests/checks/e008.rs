@@ -18,7 +18,7 @@ fn run_check(cwd: &Path) -> Output {
 }
 
 #[test]
-fn e008_undefined_property_marker_is_flagged() {
+fn undefined_property_marker_is_flagged() {
     let dir = tempdir().unwrap();
     // Config with one defined property
     fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
@@ -34,7 +34,7 @@ fn e008_undefined_property_marker_is_flagged() {
 }
 
 #[test]
-fn e008_defined_property_marker_is_not_flagged() {
+fn defined_property_marker_is_not_flagged() {
     let dir = tempdir().unwrap();
     fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
     fs::write(
@@ -53,7 +53,7 @@ fn e008_defined_property_marker_is_not_flagged() {
 }
 
 #[test]
-fn e008_undefined_property_without_config_file_is_also_flagged() {
+fn undefined_property_without_config_file_is_also_flagged() {
     let dir = tempdir().unwrap();
     // No mdagile.toml at all — any #property usage is an error
     fs::write(
