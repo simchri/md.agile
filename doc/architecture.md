@@ -1,6 +1,6 @@
 # Architecture
 
-Rough architecture for the `mdagile` / `agile` CLI tool.
+Rough PLANNED architecture for the `mdagile` / `agile` CLI tool.
 
 ---
 
@@ -88,6 +88,17 @@ src/
 | `agile task new`   | TUI mask to create a new task (top or bottom of backlog) |
 | `agile when`       | ETA to each milestone (task weights + git velocity) |
 | `agile fix`        | Auto-fix common issues: add missing required subtasks, resolve short-form markers |
+
+### TTY / pipe composability
+
+`agile` detects whether stdout is a TTY. In a TTY it renders the `ratatui` interactive
+viewer with `nucleo` fuzzy search. When piped it prints plain text, so users can compose
+with external tools they already have:
+
+```sh
+agile | fzf
+agile | grep "#bug"
+```
 
 ---
 
