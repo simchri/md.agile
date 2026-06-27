@@ -18,44 +18,6 @@ fn run_check(cwd: &Path) -> Output {
 }
 
 #[test]
-fn clean_project_exits_zero_with_no_output() {
-    let dir = tempdir().unwrap();
-    let content = "\
-- [ ] top
-  - [ ] proper sub
-- [x] done
-";
-    fs::write(dir.path().join("a.agile.md"), content).unwrap();
-
-    let out = run_check(dir.path());
-
-    assert!(
-        out.status.success(),
-        "expected exit 0, got {:?}",
-        out.status
-    );
-    assert!(
-        out.stdout.is_empty(),
-        "stdout: {}",
-        String::from_utf8_lossy(&out.stdout)
-    );
-    assert!(
-        out.stderr.is_empty(),
-        "stderr: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-}
-
-#[test]
-fn empty_project_exits_zero() {
-    // No *.agile.md files at all is also "clean".
-    let dir = tempdir().unwrap();
-    let out = run_check(dir.path());
-    assert!(out.status.success());
-    assert!(out.stdout.is_empty());
-}
-
-#[test]
 fn e001_flags_orphaned_indented_top_level_task() {
     let dir = tempdir().unwrap();
     let content = "\
@@ -121,56 +83,3 @@ fn e001_does_not_flag_proper_subtask_under_a_real_parent() {
     );
     assert!(out.stdout.is_empty());
 }
-
-#[test]
-fn e008_undefined_property_marker_is_flagged() {
-    let dir = tempdir().unwrap();
-    // Config with one defined property
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
-    // Task uses #bug which is NOT defined
-    fs::write(dir.path().join("a.agile.md"), "- [ ] #bug fix the thing\n").unwrap();
-
-    let out = run_check(dir.path());
-
-    assert_eq!(out.status.code(), Some(1));
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("E008"), "stdout: {stdout:?}");
-    assert!(stdout.contains("bug"), "stdout: {stdout:?}");
-}
-
-#[test]
-fn e008_defined_property_marker_is_not_flagged() {
-    let dir = tempdir().unwrap();
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "- [ ] #feature add new thing\n",
-    )
-    .unwrap();
-
-    let out = run_check(dir.path());
-
-    assert!(
-        out.status.success(),
-        "stdout: {}",
-        String::from_utf8_lossy(&out.stdout)
-    );
-}
-
-#[test]
-fn e008_undefined_property_without_config_file_is_also_flagged() {
-    let dir = tempdir().unwrap();
-    // No mdagile.toml at all — any #property usage is an error
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "- [ ] #feature add new thing\n",
-    )
-    .unwrap();
-
-    let out = run_check(dir.path());
-
-    assert_eq!(out.status.code(), Some(1));
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("E008"), "stdout: {stdout:?}");
-}
-
