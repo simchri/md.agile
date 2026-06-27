@@ -14,8 +14,8 @@ docker exec --interactive --tty mdagile-dev-container-1 "bash"
 
 (run in container or host as preferred)
 ```bash
-cargo build                      # Build CLI and LSP
-cargo run                        # Run CLI
+cargo build                      # Build
+cargo run --bin agile            # Run CLI
 ./target/debug/agilels           # Run LSP (runs on stdin/stdout) - not really useful in this form, unless you are an AI or speak LSP :)
 
 cargo test                       # Run full test suite
@@ -24,7 +24,7 @@ cargo test --lib -- test_name    # Run single test
 
 ### GUI
 
-run board (GUI): then
+run board (GUI):
 ```
 (cd crates/gui && MDAGILE_WORKDIR=$(pwd)/../.. dx serve --platform web)
 ```
