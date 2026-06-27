@@ -9,15 +9,9 @@ pub struct LspSession {
 }
 
 impl LspSession {
-    /// Spawn the LSP server and complete the initialize/initialized handshake
-    /// with a null rootUri.
-    pub fn start() -> Self {
-        Self::start_with_root_uri(None)
-    }
-
-    /// Spawn the LSP server and complete the initialize/initialized handshake
-    /// with the given rootUri.
-    pub fn start_with_root_uri(root_uri: Option<&str>) -> Self {
+    /// Spawn the LSP server without performing any handshake.
+    /// Use this when the test needs to observe the initialize exchange itself.
+    pub fn start_raw() -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_agilels"))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -29,11 +23,23 @@ impl LspSession {
         let reader = BufReader::new(stdout);
         let stdin = child.stdin.take().expect("stdin");
 
-        let mut session = LspSession {
+        LspSession {
             child,
             reader,
             stdin,
-        };
+        }
+    }
+
+    /// Spawn the LSP server and complete the initialize/initialized handshake
+    /// with a null rootUri.
+    pub fn start() -> Self {
+        Self::start_with_root_uri(None)
+    }
+
+    /// Spawn the LSP server and complete the initialize/initialized handshake
+    /// with the given rootUri.
+    pub fn start_with_root_uri(root_uri: Option<&str>) -> Self {
+        let mut session = Self::start_raw();
 
         let root_uri_json = match root_uri {
             Some(uri) => format!("\"{}\"", uri),

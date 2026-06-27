@@ -4,5 +4,5 @@ mod checks;
 mod config;
 #[path = "acceptance/helpers.rs"]
 pub mod helpers;
-#[path = "acceptance/lsp_basic.rs"]
-mod lsp_basic;
+#[path = "acceptance/lsp.rs"]
+mod lsp;
