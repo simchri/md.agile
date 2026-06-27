@@ -11,7 +11,12 @@ display_name = \"Alice\"
     );
     let config_uri = file_uri.replace("tasks.agile.md", "mdagile.toml");
 
-    session.open_document(&file_uri, "- [ ] task @alice\n");
+    session.open_document(
+        &file_uri,
+        "\
+- [ ] task @alice
+",
+    );
     session.read_notification("textDocument/publishDiagnostics");
 
     let response = session.goto_definition(&file_uri, 2, 0, 11);
@@ -39,7 +44,12 @@ fn lsp_goto_definition_resolves_group_assignment_to_config() {
 [Groups.backend]
 ",
     );
-    session.open_document(&file_uri, "- [ ] task @backend\n");
+    session.open_document(
+        &file_uri,
+        "\
+- [ ] task @backend
+",
+    );
     session.read_notification("textDocument/publishDiagnostics");
 
     let response = session.goto_definition(&file_uri, 2, 0, 12);
@@ -62,7 +72,12 @@ fn lsp_goto_definition_returns_null_for_unknown_assignment() {
 [Users.alice]
 ",
     );
-    session.open_document(&file_uri, "- [ ] task @nobody\n");
+    session.open_document(
+        &file_uri,
+        "\
+- [ ] task @nobody
+",
+    );
     session.read_notification("textDocument/publishDiagnostics");
 
     let response = session.goto_definition(&file_uri, 2, 0, 12);

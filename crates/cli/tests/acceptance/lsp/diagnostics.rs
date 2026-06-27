@@ -13,7 +13,12 @@ fn lsp_e008_not_reported_for_declared_property() {
 
     let uri = file_uri(&dir.path().join("tasks.agile.md"));
     let mut session = LspSession::start();
-    session.open_document(&uri, "- [ ] task #priority\n");
+    session.open_document(
+        &uri,
+        "\
+- [ ] task #priority
+",
+    );
 
     let notification = session.read_notification("textDocument/publishDiagnostics");
     let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
@@ -33,7 +38,12 @@ fn lsp_e008_reported_for_undeclared_property() {
     let uri = file_uri(&dir.path().join("tasks.agile.md"));
 
     let mut session = LspSession::start();
-    session.open_document(&uri, "- [ ] task #undeclared\n");
+    session.open_document(
+        &uri,
+        "\
+- [ ] task #undeclared
+",
+    );
 
     let notification = session.read_notification("textDocument/publishDiagnostics");
     let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
@@ -61,7 +71,12 @@ fn lsp_uses_root_uri_for_config_not_file_walk() {
     let file_dir = tempfile::tempdir().unwrap();
     let file_uri = file_uri(&file_dir.path().join("tasks.agile.md"));
 
-    session.open_document(&file_uri, "- [ ] task #priority\n");
+    session.open_document(
+        &file_uri,
+        "\
+- [ ] task #priority
+",
+    );
 
     let notification = session.read_notification("textDocument/publishDiagnostics");
     let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
