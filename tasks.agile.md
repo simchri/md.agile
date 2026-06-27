@@ -246,11 +246,11 @@
   - [x] Provide helpful error with list of missing subtasks
   - [x] Tests: single property, multiple properties, nested properties
 
-- [ ] E010 acceptance test
+- [x] E010 acceptance test
   End-to-end CLI test for E010 in tests/check.rs (spawns real binary with a temp project).
   All other rules (E001, E008…) already have coverage at this level; E010 needs the same.
-  - [ ] missing required subtasks → exit 1 + E010 in stdout
-  - [ ] all required subtasks present → exit 0
+  - [x] missing required subtasks → exit 1 + E010 in stdout
+  - [x] all required subtasks present → exit 0
 
 - [ ] LSP quickfix for E010 (insert missing required subtasks)
   The IssueData::MissingRequiredSubtasks { missing } payload is already in place.
