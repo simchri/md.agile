@@ -79,7 +79,7 @@ Project-level configuration (properties, users, groups) lives in `mdagile.toml`.
 Always write inline file content using the `"\` continuation style so the content renders exactly as it would in a real file — indentation and all:
 
 ```rust
-let input = "\
+let file_content = "\
 - [ ] top task
   - [ ] subtask
     - [ ] nested
@@ -87,6 +87,7 @@ let input = "\
 ```
 
 Never use embedded `\n` escapes or string concatenation for multi-line file samples. The goal is that a reader can see indentation and structure at a glance, just as they would in an actual `.agile.md` file.
+Always use an intermediate explanatory variables called `file_content`. Where multiple files are written make it `mut` and reuse it.
 
 ### Formatting
 

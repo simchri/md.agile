@@ -5,8 +5,12 @@ use tempfile::tempdir;
 #[test]
 fn list_files_prints_agile_md_files() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("tasks.agile.md"), "- [ ] a task\n").unwrap();
-    fs::write(dir.path().join("README.md"), "not a task file\n").unwrap();
+    fs::write(dir.path().join("tasks.agile.md"), "\
+- [ ] a task
+").unwrap();
+    fs::write(dir.path().join("README.md"), "\
+not a task file
+").unwrap();
 
     let out = run_agile(dir.path(), &["list", "files"]);
 
@@ -19,7 +23,9 @@ fn list_files_prints_agile_md_files() {
 #[test]
 fn list_files_format_is_filename_then_full_path() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("my.agile.md"), "- [ ] task\n").unwrap();
+    fs::write(dir.path().join("my.agile.md"), "\
+- [ ] task
+").unwrap();
 
     let out = run_agile(dir.path(), &["list", "files"]);
 
@@ -37,8 +43,12 @@ fn list_files_with_next_limit() {
     let dir = tempdir().unwrap();
     let sub = dir.path().join("sub");
     fs::create_dir(&sub).unwrap();
-    fs::write(dir.path().join("a.agile.md"), "- [ ] task\n").unwrap();
-    fs::write(sub.join("b.agile.md"), "- [ ] task\n").unwrap();
+    fs::write(dir.path().join("a.agile.md"), "\
+- [ ] task
+").unwrap();
+    fs::write(sub.join("b.agile.md"), "\
+- [ ] task
+").unwrap();
 
     let out = run_agile(dir.path(), &["list", "files", "-n", "1"]);
 
