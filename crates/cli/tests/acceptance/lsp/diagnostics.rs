@@ -3,13 +3,10 @@ use super::helpers::{LspSession, file_uri, start_project_session};
 #[test]
 fn lsp_e008_not_reported_for_declared_property() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::write(
-        dir.path().join("mdagile.toml"),
-        "\
+    let file_content = "\
 [Properties.priority]
-",
-    )
-    .unwrap();
+";
+    std::fs::write(dir.path().join("mdagile.toml"), file_content).unwrap();
 
     let uri = file_uri(&dir.path().join("tasks.agile.md"));
     let mut session = LspSession::start();

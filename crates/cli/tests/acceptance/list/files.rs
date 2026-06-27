@@ -5,20 +5,14 @@ use tempfile::tempdir;
 #[test]
 fn list_files_prints_agile_md_files() {
     let dir = tempdir().unwrap();
-    fs::write(
-        dir.path().join("tasks.agile.md"),
-        "\
+    let mut file_content = "\
 - [ ] a task
-",
-    )
-    .unwrap();
-    fs::write(
-        dir.path().join("README.md"),
-        "\
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    file_content = "\
 not a task file
-",
-    )
-    .unwrap();
+";
+    fs::write(dir.path().join("README.md"), file_content).unwrap();
 
     let out = run_agile(dir.path(), &["list", "files"]);
 
@@ -34,13 +28,10 @@ not a task file
 #[test]
 fn list_files_format_is_filename_then_full_path() {
     let dir = tempdir().unwrap();
-    fs::write(
-        dir.path().join("my.agile.md"),
-        "\
+    let file_content = "\
 - [ ] task
-",
-    )
-    .unwrap();
+";
+    fs::write(dir.path().join("my.agile.md"), file_content).unwrap();
 
     let out = run_agile(dir.path(), &["list", "files"]);
 
@@ -67,20 +58,11 @@ fn list_files_with_next_limit() {
     let dir = tempdir().unwrap();
     let sub = dir.path().join("sub");
     fs::create_dir(&sub).unwrap();
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "\
+    let file_content = "\
 - [ ] task
-",
-    )
-    .unwrap();
-    fs::write(
-        sub.join("b.agile.md"),
-        "\
-- [ ] task
-",
-    )
-    .unwrap();
+";
+    fs::write(dir.path().join("a.agile.md"), file_content).unwrap();
+    fs::write(sub.join("b.agile.md"), file_content).unwrap();
 
     let out = run_agile(dir.path(), &["list", "files", "-n", "1"]);
 
