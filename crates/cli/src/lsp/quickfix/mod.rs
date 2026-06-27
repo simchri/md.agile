@@ -277,4 +277,48 @@ pub(super) fn build_add_to_toml(
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn has_quickfix_for_each_code() {
+        use crate::rules::ErrorCode::*;
+        assert!(!has_quickfix(OrphanedSubtask));
+        assert!(has_quickfix(WrongIndentation));
+        assert!(has_quickfix(WrongBodyIndentation));
+        assert!(!has_quickfix(IncompleteParent));
+        assert!(has_quickfix(MissingSpaceAfterBox));
+        assert!(has_quickfix(BoxStyleInvalid));
+        assert!(has_quickfix(UppercaseX));
+        assert!(has_quickfix(UndefinedProperty));
+        assert!(has_quickfix(UndefinedAssignment));
+    }
+
+    // --- levenshtein unit tests ---
+
+    #[test]
+    fn levenshtein_identical_strings() {
+        assert_eq!(levenshtein("feature", "feature"), 0);
+    }
+
+    #[test]
+    fn levenshtein_single_deletion() {
+        assert_eq!(levenshtein("feture", "feature"), 1);
+    }
+
+    #[test]
+    fn levenshtein_single_substitution() {
+        assert_eq!(levenshtein("feaxure", "feature"), 1);
+    }
+
+    #[test]
+    fn levenshtein_single_insertion() {
+        assert_eq!(levenshtein("features", "feature"), 1);
+    }
+
+    #[test]
+    fn levenshtein_far_apart_strings() {
+        // Length diff alone exceeds MAX_EDIT_DISTANCE -> capped at MAX+1
+        assert!(levenshtein("xyz", "completelydifferent") > MAX_EDIT_DISTANCE);
+    }
+}
