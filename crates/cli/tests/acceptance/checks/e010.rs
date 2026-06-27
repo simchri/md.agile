@@ -5,13 +5,16 @@ use tempfile::tempdir;
 #[test]
 fn flags_task_missing_required_subtask() {
     let dir = tempdir().unwrap();
-    fs::write(
-        dir.path().join("mdagile.toml"),
-        "[Properties.feature]\nsubtasks = [\"PO review\"]\n",
-    )
-    .unwrap();
+    let config = "\
+[Properties.feature]
+subtasks = [\"PO review\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     // #feature task has no "PO review" subtask
-    fs::write(dir.path().join("a.agile.md"), "- [ ] #feature add login\n").unwrap();
+    let content = "\
+- [ ] #feature add login
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -24,11 +27,11 @@ fn flags_task_missing_required_subtask() {
 #[test]
 fn does_not_flag_task_with_required_subtask_present() {
     let dir = tempdir().unwrap();
-    fs::write(
-        dir.path().join("mdagile.toml"),
-        "[Properties.feature]\nsubtasks = [\"PO review\"]\n",
-    )
-    .unwrap();
+    let config = "\
+[Properties.feature]
+subtasks = [\"PO review\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let content = "\
 - [ ] #feature add login
   - [ ] \"PO review\"

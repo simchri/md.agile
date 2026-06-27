@@ -12,9 +12,15 @@ use tempfile::tempdir;
 fn undefined_property_marker_is_flagged() {
     let dir = tempdir().unwrap();
     // Config with one defined property
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
+    let config = "\
+[Properties.feature]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     // Task uses #bug which is NOT defined
-    fs::write(dir.path().join("a.agile.md"), "- [ ] #bug fix the thing\n").unwrap();
+    let content = "\
+- [ ] #bug fix the thing
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -27,12 +33,14 @@ fn undefined_property_marker_is_flagged() {
 #[test]
 fn defined_property_marker_is_not_flagged() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "- [ ] #feature add new thing\n",
-    )
-    .unwrap();
+    let config = "\
+[Properties.feature]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] #feature add new thing
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -47,11 +55,10 @@ fn defined_property_marker_is_not_flagged() {
 fn undefined_property_without_config_file_is_also_flagged() {
     let dir = tempdir().unwrap();
     // No mdagile.toml at all — any #property usage is an error
-    fs::write(
-        dir.path().join("a.agile.md"),
-        "- [ ] #feature add new thing\n",
-    )
-    .unwrap();
+    let content = "\
+- [ ] #feature add new thing
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 

@@ -10,8 +10,14 @@ use tempfile::tempdir;
 #[test]
 fn conflicting_config_files_exit_nonzero_with_error_message() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
-    fs::write(dir.path().join(".mdagile.toml"), "[Properties.bug]\n").unwrap();
+    let config_a = "\
+[Properties.feature]
+";
+    fs::write(dir.path().join("mdagile.toml"), config_a).unwrap();
+    let config_b = "\
+[Properties.bug]
+";
+    fs::write(dir.path().join(".mdagile.toml"), config_b).unwrap();
 
     let out = run_check(dir.path());
 
@@ -23,7 +29,10 @@ fn conflicting_config_files_exit_nonzero_with_error_message() {
 #[test]
 fn invalid_toml_config_exits_nonzero_with_error_message() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feature\n").unwrap();
+    let config = "\
+[Properties.feature
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
 
     let out = run_check(dir.path());
 
@@ -38,8 +47,14 @@ fn invalid_toml_config_exits_nonzero_with_error_message() {
 #[test]
 fn valid_config_does_not_prevent_normal_operation() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
-    fs::write(dir.path().join("tasks.agile.md"), "- [ ] a task\n").unwrap();
+    let config = "\
+[Properties.feature]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] a task
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -53,7 +68,10 @@ fn valid_config_does_not_prevent_normal_operation() {
 #[test]
 fn config_error_is_reported_regardless_of_subcommand() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feature\n").unwrap();
+    let config = "\
+[Properties.feature
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
 
     let out = run_list(dir.path());
 

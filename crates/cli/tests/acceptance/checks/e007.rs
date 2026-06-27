@@ -5,7 +5,10 @@ use tempfile::tempdir;
 #[test]
 fn flags_uppercase_x_in_status_box() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("a.agile.md"), "- [X] task title\n").unwrap();
+    let content = "\
+- [X] task title
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -17,7 +20,10 @@ fn flags_uppercase_x_in_status_box() {
 #[test]
 fn does_not_flag_lowercase_x() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("a.agile.md"), "- [x] task title\n").unwrap();
+    let content = "\
+- [x] task title
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 

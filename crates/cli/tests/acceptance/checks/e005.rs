@@ -6,7 +6,10 @@ use tempfile::tempdir;
 fn flags_missing_space_after_box() {
     let dir = tempdir().unwrap();
     // No space between `]` and task title
-    fs::write(dir.path().join("a.agile.md"), "- [ ]task title\n").unwrap();
+    let content = "\
+- [ ]task title
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -18,7 +21,10 @@ fn flags_missing_space_after_box() {
 #[test]
 fn does_not_flag_task_with_space_after_box() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("a.agile.md"), "- [ ] task title\n").unwrap();
+    let content = "\
+- [ ] task title
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 

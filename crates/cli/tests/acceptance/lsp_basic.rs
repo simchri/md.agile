@@ -390,6 +390,10 @@ fn lsp_code_action_available_anywhere_on_the_line() {
     .unwrap();
 
     let uri = "file:///tmp/test_quickfix_cursor.agile.md";
+    let doc_text = "\
+- [ ] top
+   - [ ] sub
+";
     let did_open = serde_json::json!({
         "jsonrpc": "2.0",
         "method": "textDocument/didOpen",
@@ -398,7 +402,7 @@ fn lsp_code_action_available_anywhere_on_the_line() {
                 "uri": uri,
                 "languageId": "markdown",
                 "version": 1,
-                "text": "- [ ] top\n   - [ ] sub\n"
+                "text": doc_text
             }
         }
     });
@@ -444,7 +448,13 @@ fn lsp_code_action_available_anywhere_on_the_line() {
 #[test]
 fn lsp_e008_not_reported_for_declared_property() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("mdagile.toml"), "[Properties.priority]\n").unwrap();
+    std::fs::write(
+        dir.path().join("mdagile.toml"),
+        "\
+[Properties.priority]
+",
+    )
+    .unwrap();
 
     let file_path = dir.path().join("tasks.agile.md");
     let uri = format!("file://{}", file_path.display());
@@ -461,6 +471,9 @@ fn lsp_e008_not_reported_for_declared_property() {
     )
     .unwrap();
 
+    let doc_text = "\
+- [ ] task #priority
+";
     let did_open = serde_json::json!({
         "jsonrpc": "2.0",
         "method": "textDocument/didOpen",
@@ -469,7 +482,7 @@ fn lsp_e008_not_reported_for_declared_property() {
                 "uri": uri,
                 "languageId": "markdown",
                 "version": 1,
-                "text": "- [ ] task #priority\n"
+                "text": doc_text
             }
         }
     });
@@ -509,6 +522,9 @@ fn lsp_e008_reported_for_undeclared_property() {
     )
     .unwrap();
 
+    let doc_text = "\
+- [ ] task #undeclared
+";
     let did_open = serde_json::json!({
         "jsonrpc": "2.0",
         "method": "textDocument/didOpen",
@@ -517,7 +533,7 @@ fn lsp_e008_reported_for_undeclared_property() {
                 "uri": uri,
                 "languageId": "markdown",
                 "version": 1,
-                "text": "- [ ] task #undeclared\n"
+                "text": doc_text
             }
         }
     });
@@ -546,7 +562,9 @@ fn lsp_uses_root_uri_for_config_not_file_walk() {
     let project_root = tempfile::tempdir().unwrap();
     std::fs::write(
         project_root.path().join("mdagile.toml"),
-        "[Properties.priority]\n",
+        "\
+[Properties.priority]
+",
     )
     .unwrap();
 
@@ -577,6 +595,9 @@ fn lsp_uses_root_uri_for_config_not_file_walk() {
     )
     .unwrap();
 
+    let doc_text = "\
+- [ ] task #priority
+";
     let did_open = serde_json::json!({
         "jsonrpc": "2.0",
         "method": "textDocument/didOpen",
@@ -585,7 +606,7 @@ fn lsp_uses_root_uri_for_config_not_file_walk() {
                 "uri": file_uri,
                 "languageId": "markdown",
                 "version": 1,
-                "text": "- [ ] task #priority\n"
+                "text": doc_text
             }
         }
     });
@@ -644,6 +665,9 @@ display_name = \"Alice\"
     .unwrap();
 
     // Open a document with `@alice` at a known column (column 11, zero-based).
+    let doc_text = "\
+- [ ] task @alice
+";
     let did_open = serde_json::json!({
         "jsonrpc": "2.0",
         "method": "textDocument/didOpen",
@@ -652,7 +676,7 @@ display_name = \"Alice\"
                 "uri": file_uri,
                 "languageId": "markdown",
                 "version": 1,
-                "text": "- [ ] task @alice\n"
+                "text": doc_text
             }
         }
     });
@@ -725,6 +749,9 @@ fn lsp_goto_definition_resolves_group_assignment_to_config() {
     )
     .unwrap();
 
+    let doc_text = "\
+- [ ] task @backend
+";
     let did_open = serde_json::json!({
         "jsonrpc": "2.0",
         "method": "textDocument/didOpen",
@@ -733,7 +760,7 @@ fn lsp_goto_definition_resolves_group_assignment_to_config() {
                 "uri": file_uri,
                 "languageId": "markdown",
                 "version": 1,
-                "text": "- [ ] task @backend\n"
+                "text": doc_text
             }
         }
     });
@@ -771,7 +798,13 @@ fn lsp_goto_definition_resolves_group_assignment_to_config() {
 fn lsp_goto_definition_returns_null_for_unknown_assignment() {
     // GoTo on `@nobody` when there is no matching entry in config → null result.
     let project_root = tempfile::tempdir().unwrap();
-    std::fs::write(project_root.path().join("mdagile.toml"), "[Users.alice]\n").unwrap();
+    std::fs::write(
+        project_root.path().join("mdagile.toml"),
+        "\
+[Users.alice]
+",
+    )
+    .unwrap();
 
     let file_path = project_root.path().join("tasks.agile.md");
     let file_uri = format!("file://{}", file_path.display());
@@ -794,6 +827,9 @@ fn lsp_goto_definition_returns_null_for_unknown_assignment() {
     )
     .unwrap();
 
+    let doc_text = "\
+- [ ] task @nobody
+";
     let did_open = serde_json::json!({
         "jsonrpc": "2.0",
         "method": "textDocument/didOpen",
@@ -802,7 +838,7 @@ fn lsp_goto_definition_returns_null_for_unknown_assignment() {
                 "uri": file_uri,
                 "languageId": "markdown",
                 "version": 1,
-                "text": "- [ ] task @nobody\n"
+                "text": doc_text
             }
         }
     });

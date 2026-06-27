@@ -6,7 +6,10 @@ use tempfile::tempdir;
 fn flags_invalid_box_character() {
     let dir = tempdir().unwrap();
     // `?` is not a valid status character
-    fs::write(dir.path().join("a.agile.md"), "- [?] task title\n").unwrap();
+    let content = "\
+- [?] task title
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 

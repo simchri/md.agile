@@ -6,8 +6,14 @@ use tempfile::tempdir;
 fn flags_undefined_assignment() {
     let dir = tempdir().unwrap();
     // Config defines no users; @alice is therefore undefined
-    fs::write(dir.path().join("mdagile.toml"), "[Properties.feat]\n").unwrap();
-    fs::write(dir.path().join("a.agile.md"), "- [ ] @alice do the thing\n").unwrap();
+    let config = "\
+[Properties.feat]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] @alice do the thing
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
@@ -20,8 +26,14 @@ fn flags_undefined_assignment() {
 #[test]
 fn does_not_flag_declared_assignment() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("mdagile.toml"), "[Users.alice]\n").unwrap();
-    fs::write(dir.path().join("a.agile.md"), "- [ ] @alice do the thing\n").unwrap();
+    let config = "\
+[Users.alice]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] @alice do the thing
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
     let out = run_check(dir.path());
 
