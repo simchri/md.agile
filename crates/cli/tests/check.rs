@@ -56,7 +56,7 @@ fn empty_project_exits_zero() {
 }
 
 #[test]
-fn flags_orphaned_indented_top_level_task() {
+fn e001_flags_orphaned_indented_top_level_task() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] proper top
@@ -77,7 +77,7 @@ fn flags_orphaned_indented_top_level_task() {
 }
 
 #[test]
-fn aggregates_issues_across_multiple_files() {
+fn e001_aggregates_issues_across_multiple_files() {
     let dir = tempdir().unwrap();
     let file_a = "\
 - [ ] top
@@ -104,7 +104,26 @@ fn aggregates_issues_across_multiple_files() {
 }
 
 #[test]
-fn undefined_property_marker_is_flagged() {
+fn e001_does_not_flag_proper_subtask_under_a_real_parent() {
+    let dir = tempdir().unwrap();
+    let content = "\
+- [ ] parent
+  - [ ] real subtask
+    - [ ] grandchild
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
+
+    let out = run_check(dir.path());
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout),
+    );
+    assert!(out.stdout.is_empty());
+}
+
+#[test]
+fn e008_undefined_property_marker_is_flagged() {
     let dir = tempdir().unwrap();
     // Config with one defined property
     fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
@@ -120,7 +139,7 @@ fn undefined_property_marker_is_flagged() {
 }
 
 #[test]
-fn defined_property_marker_is_not_flagged() {
+fn e008_defined_property_marker_is_not_flagged() {
     let dir = tempdir().unwrap();
     fs::write(dir.path().join("mdagile.toml"), "[Properties.feature]\n").unwrap();
     fs::write(
@@ -139,7 +158,7 @@ fn defined_property_marker_is_not_flagged() {
 }
 
 #[test]
-fn undefined_property_without_config_file_is_also_flagged() {
+fn e008_undefined_property_without_config_file_is_also_flagged() {
     let dir = tempdir().unwrap();
     // No mdagile.toml at all — any #property usage is an error
     fs::write(
@@ -155,21 +174,3 @@ fn undefined_property_without_config_file_is_also_flagged() {
     assert!(stdout.contains("E008"), "stdout: {stdout:?}");
 }
 
-#[test]
-fn does_not_flag_proper_subtask_under_a_real_parent() {
-    let dir = tempdir().unwrap();
-    let content = "\
-- [ ] parent
-  - [ ] real subtask
-    - [ ] grandchild
-";
-    fs::write(dir.path().join("a.agile.md"), content).unwrap();
-
-    let out = run_check(dir.path());
-    assert!(
-        out.status.success(),
-        "stdout: {}",
-        String::from_utf8_lossy(&out.stdout),
-    );
-    assert!(out.stdout.is_empty());
-}
