@@ -89,6 +89,27 @@ let file_content = "\
 Never use embedded `\n` escapes or string concatenation for multi-line file samples. The goal is that a reader can see indentation and structure at a glance, just as they would in an actual `.agile.md` file.
 Always use an intermediate explanatory variables called `file_content`. Where multiple files are written make it `mut` and reuse it.
 
+### Test file structure
+
+Tests — including unit tests — always live in a separate file, never inline in the source file. The source file declares the test module with a `#[cfg(test)]` attribute and a `#[path]` pointing to the test file:
+
+```rust
+// In foo.rs:
+#[cfg(test)]
+#[path = "foo_tests.rs"]
+mod tests;
+```
+
+```rust
+// In foo_tests.rs:
+use super::*;
+
+#[test]
+fn it_works() { ... }
+```
+
+Name the test file `<source_stem>_tests.rs` and place it alongside the source file.
+
 ### Formatting
 
 After adding or editing any `.rs` file, run `cargo fmt` before committing.
