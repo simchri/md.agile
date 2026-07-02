@@ -281,6 +281,12 @@
   - [-] #OPT Consider: add --strict flag to promote warnings to errors
     Note: everything is an error, no warnings for now
 
+## Events
+- [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
+  - [ ] formulate "vision"
+
+## Agile Fix
+- [ ] Apply existing quick fixes via `agile fix` on the command line
 
 ## More CLI features
 
