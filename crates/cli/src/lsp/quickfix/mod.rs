@@ -13,6 +13,7 @@ mod undefined_property;
 mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
+mod missing_subtasks;
 
 /// Function shape every quickfix builder satisfies.
 /// Returns all applicable code actions for the diagnostic (zero or more).
@@ -32,6 +33,8 @@ const REGISTRY: &[(ErrorCode, Builder)] = &[
     (ErrorCode::UppercaseX, uppercase_x::build),
     (ErrorCode::UndefinedProperty, undefined_property::build),
     (ErrorCode::UndefinedAssignment, undefined_assignment::build),
+    (ErrorCode::MissingRequiredSubtasks, missing_subtasks::build),
+
     // E001 OrphanedSubtask, E004 IncompleteParent:
     // no quickfix (user has to make a structural decision the linter can't).
 ];
