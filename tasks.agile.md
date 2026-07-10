@@ -1,5 +1,5 @@
 - [x] post initial vision!
-- [x] refine and clean up
+barar [x] refine and clean up
 
 # More Cli stuff
 - [x] for any "list" command, add arguments "--next <count>" / "-n <count>"  show only the first <count> entries of whatever is listed.
@@ -252,14 +252,14 @@
   - [x] missing required subtasks → exit 1 + E010 in stdout
   - [x] all required subtasks present → exit 0
 
-- [ ] LSP quickfix for E010 (insert missing required subtasks)
+- [x] LSP quickfix for E010 (insert missing required subtasks)
   The IssueData::MissingRequiredSubtasks { missing } payload is already in place.
   The vision explicitly calls out autofix: "use the autofix feature of your text editor
   to quickly add the required subtasks."
-  - [ ] Add lsp/quickfix/missing_required_subtasks.rs builder
-  - [ ] Insert each missing quoted subtask as a new child line after the last existing child (or after the task line if no children)
-  - [ ] Register in the REGISTRY in lsp/quickfix/mod.rs
-  - [ ] Tests for the quickfix builder
+  - [x] Add lsp/quickfix/missing_required_subtasks.rs builder
+  - [x] Insert each missing quoted subtask as a new child line after the last existing child (or after the task line if no children)
+  - [x] Register in the REGISTRY in lsp/quickfix/mod.rs
+  - [x] Tests for the quickfix builder
 
 - [ ] Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
