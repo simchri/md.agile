@@ -261,11 +261,13 @@ barar [x] refine and clean up
   - [x] Register in the REGISTRY in lsp/quickfix/mod.rs
   - [x] Tests for the quickfix builder
   - [x] validation
-  - [x] "(feature) validation"
+  - [x] "(feature) validation by programmer"
+  - [x] "(feature) implementation"
 
-- [x] #feature Check that detects subtasks completely surrounded by quotes (- [ ] "some subtask"), but which are NOT required subtasks
+- [ ] #feature Check that detects subtasks completely surrounded by quotes (- [ ] "some subtask"), but which are NOT required subtasks
   This syntax is reserved for required subtasks (by #properties) and should not be usable otherwise
-  - [x] "(feature) validation"
+  - [x] "(feature) implementation"
+  - [ ] "(feature) validation by programmer"
 
 - [ ] Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
