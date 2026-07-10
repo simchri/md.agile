@@ -295,6 +295,7 @@ mod tests {
         assert!(has_quickfix(UndefinedProperty));
         assert!(has_quickfix(UndefinedAssignment));
         assert!(has_quickfix(MissingRequiredSubtasks));
+        assert!(!has_quickfix(UnrequiredQuotedSubtask));
     }
 
     // --- levenshtein unit tests ---

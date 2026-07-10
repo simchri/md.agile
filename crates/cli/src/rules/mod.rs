@@ -15,6 +15,7 @@ mod missing_space_after_box;
 mod orphaned_subtask;
 mod undefined_assignment;
 mod undefined_property;
+mod unrequired_quoted_subtask;
 mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
@@ -26,6 +27,7 @@ pub use missing_space_after_box::missing_space_after_box;
 pub use orphaned_subtask::orphaned_subtask;
 pub use undefined_assignment::undefined_assignment;
 pub use undefined_property::undefined_property;
+pub use unrequired_quoted_subtask::unrequired_quoted_subtask;
 pub use uppercase_x::uppercase_x;
 pub use wrong_body_indent::wrong_body_indent;
 pub use wrong_indentation::wrong_indentation;
@@ -53,6 +55,8 @@ pub enum ErrorCode {
     UndefinedAssignment,
     /// E010: Task is missing required subtasks mandated by a property
     MissingRequiredSubtasks,
+    /// E011: Subtask uses the quoted syntax but is not declared as required by any property
+    UnrequiredQuotedSubtask,
 }
 
 impl ErrorCode {
@@ -70,6 +74,7 @@ impl ErrorCode {
             ErrorCode::UndefinedProperty => "E008",
             ErrorCode::UndefinedAssignment => "E009",
             ErrorCode::MissingRequiredSubtasks => "E010",
+            ErrorCode::UnrequiredQuotedSubtask => "E011",
         }
     }
 }
@@ -95,6 +100,7 @@ impl std::str::FromStr for ErrorCode {
             "E008" => ErrorCode::UndefinedProperty,
             "E009" => ErrorCode::UndefinedAssignment,
             "E010" => ErrorCode::MissingRequiredSubtasks,
+            "E011" => ErrorCode::UnrequiredQuotedSubtask,
             _ => return Err(()),
         })
     }
@@ -151,6 +157,8 @@ pub enum IssueData {
     UndefinedAssignment { assignment_name: String },
     /// Payload for E010 "Missing Required Subtasks": list of required subtask titles absent from the task.
     MissingRequiredSubtasks { missing: Vec<String> },
+    /// Payload for E011 "Unrequired Quoted Subtask": the raw title of the incorrectly-quoted subtask.
+    UnrequiredQuotedSubtask { title: String },
 }
 
 /// A single problem found by a rule.
@@ -184,6 +192,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(undefined_property(items, config));
     issues.extend(undefined_assignment(items, config));
     issues.extend(missing_required_subtasks(items, config));
+    issues.extend(unrequired_quoted_subtask(items, config));
     issues
 }
 
