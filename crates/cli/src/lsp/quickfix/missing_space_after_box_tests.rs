@@ -1,7 +1,6 @@
-use super::super::{build_quickfix, build_quickfixes};
+use super::super::build_quickfix;
 use super::*;
 use serde_json::json;
-use tower_lsp::lsp_types::*;
 
 fn diag_e005(line: u32) -> Diagnostic {
     Diagnostic {

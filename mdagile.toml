@@ -2,6 +2,8 @@
 
 [Properties.bug]
 [Properties.foo]
+subtasks = ["bar"]
+
 [Properties.feat]
 
 [Users.alice]

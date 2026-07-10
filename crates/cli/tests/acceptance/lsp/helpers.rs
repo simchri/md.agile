@@ -88,6 +88,7 @@ impl LspSession {
         read_response(&mut self.reader, id)
     }
 
+    #[allow(dead_code)]
     pub fn read_raw_response(&mut self) -> String {
         read_lsp_response(&mut self.reader).unwrap()
     }

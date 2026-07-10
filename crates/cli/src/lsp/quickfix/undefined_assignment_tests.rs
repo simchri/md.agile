@@ -1,4 +1,4 @@
-use super::super::{build_quickfix, build_quickfixes};
+use super::super::build_quickfixes;
 use tempfile::TempDir;
 use tower_lsp::lsp_types::*;
 

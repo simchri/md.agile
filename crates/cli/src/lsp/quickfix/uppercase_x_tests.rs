@@ -1,6 +1,5 @@
-use super::super::{build_quickfix, build_quickfixes};
+use super::super::build_quickfix;
 use super::*;
-use tower_lsp::lsp_types::*;
 
 fn diag_e007(line: u32) -> Diagnostic {
     Diagnostic {

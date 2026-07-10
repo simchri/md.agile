@@ -1,4 +1,4 @@
-use super::helpers::{file_uri, start_project_session};
+use super::helpers::start_project_session;
 
 #[test]
 fn lsp_goto_definition_resolves_assignment_to_config() {
