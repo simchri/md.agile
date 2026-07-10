@@ -10,6 +10,24 @@ fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
     let line = 1;
     let x_col = 0;
 
+    let result: Result<serde_json::Value, _> = serde_json::from_value(diagnostic.data.clone().unwrap_or_default());
+
+    let strings: Vec<String> = match result {
+        Ok(payload) => {
+            serde_json::from_value(payload["missing"].clone()).unwrap_or_default()
+        }
+        Err(_) => {
+            log::warn!("Failed to unwrap diagnostic data, expected a Vec<String> of missing subtasks, but got: {:?}", diagnostic.data);
+            vec![]
+        }
+    };
+
+    let mut missing_task = "dummy".into();
+
+    if strings.len() > 0 {
+        missing_task = strings.join("\n- [ ] ");
+    }
+
     let edit = TextEdit {
         range: Range {
             start: Position {
@@ -21,7 +39,7 @@ fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
                 character: x_col + 1,
             },
         },
-        new_text: "hello world".to_string(),
+        new_text: missing_task.to_string(),
     };
 
     Some(super::make_quickfix(

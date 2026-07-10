@@ -1,8 +1,9 @@
 use super::super::{build_quickfix, build_quickfixes};
 use super::*;
 use tower_lsp::lsp_types::*;
+use serde_json::json;
 
-fn diag_e011(line: u32) -> Diagnostic {
+fn diag_e011(line: u32, missing_tasks: Vec<String>) -> Diagnostic {
     Diagnostic {
         range: Range {
             start: Position { line, character: 0 },
@@ -12,17 +13,34 @@ fn diag_e011(line: u32) -> Diagnostic {
         code: Some(NumberOrString::String("E010".into())),
         source: Some("agilels".into()),
         message: "missing subtasks".into(),
+        data: Some(json!({ "missing": missing_tasks })),
         ..Diagnostic::default()
     }
 }
 
 #[test]
-fn build_quickfix_e011_adds_required_subtasks() {
+fn build_quickfix_e011_builds_a_quickfix() {
     let uri: Url = "file:///tmp/example.agile.md".parse().unwrap();
     let doc = "\
 - [X] task #feature
 ";
-    let diag = diag_e011(0);
+    let v: Vec<String> = vec![];
+    let diag = diag_e011(0, v);
+
+    let action = build_quickfix(&diag, doc, &uri).expect("should produce a quickfix");
+
+    assert_eq!(action.kind, Some(CodeActionKind::QUICKFIX));
+}
+
+#[test_log::test]
+fn build_quickfix_e011_adds_subtasks_from_issue_payload() {
+    let uri: Url = "file:///tmp/example.agile.md".parse().unwrap();
+    let doc = "\
+- [X] task #feature
+";
+
+    let v: Vec<String> = vec!["some task".into()];
+    let diag = diag_e011(0, v);
 
     let action = build_quickfix(&diag, doc, &uri).expect("should produce a quickfix");
 
@@ -33,9 +51,6 @@ fn build_quickfix_e011_adds_required_subtasks() {
         .and_then(|c| c.get(&uri))
         .expect("edit should target our uri");
 
-
-
-    assert_eq!(action.kind, Some(CodeActionKind::QUICKFIX));
     assert_eq!(edits.len(), 1);
     let e = &edits[0];
     // 
@@ -53,5 +68,5 @@ fn build_quickfix_e011_adds_required_subtasks() {
             character: 1
         }
     );
-    assert_eq!(e.new_text, "hello world");
+    assert_eq!(e.new_text, "some task");
 }
