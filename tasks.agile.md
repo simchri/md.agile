@@ -264,10 +264,10 @@ barar [x] refine and clean up
   - [x] "(feature) validation by programmer"
   - [x] "(feature) implementation"
 
-- [ ] #feature Check that detects subtasks completely surrounded by quotes (- [ ] "some subtask"), but which are NOT required subtasks
+- [x] #feature Check that detects subtasks completely surrounded by quotes (- [ ] "some subtask"), but which are NOT required subtasks
   This syntax is reserved for required subtasks (by #properties) and should not be usable otherwise
   - [x] "(feature) implementation"
-  - [ ] "(feature) validation by programmer"
+  - [x] "(feature) validation by programmer"
 
 - [ ] Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
