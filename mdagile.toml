@@ -1,5 +1,5 @@
 [Properties.feature]
-subtasks = ["(feature) validation"]
+subtasks = ["(feature) validation by programmer"]
 
 [Properties.bug]
 [Properties.foo]
