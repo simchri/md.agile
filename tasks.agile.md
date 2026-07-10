@@ -252,7 +252,7 @@ barar [x] refine and clean up
   - [x] missing required subtasks → exit 1 + E010 in stdout
   - [x] all required subtasks present → exit 0
 
-- [x] LSP quickfix for E010 (insert missing required subtasks)
+- [x] #feature LSP quickfix for E010 (insert missing required subtasks)
   The IssueData::MissingRequiredSubtasks { missing } payload is already in place.
   The vision explicitly calls out autofix: "use the autofix feature of your text editor
   to quickly add the required subtasks."
@@ -260,6 +260,12 @@ barar [x] refine and clean up
   - [x] Insert each missing quoted subtask as a new child line after the last existing child (or after the task line if no children)
   - [x] Register in the REGISTRY in lsp/quickfix/mod.rs
   - [x] Tests for the quickfix builder
+  - [x] validation
+  - [x] "(feature) validation"
+
+- [ ] #feature Check that detects subtasks completely surrounded by quotes (- [ ] "some subtask"), but which are NOT required subtasks
+  This syntax is reserved for required subtasks (by #properties) and should not be usable otherwise
+  - [ ] "(feature) validation"
 
 - [ ] Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
