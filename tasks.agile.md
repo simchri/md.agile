@@ -279,12 +279,20 @@
   - [x] "(feature) implementation"
   - [x] "(feature) validation by programmer"
 
-- [x] Allow cancelling required subtasks (subtasks_allow_cancel)
+- [x] #foo Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
   - [x] Extend `PropertyConfig` with `subtasks_allow_cancel: Vec<bool>` (parallel to `subtasks`)
   - [x] Parse `subtasks_allow_cancel` array from `[Properties.X]` in mdagile.toml
   - [x] Update E010 rule: treat a cancelled required subtask as satisfied only if its allow_cancel flag is true, otherwise report error
   - [x] Tests: cancel allowed, cancel not allowed, mixed array
+  - [x] "bar"
+  - [x] "baz"
+
+- [ ] assignment / completion validation: Ensure only assigned people can mark a task as done.
+  This check shall be available whenever we are working in a git repo and an identity for the current user can be retreived.
+  This identity is checked agains definitions in the mdagile.toml file. E.g. We could indicate a list of mail addresses there. If the current git identity matches one of the addresses of the user, the user is considerd authenticated
+  This feature is not secure in any way, but only aims to provide some gentle nudging towards doing the right thing.
+  The check is run using changes in the working copy vs. last committed change. users can overpower this check by just committing anyway
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
