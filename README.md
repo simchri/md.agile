@@ -11,7 +11,7 @@ Your tasks live forever in a simple text file, version-controlled directly along
 - [ ] a task - this is the task-title
   Some more info on this task - this is the task-body
   Both inside and outside of tasks, you can just use normal markdown syntax
-  - [ ] a subtask 
+  - [ ] a subtask @markus
     more details for this subtask go here.
   - [x] this subtask is done
 ```
@@ -25,6 +25,63 @@ Simple animated board
 Formatting rules enforced via language server with quick fixes!
 
 <img width="400" height="auto" alt="quickfix" src="https://github.com/user-attachments/assets/aaecaa6e-a735-4ae4-98b3-90da54981000" />
+
+## Syntax
+
+A task that is "done" is marked with a lowercase `x`; `-` marks a task as cancelled. Subtasks must be indented two spaces per level, directly under their parent (no blank line in between) — a blank line always starts a new top-level task:
+
+```md
+- [ ] a task
+  - [ ] a subtask
+  - [x] this subtask is done
+  - [-] this subtask is cancelled
+
+- [ ] another top-level task
+```
+
+Other content (headings, prose, etc.) is ignored, so you can freely mix notes into the same file. See [doc/checks.md](doc/checks.md) for the full list of formatting/marker rules `agile check` enforces.
+
+### Multiple Files
+
+Task files must be named `<something>.agile.md` and can live anywhere under the project root; every match is picked up automatically (`agile list files` shows them in priority order). Files are ordered alphabetically by path relative to the project root (directories first, then filename) — this determines cross-file task priority, so e.g. `tasks/50_current/001.agile.md` outranks `tasks/60_backlog/001.agile.md`.
+
+### Optional Subtasks
+
+By default, all subtasks are mandatory — a parent task can't be marked done while any required subtask is still open. Mark a subtask optional with `#OPT`:
+
+```md
+- [ ] a task
+  - [ ] #OPT some optional subtask
+```
+
+### Properties
+
+Declare a `#property` in `mdagile.toml`, then tag tasks with it:
+
+```toml
+[Properties.feature]
+subtasks = ["PO review", "dev implementation", "test"]
+```
+
+```md
+- [ ] #feature: add item to basket
+  - [ ] "PO review"
+  - [ ] "dev implementation"
+  - [ ] "test"
+```
+
+Required subtasks (declared via `subtasks`) must be present as quoted (`"..."`) child subtasks, in any order. Using an undeclared `#property` is a validation error. Tasks can carry multiple properties at once, and a property's own required subtasks can themselves carry other properties (nested). Required subtasks can optionally be cancellable instead of completable — see `subtasks_allow_cancel` in [doc/config.md](doc/config.md).
+
+### Assignment / Completion Validation
+
+Assign a task to a person or group with `@name`:
+
+```md
+- [ ] implement feature X @markus
+  - [ ] review @QA
+```
+
+`agile check` flags a task marked done by someone who isn't an assignee (or a member of an assigned group) — see [doc/assignment-validation.md](doc/assignment-validation.md). This is automation, not access control — it's trivially bypassable, and is meant as a gentle nudge (see [MANIFESTO.md](MANIFESTO.md)).
 
 ## Installation
 
