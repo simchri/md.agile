@@ -328,9 +328,11 @@
 
 - [x] validate mdagile.toml config file. `agile check` should return with an error in case of unknown config keys 
 
+- [ ] validate that any "members" list in mdagile.toml only contains actually defined users.
+
 - [ ] foo @alice
   - [ ] test @QM
-  - [ ] implement @alice
+  - [x] implement @devs
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
