@@ -17,7 +17,7 @@ fn config_with_users(names: &[&str]) -> Config {
                     n.to_string(),
                     UserConfig {
                         name: n.to_string(),
-                        emails: vec![],
+                        git_emails: vec![],
                         git_names: vec![],
                     },
                 )
@@ -134,7 +134,7 @@ fn user_and_group_with_same_name_does_not_duplicate_issue() {
             "devs".to_string(),
             UserConfig {
                 name: "devs".to_string(),
-                emails: vec![],
+                git_emails: vec![],
                 git_names: vec![],
             },
         )]),

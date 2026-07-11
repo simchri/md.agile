@@ -18,7 +18,7 @@ subtasks_allow_cancel = [false, true]
 
 [Users.smassa]
 git_names = ["Simon Massa", "smassa", "massmde", "masssmde"]
-emails = ["simon.massa@hotmail.de"]
+git_emails = ["simon.massa@hotmail.de"]
 
 
 [Groups]

@@ -31,10 +31,10 @@ fn flags_completion_by_unassigned_user() {
 
     let config = "\
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 
 [Users.bob]
-emails = [\"bob@example.com\"]
+git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let file_content = "\
@@ -62,7 +62,7 @@ fn allows_completion_by_assigned_user() {
 
     let config = "\
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let file_content = "\
@@ -92,7 +92,7 @@ fn allows_completion_of_unassigned_task_by_anyone() {
 
     let config = "\
 [Users.bob]
-emails = [\"bob@example.com\"]
+git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let file_content = "\
@@ -122,7 +122,7 @@ fn allows_completion_via_authorized_group_membership() {
 
     let config = "\
 [Users.carol]
-emails = [\"carol@example.com\"]
+git_emails = [\"carol@example.com\"]
 
 [Groups.reviewers]
 members = [\"carol\"]
@@ -155,7 +155,7 @@ fn skips_check_when_not_a_git_repo() {
 
     let config = "\
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let file_content = "\

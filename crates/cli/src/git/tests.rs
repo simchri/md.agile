@@ -99,13 +99,13 @@ fn head_file_content_returns_committed_content() {
 use crate::config::{Config, UserConfig};
 use std::collections::HashMap;
 
-fn config_with_user(key: &str, emails: &[&str], git_names: &[&str]) -> Config {
+fn config_with_user(key: &str, git_emails: &[&str], git_names: &[&str]) -> Config {
     Config {
         users: HashMap::from([(
             key.to_string(),
             UserConfig {
                 name: key.to_string(),
-                emails: emails.iter().map(|s| s.to_string()).collect(),
+                git_emails: git_emails.iter().map(|s| s.to_string()).collect(),
                 git_names: git_names.iter().map(|s| s.to_string()).collect(),
             },
         )]),
@@ -167,7 +167,7 @@ fn email_match_takes_precedence_over_name_mismatch() {
         "bob".to_string(),
         UserConfig {
             name: "bob".to_string(),
-            emails: vec![],
+            git_emails: vec![],
             git_names: vec!["Shared Name".to_string()],
         },
     );

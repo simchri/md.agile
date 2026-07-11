@@ -64,7 +64,7 @@ fn run_git(dir: &Path, args: &[&str]) -> Option<String> {
 
 /// Resolves a [`GitIdentity`] to the `[Users.X]` config key that identifies it.
 ///
-/// Tries an email match first (against every user's `emails`); if none match,
+/// Tries an email match first (against every user's `git_emails`); if none match,
 /// falls back to a `user.name` match against `git_names`. Returns `None` if
 /// neither the identity nor the config yields a match.
 pub fn resolve_identity_user(
@@ -73,7 +73,7 @@ pub fn resolve_identity_user(
 ) -> Option<String> {
     if let Some(email) = &identity.email {
         for (key, user) in &config.users {
-            if user.emails.iter().any(|e| e == email) {
+            if user.git_emails.iter().any(|e| e == email) {
                 return Some(key.clone());
             }
         }

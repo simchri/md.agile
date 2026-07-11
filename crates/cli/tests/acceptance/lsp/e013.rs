@@ -29,10 +29,10 @@ fn lsp_e013_reported_for_unauthorized_completion() {
 
     let config_toml = "\
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 
 [Users.bob]
-emails = [\"bob@example.com\"]
+git_emails = [\"bob@example.com\"]
 ";
     std::fs::write(project_root.path().join("mdagile.toml"), config_toml).unwrap();
     let file_content = "\
@@ -70,7 +70,7 @@ fn lsp_e013_not_reported_for_authorized_completion() {
 
     let config_toml = "\
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 ";
     std::fs::write(project_root.path().join("mdagile.toml"), config_toml).unwrap();
     let file_content = "\

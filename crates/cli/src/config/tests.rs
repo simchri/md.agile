@@ -148,26 +148,26 @@ fn both_config_files_present_is_an_error() {
     assert!(matches!(err, ConfigError::ConflictingConfig { .. }));
 }
 
-// ── user identity (emails / git_names) ─────────────────────────────────────────
+// ── user identity (git_emails / git_names) ─────────────────────────────────────────
 
 #[test]
-fn user_without_emails_or_git_names_has_empty_vecs() {
+fn user_without_git_emails_or_git_names_has_empty_vecs() {
     let config = Config::from_str("[Users.alice]\n").unwrap();
     let user = config.users.get("alice").unwrap();
-    assert!(user.emails.is_empty());
+    assert!(user.git_emails.is_empty());
     assert!(user.git_names.is_empty());
 }
 
 #[test]
-fn user_with_emails_is_parsed() {
+fn user_with_git_emails_is_parsed() {
     let input = "\
 [Users.alice]
-emails = [\"alice@example.com\", \"a@example.org\"]
+git_emails = [\"alice@example.com\", \"a@example.org\"]
 ";
     let config = Config::from_str(input).unwrap();
     let user = config.users.get("alice").unwrap();
     assert_eq!(
-        user.emails,
+        user.git_emails,
         vec!["alice@example.com".to_string(), "a@example.org".to_string()]
     );
 }
@@ -256,7 +256,7 @@ subtasks = [\"dev implementation\"]
 subtasks_allow_cancel = [true]
 
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 git_names = [\"Alice\"]
 
 [Groups.devs]

@@ -64,7 +64,7 @@ fn known_config_keys_still_pass() {
 subtasks = [\"dev implementation\"]
 
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 
 [Groups.devs]
 members = [\"alice\"]

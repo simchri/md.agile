@@ -24,7 +24,7 @@ pub struct UserConfig {
     pub name: String,
     /// Email addresses that identify this user's git commits. Used to match
     /// against `git config user.email` for completion-authorization checks.
-    pub emails: Vec<String>,
+    pub git_emails: Vec<String>,
     /// Alternate git display names (`git config user.name`), used as a fallback
     /// identity match when no email match is found.
     pub git_names: Vec<String>,
@@ -106,7 +106,7 @@ struct RawPropertyConfig {
 #[serde(deny_unknown_fields)]
 struct RawUserConfig {
     #[serde(default)]
-    emails: Vec<String>,
+    git_emails: Vec<String>,
     #[serde(default)]
     git_names: Vec<String>,
 }
@@ -166,7 +166,7 @@ impl Config {
                     name.clone(),
                     UserConfig {
                         name,
-                        emails: raw_user.emails,
+                        git_emails: raw_user.git_emails,
                         git_names: raw_user.git_names,
                     },
                 )

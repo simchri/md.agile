@@ -16,7 +16,7 @@ fn config_with_users_and_groups(users: &[&str], groups: &[(&str, &[&str])]) -> C
                     n.to_string(),
                     UserConfig {
                         name: n.to_string(),
-                        emails: vec![],
+                        git_emails: vec![],
                         git_names: vec![],
                     },
                 )

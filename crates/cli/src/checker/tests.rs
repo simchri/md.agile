@@ -52,7 +52,7 @@ fn config_with_alice() -> Config {
     Config::from_str(
         "\
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 ",
     )
     .unwrap()
@@ -62,10 +62,10 @@ fn config_with_alice_and_bob() -> Config {
     Config::from_str(
         "\
 [Users.alice]
-emails = [\"alice@example.com\"]
+git_emails = [\"alice@example.com\"]
 
 [Users.bob]
-emails = [\"bob@example.com\"]
+git_emails = [\"bob@example.com\"]
 ",
     )
     .unwrap()

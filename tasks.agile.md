@@ -293,10 +293,10 @@
   This identity is checked agains definitions in the mdagile.toml file. E.g. We could indicate a list of mail addresses there. If the current git identity matches one of the addresses of the user, the user is considerd authenticated
   This feature is not secure in any way, but only aims to provide some gentle nudging towards doing the right thing.
   The check is run using changes in the working copy vs. last committed change. users can overpower this check by just committing anyway
-  - [x] Config: extend `UserConfig` with `emails: Vec<String>` (identity match) and `git_names: Vec<String>` (fallback match against `git config user.name`)
+  - [x] Config: extend `UserConfig` with `git_emails: Vec<String>` (identity match) and `git_names: Vec<String>` (fallback match against `git config user.name`)
   - [x] Config: extend `GroupConfig` with `members: Vec<String>` referencing `[Users.X]` keys
   - [x] Resolve current git identity by shelling out to `git config user.email` / `git config user.name` (no new git library dependency)
-    - [x] Match email against any user's `emails`; fall back to matching `user.name` against `git_names` if no email match
+    - [x] Match email against any user's `git_emails`; fall back to matching `user.name` against `git_names` if no email match
     - [x] If not in a git repo, or no identity resolves, silently skip the whole check (no diagnostic)
   - [x] Retrieve the HEAD version of a file via `git show HEAD:<relpath>`; handle untracked/new files (no HEAD version exists)
   - [x] Detect done-transitions by parsing both the HEAD and working-copy versions and matching tasks/subtasks by title/content (not line number, which is fragile across unrelated edits)
@@ -330,7 +330,7 @@
 
 - [x] validate that any "members" list in mdagile.toml only contains actually defined users.
 
-- [ ] rename the mdagile.toml property "emails" to "git_emails" (consistent with git_names)
+- [x] rename the mdagile.toml property "emails" to "git_emails" (consistent with git_names)
 
 - [ ] foo @alice
   - [ ] test @QM
