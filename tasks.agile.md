@@ -360,15 +360,11 @@
   - [x] also warn when the project isn't in a git repo at all (not just "in a repo but no identity"), suppressible per-project via `[General] warn_when_not_a_git_repo = false` in mdagile.toml, since some projects intentionally don't use git
 
 ## Ordering Tasks
-- [ ] Invalid order markers
-  Detect duplicate order numbers, gaps, or malformed ordering syntax
-  Ordered tasks — enforcement rules. The `N. ` rank prefix is already parsed and stored (`Order::Ranked`), but nothing validates it yet:
-  - [ ] detect ordering syntax as described in vision.md file
-  - [ ] Validate no duplicate ranks (e.g., two "2." markers)
-  - [ ] Detect gaps in sequence (1, 3, skip 2)
-  - [ ] Prevent marking a ranked task done while any lower-ranked sibling is still incomplete
-  - [ ] Ensure any ordering checks are only at same sibling/nesting level
-  - [ ] Tests for various invalid orderings
+- [x] Invalid order markers — ordered tasks enforcement rules (E014/E015). Scope was narrowed to match what README.vision.md actually specifies (duplicate ranks are forbidden; nothing is said about requiring contiguous numbering, so "gaps" and "malformed syntax" detection were dropped as unwritten/invented spec — discussed and confirmed with the user):
+  - [x] E014: reject duplicate ranks among siblings (e.g., two "2." markers)
+  - [x] E015: prevent marking a ranked task done while any lower-ranked sibling is still incomplete (not done and not cancelled)
+  - [x] Ensure both checks are scoped to the same sibling list only (a rank has no meaning across different parents or nesting levels)
+  - [x] Tests: unit tests per rule + acceptance tests (`e014.rs`, `e015.rs`)
 
 
 ## Misc.

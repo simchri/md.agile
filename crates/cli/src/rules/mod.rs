@@ -10,6 +10,7 @@
 
 mod incomplete_parent;
 mod invalid_box;
+mod invalid_order;
 mod missing_required_subtasks;
 mod missing_space_after_box;
 mod orphaned_subtask;
@@ -23,6 +24,7 @@ mod wrong_indentation;
 
 pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
+pub use invalid_order::invalid_order;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
 pub use orphaned_subtask::orphaned_subtask;
@@ -63,6 +65,10 @@ pub enum ErrorCode {
     CancelledRequiredSubtaskNotAllowed,
     /// E013: Task marked done by someone not authorized (not an assignee, nor a member of an assigned group)
     UnauthorizedCompletion,
+    /// E014: Two ranked subtasks share the same order number among siblings
+    DuplicateOrderRank,
+    /// E015: A ranked subtask was marked done while a lower-ranked sibling is still incomplete
+    OutOfOrderCompletion,
 }
 
 impl ErrorCode {
@@ -83,6 +89,8 @@ impl ErrorCode {
             ErrorCode::UnrequiredQuotedSubtask => "E011",
             ErrorCode::CancelledRequiredSubtaskNotAllowed => "E012",
             ErrorCode::UnauthorizedCompletion => "E013",
+            ErrorCode::DuplicateOrderRank => "E014",
+            ErrorCode::OutOfOrderCompletion => "E015",
         }
     }
 }
@@ -111,6 +119,8 @@ impl std::str::FromStr for ErrorCode {
             "E011" => ErrorCode::UnrequiredQuotedSubtask,
             "E012" => ErrorCode::CancelledRequiredSubtaskNotAllowed,
             "E013" => ErrorCode::UnauthorizedCompletion,
+            "E014" => ErrorCode::DuplicateOrderRank,
+            "E015" => ErrorCode::OutOfOrderCompletion,
             _ => return Err(()),
         })
     }
@@ -228,6 +238,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(undefined_assignment(items, config));
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
+    issues.extend(invalid_order(items));
     issues
 }
 
