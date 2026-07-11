@@ -26,7 +26,57 @@ Formatting rules enforced via language server with quick fixes!
 
 <img width="400" height="auto" alt="quickfix" src="https://github.com/user-attachments/assets/aaecaa6e-a735-4ae4-98b3-90da54981000" />
 
-## Syntax
+## Installation
+
+See [INSTALL.md](INSTALL.md) for building/installing the CLI, language server, and editor setup (currently source-only via `cargo install`).
+
+## CLI Tool: `agile`
+
+### Default: Open Next Task
+```bash
+agile
+```
+Opens the highest-priority incomplete task in your `$VISUAL` or `$EDITOR`. Jumps to the correct line for vim, nvim, nano, emacs, and VS Code.
+
+### List Tasks
+```bash
+agile list              # All active tasks (default)
+agile list --all       # All tasks including done and cancelled
+agile list -n 5        # First 5 active tasks
+agile list --last 3    # Last 3 active tasks
+```
+
+### List Files
+```bash
+agile list files       # Show all task files in priority order
+```
+
+### Get Next Task
+```bash
+agile task next        # Print the next incomplete task (same as `agile` with no editor)
+```
+
+### Validate Files
+```bash
+agile check
+```
+Parses all `*.agile.md` files and reports validation issues. Exits with status 1 if any issues found, 0 if clean. See [doc/checks.md](doc/checks.md) for the full list of checks, and [doc/config.md](doc/config.md) for the `mdagile.toml` reference.
+
+## Language Server: `agilels`
+
+A minimal LSP server that offers real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/checks.md](doc/checks.md).
+
+## GUI
+
+After installation launch in the directory with the md.agile.tasks and toml file: 
+```
+mdagile-gui
+```
+Then connect to localhost 8080 in a browser (in browser search bar type `http://127.0.0.1:8080/`).
+
+--- 
+
+## Syntax & Features
 
 A task that is "done" is marked with a lowercase `x`; `-` marks a task as cancelled. Subtasks must be indented two spaces per level, directly under their parent (no blank line in between) — a blank line always starts a new top-level task:
 
@@ -43,93 +93,184 @@ Other content (headings, prose, etc.) is ignored, so you can freely mix notes in
 
 ### Multiple Files
 
-Task files must be named `<something>.agile.md` and can live anywhere under the project root; every match is picked up automatically (`agile list files` shows them in priority order). Files are ordered alphabetically by path relative to the project root (directories first, then filename) — this determines cross-file task priority, so e.g. `tasks/50_current/001.agile.md` outranks `tasks/60_backlog/001.agile.md`.
+Task files must be named `<something>.agile.md` and can live anywhere under the project root; every match is picked up automatically (`agile list files` shows them in priority order). Files are ordered alphabetically by path relative to the project root (directories first, then filename) — this determines cross-file task priority, so e.g. tasks in `tasks/50_current/001.agile.md` outrank tasks in `tasks/60_backlog/001.agile.md`.
+Other markdown files (e.g. your `README.md`s) are ignored, even if they contain syntactically valid tasks.
 
-### Optional Subtasks
+### Optional and Mandatory Subtasks
 
-By default, all subtasks are mandatory — a parent task can't be marked done while any required subtask is still open. Mark a subtask optional with `#OPT`:
-
+By default, all subtasks are mandatory. A parent task may only be marked complete when all subtasks are done.
+```md
+- [ ] a task
+  - [ ] some mandatory subtask
+```
+**Optional subtasks** are not required for completion of the parent task. They are prefixed with the special marker `#OPT` (all caps) after the checkbox:
 ```md
 - [ ] a task
   - [ ] #OPT some optional subtask
 ```
 
-### Properties
+### Properties (Basics)
 
-Declare a `#property` in `mdagile.toml`, then tag tasks with it:
+You specify available properties globally for your project in the `mdagile.toml` (or `.mdagile.toml`) file. Property names cannot contain spaces, but you can use `-` and `_`. Properties can then be added to tasks with `#<property_name>`.
 
+E.g. to declare a property `#feature`:
+
+**mdagile.toml:**
 ```toml
 [Properties.feature]
-subtasks = ["PO review", "dev implementation", "test"]
 ```
 
+To use the property, place it anywhere in the task:
+
+**tasks.md:**
+```md
+- [ ] #feature: add item to basket
+```
+You are not allowed to use a property that is not defined in the `mdagile.toml`. This is to keep things orderly—no proliferation of random meaningless hashtags, and no duplication (`#Feature #feature #feat`). The tool will issue an error if you use undefined properties. Otherwise, an "empty" property doesn't do much. It just marks a task as part of some group—but you can do much more with them ...!
+
+Properties are the essential building blocks of your team's task management strategy - you can keep things simple or get really sophisticated - it is up to you!
+
+### Subtasks
+
+You can define mandatory subtasks via properties.
+```toml
+[Properties.feature]
+subtasks = ["PO review", "dev implementation", "dev documentation", "test"]
+```
+
+Properties are added to tasks with a `#` followed by the property name. This makes the existence of the respective subtasks mandatory:
 ```md
 - [ ] #feature: add item to basket
   - [ ] "PO review"
   - [ ] "dev implementation"
+  - [ ] "dev documentation"
   - [ ] "test"
+  - [ ] another custom task that is not part of the '#feature' property
+```
+As you type out a property marker, the language server will give you a hint - use the autofix feature of your text editor to quickly add the required subtasks.
+
+Subtasks that are required by a property are quoted `""`.
+
+Properties can also be added to subtasks! Note how `'#feature'` is quoted in the example above - the ticks prevent the tag from being interpreted as a property of the subtask. Otherwise you get the following:
+```md
+- [ ] #feature: add item to basket
+  - [ ] "PO review"
+  - [ ] "dev implementation"
+  - [ ] "dev documentation"
+  - [ ] "test"
+  - [ ] #feature view number of items in basket
+    - [ ] "PO review"
+    - [ ] "dev implementation"
+    - [ ] "dev documentation"
+    - [ ] "test"
 ```
 
-Required subtasks (declared via `subtasks`) must be present as quoted (`"..."`) child subtasks, in any order. Using an undeclared `#property` is a validation error. Tasks can carry multiple properties at once, and a property's own required subtasks can themselves carry other properties (nested). Required subtasks can optionally be cancellable instead of completable — see `subtasks_allow_cancel` in [doc/config.md](doc/config.md).
+### Cancelled Tasks
 
-### Assignment / Completion Validation
-
-Assign a task to a person or group with `@name`:
+You can mark a task as cancelled with a `-`
 
 ```md
+- [-] this task is cancelled
+```
+Sometimes your team may plan something and later decide, that it's not necessary after all. Marking tasks as cancelled makes things transparent ("This was part of the original plan, but discarded").
+
+By default you can not cancel subtasks that are required by properties, but this can be adjusted in the configuration.
+
+```toml
+[Properties.feature]
+subtasks = ["PO review", "dev implementation", "dev documentation", "test"]
+subtasks_allow_cancel = [true, true, true, false]
+# testing can not be cancelled
+```
+Why make subtasks "mandatory" by default, but also allow to cancel them? Properties allow you to define general default workflows. But sometimes a step just doesn't make sense in a specific case. You would then be tempted to just mark the task "done", even though that is a lie. You may add a note, but such notes are non standard and easily misinterpreted. Cancelling a subtask provides an idiomatic way to communicate that a step was skipped. It is honest, transparent and conventional.
+
+
+### Multiple Properties
+
+Tasks can have multiple properties. The placement of the property in the task is not relevant. The order of the subtasks is not relevant.
+
+```toml
+[Properties.UI]
+subtasks = ["UI / UX concept", "UI review"]
+```
+
+```md
+- [ ] We want to develop a #feature (add item to basket) that will have a very nice #UI!
+  - [ ] "UI / UX concept"
+  - [ ] "PO review"
+  - [ ] "dev implementation"
+  - [ ] "dev documentation"
+  - [ ] "test"
+  - [ ] "UI review"
+```
+
+### Nested Properties
+Properties can be nested. This allows you to define subtasks that are shared across multiple properties in a single place. In the example below, the `#review` property is shared between `#feature` and `#UI`:
+
+```toml
+[Properties.review]
+subtasks = ["independent review by a second person"]
+[Properties.feature]
+subtasks = ["dev implementation", "dev documentation", "test", "developer #review"]
+[Properties.UI]
+subtasks = ["UI / UX concept", "UI / UX #review"]
+```
+
+A valid task then looks like this:
+
+```md
+- [ ] We want to develop a #feature (add item to basket) that will have a very nice #UI!
+  - [ ] "dev implementation"
+  - [ ] "dev documentation"
+  - [ ] "test"
+  - [ ] "developer #review"
+    - [ ] "independent review by a second person"
+  - [ ] "UI / UX concept"
+  - [ ] "UI / UX #review"
+    - [ ] "independent review by a second person"
+```
+
+### Users And Roles
+
+You can assign tasks to specific people or groups with the assignment marker: `@someone`
+
+```
 - [ ] implement feature X @markus
-  - [ ] review @QA
+  - [ ] Review the feature @QA
 ```
+The implementation can only be marked complete by Markus. The review may be checked by any QA person. mdagile checks this by comparing the current user's infos (name, mail) from the git config, against the assigned users and groups. You can alternatively inject an identity explicitly via command line argument `--as <user>`. Use this in pipelines, where the user's `.gitconfig` is not available.
 
-`agile check` flags a task marked done by someone who isn't an assignee (or a member of an assigned group) — see [doc/assignment-validation.md](doc/assignment-validation.md). This is automation, not access control — it's trivially bypassable, and is meant as a gentle nudge (see [MANIFESTO.md](MANIFESTO.md)).
+Assignments on parent tasks do not affect child tasks (but child tasks can be assigned as well).
 
-## Installation
+This feature requires that groups and users are first identified in the configuration.
 
-See [INSTALL.md](INSTALL.md) for building/installing the CLI, language server, and editor setup (currently source-only via `cargo install`).
+Consider this feature only "automation", not "access control". This is not secure in any way -- The mechanism can easily be sidestepped! (However your git history will reveal any inconsistencies c.f. MANIFESTO.md "Trust through Transparency")
 
-### CLI Tool: `agile`
+```toml
+[Users]
+markus = {full_name="Markus Myman", email = "markusmyman@company.org"}
+svenja = {full_name="Svenja Super", email = "Svenjasuper@company.org"}
 
-#### Default: Open Next Task
-```bash
-agile
+[Groups.DEV]
+members = ["markus"]
+
+[Groups.SENIORDEV]
+members = ["markus"]
+
+[Groups.QA]
+members = ["svenja"]
+
+[Groups.TEAM]
+members = [
+  "markus",
+  "svenja",
+]
 ```
-Opens the highest-priority incomplete task in your `$VISUAL` or `$EDITOR`. Jumps to the correct line for vim, nvim, nano, emacs, and VS Code.
-
-#### List Tasks
-```bash
-agile list              # All active tasks (default)
-agile list --all       # All tasks including done and cancelled
-agile list -n 5        # First 5 active tasks
-agile list --last 3    # Last 3 active tasks
+You can tag multiple people or groups on the same task. In this case any person or any member from any group can mark the task as complete.
 ```
-
-#### List Files
-```bash
-agile list files       # Show all task files in priority order
+- [ ] implement feature X @markus or @josh
 ```
-
-#### Get Next Task
-```bash
-agile task next        # Print the next incomplete task (same as `agile` with no editor)
-```
-
-#### Validate Files
-```bash
-agile check
-```
-Parses all `*.agile.md` files and reports validation issues. Exits with status 1 if any issues found, 0 if clean. See [doc/checks.md](doc/checks.md) for the full list of checks, and [doc/config.md](doc/config.md) for the `mdagile.toml` reference.
-
-### Language Server: `agilels`
-
-A minimal LSP server that offers real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/checks.md](doc/checks.md).
-
-## GUI
-
-After installation launch in the directory with the md.agile.tasks and toml file: 
-```
-mdagile-gui
-```
-Then connect to localhost 8080 in a browser (in browser search bar type `http://127.0.0.1:8080/`).
+If you want an AND connection instead, create subtasks for each person!
 
 
 ## Project Philosophy

@@ -111,7 +111,7 @@ As your project grows, you may want to split your task list over multiple files.
 - by default, any file in any subdirectory to the root is picked up by the tool
 - other markdown files (e.g. your `README.md`s) are ignored, even if they contain syntactically valid tasks.
 - all found files are then brought into a global order, sorted alphabetically by their path relative to the project root (directory components first, then filename). For example, `tasks/50_current/001.agile.md` outranks `tasks/60_backlog/001.agile.md`.
-- The order of tasks in this aggregated file determines the priority order.
+- The priority order of tasks is determined by their position in this virtual aggregated file.
 
 ## File Structure for Large Projects & Archiving
 
@@ -436,11 +436,11 @@ You can assign tasks to specific people or groups with the assignment marker: `@
 ```
 The implementation can only be marked complete by Markus. The review may be checked by any QA person. mdagile checks this by comparing the current user's email, as provided in the git config, against the assigned users and groups. You can alternatively inject an identity explicitly via arguments or environment variables. Use this in pipelines, where the user's `.gitconfig` is not available.
 
-When a parent task has an assignment, all child tasks are considered assigned in the same way, unless a child task defines its own assignments - then only those apply.
+Assignments on parent tasks do not affect child tasks (but child tasks can be assigned as well).
 
 This feature requires that groups and users are first identified in the configuration.
 
-Consider this feature only "automation", not "access control". This is not secure in any way! The mechanism can easily be sidestepped! We assume that our colleagues use this responsibly and do not impersonate others. (However, you can always check in your git history if someone cheated). (c.f. MANIFESTO.md "Trust but Control")
+Consider this feature only "automation", not "access control". This is not secure in any way -- The mechanism can easily be sidestepped! (However your git history will reveal any inconsistencies c.f. MANIFESTO.md "Trust through Transparency")
 
 ```toml
 [Users]
