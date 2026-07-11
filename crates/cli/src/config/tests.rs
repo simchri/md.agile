@@ -320,3 +320,31 @@ members = [\"bob\", \"alice\"]
 ";
     assert!(Config::from_str(input).is_ok());
 }
+
+// ── [General] section ───────────────────────────────────────────────────────
+
+#[test]
+fn general_section_defaults_to_warning_when_not_a_git_repo() {
+    let config = Config::from_str("").unwrap();
+    assert!(config.general.warn_when_not_a_git_repo);
+}
+
+#[test]
+fn general_section_can_suppress_the_not_a_git_repo_warning() {
+    let input = "\
+[General]
+warn_when_not_a_git_repo = false
+";
+    let config = Config::from_str(input).unwrap();
+    assert!(!config.general.warn_when_not_a_git_repo);
+}
+
+#[test]
+fn general_section_with_unknown_key_is_rejected() {
+    let input = "\
+[General]
+bogus_key = true
+";
+    let result = Config::from_str(input);
+    assert!(result.is_err());
+}

@@ -6,6 +6,26 @@ pub struct Config {
     pub properties: HashMap<String, PropertyConfig>,
     pub users: HashMap<String, UserConfig>,
     pub groups: HashMap<String, GroupConfig>,
+    pub general: GeneralConfig,
+}
+
+/// Project-wide settings that don't belong to any single property/user/group.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GeneralConfig {
+    /// Whether `agile check` logs a terminal warning when the E013
+    /// assignment/completion check is skipped because the project isn't
+    /// inside a git repo at all. Defaults to `true`; set to `false` in
+    /// projects that intentionally don't use git, to avoid a warning on
+    /// every run.
+    pub warn_when_not_a_git_repo: bool,
+}
+
+impl Default for GeneralConfig {
+    fn default() -> Self {
+        GeneralConfig {
+            warn_when_not_a_git_repo: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -118,6 +138,25 @@ struct RawGroupConfig {
     members: Vec<String>,
 }
 
+fn default_true() -> bool {
+    true
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawGeneralConfig {
+    #[serde(default = "default_true")]
+    warn_when_not_a_git_repo: bool,
+}
+
+impl Default for RawGeneralConfig {
+    fn default() -> Self {
+        RawGeneralConfig {
+            warn_when_not_a_git_repo: true,
+        }
+    }
+}
+
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawConfig {
@@ -127,6 +166,8 @@ struct RawConfig {
     users: HashMap<String, RawUserConfig>,
     #[serde(rename = "Groups", default)]
     groups: HashMap<String, RawGroupConfig>,
+    #[serde(rename = "General", default)]
+    general: RawGeneralConfig,
 }
 
 impl Config {
@@ -201,6 +242,9 @@ impl Config {
             properties,
             users,
             groups,
+            general: GeneralConfig {
+                warn_when_not_a_git_repo: raw.general.warn_when_not_a_git_repo,
+            },
         })
     }
 

@@ -203,7 +203,7 @@ fn check_authorization_warns_when_git_identity_cannot_be_determined() {
 }
 
 #[test]
-fn check_authorization_does_not_warn_outside_git_repo() {
+fn check_authorization_reports_not_a_git_repo_as_skip_reason() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("a.agile.md"), "- [x] fix bug @alice\n").unwrap();
 

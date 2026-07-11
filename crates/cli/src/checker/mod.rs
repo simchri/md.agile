@@ -42,11 +42,15 @@ pub fn run(items: &[FileItem], config: &Config) -> Vec<Issue> {
 /// ref/commit — this is a hard usage error (distinct from authorization
 /// issues), since a typo'd `--base` should never be silently ignored.
 ///
-/// If the check is skipped because the acting identity couldn't be
-/// determined at all (repo has no git identity configured — distinct from
-/// `root` simply not being a git repo, where assignment validation isn't
-/// applicable and no warning is warranted), logs a `warn`-level message so
-/// the omission is visible on the terminal rather than silently passing.
+/// If the check is skipped — either because `root` isn't inside a git repo,
+/// or because it is but no git identity could be determined at all — logs a
+/// `warn`-level message so the omission is visible on the terminal rather
+/// than silently passing. The "not a git repo" warning can be silenced
+/// project-wide via `[General] warn_when_not_a_git_repo = false` in
+/// `mdagile.toml`, for projects that intentionally don't use git; the
+/// "no git identity" warning has no such suppression, since it indicates a
+/// gap the user is expected to fix (configure `git config user.email`/
+/// `user.name`, or pass `--as`).
 pub fn check_authorization(
     root: &Path,
     config: &Config,
@@ -55,11 +59,22 @@ pub fn check_authorization(
 ) -> Result<Vec<Issue>, crate::git::InvalidRef> {
     let (issues, skip_reason) =
         check_authorization_with_skip_reason(root, config, identity_override, base_ref)?;
-    if let Some(IdentityResolution::NoGitIdentity) = skip_reason {
-        log::warn!(
-            "Could not determine your git identity (git config user.email/user.name is unset) — \
-             skipping assignment/completion validation (E013)."
-        );
+    match skip_reason {
+        Some(IdentityResolution::NotAGitRepo) => {
+            if config.general.warn_when_not_a_git_repo {
+                log::warn!(
+                    "Not inside a git repository — skipping assignment/completion validation (E013). \
+                     Set `warn_when_not_a_git_repo = false` under `[General]` in mdagile.toml to silence this."
+                );
+            }
+        }
+        Some(IdentityResolution::NoGitIdentity) => {
+            log::warn!(
+                "Could not determine your git identity (git config user.email/user.name is unset) — \
+                 skipping assignment/completion validation (E013)."
+            );
+        }
+        Some(IdentityResolution::Determined(_)) | None => {}
     }
     Ok(issues)
 }
@@ -128,13 +143,14 @@ pub fn check_authorization_for_document(
 /// skipped instead.
 ///
 /// The two skip reasons are kept separate (rather than collapsed into a
-/// single `None`) because only one of them warrants a terminal warning:
-/// `NotAGitRepo` means assignment validation simply isn't applicable here (no
-/// git history to compare against), which is expected and unremarkable.
-/// `NoGitIdentity` means validation *would* apply but can't run because the
-/// user hasn't configured `git config user.email`/`user.name` — that's
-/// worth surfacing, since the user may not realize completions are going
-/// unchecked.
+/// single `None`) because they warrant distinct terminal warning wording:
+/// `NotAGitRepo` means assignment validation isn't applicable at all (no git
+/// history to compare against), while `NoGitIdentity` means validation
+/// *would* apply but can't run because the user hasn't configured `git
+/// config user.email`/`user.name`. Both are worth surfacing on the CLI, since
+/// the user may not realize completions are going unchecked either way — but
+/// the LSP path (`check_authorization_for_document`) skips both silently,
+/// since there's no terminal to warn on there.
 #[derive(Debug)]
 enum IdentityResolution {
     Determined(ResolvedIdentity),

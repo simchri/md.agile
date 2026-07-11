@@ -62,6 +62,16 @@ authorization to every listed member for E013 purposes.
   listed must correspond to an actually-defined user — an unknown member
   name is a config validation error.
 
+## `[General]`
+
+Project-wide settings that don't belong to any single property/user/group.
+
+- `warn_when_not_a_git_repo` — whether `agile check` logs a terminal warning
+  when the [assignment / completion validation check
+  (E013)](assignment-validation.md) is skipped because the project isn't
+  inside a git repo at all. Defaults to `true`; set to `false` in projects
+  that intentionally don't use git, to avoid a warning on every run.
+
 ## Validation
 
 `agile check` rejects the config outright — before running any per-task

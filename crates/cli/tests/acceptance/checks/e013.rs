@@ -415,10 +415,10 @@ git_emails = [\"alice@example.com\"]
 }
 
 #[test]
-fn does_not_warn_on_stderr_when_simply_not_a_git_repo() {
+fn warns_on_stderr_when_simply_not_a_git_repo() {
     let dir = tempdir().unwrap();
-    // No git repo at all: assignment validation isn't applicable here, so
-    // no warning is expected (unlike the "git repo but no identity" case).
+    // No git repo at all: assignment validation isn't applicable, but the
+    // user should still be told it was skipped rather than silently passing.
 
     let config = "\
 [Users.alice]
@@ -438,5 +438,42 @@ git_emails = [\"alice@example.com\"]
         String::from_utf8_lossy(&out.stdout)
     );
     let stderr = String::from_utf8(out.stderr).unwrap();
-    assert!(!stderr.to_lowercase().contains("warn"), "stderr: {stderr:?}");
+    assert!(stderr.to_lowercase().contains("warn"), "stderr: {stderr:?}");
+    assert!(
+        stderr.to_lowercase().contains("git repo"),
+        "expected a mention of not being in a git repo, stderr: {stderr:?}"
+    );
+}
+
+#[test]
+fn not_a_git_repo_warning_can_be_suppressed_via_config() {
+    let dir = tempdir().unwrap();
+    // Projects that intentionally don't use git can silence the warning
+    // via `[General] warn_when_not_a_git_repo = false`.
+
+    let config = "\
+[General]
+warn_when_not_a_git_repo = false
+
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [x] fix bug @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(
+        !stderr.to_lowercase().contains("warn"),
+        "stderr: {stderr:?}"
+    );
 }

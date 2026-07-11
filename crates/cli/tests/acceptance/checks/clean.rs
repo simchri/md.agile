@@ -11,6 +11,13 @@ use tempfile::tempdir;
 #[test]
 fn clean_project_exits_zero_with_no_output() {
     let dir = tempdir().unwrap();
+    // Not a git repo: silence the (unrelated) E013 "not a git repo" warning
+    // so this test can assert on rule-cleanliness output alone.
+    let config = "\
+[General]
+warn_when_not_a_git_repo = false
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let content = "\
 - [ ] top
   - [ ] proper sub

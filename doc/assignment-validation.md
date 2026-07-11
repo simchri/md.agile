@@ -8,7 +8,9 @@ always bypass it by committing anyway.
 
 1. The check requires a git repository and a resolvable identity for the
    current user (see [Identity resolution](#identity-resolution) below). If
-   either is unavailable, the check is silently skipped entirely.
+   either is unavailable, the check is skipped for that run — `agile check`
+   logs a warning on the terminal so this isn't silent; the language server
+   (LSP) skips it without a warning, since there's no terminal to print to.
 2. For each `*.agile.md` file, the check compares the working-copy content
    against a base git ref (`HEAD` by default) to detect tasks that just
    transitioned to `[x]`.
@@ -32,9 +34,12 @@ The acting identity is resolved as:
 
 An identity that doesn't match any `[Users.X]` entry, is considered unauthorized. 
 
-The check is silently skipped when the identity is **fully
-undeterminable**: not inside a git repo, or `git config user.email`/`user.name`
-are both empty, and no `--as` override was given.
+The check is skipped when the identity is **fully undeterminable**: not
+inside a git repo, or `git config user.email`/`user.name` are both empty,
+and no `--as` override was given. `agile check` warns on the terminal in
+both cases; the LSP skips silently either way. The "not a git repo" warning
+can be silenced project-wide for projects that intentionally don't use git —
+see `[General] warn_when_not_a_git_repo` in [Configuration](config.md).
 
 ## CI/CD flags
 
