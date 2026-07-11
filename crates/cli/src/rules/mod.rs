@@ -177,6 +177,25 @@ pub enum IssueData {
     UnauthorizedCompletion { authorized: Vec<String> },
 }
 
+/// The result of resolving "who is completing this task" for the E013
+/// "assignment / completion validation" check.
+///
+/// Distinct from a plain `Option<String>` because it must distinguish two
+/// different reasons a check might not find a match:
+/// - no identity could be determined at all (not a git repo, or `git config
+///   user.email`/`user.name` both empty, and no `--as` override) — the
+///   caller should silently skip the whole check in this case.
+/// - an identity *was* determined (from git config or `--as`), but it
+///   doesn't match any `[Users.X]` entry — this is always unauthorized for
+///   any assigned task (it is never silently skipped).
+#[derive(Debug, Clone, PartialEq)]
+pub enum ResolvedIdentity {
+    /// Git identity resolved to a known `[Users.X]` config key.
+    Known(String),
+    /// An identity was determined, but doesn't match any configured user.
+    Unrecognized,
+}
+
 /// A single problem found by a rule.
 ///
 /// `location` points at the source line that triggered the issue; `code` is a

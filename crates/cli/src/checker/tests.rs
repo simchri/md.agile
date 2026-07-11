@@ -81,7 +81,7 @@ fn check_authorization_flags_unauthorized_completion() {
     std::fs::write(dir.path().join("a.agile.md"), "- [x] fix bug @alice\n").unwrap();
 
     let config = config_with_alice_and_bob();
-    let issues = check_authorization(dir.path(), &config);
+    let issues = check_authorization(dir.path(), &config, None, None).unwrap();
     assert_eq!(issues.len(), 1);
     assert_eq!(
         issues[0].code,
@@ -98,7 +98,7 @@ fn check_authorization_allows_authorized_completion() {
     std::fs::write(dir.path().join("a.agile.md"), "- [x] fix bug @alice\n").unwrap();
 
     let config = config_with_alice();
-    let issues = check_authorization(dir.path(), &config);
+    let issues = check_authorization(dir.path(), &config, None, None).unwrap();
     assert!(issues.is_empty());
 }
 
@@ -108,12 +108,12 @@ fn check_authorization_skipped_outside_git_repo() {
     std::fs::write(dir.path().join("a.agile.md"), "- [x] fix bug @alice\n").unwrap();
 
     let config = config_with_alice();
-    let issues = check_authorization(dir.path(), &config);
+    let issues = check_authorization(dir.path(), &config, None, None).unwrap();
     assert!(issues.is_empty());
 }
 
 #[test]
-fn check_authorization_skipped_when_identity_unresolvable() {
+fn check_authorization_flags_unrecognized_identity_completing_assigned_task() {
     let dir = tempfile::tempdir().unwrap();
     init_repo(dir.path(), "unknown@example.com", "Unknown");
     std::fs::write(dir.path().join("a.agile.md"), "- [ ] fix bug @alice\n").unwrap();
@@ -121,7 +121,24 @@ fn check_authorization_skipped_when_identity_unresolvable() {
     std::fs::write(dir.path().join("a.agile.md"), "- [x] fix bug @alice\n").unwrap();
 
     let config = config_with_alice();
-    let issues = check_authorization(dir.path(), &config);
+    let issues = check_authorization(dir.path(), &config, None, None).unwrap();
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].code,
+        crate::rules::ErrorCode::UnauthorizedCompletion
+    );
+}
+
+#[test]
+fn check_authorization_skips_unrecognized_identity_completing_unassigned_task() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "unknown@example.com", "Unknown");
+    std::fs::write(dir.path().join("a.agile.md"), "- [ ] fix bug\n").unwrap();
+    commit_all(dir.path(), "initial");
+    std::fs::write(dir.path().join("a.agile.md"), "- [x] fix bug\n").unwrap();
+
+    let config = config_with_alice();
+    let issues = check_authorization(dir.path(), &config, None, None).unwrap();
     assert!(issues.is_empty());
 }
 

@@ -16,7 +16,7 @@
 
 use crate::config::Config;
 use crate::parser::{FileItem, Location, Marker, Status, Subtask};
-use crate::rules::{ErrorCode, Issue, IssueData};
+use crate::rules::{ErrorCode, Issue, IssueData, ResolvedIdentity};
 use std::collections::HashMap;
 
 /// A flattened (title, status, markers, location) view of every task/subtask
@@ -89,13 +89,17 @@ fn authorized_users(names: &[&str], config: &Config) -> Vec<String> {
 
 /// Compares the `old` (HEAD, `None` if no committed version exists) and `new`
 /// (working copy) versions of a file's parsed items, flagging every task/subtask
-/// that transitioned to `[x]` without the current identity (`identity_user`,
-/// already resolved to a `[Users.X]` key by the caller) being authorized.
+/// that transitioned to `[x]` without `identity` being authorized.
+///
+/// `identity: ResolvedIdentity::Unrecognized` (an identity was determined but
+/// doesn't match any configured user) is always unauthorized for any assigned
+/// task — the caller must not call this function at all if it wants a full
+/// skip (e.g. when no identity could be determined whatsoever).
 pub fn unauthorized_completion(
     old: Option<&[FileItem]>,
     new: &[FileItem],
     config: &Config,
-    identity_user: &str,
+    identity: &ResolvedIdentity,
 ) -> Vec<Issue> {
     let old_status_by_title: HashMap<&str, &Status> = old
         .map(|items| {
@@ -125,7 +129,11 @@ pub fn unauthorized_completion(
             continue;
         }
         let authorized = authorized_users(&names, config);
-        if authorized.iter().any(|a| a == identity_user) {
+        let is_authorized = match identity {
+            ResolvedIdentity::Known(user) => authorized.iter().any(|a| a == user),
+            ResolvedIdentity::Unrecognized => false,
+        };
+        if is_authorized {
             continue;
         }
 

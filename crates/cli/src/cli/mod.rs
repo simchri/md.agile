@@ -68,7 +68,25 @@ pub enum Command {
     /// Parses every *.agile.md file under the current directory and reports
     /// each issue as `<path>:<line>: <message>` on stdout. Exits with status 1
     /// if any issue is found, 0 if the project is clean.
-    Check,
+    Check {
+        /// Override the identity used for the E013 assignment/completion
+        /// check with a literal `[Users.X]` key, instead of resolving it
+        /// from `git config user.email`/`user.name`. Useful in CI, where the
+        /// runner's git identity isn't the PR author's. A value that doesn't
+        /// match any configured user is always treated as unauthorized for
+        /// assigned tasks (never silently skipped).
+        #[arg(long, value_name = "USER")]
+        r#as: Option<String>,
+
+        /// Override the git ref used as the "old" (last-known-good) side of
+        /// the E013 assignment/completion diff, instead of the hard-coded
+        /// `HEAD`. The "new" side remains the working directory. Useful in
+        /// CI, where the checked-out code is already fully committed (so
+        /// working-copy-vs-HEAD would show no diff at all) — pass the PR's
+        /// base branch/commit instead (e.g. `origin/main`).
+        #[arg(long, value_name = "REF")]
+        base: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -157,8 +175,8 @@ pub fn run() {
         }) => {
             subcommands::task::run_next(root);
         }
-        Some(Command::Check) => {
-            subcommands::check::run(root, &config);
+        Some(Command::Check { r#as, base }) => {
+            subcommands::check::run(root, &config, r#as.as_deref(), base.as_deref());
         }
     }
 }

@@ -323,8 +323,28 @@
     - [x] task title changed alongside status change (no HEAD match) → still flagged if misassigned
     - [x] LSP diagnostics test covering this rule
 
-- [ ] validation fix: If current user does not appear in mdagile.toml, user should be considered "unauthorized" -> error
+- [x] validation fix: If current user does not appear in mdagile.toml, user should be considered "unauthorized" -> error
   currently, this is not the case, c.f. also comment in md.agile/crates/cli/src/checker/mod.rs:29:6
+  - [x] Introduce a `ResolvedIdentity` enum (`Known(String)` / `Unrecognized`) replacing the current `Option<String>` used internally between `resolve_repo_identity` and `rules::unauthorized_completion`
+  - [x] `Unrecognized` (identity determined but doesn't match any `[Users.X]`) → always unauthorized for any assigned task; unassigned tasks are unaffected
+  - [x] `None` (no identity determinable at all: not a git repo, or `git config user.email`/`user.name` both empty, and no `--as` override) → still silently skip the whole check, unchanged
+  - [x] Update/rename existing tests that assumed "identity not in config" silently skips (e.g. `check_authorization_skipped_when_identity_unresolvable`) to expect unauthorized instead
+
+- [x] assignment / completion validation: CI/CD flexibility (identity override + configurable diff base)
+  Motivating use case: running `agile check` in a CI/CD pipeline against a PR, where the git identity of the CI runner isn't the PR author's identity, and the code is already fully committed (no working-copy diff against HEAD to detect).
+  - [x] New `agile check --as <user-key>` flag: overrides identity resolution entirely with a literal `[Users.X]` key (no email/`git_names` fallback matching)
+    - [x] `--as` value not found in `config.users` → `Unrecognized` (unauthorized for assigned tasks), consistent with the general "unknown identity = unauthorized" rule above, not a distinct CLI usage error
+    - [x] When `--as` is given, it takes priority over `git config user.email`/`user.name` (the ambient git identity is not consulted at all)
+  - [x] New `agile check --base <git-ref>` flag: overrides the hard-coded `HEAD` used for the "old" side of the diff (e.g. `origin/main`, a SHA, or a ref computed by the CI script via `git merge-base`)
+    - [x] The "new" side remains the on-disk working directory (unchanged) — covers the common CI case where the PR's code is already checked out; no support for enumerating files from an arbitrary "new" ref (would require `git ls-tree` instead of walking disk)
+    - [x] Invalid/non-existent `--base` ref → hard CLI error (distinct failure mode from an authorization violation), not a silent skip
+  - [x] Generalize `git::head_file_content` (or add a new function) to fetch file content at an arbitrary ref, validating the ref itself exists (to distinguish "bad ref" from "file doesn't exist at this ref", the latter being a legitimate new/untracked-file case)
+  - [x] Tests
+    - [x] `--as` overriding a locally-configured git identity
+    - [x] `--as` with an unrecognized user key → unauthorized error
+    - [x] `--base` comparing two committed refs (no working-copy changes) still detects a `[ ] -> [x]` transition
+    - [x] `--base` with an invalid ref → CLI error, not silently skipped
+    - [x] combination of `--as` + `--base` together (the CI use case end-to-end)
 
 - [x] validate mdagile.toml config file. `agile check` should return with an error in case of unknown config keys 
 

@@ -1,6 +1,7 @@
 use super::*;
 use crate::config::{Config, GroupConfig, UserConfig};
 use crate::parser::{FileItem, parse};
+use crate::rules::ResolvedIdentity;
 use std::path::PathBuf;
 
 fn p(input: &str) -> Vec<FileItem> {
@@ -49,7 +50,12 @@ fn authorized_direct_assignee_completes_task_no_issue() {
 - [x] fix bug @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "alice");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("alice".to_string()),
+    );
     assert!(issues.is_empty());
 }
 
@@ -62,7 +68,12 @@ fn group_assigned_task_completed_by_member_no_issue() {
 - [x] fix bug @devs
 ";
     let config = config_with_users_and_groups(&["alice", "bob"], &[("devs", &["alice", "bob"])]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "alice");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("alice".to_string()),
+    );
     assert!(issues.is_empty());
 }
 
@@ -75,7 +86,12 @@ fn unassigned_task_completed_by_anyone_no_issue() {
 - [x] fix bug
 ";
     let config = Config::default();
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert!(issues.is_empty());
 }
 
@@ -88,7 +104,12 @@ fn multiple_assignees_one_match_no_issue() {
 - [x] fix bug @alice @bob
 ";
     let config = config_with_users_and_groups(&["alice", "bob"], &[]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "bob");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("bob".to_string()),
+    );
     assert!(issues.is_empty());
 }
 
@@ -103,7 +124,12 @@ fn already_done_task_unchanged_is_not_rechecked() {
 - [x] fix bug @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert!(issues.is_empty());
 }
 
@@ -116,7 +142,12 @@ fn todo_task_remaining_todo_is_not_flagged() {
 - [ ] fix bug @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert!(issues.is_empty());
 }
 
@@ -131,7 +162,12 @@ fn unauthorized_user_completes_directly_assigned_task_is_flagged() {
 - [x] fix bug @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, ErrorCode::UnauthorizedCompletion);
     assert_eq!(issues[0].location.line, 1);
@@ -147,7 +183,12 @@ fn group_assigned_task_completed_by_non_member_is_flagged() {
 - [x] fix bug @devs
 ";
     let config = config_with_users_and_groups(&["alice", "bob"], &[("devs", &["alice", "bob"])]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, ErrorCode::UnauthorizedCompletion);
 }
@@ -163,7 +204,12 @@ fn nested_subtask_transition_is_checked() {
   - [x] child @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].location.line, 2);
 }
@@ -174,7 +220,12 @@ fn no_head_version_new_task_already_done_and_misassigned_is_flagged() {
 - [x] brand new task @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(None, &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        None,
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, ErrorCode::UnauthorizedCompletion);
 }
@@ -185,7 +236,12 @@ fn no_head_version_new_task_already_done_and_authorized_is_not_flagged() {
 - [x] brand new task @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(None, &p(new), &config, "alice");
+    let issues = unauthorized_completion(
+        None,
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("alice".to_string()),
+    );
     assert!(issues.is_empty());
 }
 
@@ -199,7 +255,12 @@ fn title_changed_alongside_status_change_is_still_flagged() {
 - [x] renamed title @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert_eq!(issues.len(), 1);
 }
 
@@ -212,11 +273,55 @@ fn issue_data_includes_authorized_names() {
 - [x] fix bug @alice
 ";
     let config = config_with_users_and_groups(&["alice"], &[]);
-    let issues = unauthorized_completion(Some(&p(old)), &p(new), &config, "mallory");
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("mallory".to_string()),
+    );
     assert_eq!(
         issues[0].data,
         Some(IssueData::UnauthorizedCompletion {
             authorized: vec!["alice".to_string()],
         })
     );
+}
+
+// ── unrecognized identity ───────────────────────────────────────────────────────
+
+#[test]
+fn unrecognized_identity_completing_assigned_task_is_flagged() {
+    let old = "\
+- [ ] fix bug @alice
+";
+    let new = "\
+- [x] fix bug @alice
+";
+    let config = config_with_users_and_groups(&["alice"], &[]);
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Unrecognized,
+    );
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].code, ErrorCode::UnauthorizedCompletion);
+}
+
+#[test]
+fn unrecognized_identity_completing_unassigned_task_is_not_flagged() {
+    let old = "\
+- [ ] fix bug
+";
+    let new = "\
+- [x] fix bug
+";
+    let config = Config::default();
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Unrecognized,
+    );
+    assert!(issues.is_empty());
 }

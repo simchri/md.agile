@@ -63,23 +63,29 @@ fn current_identity_none_outside_a_repo_without_global_config() {
 }
 
 #[test]
-fn head_file_content_returns_none_for_untracked_file() {
+fn file_content_at_ref_returns_none_for_untracked_file() {
     let dir = tempfile::tempdir().unwrap();
     init_repo(dir.path(), "a@b.com", "A B");
     std::fs::write(dir.path().join("a.agile.md"), "- [ ] task\n").unwrap();
-    assert_eq!(head_file_content(dir.path(), Path::new("a.agile.md")), None);
+    assert_eq!(
+        file_content_at_ref(dir.path(), "HEAD", Path::new("a.agile.md")),
+        None
+    );
 }
 
 #[test]
-fn head_file_content_returns_none_for_repo_with_no_commits() {
+fn file_content_at_ref_returns_none_for_repo_with_no_commits() {
     let dir = tempfile::tempdir().unwrap();
     init_repo(dir.path(), "a@b.com", "A B");
     std::fs::write(dir.path().join("a.agile.md"), "- [ ] task\n").unwrap();
-    assert_eq!(head_file_content(dir.path(), Path::new("a.agile.md")), None);
+    assert_eq!(
+        file_content_at_ref(dir.path(), "HEAD", Path::new("a.agile.md")),
+        None
+    );
 }
 
 #[test]
-fn head_file_content_returns_committed_content() {
+fn file_content_at_ref_returns_committed_content() {
     let dir = tempfile::tempdir().unwrap();
     init_repo(dir.path(), "a@b.com", "A B");
     std::fs::write(dir.path().join("a.agile.md"), "- [ ] task\n").unwrap();
@@ -89,9 +95,68 @@ fn head_file_content_returns_committed_content() {
     std::fs::write(dir.path().join("a.agile.md"), "- [x] task\n").unwrap();
 
     assert_eq!(
-        head_file_content(dir.path(), Path::new("a.agile.md")),
+        file_content_at_ref(dir.path(), "HEAD", Path::new("a.agile.md")),
         Some("- [ ] task\n".to_string())
     );
+}
+
+#[test]
+fn file_content_at_ref_reads_an_arbitrary_ref_not_just_head() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+    std::fs::write(dir.path().join("a.agile.md"), "- [ ] task\n").unwrap();
+    commit_all(dir.path(), "base");
+    // A second commit moves HEAD forward; "base" (a tag) still points at the
+    // first commit, simulating a CI "--base <ref>" pointing at a PR's base.
+    let status = Command::new("git")
+        .args(["tag", "base"])
+        .current_dir(dir.path())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    std::fs::write(dir.path().join("a.agile.md"), "- [x] task\n").unwrap();
+    commit_all(dir.path(), "second");
+
+    assert_eq!(
+        file_content_at_ref(dir.path(), "base", Path::new("a.agile.md")),
+        Some("- [ ] task\n".to_string())
+    );
+    assert_eq!(
+        file_content_at_ref(dir.path(), "HEAD", Path::new("a.agile.md")),
+        Some("- [x] task\n".to_string())
+    );
+}
+
+#[test]
+fn file_content_at_ref_returns_none_for_a_nonexistent_ref() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+    std::fs::write(dir.path().join("a.agile.md"), "- [ ] task\n").unwrap();
+    commit_all(dir.path(), "initial");
+
+    // file_content_at_ref itself doesn't validate the ref (that's
+    // ref_exists's job, used explicitly by callers who need to distinguish
+    // "bad ref" from "valid ref, file just not present there").
+    let result = file_content_at_ref(dir.path(), "no-such-ref", Path::new("a.agile.md"));
+    assert_eq!(result, None);
+}
+
+#[test]
+fn ref_exists_true_for_head_with_a_commit() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+    std::fs::write(dir.path().join("a.agile.md"), "- [ ] task\n").unwrap();
+    commit_all(dir.path(), "initial");
+    assert!(ref_exists(dir.path(), "HEAD"));
+}
+
+#[test]
+fn ref_exists_false_for_bogus_ref() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+    std::fs::write(dir.path().join("a.agile.md"), "- [ ] task\n").unwrap();
+    commit_all(dir.path(), "initial");
+    assert!(!ref_exists(dir.path(), "no-such-ref"));
 }
 
 // ── resolve_identity_user ───────────────────────────────────────────────────────

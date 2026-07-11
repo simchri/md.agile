@@ -43,7 +43,48 @@ pub fn current_identity(dir: &Path) -> Option<GitIdentity> {
 /// the repo, typically also relative to `dir`). Returns `None` if the file has
 /// no committed version (untracked, new file, or the repo has no commits yet).
 pub fn head_file_content(dir: &Path, relative_path: &Path) -> Option<String> {
-    let spec = format!("HEAD:{}", relative_path.to_string_lossy());
+    file_content_at_ref(dir, "HEAD", relative_path)
+}
+
+/// A `--base <ref>` (or other explicitly-provided git ref argument) that
+/// doesn't resolve to a valid commit. Distinct from a file simply not
+/// existing at a *valid* ref (a legitimate untracked/new-file case, not an
+/// error) — callers should only check this for refs a user explicitly
+/// provided (e.g. via `--base`), not for the implicit default `HEAD` (which
+/// may legitimately not exist yet in a brand new repo with no commits).
+#[derive(Debug, Clone, PartialEq)]
+pub struct InvalidRef(pub String);
+
+impl std::fmt::Display for InvalidRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid git ref '{}'", self.0)
+    }
+}
+
+impl std::error::Error for InvalidRef {}
+
+/// Returns `true` if `git_ref` resolves to a valid commit in `dir`.
+pub fn ref_exists(dir: &Path, git_ref: &str) -> bool {
+    run_git(
+        dir,
+        &[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("{git_ref}^{{commit}}"),
+        ],
+    )
+    .is_some()
+}
+
+/// Fetches the content of `relative_path` (relative to the repo, typically
+/// also relative to `dir`) at `git_ref` (e.g. `HEAD`, `origin/main`, a SHA).
+/// Returns `None` if the ref doesn't exist, or exists but the file isn't
+/// present there (untracked/new file, or the repo has no commits yet) — this
+/// function doesn't distinguish those cases; use [`ref_exists`] first if the
+/// distinction matters (e.g. for an explicitly user-provided `--base` ref).
+pub fn file_content_at_ref(dir: &Path, git_ref: &str, relative_path: &Path) -> Option<String> {
+    let spec = format!("{git_ref}:{}", relative_path.to_string_lossy());
     run_git(dir, &["show", &spec])
 }
 
