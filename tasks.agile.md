@@ -1,5 +1,5 @@
 - [x] post initial vision!
-barar [x] refine and clean up
+- [x] refine and clean up
 
 # More Cli stuff
 - [x] for any "list" command, add arguments "--next <count>" / "-n <count>"  show only the first <count> entries of whatever is listed.
@@ -219,11 +219,17 @@ barar [x] refine and clean up
   - [-] Update error formatter for new error codes
   - [x] GoTo for "@assignments"
     - [x] basic implementation @alice
-    - [x] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some#feature hernameis@alice -- the used assumption is that there will always be whitespace is wrong
+    - [x] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some"#feature" hernameis@alice -- the used assumption is that there will always be whitespace is wrong
       - [x] fix
       - [x] refactor: The detection logic of markers and properties in files should be centralized to avoid bugs like above
+  - [x] "(feature) validation by programmer"
+  - [x] "(feature) implementation"
+  - [x] "bar"
+  - [x] "baz"
 
 - [x] #feature syntax highlighting for #OPT
+  - [x] "(feature) validation by programmer"
+  - [x] "(feature) implementation"
 - [x] #feature syntax highlighting for '#MILESTONES'
   - [x] basic implementation
   - [x] double check details of #MILESTONE handling. AI did something weird here. Handled it a bit like a normal property
@@ -231,8 +237,12 @@ barar [x] refine and clean up
     - [x] #MILESTONE not a highlighted as keyword here
   - [x] #MDAGILE double check #MDAGILE special marker handling - should this be highlighted as keyword here?
     No! config keys still to be implemented - re-visit later. N.B. MDAGILE tag currently never highlighted, but that's ok since keys are not implemented anyways
+  - [x] "(feature) validation by programmer"
+  - [x] "(feature) implementation"
 
 - [x] #feature: syntax highlighting for assignments: asdf@alice
+  - [x] "(feature) validation by programmer"
+  - [x] "(feature) implementation"
 
 - [x] syntax highlighting for '#properties'
 

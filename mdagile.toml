@@ -1,9 +1,11 @@
 [Properties.feature]
 subtasks = ["(feature) validation by programmer", "(feature) implementation"]
 
+
 [Properties.bug]
 [Properties.foo]
 subtasks = ["bar", "baz"]
+subtasks_allow_cancel = [false, true]
 
 [Properties.feat]
 
