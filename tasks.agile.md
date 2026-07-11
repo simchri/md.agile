@@ -373,7 +373,8 @@
 
 - [ ] #bug check hint / name "ranked task completed out of order" --> "ordered task completed ..." (rank is priority rank, order is order of subtasks. Update the glossary too, to clarify this globally)
 
-- [ ] #bug "ranked (ordered) task completed out of order" the column indicator always points to column 0. Could be nicer: Point to the ordering number instead
+- [ ] #bug `agile check` --  "ranked (ordered) task completed out of order" the column indicator always points to column 0. Could be nicer: Point to the ordering number instead
+- [ ] check other similar checks - is this marker placed logically?
 
 ## Events
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
