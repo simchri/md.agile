@@ -440,7 +440,7 @@ Assignments on parent tasks do not affect child tasks (but child tasks can be as
 
 This feature requires that groups and users are first identified in the configuration.
 
-Consider this feature only "automation", not "access control". This is not secure in any way -- The mechanism can easily be sidestepped! (However your git history will reveal any inconsistencies c.f. MANIFESTO.md "Trust through Transparency")
+Consider this feature only "automation", not "access control". This is not secure in any way -- The mechanism can easily be sidestepped! Your git history however will reveal any inconsistencies c.f. [MANIFESTO.md](MANIFESTO.md) "Trust through Transparency".
 
 ```toml
 [Users.markus]
