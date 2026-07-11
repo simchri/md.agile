@@ -434,7 +434,7 @@ You can assign tasks to specific people or groups with the assignment marker: `@
 - [ ] implement feature X @markus
   - [ ] Review the feature @QA
 ```
-The implementation can only be marked complete by Markus. The review may be checked by any QA person. mdagile checks this by comparing the current user's email, as provided in the git config, against the assigned users and groups. You can alternatively inject an identity explicitly via arguments or environment variables. Use this in pipelines, where the user's `.gitconfig` is not available.
+The implementation can only be marked complete by Markus. The review may be checked by any QA person. mdagile identifies the current user via info available in `git config`, and checks this ID against the assigned users and groups. You can alternatively identify yourself explicitly via command line argument `--as <user>`. Use this in pipelines, where the user's `.gitconfig` is not available.
 
 Assignments on parent tasks do not affect child tasks (but child tasks can be assigned as well).
 
