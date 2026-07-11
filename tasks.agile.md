@@ -346,7 +346,7 @@
     - [x] `--base` with an invalid ref → CLI error, not silently skipped
     - [x] combination of `--as` + `--base` together (the CI use case end-to-end)
 
-- [x] validate mdagile.toml config file. `agile check` should return with an error in case of unknown config keys 
+- [x] validate mdagile.toml config file. `agile check` should return with an error in case of unknown config keys
 
 - [x] validate that any "members" list in mdagile.toml only contains actually defined users.
 
@@ -355,6 +355,8 @@
 - [x] bugfix: assignment / completion validation (E013) matched old vs. new tasks/subtasks by bare title text alone, which collides whenever two different tasks have same-titled subtasks (e.g. `#property`-required subtasks reuse the same literal title, like "bar"/"baz" in mdagile.toml, across every task carrying that property). This could cause both false negatives (a genuine unauthorized completion goes unflagged) and false positives. Found during a critical code review of recent E013 work.
   - [x] Reproduced with a regression test: two same-titled subtasks under different parent tasks, one with a genuine new transition, one already-done and unchanged
   - [x] Fixed by matching on the full ancestor-title path (root task down to the node) instead of bare title
+
+- [ ] when tasks live in a git repo, but the current users identity can not be determined, when runnning `agile check` issue a warning on the terminal (assignment validation not possible etc. ladi ladi da..) . (for lsp, continue just silently skip validation checks)
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
@@ -390,10 +392,10 @@
 - [ ] command: `agile task next 2.2` show the first sub-subtask of the second task etc.
 - [ ] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
 - [ ] command: `agile task next --mine` show the next task eligible.
-  Eligbility: 
-  - If the task is not assigned to any group or person --> elligible 
-  - task assigned to me (and potentially others) --> elligible 
-  - task assigned to a group that I am a part of (and potentially others) --> elligible 
+  Eligbility:
+  - If the task is not assigned to any group or person --> elligible
+  - task assigned to me (and potentially others) --> elligible
+  - task assigned to a group that I am a part of (and potentially others) --> elligible
   - otherwise --> not elligible
 
 
