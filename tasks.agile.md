@@ -352,10 +352,6 @@
 
 - [x] rename the mdagile.toml property "emails" to "git_emails" (consistent with git_names)
 
-- [ ] foo @alice
-  - [ ] test @QM
-  - [x] implement @devs
-
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
   - [ ] Validate no duplicate ranks (e.g., two "2." markers)
