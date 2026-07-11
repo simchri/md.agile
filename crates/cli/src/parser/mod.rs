@@ -334,8 +334,25 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             while stack.last().map_or(false, |i| i.depth >= depth) {
                 pop_one(&mut stack, &mut items);
             }
-            let (order, rest) = parse_order_prefix(&rest);
-            let (kind, rest) = parse_subtask_kind(rest);
+            // Quote-stripping (kind detection) must run *before* order-prefix
+            // detection: a property-required subtask's order prefix can be
+            // baked inside the quotes (e.g. `"1. dev implementation"`, per
+            // README.vision.md "Ordered Tasks via Properties"), and the
+            // leading `"` would otherwise make `parse_order_prefix` fail to
+            // recognise the digit run. For `Custom` subtasks the order prefix
+            // is still consumed (stripped from the title, as before); for
+            // `PropertyRequired` subtasks it is only *detected*, not
+            // consumed — `raw_title` must stay byte-identical to the
+            // property's configured subtask string (order prefix included)
+            // so E010/E012 matching keeps working unchanged.
+            let (kind, unquoted) = parse_subtask_kind(&rest);
+            let (order, rest) = match kind {
+                SubtaskKind::Custom => parse_order_prefix(unquoted),
+                SubtaskKind::PropertyRequired => {
+                    let (order, _) = parse_order_prefix(unquoted);
+                    (order, unquoted)
+                }
+            };
             let raw_title = match kind {
                 SubtaskKind::PropertyRequired => Some(rest.to_string()),
                 SubtaskKind::Custom => None,

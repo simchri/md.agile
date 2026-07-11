@@ -40,3 +40,28 @@ fn does_not_flag_distinct_ranks_out_of_textual_order() {
         String::from_utf8_lossy(&out.stdout)
     );
 }
+
+#[test]
+fn flags_duplicate_rank_among_property_required_subtasks() {
+    // Order prefixes baked into a property's quoted `subtasks` config strings
+    // must also be checked for duplicate ranks (README.vision.md "Ordered
+    // Tasks via Properties").
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.feature]
+subtasks = [\"1. dev implementation\", \"1. dev documentation\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] #feature: add basket
+  - [ ] \"1. dev implementation\"
+  - [ ] \"1. dev documentation\"
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E014"), "stdout: {stdout:?}");
+}

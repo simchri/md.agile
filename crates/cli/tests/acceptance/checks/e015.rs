@@ -41,3 +41,25 @@ fn does_not_flag_ranked_tasks_completed_in_sequence() {
         String::from_utf8_lossy(&out.stdout)
     );
 }
+
+#[test]
+fn flags_property_required_subtask_completed_out_of_order() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.feature]
+subtasks = [\"1. dev implementation\", \"2. dev documentation\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] #feature: add basket
+  - [ ] \"1. dev implementation\"
+  - [x] \"2. dev documentation\"
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E015"), "stdout: {stdout:?}");
+}

@@ -658,3 +658,48 @@ fn unescaped_marker_after_escaped_marker_is_still_parsed() {
     );
     assert_eq!(t.title, "#not_a_property but is real");
 }
+
+#[test]
+fn property_required_subtask_with_order_prefix_is_detected_as_ranked() {
+    // Vision doc "Ordered Tasks via Properties": a property's `subtasks` config
+    // entry can bake an order prefix into the literal quoted string, e.g.
+    // `subtasks = ["1. dev implementation", "2. dev documentation"]`. The
+    // `Order` must still be detected so E014/E015 can validate it, even
+    // though the whole thing is wrapped in quotes.
+    let input = "\
+- [ ] parent
+  - [ ] \"1. dev implementation\"
+";
+    let items = p(input);
+    let sub = &task(&items, 0).children[0];
+    assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
+    assert_eq!(sub.order, Order::Ranked(1));
+}
+
+#[test]
+fn property_required_subtask_with_order_prefix_keeps_full_raw_title_for_config_matching() {
+    // raw_title must stay byte-identical to the config's declared subtask
+    // string (order prefix included), since E010/E012 match on it literally.
+    let input = "\
+- [ ] parent
+  - [ ] \"1. dev implementation\"
+";
+    let items = p(input);
+    let sub = &task(&items, 0).children[0];
+    assert_eq!(sub.raw_title, Some("1. dev implementation".to_string()));
+}
+
+#[test]
+fn custom_subtask_order_prefix_stripping_is_unaffected_by_property_required_fix() {
+    // Regression guard: Custom (unquoted) ranked subtasks must keep stripping
+    // the "N. " prefix out of the displayed title, exactly as before.
+    let input = "\
+- [ ] parent
+  - [ ] 1. add performance UI test
+";
+    let items = p(input);
+    let sub = &task(&items, 0).children[0];
+    assert_eq!(sub.kind, SubtaskKind::Custom);
+    assert_eq!(sub.order, Order::Ranked(1));
+    assert_eq!(sub.title, "add performance UI test");
+}

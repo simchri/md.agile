@@ -348,3 +348,44 @@ fn done_required_subtask_is_unaffected_by_allow_cancel_setting() {
     let config = config_with_cancellable_subtasks(&[("feature", &["PO review"], &[false])]);
     assert!(missing_required_subtasks(&p(input), &config).is_empty());
 }
+
+#[test]
+fn required_subtask_with_order_prefix_baked_into_config_string_still_matches() {
+    // README.vision.md "Ordered Tasks via Properties": a property can declare
+    // its required subtasks with an order prefix baked into the literal
+    // string, e.g. `subtasks = ["1. dev implementation", "2. dev documentation"]`.
+    // The parser now also detects an `Order` from such a subtask (see
+    // parser::tests::property_required_subtask_with_order_prefix_is_detected_as_ranked),
+    // but this must not break the byte-exact `raw_title` match this rule
+    // relies on for E010/E012.
+    let input = "\
+- [ ] #feature: add basket
+  - [ ] \"1. dev implementation\"
+  - [ ] \"2. dev documentation\"
+";
+    let config = config_with_subtasks(&[(
+        "feature",
+        &["1. dev implementation", "2. dev documentation"],
+    )]);
+    assert!(missing_required_subtasks(&p(input), &config).is_empty());
+}
+
+#[test]
+fn missing_required_subtask_with_order_prefix_is_still_reported() {
+    let input = "\
+- [ ] #feature: add basket
+  - [ ] \"1. dev implementation\"
+";
+    let config = config_with_subtasks(&[(
+        "feature",
+        &["1. dev implementation", "2. dev documentation"],
+    )]);
+    let issues = missing_required_subtasks(&p(input), &config);
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].code, ErrorCode::MissingRequiredSubtasks);
+    assert!(
+        issues[0].message.contains("2. dev documentation"),
+        "{}",
+        issues[0].message
+    );
+}

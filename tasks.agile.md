@@ -369,7 +369,7 @@
 ## Misc.
 - [x] Escaping marker characters: a backslash before a marker character should make it literal text instead of a property/assignment marker (see README.vision.md "Basic Syntax", `not_a_property` example). There's no backslash-escape handling in the parser at all currently — the marker character is always parsed as a marker, regardless of any preceding backslash.
 
-- [ ] Checks on ordered subtasks should apply also to mandatory subtasks from properties. The escaping / application logic of the check must be revised
+- [x] Checks on ordered subtasks should apply also to mandatory subtasks from properties. The escaping / application logic of the check must be revised
 
 - [ ] some #feature2
   - [ ] "1. dev implementation"

@@ -129,3 +129,52 @@ fn checks_ranking_at_every_nesting_level_independently() {
     assert_eq!(issues[0].code, ErrorCode::OutOfOrderCompletion);
     assert_eq!(issues[0].location.line, 4);
 }
+
+#[test]
+fn detects_duplicate_rank_among_property_required_subtasks() {
+    // Order detection must also apply to property-required (quoted)
+    // subtasks whose order prefix is baked into the quoted string, per
+    // README.vision.md "Ordered Tasks via Properties".
+    let file_content = "\
+- [ ] #feature: add basket
+  - [ ] \"1. dev implementation\"
+  - [ ] \"1. dev documentation\"
+";
+    let items = parse(file_content, PathBuf::from("test.agile.md"));
+    let issues = super::invalid_order(&items);
+
+    assert_eq!(issues.len(), 2);
+    assert!(
+        issues
+            .iter()
+            .all(|i| i.code == ErrorCode::DuplicateOrderRank)
+    );
+}
+
+#[test]
+fn detects_property_required_subtask_completed_out_of_order() {
+    let file_content = "\
+- [ ] #feature: add basket
+  - [ ] \"1. dev implementation\"
+  - [x] \"2. dev documentation\"
+";
+    let items = parse(file_content, PathBuf::from("test.agile.md"));
+    let issues = super::invalid_order(&items);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].code, ErrorCode::OutOfOrderCompletion);
+    assert_eq!(issues[0].location.line, 3); // "2. dev documentation"
+}
+
+#[test]
+fn allows_property_required_subtasks_completed_in_sequence() {
+    let file_content = "\
+- [x] #feature: add basket
+  - [x] \"1. dev implementation\"
+  - [x] \"2. dev documentation\"
+";
+    let items = parse(file_content, PathBuf::from("test.agile.md"));
+    let issues = super::invalid_order(&items);
+
+    assert_eq!(issues, vec![]);
+}

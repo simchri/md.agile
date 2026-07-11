@@ -56,3 +56,7 @@ their direct siblings only — see [README.vision.md](../README.vision.md)
 | E014 | Duplicate order rank | Two sibling subtasks use the same rank number (e.g. two `1.` prefixes under the same parent). |
 | E015 | Ranked task completed out of order | A ranked subtask was marked done while a lower-ranked sibling is still incomplete (not done and not cancelled). |
 
+These checks also apply to mandatory subtasks required by a property, when
+the property's `subtasks` config bakes a rank prefix into the required
+string (e.g. `subtasks = ["1. dev implementation", "2. dev documentation"]`).
+
