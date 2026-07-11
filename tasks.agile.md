@@ -356,7 +356,7 @@
   - [x] Reproduced with a regression test: two same-titled subtasks under different parent tasks, one with a genuine new transition, one already-done and unchanged
   - [x] Fixed by matching on the full ancestor-title path (root task down to the node) instead of bare title
 
-- [ ] when tasks live in a git repo, but the current users identity can not be determined, when runnning `agile check` issue a warning on the terminal (assignment validation not possible etc. ladi ladi da..) . (for lsp, continue just silently skip validation checks)
+- [x] when tasks live in a git repo, but the current users identity can not be determined, when runnning `agile check` issue a warning on the terminal (assignment validation not possible etc. ladi ladi da..) . (for lsp, continue just silently skip validation checks)
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax

@@ -142,6 +142,78 @@ fn check_authorization_skips_unrecognized_identity_completing_unassigned_task() 
     assert!(issues.is_empty());
 }
 
+// ── resolve_repo_identity skip reasons ──────────────────────────────────────
+
+#[test]
+fn resolve_repo_identity_reports_not_a_git_repo() {
+    let dir = tempfile::tempdir().unwrap();
+    let resolution = resolve_repo_identity(dir.path(), &config_with_alice(), None);
+    assert!(matches!(resolution, IdentityResolution::NotAGitRepo));
+}
+
+#[test]
+fn resolve_repo_identity_reports_no_git_identity_when_git_config_is_empty() {
+    let dir = tempfile::tempdir().unwrap();
+    // Repo exists, but user.email/user.name are left unset (empty string
+    // rather than absent, to make sure the "unset" case, not just "missing
+    // key", is detected too).
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", ""]);
+    git(dir.path(), &["config", "user.name", ""]);
+
+    let resolution = resolve_repo_identity(dir.path(), &config_with_alice(), None);
+    assert!(matches!(resolution, IdentityResolution::NoGitIdentity));
+}
+
+#[test]
+fn resolve_repo_identity_determined_via_override_even_without_git_identity() {
+    let dir = tempfile::tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", ""]);
+    git(dir.path(), &["config", "user.name", ""]);
+
+    let resolution = resolve_repo_identity(dir.path(), &config_with_alice(), Some("alice"));
+    assert!(matches!(
+        resolution,
+        IdentityResolution::Determined(ResolvedIdentity::Known(ref key)) if key == "alice"
+    ));
+}
+
+#[test]
+fn check_authorization_warns_when_git_identity_cannot_be_determined() {
+    let dir = tempfile::tempdir().unwrap();
+    // Commit with a real identity first (git requires one to commit at all),
+    // then clear it to simulate a repo whose current user hasn't configured
+    // `user.email`/`user.name`.
+    init_repo(dir.path(), "alice@example.com", "Alice");
+    std::fs::write(dir.path().join("a.agile.md"), "- [ ] fix bug @alice\n").unwrap();
+    commit_all(dir.path(), "initial");
+    git(dir.path(), &["config", "user.email", ""]);
+    git(dir.path(), &["config", "user.name", ""]);
+    std::fs::write(dir.path().join("a.agile.md"), "- [x] fix bug @alice\n").unwrap();
+
+    let config = config_with_alice();
+    let (issues, skip_reason) =
+        check_authorization_with_skip_reason(dir.path(), &config, None, None).unwrap();
+    assert!(issues.is_empty());
+    assert!(matches!(
+        skip_reason,
+        Some(IdentityResolution::NoGitIdentity)
+    ));
+}
+
+#[test]
+fn check_authorization_does_not_warn_outside_git_repo() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.agile.md"), "- [x] fix bug @alice\n").unwrap();
+
+    let config = config_with_alice();
+    let (issues, skip_reason) =
+        check_authorization_with_skip_reason(dir.path(), &config, None, None).unwrap();
+    assert!(issues.is_empty());
+    assert!(matches!(skip_reason, Some(IdentityResolution::NotAGitRepo)));
+}
+
 // ── check_authorization_for_document (LSP: single unsaved buffer) ──────────────
 
 #[test]

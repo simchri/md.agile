@@ -369,3 +369,74 @@ git_emails = [\"bob@example.com\"]
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("E013"), "stdout: {stdout:?}");
 }
+
+#[test]
+fn warns_on_stderr_when_git_identity_cannot_be_determined() {
+    let dir = tempdir().unwrap();
+    // Commit with a real identity first (git requires one to commit at
+    // all), then clear it to simulate a contributor who hasn't configured
+    // `user.email`/`user.name` locally.
+    init_repo(dir.path(), "alice@example.com", "Alice");
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] fix bug @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all(dir.path(), "initial");
+    git(dir.path(), &["config", "user.email", ""]);
+    git(dir.path(), &["config", "user.name", ""]);
+
+    let file_content = "\
+- [x] fix bug @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    // The check itself is skipped (no identity to validate against), but
+    // unlike the "not a git repo at all" case, this must be surfaced as a
+    // warning rather than silently passing.
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.to_lowercase().contains("warn"), "stderr: {stderr:?}");
+    assert!(
+        stderr.contains("identity"),
+        "expected a mention of the undeterminable identity, stderr: {stderr:?}"
+    );
+}
+
+#[test]
+fn does_not_warn_on_stderr_when_simply_not_a_git_repo() {
+    let dir = tempdir().unwrap();
+    // No git repo at all: assignment validation isn't applicable here, so
+    // no warning is expected (unlike the "git repo but no identity" case).
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [x] fix bug @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(!stderr.to_lowercase().contains("warn"), "stderr: {stderr:?}");
+}

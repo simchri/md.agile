@@ -35,15 +35,45 @@ pub fn run(items: &[FileItem], config: &Config) -> Vec<Issue> {
 /// the check still runs and treats it as always unauthorized for any assigned
 /// task.
 ///
+/// See [`IdentityResolution`] for which of the two skip cases above triggers
+/// a terminal warning.
+///
 /// Returns `Err` if `base_ref` is `Some` but doesn't resolve to a valid git
 /// ref/commit — this is a hard usage error (distinct from authorization
 /// issues), since a typo'd `--base` should never be silently ignored.
+///
+/// If the check is skipped because the acting identity couldn't be
+/// determined at all (repo has no git identity configured — distinct from
+/// `root` simply not being a git repo, where assignment validation isn't
+/// applicable and no warning is warranted), logs a `warn`-level message so
+/// the omission is visible on the terminal rather than silently passing.
 pub fn check_authorization(
     root: &Path,
     config: &Config,
     identity_override: Option<&str>,
     base_ref: Option<&str>,
 ) -> Result<Vec<Issue>, crate::git::InvalidRef> {
+    let (issues, skip_reason) =
+        check_authorization_with_skip_reason(root, config, identity_override, base_ref)?;
+    if let Some(IdentityResolution::NoGitIdentity) = skip_reason {
+        log::warn!(
+            "Could not determine your git identity (git config user.email/user.name is unset) — \
+             skipping assignment/completion validation (E013)."
+        );
+    }
+    Ok(issues)
+}
+
+/// Like [`check_authorization`], but also returns the reason the check was
+/// skipped (if it was), so callers can decide how to surface that (or, in
+/// tests, assert on it directly) instead of only inferring it from an empty
+/// `Vec<Issue>`.
+fn check_authorization_with_skip_reason(
+    root: &Path,
+    config: &Config,
+    identity_override: Option<&str>,
+    base_ref: Option<&str>,
+) -> Result<(Vec<Issue>, Option<IdentityResolution>), crate::git::InvalidRef> {
     if let Some(base) = base_ref {
         if !crate::git::ref_exists(root, base) {
             return Err(crate::git::InvalidRef(base.to_string()));
@@ -51,8 +81,11 @@ pub fn check_authorization(
     }
     let base_ref = base_ref.unwrap_or("HEAD");
 
-    let Some(identity) = resolve_repo_identity(root, config, identity_override) else {
-        return Ok(vec![]);
+    let identity = match resolve_repo_identity(root, config, identity_override) {
+        IdentityResolution::Determined(identity) => identity,
+        reason @ (IdentityResolution::NotAGitRepo | IdentityResolution::NoGitIdentity) => {
+            return Ok((vec![], Some(reason)));
+        }
     };
 
     let mut issues = Vec::new();
@@ -65,7 +98,7 @@ pub fn check_authorization(
             root, &path, &new_items, config, &identity, base_ref,
         ));
     }
-    Ok(issues)
+    Ok((issues, None))
 }
 
 /// Like [`check_authorization`], but validates a single document's in-editor
@@ -80,11 +113,33 @@ pub fn check_authorization_for_document(
     text: &str,
     config: &Config,
 ) -> Vec<Issue> {
-    let Some(identity) = resolve_repo_identity(root, config, None) else {
-        return vec![];
+    let identity = match resolve_repo_identity(root, config, None) {
+        IdentityResolution::Determined(identity) => identity,
+        // No terminal to warn on in the editor-integration path — silently
+        // skip either way, as documented on `check_authorization_for_document`.
+        IdentityResolution::NotAGitRepo | IdentityResolution::NoGitIdentity => return vec![],
     };
     let new_items = parser::parse(text, path.to_path_buf());
     unauthorized_completion_for_file(root, path, &new_items, config, &identity, "HEAD")
+}
+
+/// The outcome of resolving the acting identity for the E013 check: either a
+/// usable identity, or one of the two distinct reasons the check must be
+/// skipped instead.
+///
+/// The two skip reasons are kept separate (rather than collapsed into a
+/// single `None`) because only one of them warrants a terminal warning:
+/// `NotAGitRepo` means assignment validation simply isn't applicable here (no
+/// git history to compare against), which is expected and unremarkable.
+/// `NoGitIdentity` means validation *would* apply but can't run because the
+/// user hasn't configured `git config user.email`/`user.name` — that's
+/// worth surfacing, since the user may not realize completions are going
+/// unchecked.
+#[derive(Debug)]
+enum IdentityResolution {
+    Determined(ResolvedIdentity),
+    NotAGitRepo,
+    NoGitIdentity,
 }
 
 /// Resolves the acting identity for the E013 check.
@@ -94,18 +149,19 @@ pub fn check_authorization_for_document(
 /// `ResolvedIdentity::Unrecognized` (no email/`git_names` fallback matching —
 /// unlike the git-derived path below, an override is expected to name a
 /// config key directly). Otherwise, falls back to the live git identity (as
-/// seen from `root`): returns `None` (full skip) only if `root` isn't a git
-/// repo, or no git identity can be determined at all. If a git identity is
-/// determined but doesn't match any `[Users.X]` entry, returns
-/// `Some(ResolvedIdentity::Unrecognized)` rather than skipping — the caller
-/// must still run the check in that case.
+/// seen from `root`): returns `IdentityResolution::NotAGitRepo` if `root`
+/// isn't a git repo, or `IdentityResolution::NoGitIdentity` if it is but no
+/// git identity can be determined at all. If a git identity is determined
+/// but doesn't match any `[Users.X]` entry, returns
+/// `Determined(ResolvedIdentity::Unrecognized)` rather than skipping — the
+/// caller must still run the check in that case.
 fn resolve_repo_identity(
     root: &Path,
     config: &Config,
     identity_override: Option<&str>,
-) -> Option<ResolvedIdentity> {
+) -> IdentityResolution {
     if let Some(key) = identity_override {
-        return Some(if config.users.contains_key(key) {
+        return IdentityResolution::Determined(if config.users.contains_key(key) {
             ResolvedIdentity::Known(key.to_string())
         } else {
             ResolvedIdentity::Unrecognized
@@ -113,10 +169,12 @@ fn resolve_repo_identity(
     }
 
     if !crate::git::is_git_repo(root) {
-        return None;
+        return IdentityResolution::NotAGitRepo;
     }
-    let identity = crate::git::current_identity(root)?;
-    Some(
+    let Some(identity) = crate::git::current_identity(root) else {
+        return IdentityResolution::NoGitIdentity;
+    };
+    IdentityResolution::Determined(
         crate::git::resolve_identity_user(config, &identity)
             .map(ResolvedIdentity::Known)
             .unwrap_or(ResolvedIdentity::Unrecognized),
