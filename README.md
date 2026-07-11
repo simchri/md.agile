@@ -59,14 +59,9 @@ agile check
 ```
 Parses all `*.agile.md` files and reports validation issues. Exits with status 1 if any issues found, 0 if clean. See [doc/checks.md](doc/checks.md) for the full list of checks, and [doc/config.md](doc/config.md) for the `mdagile.toml` reference.
 
-**Recently added:**
-- **Assignment / completion validation (E013)** — flags tasks marked done by someone who isn't assigned to them. Supports `--as <user>` and `--base <ref>` flags for CI/CD use (e.g. validating a PR author's identity against a specific base branch). Details: [doc/assignment-validation.md](doc/assignment-validation.md).
-- **Stricter `mdagile.toml` validation** — unknown config keys and group `members` referencing undefined users are now hard errors. Details: [doc/config.md](doc/config.md).
-
 ### Language Server: `agilels`
 
-A minimal LSP server that runs on stdin/stdout. Advertises text document sync (FULL mode), publishes real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/checks.md](doc/checks.md) for the full list and which ones have quickfixes.
-
+A minimal LSP server that offers real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/checks.md](doc/checks.md).
 
 ## GUI
 
