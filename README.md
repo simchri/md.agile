@@ -30,6 +30,73 @@ Formatting rules enforced via language server with quick fixes!
 
 See [INSTALL.md](INSTALL.md) for building/installing the CLI, language server, and editor setup (currently source-only via `cargo install`).
 
+## Basic Syntax
+
+Tasks must follow the Markdown standard, and subtasks must be correctly indented. A task that is "done" is marked with a lowercase `x`.
+
+Correct:
+```md
+- [ ] a task
+  - [ ] a subtask
+  - [x] this subtask is done
+
+- [ ] another task
+```
+
+Incorrect:
+```md
+- [ ] a task
+  - [ ] a subtask
+
+  - [ ] is this a subtask or a task? Nobody knows.
+```
+
+Other content is ignored. You can therefore freely complement your task lists with other notes. A newline separates tasks from other tasks or content.
+
+```md
+- [x] a task
+  - [x] a subtask
+
+# A Markdown Heading
+And some further notes
+
+- [ ] more tasks
+```
+
+mdagile uses the following symbols for syntax: `# @ \`
+If necessary, escape these with `\`
+
+```md
+- [ ] a task with a hashtag \#not_a_property
+- [ ] a task with a mail address: markus\@company.org
+```
+
+## Prioritization
+
+Prioritization is fully reflected by the order of tasks in your tasks file(s). The most important task is at the top, the least important at the bottom.
+
+**No Swim Lanes**
+
+Some task management tools define "swim-lanes", where each swim-lane constitutes an independent priority list. mdagile does not have a swim-lanes feature, but you can:
+- strictly assign tasks to teams with assignment markers (`@...`).
+- loosely assign tasks to teams with property markers (`#...`).
+
+There are no swim-lanes, because this does not work well with milestones—you still have to ultimately decide for each individual task whether it is part of a milestone or not.
+
+If you have multiple truly independent teams, each doing their own prioritization, you can use multiple subdirectories (and multiple `mdagile.toml` and `tasks.md` files). Note that these teams will not work towards the same milestones (see "Milestones").
+
+**No "High Priority" Markers**
+
+There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading.
+
+## Multiple files
+
+As your project grows, you may want to split your task list over multiple files. If you want to use more than one file, files must follow the naming convention `<some name>.agile.md`
+- by default, any file in any subdirectory to the root is picked up by the tool
+- other markdown files (e.g. your `README.md`s) are ignored, even if they contain syntactically valid tasks.
+- all found files are then brought into a global order, sorted alphabetically by their path relative to the project root (directory components first, then filename). For example, `tasks/50_current/001.agile.md` outranks `tasks/60_backlog/001.agile.md`.
+- The priority order of tasks is determined by their position in this virtual aggregated file.
+
 ## CLI Tool: `agile`
 
 ### Default: Open Next Task
@@ -129,10 +196,6 @@ To use the property, place it anywhere in the task:
 You are not allowed to use a property that is not defined in the `mdagile.toml`. This is to keep things orderly—no proliferation of random meaningless hashtags, and no duplication (`#Feature #feature #feat`). The tool will issue an error if you use undefined properties. Otherwise, an "empty" property doesn't do much. It just marks a task as part of some group—but you can do much more with them ...!
 
 Properties are the essential building blocks of your team's task management strategy - you can keep things simple or get really sophisticated - it is up to you!
-
-### Escaping Marker Characters
-
-Prefix a `#` or `@` with a backslash to write it as literal text instead of a marker: `\#not_a_property` and `\@not_an_assignment` are ignored by `agile check` and rendered without the backslash.
 
 ### Subtasks
 
