@@ -443,9 +443,13 @@ This feature requires that groups and users are first identified in the configur
 Consider this feature only "automation", not "access control". This is not secure in any way -- The mechanism can easily be sidestepped! (However your git history will reveal any inconsistencies c.f. MANIFESTO.md "Trust through Transparency")
 
 ```toml
-[Users]
-markus = {full_name="Markus Myman", email = "markusmyman@company.org"}
-svenja = {full_name="Svenja Super", email = "Svenjasuper@company.org"}
+[Users.markus]
+git_names = ["Markus Myman"]
+git_emails = ["markusmyman@company.org"]
+
+[Users.svenja]
+git_names = ["Svenja Super"]
+git_emails = ["svenjasuper@company.org"]
 
 [Groups.DEV]
 members = ["markus"]
