@@ -366,7 +366,6 @@
   - [x] Ensure both checks are scoped to the same sibling list only (a rank has no meaning across different parents or nesting levels)
   - [x] Tests: unit tests per rule + acceptance tests (`e014.rs`, `e015.rs`)
 
-
 ## Misc.
 - [ ] Escaping marker characters: a backslash before a marker character should make it literal text instead of a property/assignment marker (see README.vision.md "Basic Syntax", `not_a_property` example). There's no backslash-escape handling in the parser at all currently — the marker character is always parsed as a marker, regardless of any preceding backslash.
 
