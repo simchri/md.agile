@@ -30,13 +30,9 @@ The acting identity is resolved as:
   `[Users.X]`'s `git_emails` (first) and `git_names` (fallback) in
   `mdagile.toml` (see [Configuration](config.md)).
 
-**An identity that resolves to something, but doesn't match any `[Users.X]`
-entry, is always treated as unauthorized** for an assigned task — it is
-*not* silently skipped. This applies everywhere, not just in CI: pushing a
-commit as an unrecognized git identity against an assigned task is flagged
-just like an authorization mismatch.
+An identity that doesn't match any `[Users.X]` entry, is considered unauthorized. 
 
-The check is only silently skipped when the identity is **fully
+The check is silently skipped when the identity is **fully
 undeterminable**: not inside a git repo, or `git config user.email`/`user.name`
 are both empty, and no `--as` override was given.
 
