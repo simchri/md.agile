@@ -20,8 +20,6 @@ quickfixes offered where possible.
 | E006 | Invalid box style | The status box contains an unrecognised character (e.g. `- [o] task`, `- [] task`). Valid boxes are `[ ]`, `[x]`, and `[-]`. |
 | E007 | Uppercase X | The status box uses an uppercase X (e.g. `- [X] task`). Use lowercase `[x]` instead. |
 
-E001, E002, E003, E005, and E006 all have LSP quickfixes.
-
 ## Property / marker checks
 
 These validate `#property` and `@user`/`@group` markers against
@@ -30,9 +28,9 @@ These validate `#property` and `@user`/`@group` markers against
 
 | Code | Name | Description |
 |------|------|-------------|
-| E008 | Undefined property | A `#marker` is used on a task but isn't declared under `[Properties.X]` in `mdagile.toml`. Has an LSP quickfix: corrects the spelling if a close match exists, otherwise offers to add the property to `mdagile.toml`. |
-| E009 | Undefined assignment | An `@marker` is used on a task but doesn't match any `[Users.X]` or `[Groups.X]` entry in `mdagile.toml`. Has an LSP quickfix: corrects the spelling if a close match exists, otherwise offers to add the name as a user or group in `mdagile.toml`. |
-| E010 | Missing required subtasks | A task has a property (e.g. `#feature`) but is missing one or more of that property's required subtasks. Has an LSP quickfix to insert the missing subtasks. |
+| E008 | Undefined property | A `#marker` is used on a task but isn't declared under `[Properties.X]` in `mdagile.toml`. |
+| E009 | Undefined assignment | An `@marker` is used on a task but doesn't match any `[Users.X]` or `[Groups.X]` entry in `mdagile.toml`. |
+| E010 | Missing required subtasks | A task has a property (e.g. `#feature`) but is missing one or more of that property's required subtasks. |
 | E011 | Unrequired quoted subtask | A subtask uses the quoted syntax (`- [ ] "some subtask"`) — reserved for required subtasks — but isn't declared as required by any of the task's properties. |
 | E012 | Cancelled required subtask not allowed | A required subtask was cancelled (`[-]`), but the owning property doesn't allow that subtask to be cancelled (see `subtasks_allow_cancel` in [Configuration](config.md)). |
 

@@ -64,8 +64,8 @@ authorization to every listed member for E013 purposes.
 
 ## Validation
 
-`agile check` (and the language server) reject the config outright — before
-running any per-task checks — in these cases:
+`agile check` rejects the config outright — before running any per-task
+checks — in these cases:
 
 - **Unknown keys** — any key not recognized by the schema above (typos, e.g.
   `git_emial`) causes a hard parse error.
@@ -77,3 +77,9 @@ running any per-task checks — in these cases:
 These are reported on stderr and exit the process with status `1`, distinct
 from normal per-task check issues (which are printed to stdout as
 `<path>:<line>: <message>`).
+
+The language server currently does **not** surface these errors: on an
+invalid config it silently falls back to an empty configuration, which
+means every config-dependent check (E008–E013) goes quiet with no
+indication why. This is a known gap, not an intentional design choice —
+run `agile check` to see config errors reliably.

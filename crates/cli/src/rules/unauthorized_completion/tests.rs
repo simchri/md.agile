@@ -325,3 +325,44 @@ fn unrecognized_identity_completing_unassigned_task_is_not_flagged() {
     );
     assert!(issues.is_empty());
 }
+
+// ── duplicate-titled node matching ──────────────────────────────────────────
+
+#[test]
+fn duplicate_subtask_titles_under_different_parents_are_matched_independently() {
+    // Subtasks named "bar" under two different parent tasks (this is a very
+    // common, expected pattern for #property-required subtasks, which by
+    // design reuse the same literal title across every task carrying that
+    // property — see mdagile.toml's own `subtasks = ["bar", "baz"]`).
+    //
+    // Task A's "bar" is a genuine new (unauthorized) transition. Task B's
+    // "bar" was already done and is unchanged. Matching by bare title alone
+    // (ignoring which parent task a subtask belongs to) can misattribute
+    // task A's old status to task B's (or vice versa), since both share the
+    // key "bar" in a flat, file-wide title lookup.
+    let old = "\
+- [ ] task A @alice
+  - [ ] bar @alice
+- [x] task B @alice
+  - [x] bar @alice
+";
+    let new = "\
+- [ ] task A @alice
+  - [x] bar @alice
+- [x] task B @alice
+  - [x] bar @alice
+";
+    let config = config_with_users_and_groups(&["alice"], &[]);
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Unrecognized,
+    );
+    assert_eq!(
+        issues.len(),
+        1,
+        "expected task A's genuine bar transition to be flagged, got: {issues:?}"
+    );
+    assert_eq!(issues[0].location.line, 2, "should point at task A's 'bar'");
+}

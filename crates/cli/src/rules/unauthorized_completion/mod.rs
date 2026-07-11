@@ -9,20 +9,31 @@
 //! This rule differs from the others in `rules::` in that it needs *two*
 //! versions of the file (the last-committed `HEAD` version and the current
 //! working-copy version) to detect a `[ ] -> [x]` (or no-prior-version -> `[x]`)
-//! transition. Tasks are matched between the two versions by title text, since
-//! matching by line number breaks under unrelated edits elsewhere in the file.
-//! It is therefore called directly by the CLI/LSP orchestration layer, not as
-//! part of `rules::check_all`.
+//! transition. Tasks are matched between the two versions by their full
+//! ancestor-title path (not line number, which breaks under unrelated edits
+//! elsewhere in the file, and not bare title alone, which collides whenever
+//! two different tasks have same-titled subtasks — e.g. `#property`-required
+//! subtasks, which by design reuse the same literal title across every task
+//! carrying that property). It is therefore called directly by the CLI/LSP
+//! orchestration layer, not as part of `rules::check_all`.
 
 use crate::config::Config;
 use crate::parser::{FileItem, Location, Marker, Status, Subtask};
 use crate::rules::{ErrorCode, Issue, IssueData, ResolvedIdentity};
 use std::collections::HashMap;
 
-/// A flattened (title, status, markers, location) view of every task/subtask
-/// in a parsed file, used to match nodes across the old/new versions by title.
+/// A flattened (path, status, markers, location) view of every task/subtask
+/// in a parsed file, used to match nodes across the old/new versions.
+///
+/// `path` is the full ancestor chain of titles from the root task down to
+/// (and including) this node's own title — not just the bare title. Two
+/// different tasks commonly have same-titled subtasks (e.g. `#property`
+/// required subtasks reuse the same literal title on every task carrying
+/// that property), so matching by bare title alone would conflate them;
+/// scoping by the full path disambiguates same-titled subtasks that live
+/// under different parents.
 struct Node<'a> {
-    title: &'a str,
+    path: Vec<&'a str>,
     status: &'a Status,
     markers: &'a [Marker],
     location: &'a Location,
@@ -32,27 +43,34 @@ fn flatten(items: &[FileItem]) -> Vec<Node<'_>> {
     let mut nodes = Vec::new();
     for item in items {
         if let FileItem::Task(task) = item {
+            let path = vec![task.title.as_str()];
             nodes.push(Node {
-                title: &task.title,
+                path: path.clone(),
                 status: &task.status,
                 markers: &task.markers,
                 location: &task.location,
             });
-            flatten_subtasks(&task.children, &mut nodes);
+            flatten_subtasks(&task.children, &path, &mut nodes);
         }
     }
     nodes
 }
 
-fn flatten_subtasks<'a>(children: &'a [Subtask], nodes: &mut Vec<Node<'a>>) {
+fn flatten_subtasks<'a>(
+    children: &'a [Subtask],
+    parent_path: &[&'a str],
+    nodes: &mut Vec<Node<'a>>,
+) {
     for child in children {
+        let mut path = parent_path.to_vec();
+        path.push(child.title.as_str());
         nodes.push(Node {
-            title: &child.title,
+            path: path.clone(),
             status: &child.status,
             markers: &child.markers,
             location: &child.location,
         });
-        flatten_subtasks(&child.children, nodes);
+        flatten_subtasks(&child.children, &path, nodes);
     }
 }
 
@@ -101,11 +119,11 @@ pub fn unauthorized_completion(
     config: &Config,
     identity: &ResolvedIdentity,
 ) -> Vec<Issue> {
-    let old_status_by_title: HashMap<&str, &Status> = old
+    let old_status_by_path: HashMap<Vec<&str>, &Status> = old
         .map(|items| {
             flatten(items)
                 .into_iter()
-                .map(|n| (n.title, n.status))
+                .map(|n| (n.path, n.status))
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
@@ -117,8 +135,8 @@ pub fn unauthorized_completion(
         if *node.status != Status::Done {
             continue;
         }
-        let was_already_done = old_status_by_title
-            .get(node.title)
+        let was_already_done = old_status_by_path
+            .get(&node.path)
             .is_some_and(|s| **s == Status::Done);
         if was_already_done {
             continue;
