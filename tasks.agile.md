@@ -371,11 +371,9 @@
 
 - [x] Checks on ordered subtasks should apply also to mandatory subtasks from properties. The escaping / application logic of the check must be revised
 
-- [ ] some #feature2
-  - [ ] "1. dev implementation"
-  - [ ] "2. dev documentation"
-  - [x] "3. test"
-  - [ ] "4. developer #review"
+- [ ] #bug check hint / name "ranked task completed out of order" --> "ordered task completed ..." (rank is priority rank, order is order of subtasks. Update the glossary too, to clarify this globally)
+
+- [ ] #bug "ranked (ordered) task completed out of order" the column indicator always points to column 0. Could be nicer: Point to the ordering number instead
 
 ## Events
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
