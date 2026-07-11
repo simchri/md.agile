@@ -50,6 +50,12 @@ pub enum ConfigError {
         property: String,
         message: String,
     },
+    /// A `[Groups.X]` entry's `members` list references a name that isn't
+    /// defined as a `[Users.X]` entry.
+    GroupValidation {
+        group: String,
+        message: String,
+    },
 }
 
 impl std::fmt::Display for ConfigError {
@@ -65,6 +71,9 @@ impl std::fmt::Display for ConfigError {
             ),
             ConfigError::PropertyValidation { property, message } => {
                 write!(f, "invalid config for property '{property}': {message}")
+            }
+            ConfigError::GroupValidation { group, message } => {
+                write!(f, "invalid config for group '{group}': {message}")
             }
         }
     }
@@ -149,7 +158,7 @@ impl Config {
                 ))
             })
             .collect::<Result<_, ConfigError>>()?;
-        let users = raw
+        let users: HashMap<String, UserConfig> = raw
             .users
             .into_iter()
             .map(|(name, raw_user)| {
@@ -167,15 +176,27 @@ impl Config {
             .groups
             .into_iter()
             .map(|(name, raw_group)| {
-                (
+                if let Some(unknown) = raw_group
+                    .members
+                    .iter()
+                    .find(|member| !users.contains_key(member.as_str()))
+                {
+                    return Err(ConfigError::GroupValidation {
+                        group: name.clone(),
+                        message: format!(
+                            "member '{unknown}' is not a defined '[Users.{unknown}]' entry"
+                        ),
+                    });
+                }
+                Ok((
                     name.clone(),
                     GroupConfig {
                         name,
                         members: raw_group.members,
                     },
-                )
+                ))
             })
-            .collect();
+            .collect::<Result<_, ConfigError>>()?;
         Ok(Config {
             properties,
             users,

@@ -328,7 +328,9 @@
 
 - [x] validate mdagile.toml config file. `agile check` should return with an error in case of unknown config keys 
 
-- [ ] validate that any "members" list in mdagile.toml only contains actually defined users.
+- [x] validate that any "members" list in mdagile.toml only contains actually defined users.
+
+- [ ] rename the mdagile.toml property "emails" to "git_emails" (consistent with git_names)
 
 - [ ] foo @alice
   - [ ] test @QM

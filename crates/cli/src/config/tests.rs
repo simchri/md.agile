@@ -195,6 +195,9 @@ fn group_without_members_has_empty_vec() {
 #[test]
 fn group_with_members_is_parsed() {
     let input = "\
+[Users.alice]
+[Users.bob]
+
 [Groups.devs]
 members = [\"alice\", \"bob\"]
 ";
@@ -258,6 +261,62 @@ git_names = [\"Alice\"]
 
 [Groups.devs]
 members = [\"alice\"]
+";
+    assert!(Config::from_str(input).is_ok());
+}
+
+// ── group member validation ────────────────────────────────────────────────────
+
+#[test]
+fn group_member_referencing_undefined_user_is_rejected() {
+    let input = "\
+[Groups.devs]
+members = [\"ghost\"]
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::GroupValidation { group, message }) => {
+            assert_eq!(group, "devs");
+            assert!(message.contains("ghost"), "message: {message:?}");
+        }
+        other => panic!("expected GroupValidation error, got {other:?}"),
+    }
+}
+
+#[test]
+fn group_member_referencing_defined_user_is_accepted() {
+    let input = "\
+[Users.alice]
+
+[Groups.devs]
+members = [\"alice\"]
+";
+    assert!(Config::from_str(input).is_ok());
+}
+
+#[test]
+fn group_with_one_undefined_member_among_defined_ones_is_rejected() {
+    let input = "\
+[Users.alice]
+
+[Groups.devs]
+members = [\"alice\", \"ghost\"]
+";
+    let result = Config::from_str(input);
+    assert!(matches!(result, Err(ConfigError::GroupValidation { .. })));
+}
+
+#[test]
+fn multiple_groups_all_with_defined_members_are_accepted() {
+    let input = "\
+[Users.alice]
+[Users.bob]
+
+[Groups.devs]
+members = [\"alice\"]
+
+[Groups.qa]
+members = [\"bob\", \"alice\"]
 ";
     assert!(Config::from_str(input).is_ok());
 }
