@@ -120,7 +120,7 @@ agile task next        # Print the next incomplete task (same as `agile` with no
 ```bash
 agile check
 ```
-Parses all `*.agile.md` files and reports validation issues. See [doc/checks.md](doc/checks.md) for the full list of checks, and [doc/config.md](doc/config.md) for the `mdagile.toml` reference.
+Parses all `*.agile.md` files and reports validation issues. See [doc/checks.md](doc/checks.md) for the full list of checks.
 
 ## Language Server: `agilels`
 
