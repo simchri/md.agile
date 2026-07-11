@@ -281,6 +281,8 @@ A valid task then looks like this:
 ```md
 - [ ] We want to develop a #feature (add item to basket) that will have a very nice #UI!
   - [ ] "dev implementation"
+  - [ ] custom task (not from property)
+    don't forget that you can still add those anywhere in the structure.
   - [ ] "dev documentation"
   - [ ] "test"
   - [ ] "developer #review"
