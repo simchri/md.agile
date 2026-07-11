@@ -1,14 +1,30 @@
+[Properties]
+
 [Properties.feature]
 subtasks = ["(feature) validation by programmer", "(feature) implementation"]
 
+[Properties.feat]
 
 [Properties.bug]
+
 [Properties.foo]
 subtasks = ["bar", "baz"]
 subtasks_allow_cancel = [false, true]
 
-[Properties.feat]
+
+[Users]
 
 [Users.alice]
 
-[Group.devs]
+[Users.smassa]
+git_names = ["Simon Massa", "smassa", "massmde", "masssmde"]
+emails = ["simon.massa@hotmail.de"]
+
+
+[Groups]
+
+[Groups.devs]
+members = ["alice"]
+
+[Groups.QM]
+members = ["smassa"]
