@@ -89,13 +89,6 @@ If you have multiple truly independent teams, each doing their own prioritizatio
 
 There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading.
 
-## Multiple files
-
-As your project grows, you may want to split your task list over multiple files. If you want to use more than one file, files must follow the naming convention `<some name>.agile.md`
-- by default, any file in any subdirectory to the root is picked up by the tool
-- other markdown files (e.g. your `README.md`s) are ignored, even if they contain syntactically valid tasks.
-- all found files are then brought into a global order, sorted alphabetically by their path relative to the project root (directory components first, then filename). For example, `tasks/50_current/001.agile.md` outranks `tasks/60_backlog/001.agile.md`.
-- The priority order of tasks is determined by their position in this virtual aggregated file.
 
 ## CLI Tool: `agile`
 
