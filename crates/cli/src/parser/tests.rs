@@ -602,3 +602,59 @@ fn marker_preceded_by_quote_is_not_detected() {
         t.markers
     );
 }
+
+#[test]
+fn backslash_escaped_hash_is_not_a_marker() {
+    let input = "\
+- [ ] this is \\#not_a_property in prose
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers.is_empty(),
+        "expected no markers, got {:?}",
+        t.markers
+    );
+}
+
+#[test]
+fn backslash_escaped_at_is_not_a_marker() {
+    let input = "\
+- [ ] this is \\@not_an_assignment in prose
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers.is_empty(),
+        "expected no markers, got {:?}",
+        t.markers
+    );
+}
+
+#[test]
+fn backslash_escaped_marker_strips_the_backslash_from_the_title() {
+    let input = "\
+- [ ] this is \\#not_a_property in prose
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(t.title, "this is #not_a_property in prose");
+}
+
+#[test]
+fn unescaped_marker_after_escaped_marker_is_still_parsed() {
+    let input = "\
+- [ ] \\#not_a_property but #feature is real
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.markers,
+        vec![Marker::Property(PropertyRef {
+            name: "feature".to_string(),
+            form: PropertyForm::Full,
+            column: 22,
+        })]
+    );
+    assert_eq!(t.title, "#not_a_property but is real");
+}

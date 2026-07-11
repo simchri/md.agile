@@ -367,14 +367,7 @@
   - [x] Tests: unit tests per rule + acceptance tests (`e014.rs`, `e015.rs`)
 
 ## Misc.
-- [ ] Escaping marker characters: a backslash before a marker character should make it literal text instead of a property/assignment marker (see README.vision.md "Basic Syntax", `not_a_property` example). There's no backslash-escape handling in the parser at all currently — the marker character is always parsed as a marker, regardless of any preceding backslash.
-
-## Optional Tasks
-- [x] Data integrity: Incomplete parent tasks warning
-  Warn when a parent marked done [x] still has [ ] children
-  - [x] this is an error (exit 1)?
-  - [ ] #OPT Consider: add --strict flag to promote warnings to errors
-    Note: everything is an error, no warnings for now
+- [x] Escaping marker characters: a backslash before a marker character should make it literal text instead of a property/assignment marker (see README.vision.md "Basic Syntax", `not_a_property` example). There's no backslash-escape handling in the parser at all currently — the marker character is always parsed as a marker, regardless of any preceding backslash.
 
 ## Events
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")

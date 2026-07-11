@@ -2,7 +2,9 @@
 ///
 /// Both functions are free of I/O and async so they can be unit-tested
 /// without spinning up the full LSP server.
-use crate::parser::{MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is_marker_quote};
+use crate::parser::{
+    MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is_marker_escape, is_marker_quote,
+};
 
 // ── Shared cursor helper ──────────────────────────────────────────────────────
 
@@ -21,6 +23,10 @@ use crate::parser::{MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is
 ///
 /// Quote rule (mirrors `parse_markers`): a sigil immediately preceded by an
 /// [`is_marker_quote`] character is treated as prose and returns `None`.
+///
+/// Escape rule (mirrors `parse_markers`): a sigil immediately preceded by a
+/// backslash ([`is_marker_escape`]) is treated as a literal character and
+/// returns `None`.
 fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) -> Option<String> {
     let line_text = text.lines().nth(line as usize)?;
     let chars: Vec<char> = line_text.chars().collect();
@@ -57,6 +63,12 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
     // Quote rule (mirrors parse_markers): a sigil immediately preceded by an
     // is_marker_quote character is treated as prose.
     if sigil_pos > 0 && is_marker_quote(chars[sigil_pos - 1]) {
+        return None;
+    }
+
+    // Escape rule (mirrors parse_markers): a sigil immediately preceded by a
+    // backslash (`\#`, `\@`) is treated as a literal character, not a marker.
+    if sigil_pos > 0 && is_marker_escape(chars[sigil_pos - 1]) {
         return None;
     }
 
@@ -311,6 +323,19 @@ mod tests {
         let doc = "- [ ] task @alice\n";
         // '@alice' doesn't start with '#'
         assert_eq!(property_name_at_position(doc, 0, 12), None);
+    }
+
+    #[test]
+    fn returns_none_for_backslash_escaped_hash() {
+        let doc = "- [ ] task \\#feat\n";
+        // cursor on the '#' itself, immediately preceded by a backslash
+        assert_eq!(property_name_at_position(doc, 0, 12), None);
+    }
+
+    #[test]
+    fn returns_none_for_backslash_escaped_at() {
+        let doc = "- [ ] task \\@alice\n";
+        assert_eq!(assignment_name_at_position(doc, 0, 12), None);
     }
 
     // ── assignment_name_at_position ──────────────────────────────────────────

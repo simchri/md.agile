@@ -125,6 +125,15 @@ pub(crate) fn is_marker_quote(c: char) -> bool {
     c == '\'' || c == '"'
 }
 
+/// Returns `true` if `c` is the escape character that, when immediately
+/// preceding a sigil, suppresses marker interpretation (`\#`, `\@`). The
+/// backslash itself is dropped from the reconstructed title; the sigil is
+/// kept as a literal character. Mirrors [`is_marker_quote`], but the quote
+/// characters stay in the title while the backslash does not.
+pub(crate) fn is_marker_escape(c: char) -> bool {
+    c == '\\'
+}
+
 /// Trailing punctuation characters stripped from the end of a raw marker name.
 ///
 /// Applies to both `#property` (in `parse_hash_token`) and `@assignment`
@@ -528,6 +537,12 @@ fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str) {
 //      entirely (not recognised as a marker start).
 // Together these ensure that `'#feat'` and `"@alice"` are prose, while
 // `(#feat)` and `asdf#feat` are markers.
+//
+// Escape policy: a `#`/`@` immediately preceded by a backslash (`\#`, `\@`)
+// is also treated as prose, not a marker start — but unlike the quote rule,
+// the backslash itself is dropped from the reconstructed title, leaving only
+// the literal sigil (e.g. `\#not_a_property` → `#not_a_property` in the
+// title, no Property marker recorded).
 fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
     let bytes = title.as_bytes();
@@ -540,6 +555,16 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
 
     while i < len {
         let b = bytes[i];
+        if (b == b'#' || b == b'@') && i > 0 && is_marker_escape(bytes[i - 1] as char) {
+            // Escaped sigil: keep text up to (but not including) the
+            // backslash, then keep the literal sigil itself, and resume
+            // scanning right after it. The backslash is dropped.
+            title_frags.push(&title[title_keep_from..i - 1]);
+            title_frags.push(&title[i..i + 1]);
+            title_keep_from = i + 1;
+            i += 1;
+            continue;
+        }
         if b == b'#' || b == b'@' {
             // Skip when immediately preceded by a quote — treat as prose.
             let preceded_by_quote = i > 0 && is_marker_quote(bytes[i - 1] as char);

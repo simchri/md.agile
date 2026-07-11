@@ -130,6 +130,10 @@ You are not allowed to use a property that is not defined in the `mdagile.toml`.
 
 Properties are the essential building blocks of your team's task management strategy - you can keep things simple or get really sophisticated - it is up to you!
 
+### Escaping Marker Characters
+
+Prefix a `#` or `@` with a backslash to write it as literal text instead of a marker: `\#not_a_property` and `\@not_an_assignment` are ignored by `agile check` and rendered without the backslash.
+
 ### Subtasks
 
 You can define mandatory subtasks via properties.
