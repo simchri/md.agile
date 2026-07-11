@@ -359,17 +359,20 @@
 - [x] when tasks live in a git repo, but the current users identity can not be determined, when runnning `agile check` issue a warning on the terminal (assignment validation not possible etc. ladi ladi da..) . (for lsp, continue just silently skip validation checks)
   - [x] also warn when the project isn't in a git repo at all (not just "in a repo but no identity"), suppressible per-project via `[General] warn_when_not_a_git_repo = false` in mdagile.toml, since some projects intentionally don't use git
 
+## Ordering Tasks
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
+  - [ ] detect ordering syntax as described in vision.md file
   - [ ] Validate no duplicate ranks (e.g., two "2." markers)
   - [ ] Detect gaps in sequence (1, 3, skip 2)
-  - [ ] Ensure ordering is only at same sibling level
+  - [ ] Ensure any ordering checks are only at same sibling/nesting level
   - [ ] Tests for various invalid orderings
 
+## Optional Tasks
 - [x] Data integrity: Incomplete parent tasks warning
   Warn when a parent marked done [x] still has [ ] children
   - [x] this is an error (exit 1)?
-  - [-] #OPT Consider: add --strict flag to promote warnings to errors
+  - [ ] #OPT Consider: add --strict flag to promote warnings to errors
     Note: everything is an error, no warnings for now
 
 ## Events
