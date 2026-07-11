@@ -57,25 +57,16 @@ agile task next        # Print the next incomplete task (same as `agile` with no
 ```bash
 agile check
 ```
-Parses all `*.agile.md` files and reports validation issues. Exits with status 1 if any issues found, 0 if clean.
+Parses all `*.agile.md` files and reports validation issues. Exits with status 1 if any issues found, 0 if clean. See [doc/checks.md](doc/checks.md) for the full list of checks, and [doc/config.md](doc/config.md) for the `mdagile.toml` reference.
+
+**Recently added:**
+- **Assignment / completion validation (E013)** — flags tasks marked done by someone who isn't assigned to them. Supports `--as <user>` and `--base <ref>` flags for CI/CD use (e.g. validating a PR author's identity against a specific base branch). Details: [doc/assignment-validation.md](doc/assignment-validation.md).
+- **Stricter `mdagile.toml` validation** — unknown config keys and group `members` referencing undefined users are now hard errors. Details: [doc/config.md](doc/config.md).
 
 ### Language Server: `agilels`
 
-A minimal LSP server that runs on stdin/stdout. Advertises text document sync (FULL mode), publishes real-time diagnostics as you edit, and offers quickfix code actions for fixable issues.
+A minimal LSP server that runs on stdin/stdout. Advertises text document sync (FULL mode), publishes real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/checks.md](doc/checks.md) for the full list and which ones have quickfixes.
 
-**Supported diagnostics:**
-- **Orphaned indented task** — A task has leading whitespace but no parent task on the preceding line (usually due to a blank line separating parent and child). Indicates the task should be un-indented to top-level.
-- **Wrong indentation** — A task's indentation does not match a valid subtask level.
-  - quickfix: Auto-correct indentation to match nesting depth
-- **Wrong Body Indentation** — A task body line is incorrectly indented 
-  - quickfix: Auto-correct indentation 
-- **Missing Space After Box** — A task line is missing a space after the status box (e.g. `- [ ]task` instead of `- [ ] task`)
-  - quickfix: Insert missing space
-- **Incomplete Parent** — A parent task is marked done but has incomplete children (no quick fix)
-- **Invalid Box Style** — The status box contains an unrecognised character (e.g. `- [o] task`, `- [] task`). Valid boxes are `[ ]`, `[x]`, and `[-]`.
-  - quickfix: Replace the invalid box with `[ ]`
-- **Uppercase X** — The status box uses an uppercase X (e.g. `- [X] task`). Use lowercase `[x]` instead.
-  - quickfix: Replace `[X]` with `[x]`
 
 ## GUI
 
