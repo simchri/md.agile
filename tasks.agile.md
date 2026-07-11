@@ -329,8 +329,8 @@
 - [x] validate mdagile.toml config file. `agile check` should return with an error in case of unknown config keys 
 
 - [ ] foo @alice
-  - [x] test @QM
-  - [x] implement @alice
+  - [ ] test @QM
+  - [ ] implement @alice
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
