@@ -13,6 +13,7 @@ mod invalid_box;
 mod missing_required_subtasks;
 mod missing_space_after_box;
 mod orphaned_subtask;
+mod unauthorized_completion;
 mod undefined_assignment;
 mod undefined_property;
 mod unrequired_quoted_subtask;
@@ -25,6 +26,7 @@ pub use invalid_box::invalid_box;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
 pub use orphaned_subtask::orphaned_subtask;
+pub use unauthorized_completion::unauthorized_completion;
 pub use undefined_assignment::undefined_assignment;
 pub use undefined_property::undefined_property;
 pub use unrequired_quoted_subtask::unrequired_quoted_subtask;
@@ -59,6 +61,8 @@ pub enum ErrorCode {
     UnrequiredQuotedSubtask,
     /// E012: Required subtask was cancelled but the property doesn't allow cancellation
     CancelledRequiredSubtaskNotAllowed,
+    /// E013: Task marked done by someone not authorized (not an assignee, nor a member of an assigned group)
+    UnauthorizedCompletion,
 }
 
 impl ErrorCode {
@@ -78,6 +82,7 @@ impl ErrorCode {
             ErrorCode::MissingRequiredSubtasks => "E010",
             ErrorCode::UnrequiredQuotedSubtask => "E011",
             ErrorCode::CancelledRequiredSubtaskNotAllowed => "E012",
+            ErrorCode::UnauthorizedCompletion => "E013",
         }
     }
 }
@@ -105,6 +110,7 @@ impl std::str::FromStr for ErrorCode {
             "E010" => ErrorCode::MissingRequiredSubtasks,
             "E011" => ErrorCode::UnrequiredQuotedSubtask,
             "E012" => ErrorCode::CancelledRequiredSubtaskNotAllowed,
+            "E013" => ErrorCode::UnauthorizedCompletion,
             _ => return Err(()),
         })
     }
@@ -166,6 +172,9 @@ pub enum IssueData {
     /// Payload for E012 "Cancelled Required Subtask Not Allowed": the raw title of the
     /// required subtask that was cancelled without permission.
     CancelledRequiredSubtaskNotAllowed { title: String },
+    /// Payload for E013 "Unauthorized Completion": the sorted list of user/group
+    /// names that were authorized to complete this task.
+    UnauthorizedCompletion { authorized: Vec<String> },
 }
 
 /// A single problem found by a rule.

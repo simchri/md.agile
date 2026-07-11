@@ -22,11 +22,19 @@ pub struct PropertyConfig {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UserConfig {
     pub name: String,
+    /// Email addresses that identify this user's git commits. Used to match
+    /// against `git config user.email` for completion-authorization checks.
+    pub emails: Vec<String>,
+    /// Alternate git display names (`git config user.name`), used as a fallback
+    /// identity match when no email match is found.
+    pub git_names: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GroupConfig {
     pub name: String,
+    /// `[Users.X]` keys that belong to this group.
+    pub members: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -84,14 +92,28 @@ struct RawPropertyConfig {
     subtasks_allow_cancel: Vec<bool>,
 }
 
+#[derive(serde::Deserialize, Default)]
+struct RawUserConfig {
+    #[serde(default)]
+    emails: Vec<String>,
+    #[serde(default)]
+    git_names: Vec<String>,
+}
+
+#[derive(serde::Deserialize, Default)]
+struct RawGroupConfig {
+    #[serde(default)]
+    members: Vec<String>,
+}
+
 #[derive(serde::Deserialize)]
 struct RawConfig {
     #[serde(rename = "Properties", default)]
     properties: HashMap<String, RawPropertyConfig>,
     #[serde(rename = "Users", default)]
-    users: HashMap<String, toml::Value>,
+    users: HashMap<String, RawUserConfig>,
     #[serde(rename = "Groups", default)]
-    groups: HashMap<String, toml::Value>,
+    groups: HashMap<String, RawGroupConfig>,
 }
 
 impl Config {
@@ -125,13 +147,30 @@ impl Config {
             .collect::<Result<_, ConfigError>>()?;
         let users = raw
             .users
-            .into_keys()
-            .map(|name| (name.clone(), UserConfig { name }))
+            .into_iter()
+            .map(|(name, raw_user)| {
+                (
+                    name.clone(),
+                    UserConfig {
+                        name,
+                        emails: raw_user.emails,
+                        git_names: raw_user.git_names,
+                    },
+                )
+            })
             .collect();
         let groups = raw
             .groups
-            .into_keys()
-            .map(|name| (name.clone(), GroupConfig { name }))
+            .into_iter()
+            .map(|(name, raw_group)| {
+                (
+                    name.clone(),
+                    GroupConfig {
+                        name,
+                        members: raw_group.members,
+                    },
+                )
+            })
             .collect();
         Ok(Config {
             properties,

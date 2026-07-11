@@ -288,11 +288,40 @@
   - [x] "bar"
   - [x] "baz"
 
-- [ ] assignment / completion validation: Ensure only assigned people can mark a task as done.
+- [x] assignment / completion validation: Ensure only assigned people can mark a task as done.
   This check shall be available whenever we are working in a git repo and an identity for the current user can be retreived.
   This identity is checked agains definitions in the mdagile.toml file. E.g. We could indicate a list of mail addresses there. If the current git identity matches one of the addresses of the user, the user is considerd authenticated
   This feature is not secure in any way, but only aims to provide some gentle nudging towards doing the right thing.
   The check is run using changes in the working copy vs. last committed change. users can overpower this check by just committing anyway
+  - [x] Config: extend `UserConfig` with `emails: Vec<String>` (identity match) and `git_names: Vec<String>` (fallback match against `git config user.name`)
+  - [x] Config: extend `GroupConfig` with `members: Vec<String>` referencing `[Users.X]` keys
+  - [x] Resolve current git identity by shelling out to `git config user.email` / `git config user.name` (no new git library dependency)
+    - [x] Match email against any user's `emails`; fall back to matching `user.name` against `git_names` if no email match
+    - [x] If not in a git repo, or no identity resolves, silently skip the whole check (no diagnostic)
+  - [x] Retrieve the HEAD version of a file via `git show HEAD:<relpath>`; handle untracked/new files (no HEAD version exists)
+  - [x] Detect done-transitions by parsing both the HEAD and working-copy versions and matching tasks/subtasks by title/content (not line number, which is fragile across unrelated edits)
+    - [x] A task with no match in HEAD (new file, or title changed alongside status) that is already `[x]` in the working copy is also treated as a transition to check
+  - [x] For each detected transition to `[x]`: gather `@user`/`@group` markers on that task
+    - [x] No assignment marker present → skip (anyone may complete an unassigned task)
+    - [x] Authorized identities = directly assigned `@user`s + members of any assigned `@group`
+    - [x] Authorized if current identity matches ANY of the above; multiple assignees only need one match
+  - [x] New rule + error code (next available, e.g. E013) "UnauthorizedCompletion" — reported as an error (exit 1), consistent with all other rules
+  - [x] Integrate into `agile check` (this rule needs git + HEAD file content, unlike the pure `&[FileItem]`-only rules in `rules::check_all` — needs its own orchestration path)
+  - [x] Integrate into LSP live diagnostics (re-run the same git-based comparison on `didOpen`/`didChange`)
+  - [x] Tests
+    - [x] authorized direct assignee completes task → no issue
+    - [x] unauthorized user completes directly-assigned task → error
+    - [x] group-assigned task completed by a group member → no issue
+    - [x] group-assigned task completed by a non-member → error
+    - [x] unassigned task completed by anyone → no issue
+    - [x] multiple assignees, current identity matches one → no issue
+    - [x] identity resolved via email match
+    - [x] identity resolved via `git_names` fallback when email doesn't match
+    - [x] outside a git repo → check silently skipped
+    - [x] no git identity configured → check silently skipped
+    - [x] new/untracked file with a task created already `[x]` and misassigned → flagged
+    - [x] task title changed alongside status change (no HEAD match) → still flagged if misassigned
+    - [x] LSP diagnostics test covering this rule
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax

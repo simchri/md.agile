@@ -48,7 +48,8 @@ impl Backend {
         let path = uri
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
-        let config = match self.resolve_config_path(&uri).await {
+        let config_path = self.resolve_config_path(&uri).await;
+        let config = match &config_path {
             Some(config_path) => {
                 Config::load(config_path.parent().unwrap_or(config_path.as_path()))
                     .unwrap_or_default()
@@ -61,11 +62,22 @@ impl Backend {
                 Config::default()
             }
         };
-        let items = parser::parse(text, path);
-        let diagnostics: Vec<Diagnostic> = checker::run(&items, &config)
-            .into_iter()
-            .map(issue_to_diagnostic)
-            .collect();
+        let items = parser::parse(text, path.clone());
+        let mut issues = checker::run(&items, &config);
+        // The E013 assignment/completion check needs a project root to run git
+        // commands from; reuse the config file's directory (same root the CLI
+        // uses for `find_task_files`), falling back to the editor-supplied
+        // workspace root if no config file was found.
+        let git_root = config_path
+            .as_ref()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+            .or(self.root.read().await.clone());
+        if let Some(root) = git_root {
+            issues.extend(checker::check_authorization_for_document(
+                &root, &path, text, &config,
+            ));
+        }
+        let diagnostics: Vec<Diagnostic> = issues.into_iter().map(issue_to_diagnostic).collect();
         self.diagnostics
             .write()
             .await

@@ -147,3 +147,58 @@ fn both_config_files_present_is_an_error() {
     let err = Config::load(dir.path()).unwrap_err();
     assert!(matches!(err, ConfigError::ConflictingConfig { .. }));
 }
+
+// ── user identity (emails / git_names) ─────────────────────────────────────────
+
+#[test]
+fn user_without_emails_or_git_names_has_empty_vecs() {
+    let config = Config::from_str("[Users.alice]\n").unwrap();
+    let user = config.users.get("alice").unwrap();
+    assert!(user.emails.is_empty());
+    assert!(user.git_names.is_empty());
+}
+
+#[test]
+fn user_with_emails_is_parsed() {
+    let input = "\
+[Users.alice]
+emails = [\"alice@example.com\", \"a@example.org\"]
+";
+    let config = Config::from_str(input).unwrap();
+    let user = config.users.get("alice").unwrap();
+    assert_eq!(
+        user.emails,
+        vec!["alice@example.com".to_string(), "a@example.org".to_string()]
+    );
+}
+
+#[test]
+fn user_with_git_names_is_parsed() {
+    let input = "\
+[Users.alice]
+git_names = [\"Alice Smith\"]
+";
+    let config = Config::from_str(input).unwrap();
+    let user = config.users.get("alice").unwrap();
+    assert_eq!(user.git_names, vec!["Alice Smith".to_string()]);
+}
+
+// ── group membership ───────────────────────────────────────────────────────────
+
+#[test]
+fn group_without_members_has_empty_vec() {
+    let config = Config::from_str("[Groups.devs]\n").unwrap();
+    let group = config.groups.get("devs").unwrap();
+    assert!(group.members.is_empty());
+}
+
+#[test]
+fn group_with_members_is_parsed() {
+    let input = "\
+[Groups.devs]
+members = [\"alice\", \"bob\"]
+";
+    let config = Config::from_str(input).unwrap();
+    let group = config.groups.get("devs").unwrap();
+    assert_eq!(group.members, vec!["alice".to_string(), "bob".to_string()]);
+}

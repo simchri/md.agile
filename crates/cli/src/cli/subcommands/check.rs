@@ -9,7 +9,8 @@ use std::path::Path;
 /// `agile check` entry point. Prints issues to stdout and exits 1 if any are found.
 pub fn run(root: &Path, config: &Config) {
     let items = parse_files(&find_task_files(root));
-    let issues = checker::run(&items, config);
+    let mut issues = checker::run(&items, config);
+    issues.extend(checker::check_authorization(root, config));
     for issue in &issues {
         print!("{}", formatter::format_issue(issue));
     }
