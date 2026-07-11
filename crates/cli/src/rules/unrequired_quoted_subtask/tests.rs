@@ -17,6 +17,7 @@ fn config_with_subtasks(entries: &[(&str, &[&str])]) -> Config {
                     PropertyConfig {
                         name: name.to_string(),
                         subtasks: subs.iter().map(|s| s.to_string()).collect(),
+                        subtasks_allow_cancel: vec![],
                     },
                 )
             })

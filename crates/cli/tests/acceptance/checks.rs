@@ -22,3 +22,5 @@ pub mod e009;
 pub mod e010;
 #[path = "checks/e011.rs"]
 pub mod e011;
+#[path = "checks/e012.rs"]
+pub mod e012;

@@ -12,6 +12,11 @@ pub struct Config {
 pub struct PropertyConfig {
     pub name: String,
     pub subtasks: Vec<String>,
+    /// Parallel array to `subtasks`: if `subtasks_allow_cancel[i]` is `true`, the
+    /// required subtask at `subtasks[i]` may be satisfied by cancelling it instead
+    /// of completing it. Empty when not configured (no required subtask may be
+    /// cancelled).
+    pub subtasks_allow_cancel: Vec<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,7 +33,15 @@ pub struct GroupConfig {
 pub enum ConfigError {
     Io(std::io::Error),
     Parse(toml::de::Error),
-    ConflictingConfig { paths: [std::path::PathBuf; 2] },
+    ConflictingConfig {
+        paths: [std::path::PathBuf; 2],
+    },
+    /// A `[Properties.X]` entry has a `subtasks_allow_cancel` array whose length
+    /// doesn't match `subtasks`.
+    PropertyValidation {
+        property: String,
+        message: String,
+    },
 }
 
 impl std::fmt::Display for ConfigError {
@@ -42,6 +55,9 @@ impl std::fmt::Display for ConfigError {
                 paths[0].display(),
                 paths[1].display(),
             ),
+            ConfigError::PropertyValidation { property, message } => {
+                write!(f, "invalid config for property '{property}': {message}")
+            }
         }
     }
 }
@@ -64,6 +80,8 @@ impl From<toml::de::Error> for ConfigError {
 struct RawPropertyConfig {
     #[serde(default)]
     subtasks: Vec<String>,
+    #[serde(default)]
+    subtasks_allow_cancel: Vec<bool>,
 }
 
 #[derive(serde::Deserialize)]
@@ -77,21 +95,34 @@ struct RawConfig {
 }
 
 impl Config {
-    pub fn from_str(s: &str) -> Result<Self, toml::de::Error> {
+    pub fn from_str(s: &str) -> Result<Self, ConfigError> {
         let raw: RawConfig = toml::from_str(s)?;
         let properties = raw
             .properties
             .into_iter()
             .map(|(name, raw_prop)| {
-                (
+                if !raw_prop.subtasks_allow_cancel.is_empty()
+                    && raw_prop.subtasks_allow_cancel.len() != raw_prop.subtasks.len()
+                {
+                    return Err(ConfigError::PropertyValidation {
+                        property: name.clone(),
+                        message: format!(
+                            "subtasks_allow_cancel has {} entries but subtasks has {}; they must match in length",
+                            raw_prop.subtasks_allow_cancel.len(),
+                            raw_prop.subtasks.len(),
+                        ),
+                    });
+                }
+                Ok((
                     name.clone(),
                     PropertyConfig {
                         name,
                         subtasks: raw_prop.subtasks,
+                        subtasks_allow_cancel: raw_prop.subtasks_allow_cancel,
                     },
-                )
+                ))
             })
-            .collect();
+            .collect::<Result<_, ConfigError>>()?;
         let users = raw
             .users
             .into_keys()
@@ -118,11 +149,11 @@ impl Config {
             }),
             (true, false) => {
                 let content = std::fs::read_to_string(&plain)?;
-                Config::from_str(&content).map_err(ConfigError::Parse)
+                Config::from_str(&content)
             }
             (false, true) => {
                 let content = std::fs::read_to_string(&dot)?;
-                Config::from_str(&content).map_err(ConfigError::Parse)
+                Config::from_str(&content)
             }
             (false, false) => Ok(Config::default()),
         }

@@ -82,9 +82,9 @@ barar [x] refine and clean up
   - [x] agile check
     Some more dummy subtask content to test the visual appearance of the indentation. Lorem ipsum dolor sit amet,
     consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris.
-    Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. 
-    Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue. 
-    Nam tincidunt congue enim, ut porta lorem lacinia consectetur. Donec ut libero sed arcu vehicula ultricies a non tortor. 
+    Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit.
+    Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue.
+    Nam tincidunt congue enim, ut porta lorem lacinia consectetur. Donec ut libero sed arcu vehicula ultricies a non tortor.
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut gravida lorem.
   - [x] agilels hint
   - [x] agilels quickfix: fix indentation
@@ -112,7 +112,7 @@ barar [x] refine and clean up
 - [x] prototype runs: Empty canvas, divided into three rows, narrow top row, wide middle row, narrow bottom row. Separated by simple black lines.
 - [x] load title of next task onto post-it
 - [x] next task dynamically updated on file changes
-- [x] make all information of task available on the frontend side of the UI 
+- [x] make all information of task available on the frontend side of the UI
   - [x] render subtasks as well in the post it
     just clip if not enough space. keep post-it side constant)
 - [x] place post-it along top-left → bottom-right diagonal based on subtask completion progress (done in bottom-right corner)
@@ -149,7 +149,7 @@ barar [x] refine and clean up
   sections using the `toml` crate; validates the file is well-formed TOML.
 
 - [x] BUG: board broken
-- [x] BUG: language server not found by nvim (some config stuff?) 
+- [x] BUG: language server not found by nvim (some config stuff?)
   --> cany needed update. Since we added the tty flag as default in devenv, cany needs to do --no-tty
 
 - [x] post mortem: add some non-regression checks to the GUI
@@ -206,35 +206,35 @@ barar [x] refine and clean up
           - [x] reproduce in a test case (failing)
           - [x] fix (make test pass) #OPT
       - [x] language server
-        - [x] quickfix to add a respective toml entry 
+        - [x] quickfix to add a respective toml entry
         - [x] dynamically update the diagnostics, after e.g. quickfix was applied
   - [x] "go to definition" to toml entry
     - [x] go to def in lsp
     - [x] Implement fuzzy matching to suggest close matches (typo detection)
     - [x] Test with common typos: '#Feature', '#feat', etc.
-  - [x] Detect undefined "@user" and "@group" assignments 
+  - [x] Detect undefined "@user" and "@group" assignments
     - [x] basic implementation
     - [x] bug: ("@bob") ("#someundefproperty") asdf"#anotherundefprop" -> Done
-    - [x] Suggest close matches for misspelled names 
+    - [x] Suggest close matches for misspelled names
   - [-] Update error formatter for new error codes
   - [x] GoTo for "@assignments"
     - [x] basic implementation @alice
-    - [x] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some#feature hernameis@alice -- the used assumption is that there will always be whitespace is wrong 
+    - [x] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some#feature hernameis@alice -- the used assumption is that there will always be whitespace is wrong
       - [x] fix
       - [x] refactor: The detection logic of markers and properties in files should be centralized to avoid bugs like above
 
 - [x] #feature syntax highlighting for #OPT
 - [x] #feature syntax highlighting for '#MILESTONES'
   - [x] basic implementation
-  - [x] double check details of #MILESTONE handling. AI did something weird here. Handled it a bit like a normal property 
-    - [x] '#Milestone' --> undef property. OK 
-    - [x] #MILESTONE not a highlighted as keyword here 
+  - [x] double check details of #MILESTONE handling. AI did something weird here. Handled it a bit like a normal property
+    - [x] '#Milestone' --> undef property. OK
+    - [x] #MILESTONE not a highlighted as keyword here
   - [x] #MDAGILE double check #MDAGILE special marker handling - should this be highlighted as keyword here?
     No! config keys still to be implemented - re-visit later. N.B. MDAGILE tag currently never highlighted, but that's ok since keys are not implemented anyways
 
 - [x] #feature: syntax highlighting for assignments: asdf@alice
 
-- [x] syntax highlighting for '#properties' 
+- [x] syntax highlighting for '#properties'
 
 #MILESTONE: Some milestone
 
@@ -269,12 +269,12 @@ barar [x] refine and clean up
   - [x] "(feature) implementation"
   - [x] "(feature) validation by programmer"
 
-- [ ] Allow cancelling required subtasks (subtasks_allow_cancel)
+- [x] Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
-  - [ ] Extend `PropertyConfig` with `subtasks_allow_cancel: Vec<bool>` (parallel to `subtasks`)
-  - [ ] Parse `subtasks_allow_cancel` array from `[Properties.X]` in mdagile.toml
-  - [ ] Update E010 rule: treat a cancelled required subtask as satisfied only if its allow_cancel flag is true, otherwise report error
-  - [ ] Tests: cancel allowed, cancel not allowed, mixed array
+  - [x] Extend `PropertyConfig` with `subtasks_allow_cancel: Vec<bool>` (parallel to `subtasks`)
+  - [x] Parse `subtasks_allow_cancel` array from `[Properties.X]` in mdagile.toml
+  - [x] Update E010 rule: treat a cancelled required subtask as satisfied only if its allow_cancel flag is true, otherwise report error
+  - [x] Tests: cancel allowed, cancel not allowed, mixed array
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
@@ -303,6 +303,20 @@ barar [x] refine and clean up
   - [ ] most important flags to each subcommand
   - [ ] let human review and adjust the overview
 - [x] introduce a logging library for the CLI crate and replace raw `eprintln!` calls with structured log calls (uses `tracing`, controlled by `AGILE_LOG`)
+
+- [ ] remove unused flag: `agile task next --next N`, instead:
+- [ ] command: `agile task next 3` show the next 3 tasks
+- [ ] command: `agile task next 1.1` show the first subtask of the next task
+- [ ] command: `agile task next 2.2` show the first sub-subtask of the second task etc.
+- [ ] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
+- [ ] command: `agile task next --mine` show the next task eligible.
+  Eligbility: 
+  - If the task is not assigned to any group or person --> elligible 
+  - task assigned to me (and potentially others) --> elligible 
+  - task assigned to a group that I am a part of (and potentially others) --> elligible 
+  - otherwise --> not elligible
+
+
 
 
 ## LSP documentation

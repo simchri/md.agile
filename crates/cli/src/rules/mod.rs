@@ -57,6 +57,8 @@ pub enum ErrorCode {
     MissingRequiredSubtasks,
     /// E011: Subtask uses the quoted syntax but is not declared as required by any property
     UnrequiredQuotedSubtask,
+    /// E012: Required subtask was cancelled but the property doesn't allow cancellation
+    CancelledRequiredSubtaskNotAllowed,
 }
 
 impl ErrorCode {
@@ -75,6 +77,7 @@ impl ErrorCode {
             ErrorCode::UndefinedAssignment => "E009",
             ErrorCode::MissingRequiredSubtasks => "E010",
             ErrorCode::UnrequiredQuotedSubtask => "E011",
+            ErrorCode::CancelledRequiredSubtaskNotAllowed => "E012",
         }
     }
 }
@@ -101,6 +104,7 @@ impl std::str::FromStr for ErrorCode {
             "E009" => ErrorCode::UndefinedAssignment,
             "E010" => ErrorCode::MissingRequiredSubtasks,
             "E011" => ErrorCode::UnrequiredQuotedSubtask,
+            "E012" => ErrorCode::CancelledRequiredSubtaskNotAllowed,
             _ => return Err(()),
         })
     }
@@ -159,6 +163,9 @@ pub enum IssueData {
     MissingRequiredSubtasks { missing: Vec<String> },
     /// Payload for E011 "Unrequired Quoted Subtask": the raw title of the incorrectly-quoted subtask.
     UnrequiredQuotedSubtask { title: String },
+    /// Payload for E012 "Cancelled Required Subtask Not Allowed": the raw title of the
+    /// required subtask that was cancelled without permission.
+    CancelledRequiredSubtaskNotAllowed { title: String },
 }
 
 /// A single problem found by a rule.

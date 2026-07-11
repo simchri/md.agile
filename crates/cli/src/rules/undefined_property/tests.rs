@@ -18,6 +18,7 @@ fn config_with(names: &[&str]) -> Config {
                     PropertyConfig {
                         name: n.to_string(),
                         subtasks: vec![],
+                        subtasks_allow_cancel: vec![],
                     },
                 )
             })

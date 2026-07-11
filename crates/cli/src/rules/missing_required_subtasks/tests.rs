@@ -17,6 +17,28 @@ fn config_with_subtasks(entries: &[(&str, &[&str])]) -> Config {
                     PropertyConfig {
                         name: name.to_string(),
                         subtasks: subs.iter().map(|s| s.to_string()).collect(),
+                        subtasks_allow_cancel: vec![],
+                    },
+                )
+            })
+            .collect(),
+        ..Config::default()
+    }
+}
+
+/// Like [`config_with_subtasks`] but each entry also carries a parallel
+/// `allow_cancel` array (same length as `subs`).
+fn config_with_cancellable_subtasks(entries: &[(&str, &[&str], &[bool])]) -> Config {
+    Config {
+        properties: entries
+            .iter()
+            .map(|&(name, subs, allow_cancel)| {
+                (
+                    name.to_string(),
+                    PropertyConfig {
+                        name: name.to_string(),
+                        subtasks: subs.iter().map(|s| s.to_string()).collect(),
+                        subtasks_allow_cancel: allow_cancel.to_vec(),
                     },
                 )
             })
@@ -236,5 +258,93 @@ fn nested_property_fully_satisfied_no_issue() {
         ("feature", &["PO review", "developer #review"]),
         ("review", &["independent review"]),
     ]);
+    assert!(missing_required_subtasks(&p(input), &config).is_empty());
+}
+
+// ── subtasks_allow_cancel ──────────────────────────────────────────────────────
+
+#[test]
+fn cancelled_required_subtask_is_satisfied_when_allowed() {
+    let input = "\
+- [ ] #feature: add basket
+  - [-] \"PO review\"
+";
+    let config = config_with_cancellable_subtasks(&[("feature", &["PO review"], &[true])]);
+    assert!(missing_required_subtasks(&p(input), &config).is_empty());
+}
+
+#[test]
+fn cancelled_required_subtask_flags_e012_when_not_allowed() {
+    let input = "\
+- [ ] #feature: add basket
+  - [-] \"PO review\"
+";
+    let config = config_with_cancellable_subtasks(&[("feature", &["PO review"], &[false])]);
+    let issues = missing_required_subtasks(&p(input), &config);
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].code,
+        ErrorCode::CancelledRequiredSubtaskNotAllowed
+    );
+    assert_eq!(issues[0].location.line, 2);
+    assert!(
+        issues[0].message.contains("PO review"),
+        "{}",
+        issues[0].message
+    );
+}
+
+#[test]
+fn cancelled_required_subtask_flags_e012_when_allow_cancel_not_configured() {
+    let input = "\
+- [ ] #feature: add basket
+  - [-] \"PO review\"
+";
+    let config = config_with_subtasks(&[("feature", &["PO review"])]);
+    let issues = missing_required_subtasks(&p(input), &config);
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].code,
+        ErrorCode::CancelledRequiredSubtaskNotAllowed
+    );
+}
+
+#[test]
+fn mixed_allow_cancel_array_only_flags_disallowed_cancellation() {
+    let input = "\
+- [ ] #feature: add basket
+  - [-] \"PO review\"
+  - [-] \"dev implementation\"
+";
+    let config = config_with_cancellable_subtasks(&[(
+        "feature",
+        &["PO review", "dev implementation"],
+        &[true, false],
+    )]);
+    let issues = missing_required_subtasks(&p(input), &config);
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].code,
+        ErrorCode::CancelledRequiredSubtaskNotAllowed
+    );
+    assert!(
+        issues[0].message.contains("dev implementation"),
+        "{}",
+        issues[0].message
+    );
+    assert!(
+        !issues[0].message.contains("PO review"),
+        "{}",
+        issues[0].message
+    );
+}
+
+#[test]
+fn done_required_subtask_is_unaffected_by_allow_cancel_setting() {
+    let input = "\
+- [x] #feature: add basket
+  - [x] \"PO review\"
+";
+    let config = config_with_cancellable_subtasks(&[("feature", &["PO review"], &[false])]);
     assert!(missing_required_subtasks(&p(input), &config).is_empty());
 }

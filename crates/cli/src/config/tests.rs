@@ -45,6 +45,36 @@ fn property_without_subtasks_has_empty_vec() {
 }
 
 #[test]
+fn property_without_subtasks_allow_cancel_has_empty_vec() {
+    let config = Config::from_str("[Properties.bug]\n").unwrap();
+    let prop = config.properties.get("bug").unwrap();
+    assert!(prop.subtasks_allow_cancel.is_empty());
+}
+
+#[test]
+fn property_with_subtasks_allow_cancel_field_is_parsed() {
+    let input = "\
+[Properties.feature]
+subtasks = [\"dev implementation\", \"test\"]
+subtasks_allow_cancel = [false, true]
+";
+    let config = Config::from_str(input).unwrap();
+    let prop = config.properties.get("feature").unwrap();
+    assert_eq!(prop.subtasks_allow_cancel, vec![false, true]);
+}
+
+#[test]
+fn mismatched_subtasks_allow_cancel_length_is_an_error() {
+    let input = "\
+[Properties.feature]
+subtasks = [\"dev implementation\", \"test\"]
+subtasks_allow_cancel = [false]
+";
+    let err = Config::from_str(input).unwrap_err();
+    assert!(matches!(err, ConfigError::PropertyValidation { .. }));
+}
+
+#[test]
 fn single_user_is_parsed() {
     let config = Config::from_str("[Users.alice]\n").unwrap();
     assert_eq!(config.users.len(), 1);
