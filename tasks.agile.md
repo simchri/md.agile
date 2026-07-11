@@ -352,7 +352,7 @@
 
 - [x] rename the mdagile.toml property "emails" to "git_emails" (consistent with git_names)
 
-- [x] bugfix: assignment / completion validation (E013) matched old vs. new tasks/subtasks by bare title text alone, which collides whenever two different tasks have same-titled subtasks (e.g. `#property`-required subtasks reuse the same literal title, like "bar"/"baz" in mdagile.toml, across every task carrying that property). This could cause both false negatives (a genuine unauthorized completion goes unflagged) and false positives. Found during a critical code review of recent E013 work.
+- [x] bugfix: assignment / completion validation (E013) matched old vs. new tasks/subtasks by bare title text alone, which collides whenever two different tasks have same-titled subtasks (e.g. `property`-required subtasks reuse the same literal title, like "bar"/"baz" in mdagile.toml, across every task carrying that property). This could cause both false negatives (a genuine unauthorized completion goes unflagged) and false positives. Found during a critical code review of recent E013 work.
   - [x] Reproduced with a regression test: two same-titled subtasks under different parent tasks, one with a genuine new transition, one already-done and unchanged
   - [x] Fixed by matching on the full ancestor-title path (root task down to the node) instead of bare title
 
