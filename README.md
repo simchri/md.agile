@@ -26,6 +26,9 @@ Formatting rules enforced via language server with quick fixes!
 
 <img width="400" height="auto" alt="quickfix" src="https://github.com/user-attachments/assets/aaecaa6e-a735-4ae4-98b3-90da54981000" />
 
+## Installation
+
+See [INSTALL.md](INSTALL.md) for building/installing the CLI, language server, and editor setup (currently source-only via `cargo install`).
 
 ### CLI Tool: `agile`
 
@@ -74,4 +77,4 @@ Then connect to localhost 8080 in a browser (in browser search bar type `http://
 
 ## Project Philosophy
 
-See [MANIFESTO.md](MANIFESTO.md)
+See [MANIFESTO.md](MANIFESTO.md). Term definitions (Marker, Property, Assignment, Special Marker, etc.) are in [GLOSSARY.md](GLOSSARY.md).

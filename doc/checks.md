@@ -5,7 +5,7 @@ issue as `<path>:<line>: <message>` on stdout. It exits with status `1` if any
 issue is found, `0` if the project is clean — use it as a pre-commit hook or a
 CI/CD pipeline step.
 
-The same checks run live in the [language server](lsp.md) as you edit, with
+The same checks run live in the language server (`agilels`) as you edit, with
 quickfixes offered where possible.
 
 ## Formatting checks
@@ -30,8 +30,8 @@ These validate `#property` and `@user`/`@group` markers against
 
 | Code | Name | Description |
 |------|------|-------------|
-| E008 | Undefined property | A `#marker` is used on a task but isn't declared under `[Properties.X]` in `mdagile.toml`. |
-| E009 | Undefined assignment | An `@marker` is used on a task but doesn't match any `[Users.X]` or `[Groups.X]` entry in `mdagile.toml`. |
+| E008 | Undefined property | A `#marker` is used on a task but isn't declared under `[Properties.X]` in `mdagile.toml`. Has an LSP quickfix: corrects the spelling if a close match exists, otherwise offers to add the property to `mdagile.toml`. |
+| E009 | Undefined assignment | An `@marker` is used on a task but doesn't match any `[Users.X]` or `[Groups.X]` entry in `mdagile.toml`. Has an LSP quickfix: corrects the spelling if a close match exists, otherwise offers to add the name as a user or group in `mdagile.toml`. |
 | E010 | Missing required subtasks | A task has a property (e.g. `#feature`) but is missing one or more of that property's required subtasks. Has an LSP quickfix to insert the missing subtasks. |
 | E011 | Unrequired quoted subtask | A subtask uses the quoted syntax (`- [ ] "some subtask"`) — reserved for required subtasks — but isn't declared as required by any of the task's properties. |
 | E012 | Cancelled required subtask not allowed | A required subtask was cancelled (`[-]`), but the owning property doesn't allow that subtask to be cancelled (see `subtasks_allow_cancel` in [Configuration](config.md)). |
