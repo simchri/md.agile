@@ -202,3 +202,62 @@ members = [\"alice\", \"bob\"]
     let group = config.groups.get("devs").unwrap();
     assert_eq!(group.members, vec!["alice".to_string(), "bob".to_string()]);
 }
+
+// ── unknown key validation ─────────────────────────────────────────────────────
+
+#[test]
+fn unknown_top_level_section_is_rejected() {
+    let input = "\
+[Typo]
+foo = 1
+";
+    let result = Config::from_str(input);
+    assert!(matches!(result, Err(ConfigError::Parse(_))));
+}
+
+#[test]
+fn unknown_key_in_property_is_rejected() {
+    let input = "\
+[Properties.feature]
+subtsaks = [\"dev implementation\"]
+";
+    let result = Config::from_str(input);
+    assert!(matches!(result, Err(ConfigError::Parse(_))));
+}
+
+#[test]
+fn unknown_key_in_user_is_rejected() {
+    let input = "\
+[Users.alice]
+emial = \"alice@example.com\"
+";
+    let result = Config::from_str(input);
+    assert!(matches!(result, Err(ConfigError::Parse(_))));
+}
+
+#[test]
+fn unknown_key_in_group_is_rejected() {
+    let input = "\
+[Groups.devs]
+memebrs = [\"alice\"]
+";
+    let result = Config::from_str(input);
+    assert!(matches!(result, Err(ConfigError::Parse(_))));
+}
+
+#[test]
+fn known_keys_are_still_accepted() {
+    let input = "\
+[Properties.feature]
+subtasks = [\"dev implementation\"]
+subtasks_allow_cancel = [true]
+
+[Users.alice]
+emails = [\"alice@example.com\"]
+git_names = [\"Alice\"]
+
+[Groups.devs]
+members = [\"alice\"]
+";
+    assert!(Config::from_str(input).is_ok());
+}

@@ -1,5 +1,7 @@
 #[path = "checks/clean.rs"]
 pub mod clean;
+#[path = "checks/config_unknown_keys.rs"]
+pub mod config_unknown_keys;
 #[path = "checks/e001.rs"]
 pub mod e001;
 #[path = "checks/e002.rs"]

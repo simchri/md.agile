@@ -301,9 +301,9 @@
   - [x] Retrieve the HEAD version of a file via `git show HEAD:<relpath>`; handle untracked/new files (no HEAD version exists)
   - [x] Detect done-transitions by parsing both the HEAD and working-copy versions and matching tasks/subtasks by title/content (not line number, which is fragile across unrelated edits)
     - [x] A task with no match in HEAD (new file, or title changed alongside status) that is already `[x]` in the working copy is also treated as a transition to check
-  - [x] For each detected transition to `[x]`: gather `@user`/`@group` markers on that task
+  - [x] For each detected transition to `[x]`: gather `user`/`group` markers on that task
     - [x] No assignment marker present → skip (anyone may complete an unassigned task)
-    - [x] Authorized identities = directly assigned `@user`s + members of any assigned `@group`
+    - [x] Authorized identities = directly assigned `user`s + members of any assigned `group`
     - [x] Authorized if current identity matches ANY of the above; multiple assignees only need one match
   - [x] New rule + error code (next available, e.g. E013) "UnauthorizedCompletion" — reported as an error (exit 1), consistent with all other rules
   - [x] Integrate into `agile check` (this rule needs git + HEAD file content, unlike the pure `&[FileItem]`-only rules in `rules::check_all` — needs its own orchestration path)
@@ -322,6 +322,15 @@
     - [x] new/untracked file with a task created already `[x]` and misassigned → flagged
     - [x] task title changed alongside status change (no HEAD match) → still flagged if misassigned
     - [x] LSP diagnostics test covering this rule
+
+- [ ] validation fix: If current user does not appear in mdagile.toml, user should be considered "unauthorized" -> error
+  currently, this is not the case, c.f. also comment in md.agile/crates/cli/src/checker/mod.rs:29:6
+
+- [x] validate mdagile.toml config file. `agile check` should return with an error in case of unknown config keys 
+
+- [ ] foo @alice
+  - [x] test @QM
+  - [x] implement @alice
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax

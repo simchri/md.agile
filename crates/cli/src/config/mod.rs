@@ -85,6 +85,7 @@ impl From<toml::de::Error> for ConfigError {
 }
 
 #[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct RawPropertyConfig {
     #[serde(default)]
     subtasks: Vec<String>,
@@ -93,6 +94,7 @@ struct RawPropertyConfig {
 }
 
 #[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct RawUserConfig {
     #[serde(default)]
     emails: Vec<String>,
@@ -101,12 +103,14 @@ struct RawUserConfig {
 }
 
 #[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct RawGroupConfig {
     #[serde(default)]
     members: Vec<String>,
 }
 
 #[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 struct RawConfig {
     #[serde(rename = "Properties", default)]
     properties: HashMap<String, RawPropertyConfig>,
