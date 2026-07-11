@@ -11,6 +11,8 @@ subtasks = ["(feature) validation by programmer", "(feature) implementation"]
 subtasks = ["bar", "baz"]
 subtasks_allow_cancel = [false, true]
 
+[Properties.feature2]
+subtasks = ["1. dev implementation", "2. dev documentation", "3. test", "4. developer #review"]
 
 [Users]
 
@@ -28,3 +30,4 @@ members = ["alice"]
 
 [Groups.QM]
 members = ["smassa"]
+[Properties.review]
