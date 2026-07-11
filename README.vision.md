@@ -1,39 +1,8 @@
 # Md.Agile
 
-> This file states the vision for the project, from a user's POV – many features described here are not yet implemented. For what's currently available, c.f. [README.md](README.md).
+> This file states the vision for the project, from a user's POV – the features described here are not yet implemented. For what's currently available, c.f. [README.md](README.md).
 
-Simple, collaborative task management using Markdown (plain text) and Git.
-
-Your tasks live forever in a simple text file, version-controlled directly alongside your code (ideally in the same repository) – not a web app!
-
-**tasks.md:**
-
-```md
-- [ ] a task - this is the task-title
-  Some more info on this task - this is the task-body
-  Both inside and outside of tasks, you can just use normal markdown syntax
-  - [ ] a subtask @markus
-    more details for this subtask go here.
-  - [x] this subtask is done
-
-- [ ] #bug: another task
-  - [ ] "1. reproduce in test"
-  - [ ] "2. implement fix"
-  - [ ] "3. regression test"
-```
-
-Tasks follow a specific syntax. You will receive immediate feedback in your text editor if you make a mistake (via Language Server). Add mandatory subtasks using "hash-tag" markers – fully configurable and recursive. Use the language server's auto-fix feature for an ergonomic experience. Use the CLI tool to add strict checks as pre-commit hooks or in your pipeline – your task list is always consistent. Everything is designed with a "command line first" approach: text files and CLI tools are the primary interface. Optional graphical clients aim to make adoption easy for non-technical colleagues.
-
-```
-agile
-```
-Show me my next task in my default text editor
-
-```
-agile check
-```
-Check if all rules are satisfied. Returns non-zero and prints errors otherwise.
-
+...
 ```
 agile task new
 ```
@@ -45,46 +14,6 @@ agile when
 Get an estimated time until the next milestone
 
 
-## Basic Syntax
-
-Tasks must follow the Markdown standard, and subtasks must be correctly indented. A task that is "done" is marked with a lowercase `x`.
-
-Correct:
-```md
-- [ ] a task
-  - [ ] a subtask
-  - [x] this subtask is done
-
-- [ ] another task
-```
-
-Incorrect:
-```md
-- [ ] a task
-  - [ ] a subtask
-
-  - [ ] is this a subtask or a task? Nobody knows.
-```
-
-Other content is ignored. You can therefore freely complement your task lists with other notes. A newline separates tasks from other tasks or content.
-
-```md
-- [x] a task
-  - [x] a subtask
-
-# A Markdown Heading
-And some further notes
-
-- [ ] more tasks
-```
-
-mdagile uses the following symbols for syntax: `# @ \`
-If necessary, escape these with `\`
-
-```md
-- [ ] a task with a hashtag \#not_a_property
-- [ ] a task with a mail address: markus\@company.org
-```
 
 
 ## Prioritization
@@ -105,13 +34,7 @@ If you have multiple truly independent teams, each doing their own prioritizatio
 
 There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading.
 
-## Multiple files
-
-As your project grows, you may want to split your task list over multiple files. If you want to use more than one file, files must follow the naming convention `<some name>.agile.md`
-- by default, any file in any subdirectory to the root is picked up by the tool
-- other markdown files (e.g. your `README.md`s) are ignored, even if they contain syntactically valid tasks.
-- all found files are then brought into a global order, sorted alphabetically by their path relative to the project root (directory components first, then filename). For example, `tasks/50_current/001.agile.md` outranks `tasks/60_backlog/001.agile.md`.
-- The priority order of tasks is determined by their position in this virtual aggregated file.
+...
 
 ## File Structure for Large Projects & Archiving
 
@@ -155,141 +78,7 @@ current_path = "tasks/50_current/"
 backlog_path = "tasks/60_backlog/"
 inbox_path = "tasks/80_inbox/"
 ```
-
-## More Features
-
-### Optional and Mandatory Subtasks
-
-By default, all subtasks are mandatory. A parent task may only be marked complete when all subtasks are done.
-```md
-- [ ] a task
-  - [ ] some mandatory subtask
-```
-**Optional subtasks** are not required for completion of the parent task. They are prefixed with the special marker `#OPT` (all caps) after the checkbox:
-```md
-- [ ] a task
-  - [ ] #OPT some optional subtask
-```
-
-### Properties (Basics)
-
-You specify available properties globally for your project in the `mdagile.toml` (or `.mdagile.toml`) file. Property names cannot contain spaces, but you can use `-` and `_`. Properties can then be added to tasks with `#<property_name>`.
-
-E.g. to declare a property `#feature`:
-
-**mdagile.toml:**
-```toml
-[Properties.feature]
-```
-
-To use the property, place it anywhere in the task:
-
-**tasks.md:**
-```md
-- [ ] #feature: add item to basket
-```
-You are not allowed to use a property that is not defined in the `mdagile.toml`. This is to keep things orderly—no proliferation of random meaningless hashtags, and no duplication (`#Feature #feature #feat`). The tool will issue an error if you use undefined properties. Otherwise, an "empty" property doesn't do much. It just marks a task as part of some group—but you can do much more with them ...!
-
-Properties are the essential building blocks of your team's task management strategy - you can keep things simple or get really sophisticated - it is up to you!
-
-### Subtasks
-
-You can define mandatory subtasks via properties.
-```toml
-[Properties.feature]
-subtasks = ["PO review", "dev implementation", "dev documentation", "test"]
-```
-
-Properties are added to tasks with a `#` followed by the property name. This makes the existence of the respective subtasks mandatory:
-```md
-- [ ] #feature: add item to basket
-  - [ ] "PO review"
-  - [ ] "dev implementation"
-  - [ ] "dev documentation"
-  - [ ] "test"
-  - [ ] another custom task that is not part of the '#feature' property
-```
-As you type out a property marker, the language server will give you a hint - use the autofix feature of your text editor to quickly add the required subtasks.
-
-Subtasks that are required by a property are quoted `""`.
-
-Properties can also be added to subtasks! Note how `'#feature'` is quoted in the example above - the ticks prevent the tag from being interpreted as a property of the subtask. Otherwise you get the following:
-```md
-- [ ] #feature: add item to basket
-  - [ ] "PO review"
-  - [ ] "dev implementation"
-  - [ ] "dev documentation"
-  - [ ] "test"
-  - [ ] #feature view number of items in basket
-    - [ ] "PO review"
-    - [ ] "dev implementation"
-    - [ ] "dev documentation"
-    - [ ] "test"
-```
-
-### Cancelled Tasks
-
-You can mark a task as cancelled with a `-`
-
-```md
-- [-] this task is cancelled
-```
-Sometimes your team may plan something and later decide, that it's not necessary after all. Marking tasks as cancelled makes things transparent ("This was part of the original plan, but discarded").
-
-By default you can not cancel subtasks that are required by properties, but this can be adjusted in the configuration.
-
-```toml
-[Properties.feature]
-subtasks = ["PO review", "dev implementation", "dev documentation", "test"]
-subtasks_allow_cancel = [true, true, true, false]
-# testing can not be cancelled
-```
-Why make subtasks "mandatory" by default, but also allow to cancel them? Properties allow you to define general default workflows. But sometimes a step just doesn't make sense in a specific case. You would then be tempted to just mark the task "done", even though that is a lie. You may add a note, but such notes are non standard and easily misinterpreted. Cancelling a subtask provides an idiomatic way to communicate that a step was skipped. It is honest, transparent and conventional.
-
-### Multiple Properties
-
-Tasks can have multiple properties. The placement of the property in the task is not relevant. The order of the subtasks is not relevant.
-
-```toml
-[Properties.UI]
-subtasks = ["UI / UX concept", "UI review"]
-```
-
-```md
-- [ ] We want to develop a #feature (add item to basket) that will have a very nice #UI!
-  - [ ] "UI / UX concept"
-  - [ ] "PO review"
-  - [ ] "dev implementation"
-  - [ ] "dev documentation"
-  - [ ] "test"
-  - [ ] "UI review"
-```
-
-### Nested Properties
-Properties can be nested. This allows you to define subtasks that are shared across multiple properties in a single place. In the example below, the `#review` property is shared between `#feature` and `#UI`:
-
-```toml
-[Properties.review]
-subtasks = ["independent review by a second person"]
-[Properties.feature]
-subtasks = ["dev implementation", "dev documentation", "test", "developer #review"]
-[Properties.UI]
-subtasks = ["UI / UX concept", "UI / UX #review"]
-```
-
-A valid task then looks like this:
-
-```md
-- [ ] We want to develop a #feature (add item to basket) that will have a very nice #UI!
-  - [ ] "dev implementation"
-  - [ ] "dev documentation"
-  - [ ] "test"
-  - [ ] "developer #review"
-    - [ ] "independent review by a second person"
-  - [ ] "UI / UX concept"
-  - [ ] "UI / UX #review"
-    - [ ] "independent review by a second person"
-```
+...
 
 ### Required Properties
 
@@ -425,52 +214,7 @@ Whenever the tool needs to "count" tasks, for the purpose of time estimation, ta
 
 Subtasks that are required by a property are counted in exactly the same way as custom tasks. Subtasks required by a property used in **short form** are also counted, even if not (yet) explicitly written out! (c.f. "Property Short Forms")
 
-
-### Users And Roles
-
-You can assign tasks to specific people or groups with the assignment marker: `@someone`
-
-```
-- [ ] implement feature X @markus
-  - [ ] Review the feature @QA
-```
-The implementation can only be marked complete by Markus. The review may be checked by any QA person. mdagile identifies the current user via info available in `git config`, and checks this ID against the assigned users and groups. You can alternatively identify yourself explicitly via command line argument `--as <user>`. Use this in pipelines, where the user's `.gitconfig` is not available.
-
-Assignments on parent tasks do not affect child tasks (but child tasks can be assigned as well).
-
-This feature requires that groups and users are first identified in the configuration.
-
-Consider this feature only "automation", not "access control". This is not secure in any way -- The mechanism can easily be sidestepped! Your git history however will reveal any inconsistencies c.f. [MANIFESTO.md](MANIFESTO.md) "Trust through Transparency".
-
-```toml
-[Users.markus]
-git_names = ["Markus Myman"]
-git_emails = ["markusmyman@company.org"]
-
-[Users.svenja]
-git_names = ["Svenja Super"]
-git_emails = ["svenjasuper@company.org"]
-
-[Groups.DEV]
-members = ["markus"]
-
-[Groups.SENIORDEV]
-members = ["markus"]
-
-[Groups.QA]
-members = ["svenja"]
-
-[Groups.TEAM]
-members = [
-  "markus",
-  "svenja",
-]
-```
-You can tag multiple people or groups on the same task. In this case any person or any member from any group can mark the task as complete.
-```
-- [ ] implement feature X @markus or @josh
-```
-If you want an AND connection instead, create subtasks for each person!
+...
 
 ## Neighbor Tasks
 
@@ -535,5 +279,4 @@ It is not allowed to mark the task as complete without updating the property to 
 ```md
 - [x] perform #review...
   - [x] "document review findings"
-
 ```
