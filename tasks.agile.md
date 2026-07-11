@@ -362,11 +362,17 @@
 ## Ordering Tasks
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
+  Ordered tasks — enforcement rules. The `N. ` rank prefix is already parsed and stored (`Order::Ranked`), but nothing validates it yet:
   - [ ] detect ordering syntax as described in vision.md file
   - [ ] Validate no duplicate ranks (e.g., two "2." markers)
   - [ ] Detect gaps in sequence (1, 3, skip 2)
+  - [ ] Prevent marking a ranked task done while any lower-ranked sibling is still incomplete
   - [ ] Ensure any ordering checks are only at same sibling/nesting level
   - [ ] Tests for various invalid orderings
+
+
+## Misc.
+- [ ] Escaping marker characters: a backslash before a marker character should make it literal text instead of a property/assignment marker (see README.vision.md "Basic Syntax", `not_a_property` example). There's no backslash-escape handling in the parser at all currently — the marker character is always parsed as a marker, regardless of any preceding backslash.
 
 ## Optional Tasks
 - [x] Data integrity: Incomplete parent tasks warning
@@ -423,24 +429,22 @@
   - [ ] File diagnostics on save with `agile check --fix`
 
 
-## Vision Gaps
-
-Found while cross-checking README.vision.md against the actual codebase to
-update README.md (only fully-implemented features were copied into
-README.md; everything below is either unimplemented or only partially so).
-
-- [ ] Escaping marker characters: a backslash before a marker character should make it literal text instead of a property/assignment marker (see README.vision.md "Basic Syntax", `not_a_property` example). There's no backslash-escape handling in the parser at all currently — the marker character is always parsed as a marker, regardless of any preceding backslash.
+## Archiving, multiple files
 - [ ] File structure for large projects & archiving:
   - [ ] `agile init --large` — scaffold the `tasks/00_archive`, `50_current`, `60_backlog`, `80_inbox` directory structure
   - [ ] `agile archive` — move any file in `50_current`/`60_backlog` containing only completed/cancelled tasks into `00_archive`, prefixed with today's date
   - [ ] `[Archive]` config section (`archive_path`, `current_path`, `backlog_path`, `inbox_path`)
+
+## File level Props
 - [ ] Required properties per file: a file-level directive (see README.vision.md "Required Properties", `MDAGILE.file.mandatory_property=<name>`) declaring a property mandatory for every task in that file. The MDAGILE special marker is currently only recognized/highlighted as a generic token — the directive's `file.mandatory_property=X` value isn't parsed, and there's no rule enforcing it or auto-adding the property to new tasks.
-- [ ] Ordered tasks — enforcement rules. The `N. ` rank prefix is already parsed and stored (`Order::Ranked`), but nothing validates it yet:
-  - [ ] Reject duplicate ranks at the same sibling level
-  - [ ] Prevent marking a ranked task done while any lower-ranked sibling is still incomplete
-  - [ ] (c.f. the pre-existing "Invalid order markers" backlog entry under "Ordering Tasks" above, which covers most of this already — this entry just flags that it's also a documented vision feature, not just a nice-to-have)
+
+## Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
+
+## ETA
 - [ ] Milestones: ETA / time estimation. The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
+
+## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
 - [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
 
