@@ -8,7 +8,7 @@ always bypass it by committing anyway.
 
 1. The check requires a git repository and a resolvable identity for the
    current user (see [Identity resolution](#identity-resolution) below). If
-   neither is available, the check is silently skipped entirely.
+   either is unavailable, the check is silently skipped entirely.
 2. For each `*.agile.md` file, the check compares the working-copy content
    against a base git ref (`HEAD` by default) to detect tasks that just
    transitioned to `[x]`.
