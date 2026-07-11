@@ -357,6 +357,7 @@
   - [x] Fixed by matching on the full ancestor-title path (root task down to the node) instead of bare title
 
 - [x] when tasks live in a git repo, but the current users identity can not be determined, when runnning `agile check` issue a warning on the terminal (assignment validation not possible etc. ladi ladi da..) . (for lsp, continue just silently skip validation checks)
+  - [x] also warn when the project isn't in a git repo at all (not just "in a repo but no identity"), suppressible per-project via `[General] warn_when_not_a_git_repo = false` in mdagile.toml, since some projects intentionally don't use git
 
 - [ ] Invalid order markers
   Detect duplicate order numbers, gaps, or malformed ordering syntax
