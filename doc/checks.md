@@ -19,6 +19,7 @@ quickfixes offered where possible.
 | E005 | Missing space after box | A task line is missing a space after the status box (e.g. `- [ ]task` instead of `- [ ] task`). |
 | E006 | Invalid box style | The status box contains an unrecognised character (e.g. `- [o] task`, `- [] task`). Valid boxes are `[ ]`, `[x]`, and `[-]`. |
 | E007 | Uppercase X | The status box uses an uppercase X (e.g. `- [X] task`). Use lowercase `[x]` instead. |
+| E016 | Empty title | A task/subtask has no title text left after the status box (and any markers) are stripped, e.g. `- [ ] ` or a line consisting only of markers such as `- [ ] #urgent`. |
 
 ## Property / marker checks
 

@@ -8,6 +8,7 @@
 //! Each rule lives in its own submodule and is re-exported from this module
 //! for convenience.
 
+mod empty_title;
 mod incomplete_parent;
 mod invalid_box;
 mod invalid_order;
@@ -22,6 +23,7 @@ mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
 
+pub use empty_title::empty_title;
 pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
 pub use invalid_order::invalid_order;
@@ -69,6 +71,8 @@ pub enum ErrorCode {
     DuplicateOrderRank,
     /// E015: A ranked subtask was marked done while a lower-ranked sibling is still incomplete
     OutOfOrderCompletion,
+    /// E016: Task/subtask has no title text after the status box (and markers, if any)
+    EmptyTitle,
 }
 
 impl ErrorCode {
@@ -91,6 +95,7 @@ impl ErrorCode {
             ErrorCode::UnauthorizedCompletion => "E013",
             ErrorCode::DuplicateOrderRank => "E014",
             ErrorCode::OutOfOrderCompletion => "E015",
+            ErrorCode::EmptyTitle => "E016",
         }
     }
 }
@@ -121,6 +126,7 @@ impl std::str::FromStr for ErrorCode {
             "E013" => ErrorCode::UnauthorizedCompletion,
             "E014" => ErrorCode::DuplicateOrderRank,
             "E015" => ErrorCode::OutOfOrderCompletion,
+            "E016" => ErrorCode::EmptyTitle,
             _ => return Err(()),
         })
     }
@@ -239,6 +245,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
     issues.extend(invalid_order(items));
+    issues.extend(empty_title(items));
     issues
 }
 

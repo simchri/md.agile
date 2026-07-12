@@ -155,6 +155,9 @@ pub enum ParsingIssue {
     InvalidBox,
     /// Box uses uppercase X instead of lowercase: `- [X] …`
     UppercaseX,
+    /// No title text remains after the status box (and any markers are
+    /// stripped): `- [ ] `, or a line consisting only of markers.
+    EmptyTitle,
 }
 
 // ── Ordering ──────────────────────────────────────────────────────────────────
@@ -358,6 +361,10 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
                 SubtaskKind::Custom => None,
             };
             let (markers, title) = parse_markers(rest);
+            let mut parsing_issues = parsing_issues;
+            if title.trim().is_empty() {
+                parsing_issues.push(ParsingIssue::EmptyTitle);
+            }
             stack.push(PartialItem {
                 depth,
                 indent,
