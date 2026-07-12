@@ -119,25 +119,31 @@ pub fn unauthorized_completion(
     config: &Config,
     identity: &ResolvedIdentity,
 ) -> Vec<Issue> {
-    let old_status_by_path: HashMap<Vec<&str>, &Status> = old
-        .map(|items| {
-            flatten(items)
-                .into_iter()
-                .map(|n| (n.path, n.status))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-        .into_iter()
-        .collect();
+    // Two different nodes can share the exact same ancestor-title path --
+    // e.g. duplicate sibling titles, which nothing in the parser/checker
+    // forbids. Group old statuses by path (preserving document order within
+    // each group) so that same-path occurrences are matched positionally
+    // (1st old occurrence <-> 1st new occurrence, 2nd <-> 2nd, ...) instead
+    // of being collapsed into a single entry that could misattribute a
+    // "was already done" status across unrelated nodes.
+    let mut old_status_by_path: HashMap<Vec<&str>, Vec<&Status>> = HashMap::new();
+    if let Some(items) = old {
+        for n in flatten(items) {
+            old_status_by_path.entry(n.path).or_default().push(n.status);
+        }
+    }
 
+    let mut occurrence_index: HashMap<Vec<&str>, usize> = HashMap::new();
     let mut issues = Vec::new();
     for node in flatten(new) {
+        let idx = occurrence_index.entry(node.path.clone()).or_insert(0);
+        let old_status = old_status_by_path.get(&node.path).and_then(|v| v.get(*idx));
+        *idx += 1;
+
         if *node.status != Status::Done {
             continue;
         }
-        let was_already_done = old_status_by_path
-            .get(&node.path)
-            .is_some_and(|s| **s == Status::Done);
+        let was_already_done = old_status.is_some_and(|s| **s == Status::Done);
         if was_already_done {
             continue;
         }

@@ -366,3 +366,34 @@ fn duplicate_subtask_titles_under_different_parents_are_matched_independently() 
     );
     assert_eq!(issues[0].location.line, 2, "should point at task A's 'bar'");
 }
+#[test]
+fn duplicate_sibling_titles_are_matched_positionally_not_collapsed() {
+    // Two siblings sharing the exact same title (and thus the same
+    // ancestor-title path) is legal -- nothing forbids it. Only the
+    // second one actually transitions to done; the first was already
+    // done in the old (HEAD) version and must not be re-flagged.
+    let old = "\
+- [x] setup env @alice
+- [ ] setup env @alice
+";
+    let new = "\
+- [x] setup env @alice
+- [x] setup env @alice
+";
+    let config = config_with_users_and_groups(&["alice"], &[]);
+    let issues = unauthorized_completion(
+        Some(&p(old)),
+        &p(new),
+        &config,
+        &ResolvedIdentity::Known("bob".to_string()),
+    );
+    assert_eq!(
+        issues.len(),
+        1,
+        "only the genuinely-transitioned sibling should be flagged, got: {issues:?}"
+    );
+    assert_eq!(
+        issues[0].location.line, 2,
+        "should point at the second 'setup env' line, not the already-done first one"
+    );
+}
