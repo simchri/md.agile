@@ -242,9 +242,20 @@ body {
     background: rgba(0, 0, 0, 0.08);
 }
 
-.modal-error {
-    margin-top: 10px;
-    color: #b71c1c;
+.snackbar {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #b71c1c;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+    max-width: 80vw;
+    text-align: center;
+    animation: fade-in 0.15s ease-out;
 }
 
 .modal-task-header {

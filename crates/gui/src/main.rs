@@ -494,7 +494,8 @@ fn TaskModal(
     // should stay open, showing the now-updated subtask list).
     on_marked_done: EventHandler<bool>,
 ) -> Element {
-    let mut error: Signal<Option<String>> = use_signal(|| None);
+    let mut error_text: Signal<String> = use_signal(String::new);
+    let mut error_show: Signal<bool> = use_signal(|| false);
     let mut pending = use_signal(|| false);
 
     let is_todo = matches!(task.status, server::TaskStatus::Todo);
@@ -502,13 +503,13 @@ fn TaskModal(
     let line = task.line;
 
     // Marks the given (path, line) task done, disabling all checkboxes
-    // while the request is in flight and surfacing any failure as a single
-    // error message for the whole modal. `is_top_level` is forwarded to
-    // `on_marked_done` unchanged, so the caller only closes the modal when
-    // the top-level task itself — not a subtask — was marked done.
+    // while the request is in flight and surfacing any failure as a
+    // snackbar. `is_top_level` is forwarded to `on_marked_done` unchanged,
+    // so the caller only closes the modal when the top-level task itself —
+    // not a subtask — was marked done.
     let mark_done = EventHandler::new(move |(path, line, is_top_level): (String, usize, bool)| {
         pending.set(true);
-        error.set(None);
+        error_show.set(false);
         dioxus::prelude::spawn(async move {
             match server::mark_task_done(path, line).await {
                 Ok(()) => {
@@ -520,7 +521,8 @@ fn TaskModal(
                 }
                 Err(e) => {
                     pending.set(false);
-                    error.set(Some(e.to_string()));
+                    error_text.set(e.to_string());
+                    error_show.set(true);
                 }
             }
         });
@@ -592,10 +594,63 @@ fn TaskModal(
                     }
                 }
 
-                if let Some(msg) = error() {
-                    div { class: "modal-error", "{msg}" }
-                }
+                Snackbar { text: error_text, show: error_show }
             }
         }
+    }
+}
+
+/// Duration a [`Snackbar`] stays visible after `show` is set to `true`,
+/// in milliseconds.
+const SNACKBAR_DISPLAY_MS: u32 = 3500;
+
+/// A transient, auto-dismissing notification banner — used to surface
+/// errors (e.g. a rejected mark-done/undone request) without a modal
+/// dialog the user has to explicitly close. Ported from the equivalent
+/// component in the `buckett` project.
+///
+/// `show` is set to `true` by the caller to (re-)display `text`; this
+/// component takes ownership of setting it back to `false` once
+/// [`SNACKBAR_DISPLAY_MS`] has elapsed. Setting `show` to `true` again
+/// while already visible restarts the display timer.
+#[component]
+fn Snackbar(text: Signal<String>, mut show: Signal<bool>) -> Element {
+    let mut remaining_ms = use_signal(|| 0u32);
+
+    use_effect(move || {
+        if show() {
+            remaining_ms.set(SNACKBAR_DISPLAY_MS);
+        }
+    });
+
+    // Runs once (see the `dx serve` clock effect above for the same
+    // pattern): a persistent background countdown loop, driven by
+    // `remaining_ms` rather than by effect reactivity.
+    use_effect(move || {
+        dioxus::prelude::spawn(async move {
+            use wasmtimer::tokio::sleep;
+            loop {
+                if remaining_ms() > 0 {
+                    sleep(std::time::Duration::from_millis(100)).await;
+                    let t = remaining_ms();
+                    if t <= 100 {
+                        remaining_ms.set(0);
+                        show.set(false);
+                    } else {
+                        remaining_ms.set(t - 100);
+                    }
+                } else {
+                    sleep(std::time::Duration::from_millis(100)).await;
+                }
+            }
+        });
+    });
+
+    if !show() {
+        return rsx! {};
+    }
+
+    rsx! {
+        div { class: "snackbar", "{text}" }
     }
 }

@@ -414,6 +414,7 @@
   - [x] subtasks
     - [x] by rank (34.1.3 etc, where subtasks get a nested rank)
 
+
 ### cli refactor:
 - [x] "rename agile task next N.M" to "agile task show N.M"
 
@@ -426,11 +427,9 @@
 - [x] Mark task as done from GUI
 - [x] --kiosk flag to disable any "writing" operations
 
-- [ ] sample task
-  - [ ] with sample subtasks
-  - [ ] with sample subtasks
-  - [x] with sample subtasks
-  - [ ] with sample subtasks
+- [x] GUI: Errors as snackbars - an example for dx snackbars can be found in the project /data/ws/buckett - use that example to implement snack bars here
+- [ ] inverse to "mark done": mark tasks "not done" from the cli!
+- [ ] GUI: Un-mark subtasks and tasks as done (mark as "todo")
 
 ## ETA
 - [ ] Milestones: ETA / time estimation. 
