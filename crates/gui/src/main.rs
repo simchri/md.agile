@@ -168,10 +168,19 @@ fn app() -> Element {
     // the top-level task the modal is showing. This does not close the
     // modal; only marking the top-level task itself done does that (see
     // `on_marked_done` below).
+    //
+    // `tasks_resource.read()` is called unconditionally (not nested inside
+    // the `if let Some(current) = ...` below) so this effect always
+    // subscribes to it and re-runs on every fetch — including the very
+    // first run, when no modal is open yet and the inner branch is never
+    // taken. Reading it only conditionally would mean this effect never
+    // subscribes at all until a modal happens to be open on the same run
+    // that also reads the resource, i.e. it would silently never re-run.
     use_effect(move || {
-        let current = modal_task.peek().clone();
-        if let Some(current) = current {
-            if let Some(Ok(list)) = &*tasks_resource.read() {
+        let tasks = tasks_resource.read();
+        if let Some(Ok(list)) = &*tasks {
+            let current = modal_task.peek().clone();
+            if let Some(current) = current {
                 if let Some(updated) = list
                     .iter()
                     .find(|t| t.path == current.path && t.line == current.line)
@@ -502,7 +511,13 @@ fn TaskModal(
         error.set(None);
         dioxus::prelude::spawn(async move {
             match server::mark_task_done(path, line).await {
-                Ok(()) => on_marked_done.call(is_top_level),
+                Ok(()) => {
+                    // Reset even though the modal closes for the top-level
+                    // case — for a subtask, the modal stays open and this
+                    // is what re-enables the other checkboxes.
+                    pending.set(false);
+                    on_marked_done.call(is_top_level);
+                }
                 Err(e) => {
                     pending.set(false);
                     error.set(Some(e.to_string()));
