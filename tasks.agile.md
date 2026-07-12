@@ -424,6 +424,7 @@
 
 ## First GUI write actions
 - [ ] Mark task as done from GUI
+- [ ] --kiosk flag to disable any "writing" operations
 
 ## ETA
 - [ ] Milestones: ETA / time estimation. 
