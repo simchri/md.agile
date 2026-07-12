@@ -387,8 +387,6 @@
 - [x] #bug `agile check` --  "ranked (ordered) task completed out of order" the column indicator always points to column 0. Could be nicer: Point to the ordering number instead
 - [x] check other similar checks - is this marker placed logically?
 
-### Writing back to file from GUI
-- [ ] Mark task as done from GUI
 
 ## More CLI features
 
@@ -399,6 +397,10 @@
   - [ ] let human review and adjust the overview
 - [x] introduce a logging library for the CLI crate and replace raw `eprintln!` calls with structured log calls (uses `tracing`, controlled by `AGILE_LOG`)
 
+### Writing back to file from GUI
+- [ ] Mark task as done from GUI
+
+### ctd cli commands
 - [ ] remove unused flag: `agile task next --next N`, instead:
 - [ ] command: `agile task next 3` show the next 3 tasks
 - [ ] command: `agile task next 1.1` show the first subtask of the next task
