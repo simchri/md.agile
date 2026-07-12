@@ -27,20 +27,25 @@ Status markers used below (always at the start of the bullet):
 - done: `task` (alias: `tasks`)
   - Command group for task-centric operations
   - done: `next [ADDRESS]`
-    - Prints the next incomplete top-level task (+ subtasks). With no
-      `ADDRESS`, same as before: the single next incomplete top-level task.
-    - done: plain count (e.g. `next 3`) — prints that many incomplete
-      top-level tasks, each as a full block
+    - Prints exactly one (sub)task, resolved by `ADDRESS` using the exact
+      same address-resolution logic as `done <ADDRESS>` (same function).
+      With no `ADDRESS`, defaults to address `1` — but unlike an explicit
+      address, no match here (e.g. every task done/cancelled) is not an
+      error, it just prints nothing.
+    - done: plain number (e.g. `next 3`) — prints only the 3rd matching
+      top-level task, not tasks 1 through 3
     - done: dotted address (e.g. `next 1.2`, `next 2.1.4`) — prints the one
       (sub)task at that position (plus its own subtree) as its own root.
       `I` (first segment) is 1-based, counting only still-incomplete
       top-level tasks in priority order; each following segment is 1-based
       and counts direct children (any status) of the previously-resolved
-      node, in document order, to arbitrary depth
-    - done: `--mine` — restrict to unassigned tasks or tasks assigned to me
+      node, in document order, to arbitrary depth — so nested subtasks can
+      be addressed directly too
+    - done: `--mine` — restricts the top-level tasks counted by the
+      address's first segment to unassigned tasks or tasks assigned to me
       (directly or via a group), same eligibility rule as E013. Only valid
-      with no address or a plain count, not a dotted address (a dotted
-      address already names one exact task)
+      with no address or a plain number, not a dotted address (a dotted
+      address already names one exact task regardless of assignment)
     - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
       of the git identity from `git config user.email`/`user.name`
   - done: `done <ADDRESS>` — mark the addressed (sub)task done in place, in

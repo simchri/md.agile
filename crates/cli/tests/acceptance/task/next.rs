@@ -87,7 +87,7 @@ fn tasks_alias_works_for_next() {
 }
 
 #[test]
-fn task_next_with_count_shows_that_many_incomplete_top_level_tasks() {
+fn task_next_with_plain_number_shows_only_that_task_not_all_up_to_it() {
     let dir = tempdir().unwrap();
     let content = "\
 - [x] done task
@@ -101,9 +101,15 @@ fn task_next_with_count_shows_that_many_incomplete_top_level_tasks() {
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("first task"), "stdout: {stdout:?}");
+    assert!(
+        !stdout.contains("first task"),
+        "should not show task #1: {stdout:?}"
+    );
     assert!(stdout.contains("second task"), "stdout: {stdout:?}");
-    assert!(!stdout.contains("third task"), "stdout: {stdout:?}");
+    assert!(
+        !stdout.contains("third task"),
+        "should not show task #3: {stdout:?}"
+    );
 }
 
 #[test]
@@ -177,7 +183,7 @@ fn task_next_malformed_address_exits_nonzero() {
 }
 
 #[test]
-fn task_next_mine_shows_unassigned_and_assigned_to_me_only() {
+fn task_next_mine_with_plain_number_selects_nth_eligible_task_only() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -193,17 +199,22 @@ git_emails = [\"bob@example.com\"]
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let content = "\
 - [ ] unassigned task
-- [ ] alice's task @alice
 - [ ] bob's task @bob
+- [ ] alice's task @alice
+- [ ] another unassigned task
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["task", "next", "3", "--mine"]);
+    // Eligible tasks (unassigned or alice's), in order: "unassigned task"
+    // (#1), "alice's task" (#2), "another unassigned task" (#3) — bob's
+    // task is skipped entirely, not just deprioritized. Address 2 should
+    // therefore resolve to "alice's task" alone.
+    let out = run_agile(dir.path(), &["task", "next", "2", "--mine"]);
 
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("unassigned task"), "stdout: {stdout:?}");
     assert!(stdout.contains("alice's task"), "stdout: {stdout:?}");
+    assert!(!stdout.contains("unassigned task"), "stdout: {stdout:?}");
     assert!(!stdout.contains("bob's task"), "stdout: {stdout:?}");
 }
 
@@ -219,4 +230,33 @@ fn task_next_mine_with_dotted_address_is_rejected() {
     let out = run_agile(dir.path(), &["task", "next", "1.1", "--mine"]);
 
     assert!(!out.status.success());
+}
+
+#[test]
+fn task_next_bare_mine_shows_only_first_eligible_task() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] bob's task @bob
+- [ ] alice's task @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "next", "--mine"]);
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("alice's task"), "stdout: {stdout:?}");
+    assert!(!stdout.contains("bob's task"), "stdout: {stdout:?}");
 }

@@ -1,9 +1,7 @@
 //! `agile task <action>` — task-centric subcommands.
 
 use crate::checker;
-use crate::cli::common::{
-    find_task_files, parse_file, parse_files, render_subtask_as_root, render_task,
-};
+use crate::cli::common::{find_task_files, parse_file, render_subtask_as_root, render_task};
 use crate::config::Config;
 use crate::formatter;
 use crate::parser::{FileItem, Status, Subtask};
@@ -12,18 +10,23 @@ use std::path::{Path, PathBuf};
 
 /// `agile task next [ADDRESS]` entry point.
 ///
-/// - No address: prints the single next incomplete top-level task (unchanged
-///   long-standing behavior).
-/// - Plain count (e.g. `3`, no dot): prints that many incomplete top-level
-///   tasks, in priority order, each as a full block.
-/// - Dotted address (e.g. `1.2`, `2.1.4`): prints the one (sub)task at that
-///   position plus its own subtree, as if it were its own root.
+/// `ADDRESS` uses exactly the same resolution as `agile task done`'s
+/// address (see [`resolve_address`]): a plain number (e.g. `3`) selects the
+/// 3rd matching top-level task and prints *only* that one task — it does
+/// not print tasks 1 through 3. A dotted address (e.g. `1.2`, `2.1.4`)
+/// descends into direct children (any status) from there, to arbitrary
+/// depth, and prints that one (sub)task as its own root, subtree included.
+/// With no address at all, this defaults to address `1` (the single next
+/// incomplete top-level task) — but unlike an explicit address, finding no
+/// match here is not an error: it just prints nothing (there may simply be
+/// no incomplete tasks left).
 ///
-/// `mine` restricts the candidate top-level tasks to ones that are
-/// unassigned or assigned to the resolved identity (`as_user`, or the git
-/// identity if `as_user` is `None`). `mine` is only valid with no address or
-/// a plain count — combining it with a dotted address is a hard error,
-/// since a dotted address already names one exact node.
+/// `mine` restricts the top-level tasks counted by the address's first
+/// segment to ones that are unassigned or assigned to the resolved identity
+/// (`as_user`, or the git identity if `as_user` is `None`) — see
+/// [`rules::is_eligible_for`]. `mine` is only valid with no address or a
+/// plain number — combining it with a dotted address is a hard error, since
+/// a dotted address already names one exact node regardless of assignment.
 pub fn run_next(
     root: &Path,
     config: &Config,
@@ -64,21 +67,21 @@ pub fn run_next(
         None
     };
 
-    if dotted {
-        let parts = parts.unwrap();
-        match resolve_address(root, &parts) {
-            Ok(resolved) => print!("{}", render_resolved(&resolved)),
-            Err(e) => {
+    let explicit_address = parts.is_some();
+    let resolve_parts = parts.unwrap_or_else(|| vec![1]);
+
+    match resolve_address(root, &resolve_parts, config, identity.as_ref()) {
+        Ok(resolved) => print!("{}", render_resolved(&resolved)),
+        Err(e) => {
+            if explicit_address {
                 log::error!("{e}");
                 std::process::exit(1);
             }
+            // No address was given at all: there simply being no matching
+            // task right now (e.g. everything done/cancelled) is not an
+            // error condition, so print nothing and exit 0.
         }
-        return;
     }
-
-    let count = parts.map(|p| p[0]).unwrap_or(1);
-    let items = parse_files(&find_task_files(root));
-    print!("{}", next_n_tasks(&items, count, identity.as_ref(), config));
 }
 
 /// `agile task done ADDRESS` entry point.
@@ -101,7 +104,7 @@ pub fn run_done(root: &Path, config: &Config, address: &str) {
         }
     };
 
-    let resolved = match resolve_address(root, &parts) {
+    let resolved = match resolve_address(root, &parts, config, None) {
         Ok(resolved) => resolved,
         Err(e) => {
             log::error!("{e}");
@@ -242,21 +245,33 @@ impl ResolvedAddress {
 /// Resolves a parsed address (see [`parse_address`]) to a concrete
 /// (sub)task.
 ///
-/// `parts[0]` selects the Nth still-incomplete top-level task (1-based,
-/// across all task files in priority order, matching `agile task next`'s
-/// selection rule). Each subsequent `parts[i]` selects the Nth direct child
-/// (1-based, document order, any status) of the node selected by the
-/// previous segment.
+/// `parts[0]` selects the Nth top-level task satisfying the selection rule
+/// below (1-based, across all task files in priority order). Each
+/// subsequent `parts[i]` selects the Nth direct child (1-based, document
+/// order, any status) of the node selected by the previous segment.
+///
+/// The candidate top-level tasks counted by `parts[0]` are always restricted
+/// to still-incomplete (`[ ]`) tasks. If `eligible_for` is `Some`, they're
+/// further restricted to ones [`rules::is_eligible_for`] that identity
+/// (unassigned, or assigned to them directly or via a group) — this is what
+/// backs `agile task next N --mine`. `agile task done` never passes an
+/// identity, since an address there always names one exact task regardless
+/// of who it's assigned to.
 ///
 /// Files are parsed one at a time and scanning stops as soon as the
 /// addressed top-level task is found — later files are never even read —
 /// so this stays cheap regardless of how many task files a project has.
-pub(crate) fn resolve_address(root: &Path, parts: &[usize]) -> Result<ResolvedAddress, String> {
+pub(crate) fn resolve_address(
+    root: &Path,
+    parts: &[usize],
+    config: &Config,
+    eligible_for: Option<&ResolvedIdentity>,
+) -> Result<ResolvedAddress, String> {
     let Some((&first, rest)) = parts.split_first() else {
         return Err("empty task address".to_string());
     };
 
-    let mut incomplete_count = 0usize;
+    let mut matching_count = 0usize;
     for file in find_task_files(root) {
         let items = parse_file(&file);
         for (idx, item) in items.iter().enumerate() {
@@ -266,8 +281,13 @@ pub(crate) fn resolve_address(root: &Path, parts: &[usize]) -> Result<ResolvedAd
             if task.status != Status::Todo {
                 continue;
             }
-            incomplete_count += 1;
-            if incomplete_count != first {
+            if let Some(identity) = eligible_for {
+                if !rules::is_eligible_for(NodeRef::Task(task), identity, config) {
+                    continue;
+                }
+            }
+            matching_count += 1;
+            if matching_count != first {
                 continue;
             }
 
@@ -293,7 +313,7 @@ pub(crate) fn resolve_address(root: &Path, parts: &[usize]) -> Result<ResolvedAd
         }
     }
     Err(format!(
-        "no such task: address {} starts at incomplete top-level task #{first}, but only {incomplete_count} incomplete top-level task(s) exist",
+        "no such task: address {} starts at incomplete top-level task #{first}, but only {matching_count} matching incomplete top-level task(s) exist",
         format_address(parts)
     ))
 }
