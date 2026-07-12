@@ -76,6 +76,16 @@ pub enum ConfigError {
         group: String,
         message: String,
     },
+    /// The same `git_emails`/`git_names` value is listed on more than one
+    /// `[Users.X]` entry. Left unchecked, [`crate::git::resolve_identity_user`]
+    /// would pick one of the matching users based on `HashMap` iteration
+    /// order, which is randomized per process and therefore non-deterministic
+    /// across runs.
+    DuplicateIdentity {
+        field: &'static str,
+        value: String,
+        users: Vec<String>,
+    },
 }
 
 impl std::fmt::Display for ConfigError {
@@ -95,6 +105,15 @@ impl std::fmt::Display for ConfigError {
             ConfigError::GroupValidation { group, message } => {
                 write!(f, "invalid config for group '{group}': {message}")
             }
+            ConfigError::DuplicateIdentity {
+                field,
+                value,
+                users,
+            } => write!(
+                f,
+                "'{value}' appears in {field} of multiple users: {} (each identity must map to exactly one user)",
+                users.join(", "),
+            ),
         }
     }
 }
@@ -170,6 +189,47 @@ struct RawConfig {
     general: RawGeneralConfig,
 }
 
+/// Finds a `git_emails`/`git_names` value that's listed on more than one
+/// user, using `values` to pick which field to check. Returns the offending
+/// value plus the (sorted) keys of every user that lists it.
+///
+/// Deterministic regardless of `HashMap` iteration order: candidate
+/// duplicates are collected first, then sorted by value before picking the
+/// first one to report, so the same misconfiguration always produces the
+/// same error message.
+fn find_duplicate_identity(
+    users: &HashMap<String, UserConfig>,
+    values: impl Fn(&UserConfig) -> &[String],
+) -> Option<(String, Vec<String>)> {
+    let mut owners_by_value: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
+    for (key, user) in users {
+        for v in values(user) {
+            owners_by_value
+                .entry(v.as_str())
+                .or_default()
+                .insert(key.as_str());
+        }
+    }
+
+    let mut duplicates: Vec<(&str, Vec<&str>)> = owners_by_value
+        .into_iter()
+        .filter(|(_, owners)| owners.len() > 1)
+        .map(|(value, owners)| {
+            let mut owners: Vec<&str> = owners.into_iter().collect();
+            owners.sort();
+            (value, owners)
+        })
+        .collect();
+    duplicates.sort_by(|a, b| a.0.cmp(b.0));
+
+    duplicates.into_iter().next().map(|(value, owners)| {
+        (
+            value.to_string(),
+            owners.into_iter().map(String::from).collect(),
+        )
+    })
+}
+
 impl Config {
     pub fn from_str(s: &str) -> Result<Self, ConfigError> {
         let raw: RawConfig = toml::from_str(s)?;
@@ -213,6 +273,22 @@ impl Config {
                 )
             })
             .collect();
+
+        if let Some((value, owners)) = find_duplicate_identity(&users, |u| &u.git_emails) {
+            return Err(ConfigError::DuplicateIdentity {
+                field: "git_emails",
+                value,
+                users: owners,
+            });
+        }
+        if let Some((value, owners)) = find_duplicate_identity(&users, |u| &u.git_names) {
+            return Err(ConfigError::DuplicateIdentity {
+                field: "git_names",
+                value,
+                users: owners,
+            });
+        }
+
         let groups = raw
             .groups
             .into_iter()

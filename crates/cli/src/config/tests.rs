@@ -321,6 +321,79 @@ members = [\"bob\", \"alice\"]
     assert!(Config::from_str(input).is_ok());
 }
 
+// ── duplicate identity validation ──────────────────────────────────────────
+
+#[test]
+fn duplicate_git_email_across_users_is_rejected() {
+    let input = "\
+[Users.alice]
+git_emails = [\"shared@example.com\"]
+
+[Users.bob]
+git_emails = [\"shared@example.com\"]
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::DuplicateIdentity {
+            field,
+            value,
+            users,
+        }) => {
+            assert_eq!(field, "git_emails");
+            assert_eq!(value, "shared@example.com");
+            assert_eq!(users, vec!["alice".to_string(), "bob".to_string()]);
+        }
+        other => panic!("expected DuplicateIdentity error, got {other:?}"),
+    }
+}
+
+#[test]
+fn duplicate_git_name_across_users_is_rejected() {
+    let input = "\
+[Users.alice]
+git_names = [\"Shared Name\"]
+
+[Users.bob]
+git_names = [\"Shared Name\"]
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::DuplicateIdentity {
+            field,
+            value,
+            users,
+        }) => {
+            assert_eq!(field, "git_names");
+            assert_eq!(value, "Shared Name");
+            assert_eq!(users, vec!["alice".to_string(), "bob".to_string()]);
+        }
+        other => panic!("expected DuplicateIdentity error, got {other:?}"),
+    }
+}
+
+#[test]
+fn distinct_git_emails_and_names_across_users_are_accepted() {
+    let input = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+git_names = [\"Alice\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+git_names = [\"Bob\"]
+";
+    assert!(Config::from_str(input).is_ok());
+}
+
+#[test]
+fn same_user_listing_the_same_email_twice_is_not_a_duplicate() {
+    let input = "\
+[Users.alice]
+git_emails = [\"alice@example.com\", \"alice@example.com\"]
+";
+    assert!(Config::from_str(input).is_ok());
+}
+
 // ── [General] section ───────────────────────────────────────────────────────
 
 #[test]
