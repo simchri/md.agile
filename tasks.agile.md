@@ -398,9 +398,6 @@
   - [x] clearly mark what is already implemented / what's missing
   - [x] let human review and adjust the overview
 
-### Writing back to file from GUI
-- [ ] Mark task as done from GUI
-
 ### ctd cli commands
 - [x] remove unused flag: `agile task next --next N`, instead:
 - [x] command: `agile task next 3` show the next 3 tasks
@@ -418,45 +415,15 @@
 
 - [x] range support for "agile list tasks", syntax `agile tasks list START:END` ranges apply to the top-level only, but show tasks with subtasks
 
-## LSP documentation
-
-- [ ] LSP Phase 3: IDE Integration
-  - [ ] Document VS Code setup (.vscode/settings.json)
-  - [ ] Document Vim/Neovim setup (init.lua example)
-  - [ ] Add LSP section to README.md
-  - [ ] Provide troubleshooting guide
-
-## More LSP features
-
-- [ ] LSP Phase 4: Enhanced Features (Optional)
-  - [ ] textDocument/hover — show property definitions
-    - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
-    - [ ] idem "@assignments" relevant, e.g. for groups
-  - [ ] textDocument/completion — suggest properties, users, groups
-  - [ ] File diagnostics on save with `agile check --fix`
-
-
-## Archiving, multiple files
-- [ ] File structure for large projects & archiving:
-  - [ ] `agile init --large` — scaffold the `tasks/00_archive`, `50_current`, `60_backlog`, `80_inbox` directory structure
-  - [ ] `agile archive` — move any file in `50_current`/`60_backlog` containing only completed/cancelled tasks into `00_archive`, prefixed with today's date
-  - [ ] `[Archive]` config section (`archive_path`, `current_path`, `backlog_path`, `inbox_path`)
-
-## File level Props
-- [ ] Required properties per file: a file-level directive (see README.vision.md "Required Properties", `MDAGILE.file.mandatory_property=<name>`) declaring a property mandatory for every task in that file. The MDAGILE special marker is currently only recognized/highlighted as a generic token — the directive's `file.mandatory_property=X` value isn't parsed, and there's no rule enforcing it or auto-adding the property to new tasks.
-
-## Short Forms
-- [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
-
 ## ETA
 - [ ] Milestones: ETA / time estimation. The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
 
-## Neighbor Tasks / Branch Properties / Workflows
-- [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
-- [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
-
+### Short Forms
+- [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
 
 ## GUI 2.0
+- [ ] Mark task as done from GUI
+
 - [ ] find tasks by search string - list with done state, rank, full name
 - [ ] mark tasks done from CLI
   - [ ] tasks
@@ -467,11 +434,36 @@
     - [ ] directly by search term
 
 
+## Neighbor Tasks / Branch Properties / Workflows
+- [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
+- [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
+
+## LSP documentation
+- [ ] LSP Phase 3: IDE Integration
+  - [ ] Document VS Code setup (.vscode/settings.json)
+  - [ ] Document Vim/Neovim setup (init.lua example)
+  - [ ] Add LSP section to README.md
+  - [ ] Provide troubleshooting guide
+
+## Archiving, multiple files
+- [ ] File structure for large projects & archiving:
+  - [ ] `agile init --large` — scaffold the `tasks/00_archive`, `50_current`, `60_backlog`, `80_inbox` directory structure
+  - [ ] `agile archive` — move any file in `50_current`/`60_backlog` containing only completed/cancelled tasks into `00_archive`, prefixed with today's date
+  - [ ] `[Archive]` config section (`archive_path`, `current_path`, `backlog_path`, `inbox_path`)
+
+## File level Props
+- [ ] Required properties per file: a file-level directive (see README.vision.md "Required Properties", `MDAGILE.file.mandatory_property=<name>`) declaring a property mandatory for every task in that file. The MDAGILE special marker is currently only recognized/highlighted as a generic token — the directive's `file.mandatory_property=X` value isn't parsed, and there's no rule enforcing it or auto-adding the property to new tasks.
+
+## More CLI features
+- [ ] Apply existing quick fixes via `agile fix` on the command line
+
+## More LSP features
+- [ ] LSP Phase 4: Enhanced Features (Optional)
+  - [ ] textDocument/hover — show property definitions
+    - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
+    - [ ] idem "@assignments" relevant, e.g. for groups
+  - [ ] textDocument/completion — suggest properties, users, groups
+
 ## Events
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
   - [ ] formulate "vision"
-
-## Agile Fix
-- [ ] Apply existing quick fixes via `agile fix` on the command line
-
-
