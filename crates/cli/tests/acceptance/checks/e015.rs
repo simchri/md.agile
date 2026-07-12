@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
-fn flags_ranked_task_done_out_of_order() {
+fn flags_ordered_task_done_out_of_order() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] make app more responsive
@@ -22,7 +22,7 @@ fn flags_ranked_task_done_out_of_order() {
 }
 
 #[test]
-fn does_not_flag_ranked_tasks_completed_in_sequence() {
+fn does_not_flag_ordered_tasks_completed_in_sequence() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] make app more responsive

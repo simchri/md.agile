@@ -48,16 +48,16 @@ Validation](assignment-validation.md) for the full details.
 
 ## Ordered tasks
 
-Ranked subtasks (`- [ ] 1. do this`) establish an execution sequence among
+Ordered subtasks (`- [ ] 1. do this`) establish an execution sequence among
 their direct siblings only — see [README.vision.md](../README.vision.md)
 "Ordered Tasks".
 
 | Code | Name | Description |
 |------|------|-------------|
-| E014 | Duplicate order rank | Two sibling subtasks use the same rank number (e.g. two `1.` prefixes under the same parent). |
-| E015 | Ranked task completed out of order | A ranked subtask was marked done while a lower-ranked sibling is still incomplete (not done and not cancelled). |
+| E014 | Duplicate order number | Two sibling subtasks use the same order number (e.g. two `1.` prefixes under the same parent). |
+| E015 | Ordered task completed out of order | An ordered subtask was marked done while a lower-numbered sibling is still incomplete (not done and not cancelled). |
 
 These checks also apply to mandatory subtasks required by a property, when
-the property's `subtasks` config bakes a rank prefix into the required
+the property's `subtasks` config bakes an order number prefix into the required
 string (e.g. `subtasks = ["1. dev implementation", "2. dev documentation"]`).
 

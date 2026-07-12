@@ -45,10 +45,11 @@
 - Neighbor Task (!= Sibling (Task)): A Task that must exist at the same Sibling level as the Task bearing a Property that declares it. Mainly used with Branch Properties but applicable to any Property.
 - Nested Property: A Property referenced by name within another Property's subtask list (e.g. `subtasks = ["developer #review"]`). When the outer Property is applied to a Task, the inner Property's own Subtasks become required at the next nesting level. Enables reuse of common workflow steps across multiple Properties.
 - Required Property: A Property declared mandatory for all Tasks in a file via `#MDAGILE.file.mandatory_property=...`.
-- Ordered Task: A Subtask prefixed with a number and `.` (e.g. `1.`) to enforce execution sequence among siblings.
+- Ordered Task: A Subtask prefixed with a number and `.` (e.g. `1.`) — its Order Number — to enforce execution sequence among direct siblings. Do not confuse with Rank (below): an Order Number is explicit syntax scoped to one sibling group, while Rank is an implicit whole-project position derived from a Task's location in the files.
 
 ## Planning
 
 - Milestone: A `#MILESTONE: name` divider in a Task file. Reached when all Tasks preceding it are complete.
 - ETA (Estimated Time of Arrival): Projected completion date for a Milestone, derived from Task count and past velocity. No per-Task estimates are used (see MANIFESTO.md — #NoEstimates).
 - Task Weight: Numeric value used in ETA calculation. A Task itself has weight 1; a Subtask at nesting level n has weight 1/n.
+- Rank (alt: Priority Rank): A top-level Task's implicit position among its Todo/Done siblings, derived from where it sits in the project's files (see numbered `50_current`/`60_backlog` files). Used by the GUI board view to lay out cards left-to-right (Todo) or right-to-left (Done). Do not confuse with Order Number (see Ordered Task, above): Rank is never written explicitly in a Task file, whereas an Order Number is an explicit `1.`/`2.` prefix on Subtasks.

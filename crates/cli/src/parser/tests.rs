@@ -67,7 +67,7 @@ fn can_construct_task_with_all_node_kinds() {
                 location: loc(4),
                 indent: 2,
                 status: Status::Todo,
-                order: Order::Ranked(1),
+                order: Order::Ordered(1),
                 kind: SubtaskKind::Custom,
                 raw_title: None,
                 title: "first step".to_string(),
@@ -301,9 +301,9 @@ fn parse_ordered_subtask() {
 ";
     let items = p(input);
     let children = &task(&items, 0).children;
-    assert_eq!(children[0].order, Order::Ranked(1));
+    assert_eq!(children[0].order, Order::Ordered(1));
     assert_eq!(children[0].title, "first step");
-    assert_eq!(children[1].order, Order::Ranked(2));
+    assert_eq!(children[1].order, Order::Ordered(2));
 }
 
 #[test]
@@ -702,7 +702,7 @@ fn property_required_subtask_with_order_prefix_is_detected_as_ranked() {
     let items = p(input);
     let sub = &task(&items, 0).children[0];
     assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
-    assert_eq!(sub.order, Order::Ranked(1));
+    assert_eq!(sub.order, Order::Ordered(1));
 }
 
 #[test]
@@ -729,6 +729,6 @@ fn custom_subtask_order_prefix_stripping_is_unaffected_by_property_required_fix(
     let items = p(input);
     let sub = &task(&items, 0).children[0];
     assert_eq!(sub.kind, SubtaskKind::Custom);
-    assert_eq!(sub.order, Order::Ranked(1));
+    assert_eq!(sub.order, Order::Ordered(1));
     assert_eq!(sub.title, "add performance UI test");
 }

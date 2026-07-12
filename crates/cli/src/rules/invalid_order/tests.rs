@@ -3,7 +3,7 @@ use crate::rules::ErrorCode;
 use std::path::PathBuf;
 
 #[test]
-fn allows_ranked_siblings_with_distinct_ranks_in_any_order() {
+fn allows_ordered_siblings_with_distinct_order_numbers_in_any_order() {
     let file_content = "\
 - [ ] make app more responsive
   - [ ] 1. add performance UI test
@@ -20,7 +20,7 @@ fn allows_ranked_siblings_with_distinct_ranks_in_any_order() {
 }
 
 #[test]
-fn detects_duplicate_rank_among_siblings() {
+fn detects_duplicate_order_number_among_siblings() {
     let file_content = "\
 - [ ] make app more responsive
   - [ ] 1. add performance UI test
@@ -29,20 +29,24 @@ fn detects_duplicate_rank_among_siblings() {
     let items = parse(file_content, PathBuf::from("test.agile.md"));
     let issues = super::invalid_order(&items);
 
-    assert_eq!(issues.len(), 2, "both duplicate-rank siblings are flagged");
+    assert_eq!(
+        issues.len(),
+        2,
+        "both duplicate-order-number siblings are flagged"
+    );
     assert!(
         issues
             .iter()
-            .all(|i| i.code == ErrorCode::DuplicateOrderRank)
+            .all(|i| i.code == ErrorCode::DuplicateOrderNumber)
     );
     assert_eq!(issues[0].location.line, 2);
     assert_eq!(issues[1].location.line, 3);
 }
 
 #[test]
-fn duplicate_rank_check_is_scoped_to_direct_siblings_only() {
-    // Same rank "1." used by two subtasks nested under different parents —
-    // not siblings of each other, so this is not a duplicate.
+fn duplicate_order_number_check_is_scoped_to_direct_siblings_only() {
+    // Same order number "1." used by two subtasks nested under different
+    // parents — not siblings of each other, so this is not a duplicate.
     let file_content = "\
 - [ ] parent A
   - [ ] 1. first step
@@ -56,7 +60,7 @@ fn duplicate_rank_check_is_scoped_to_direct_siblings_only() {
 }
 
 #[test]
-fn detects_ranked_task_done_while_lower_ranked_sibling_incomplete() {
+fn detects_ordered_task_done_while_lower_numbered_sibling_incomplete() {
     let file_content = "\
 - [ ] make app more responsive
   - [ ] 1. add performance UI test
@@ -73,7 +77,7 @@ fn detects_ranked_task_done_while_lower_ranked_sibling_incomplete() {
 }
 
 #[test]
-fn allows_ranked_tasks_completed_in_sequence() {
+fn allows_ordered_tasks_completed_in_sequence() {
     let file_content = "\
 - [ ] make app more responsive
   - [x] 1. add performance UI test
@@ -88,7 +92,7 @@ fn allows_ranked_tasks_completed_in_sequence() {
 }
 
 #[test]
-fn cancelled_lower_ranked_sibling_does_not_block_completion() {
+fn cancelled_lower_numbered_sibling_does_not_block_completion() {
     let file_content = "\
 - [ ] make app more responsive
   - [-] 1. add performance UI test
@@ -101,7 +105,7 @@ fn cancelled_lower_ranked_sibling_does_not_block_completion() {
 }
 
 #[test]
-fn unranked_siblings_never_block_or_get_flagged() {
+fn unordered_siblings_never_block_or_get_flagged() {
     let file_content = "\
 - [ ] make app more responsive
   - [ ] discuss further steps
@@ -114,7 +118,7 @@ fn unranked_siblings_never_block_or_get_flagged() {
 }
 
 #[test]
-fn checks_ranking_at_every_nesting_level_independently() {
+fn checks_order_at_every_nesting_level_independently() {
     let file_content = "\
 - [ ] top level task
   - [ ] 1. nested step
@@ -131,7 +135,7 @@ fn checks_ranking_at_every_nesting_level_independently() {
 }
 
 #[test]
-fn detects_duplicate_rank_among_property_required_subtasks() {
+fn detects_duplicate_order_number_among_property_required_subtasks() {
     // Order detection must also apply to property-required (quoted)
     // subtasks whose order prefix is baked into the quoted string, per
     // README.vision.md "Ordered Tasks via Properties".
@@ -147,7 +151,7 @@ fn detects_duplicate_rank_among_property_required_subtasks() {
     assert!(
         issues
             .iter()
-            .all(|i| i.code == ErrorCode::DuplicateOrderRank)
+            .all(|i| i.code == ErrorCode::DuplicateOrderNumber)
     );
 }
 

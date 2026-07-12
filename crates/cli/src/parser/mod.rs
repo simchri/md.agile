@@ -165,7 +165,7 @@ pub enum ParsingIssue {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Order {
     None,
-    Ranked(u32), // the "1." prefix; enforces execution sequence among siblings
+    Ordered(u32), // the "1." prefix; enforces execution sequence among siblings
 }
 
 // ── Subtask ───────────────────────────────────────────────────────────────────
@@ -530,7 +530,7 @@ fn parse_milestone_name(line: &str) -> Option<String> {
     Some(name.trim_end().to_string())
 }
 
-// Strips a leading order number ("1. ") and returns the rank and remaining text.
+// Strips a leading order number ("1. ") and returns the order and remaining text.
 fn parse_order_prefix(title: &str) -> (Order, &str) {
     let bytes = title.as_bytes();
     let mut i = 0;
@@ -539,7 +539,7 @@ fn parse_order_prefix(title: &str) -> (Order, &str) {
     }
     if i > 0 && bytes.get(i) == Some(&b'.') && bytes.get(i + 1) == Some(&b' ') {
         if let Ok(n) = title[..i].parse::<u32>() {
-            return (Order::Ranked(n), title[i + 2..].trim_start());
+            return (Order::Ordered(n), title[i + 2..].trim_start());
         }
     }
     (Order::None, title)

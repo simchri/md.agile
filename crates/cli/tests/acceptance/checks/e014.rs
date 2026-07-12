@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
-fn flags_duplicate_rank_among_siblings() {
+fn flags_duplicate_order_number_among_siblings() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] make app more responsive
@@ -20,7 +20,7 @@ fn flags_duplicate_rank_among_siblings() {
 }
 
 #[test]
-fn does_not_flag_distinct_ranks_out_of_textual_order() {
+fn does_not_flag_distinct_order_numbers_out_of_textual_order() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] make app more responsive
@@ -42,9 +42,9 @@ fn does_not_flag_distinct_ranks_out_of_textual_order() {
 }
 
 #[test]
-fn flags_duplicate_rank_among_property_required_subtasks() {
+fn flags_duplicate_order_number_among_property_required_subtasks() {
     // Order prefixes baked into a property's quoted `subtasks` config strings
-    // must also be checked for duplicate ranks (README.vision.md "Ordered
+    // must also be checked for duplicate order numbers (README.vision.md "Ordered
     // Tasks via Properties").
     let dir = tempdir().unwrap();
     let config = "\

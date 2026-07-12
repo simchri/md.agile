@@ -67,9 +67,9 @@ pub enum ErrorCode {
     CancelledRequiredSubtaskNotAllowed,
     /// E013: Task marked done by someone not authorized (not an assignee, nor a member of an assigned group)
     UnauthorizedCompletion,
-    /// E014: Two ranked subtasks share the same order number among siblings
-    DuplicateOrderRank,
-    /// E015: A ranked subtask was marked done while a lower-ranked sibling is still incomplete
+    /// E014: Two ordered subtasks share the same order number among siblings
+    DuplicateOrderNumber,
+    /// E015: An ordered subtask was marked done while a lower-numbered sibling is still incomplete
     OutOfOrderCompletion,
     /// E016: Task/subtask has no title text after the status box (and markers, if any)
     EmptyTitle,
@@ -93,7 +93,7 @@ impl ErrorCode {
             ErrorCode::UnrequiredQuotedSubtask => "E011",
             ErrorCode::CancelledRequiredSubtaskNotAllowed => "E012",
             ErrorCode::UnauthorizedCompletion => "E013",
-            ErrorCode::DuplicateOrderRank => "E014",
+            ErrorCode::DuplicateOrderNumber => "E014",
             ErrorCode::OutOfOrderCompletion => "E015",
             ErrorCode::EmptyTitle => "E016",
         }
@@ -124,7 +124,7 @@ impl std::str::FromStr for ErrorCode {
             "E011" => ErrorCode::UnrequiredQuotedSubtask,
             "E012" => ErrorCode::CancelledRequiredSubtaskNotAllowed,
             "E013" => ErrorCode::UnauthorizedCompletion,
-            "E014" => ErrorCode::DuplicateOrderRank,
+            "E014" => ErrorCode::DuplicateOrderNumber,
             "E015" => ErrorCode::OutOfOrderCompletion,
             "E016" => ErrorCode::EmptyTitle,
             _ => return Err(()),
