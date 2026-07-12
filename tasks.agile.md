@@ -30,6 +30,7 @@
 ## Fixes
 - [x] clarify the command name - is it "agile" or "mdagile". The produced binary seems to be "mdagile". Check again what is says in the "vision" file, then fix accordingly
   Binary is now explicitly named "agile" via [[bin]] in Cargo.toml, matching vision.md
+- [x] `find_task_files` was not actually respecting `.gitignore`/`.ignore` despite its doc comment claiming so (`WalkBuilder` had `.ignore(false)` and `.git_ignore(false)` set). Fixed by removing those overrides so the walker uses its git-aware defaults. Added acceptance test `list_files_respects_gitignore` in `crates/cli/tests/acceptance/list/files.rs`.
 
 ## First Minimal Language Server
 - [x] hello world language server mode implemented into cli tool, command `agile `

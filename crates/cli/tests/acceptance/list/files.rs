@@ -1,6 +1,16 @@
 use crate::helpers::run_agile;
 use std::fs;
+use std::process::Command;
 use tempfile::tempdir;
+
+fn git(dir: &std::path::Path, args: &[&str]) {
+    let status = Command::new("git")
+        .args(args)
+        .current_dir(dir)
+        .status()
+        .expect("git command failed to start");
+    assert!(status.success(), "git {args:?} failed");
+}
 
 #[test]
 fn list_files_prints_agile_md_files() {
@@ -72,6 +82,40 @@ fn list_files_with_next_limit() {
         stdout.lines().count(),
         1,
         "expected exactly 1 line: {stdout:?}"
+    );
+}
+
+#[test]
+fn list_files_respects_gitignore() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+
+    // Ignore the "scratch" directory and anything under it.
+    let gitignore_content = "\
+scratch/
+";
+    fs::write(dir.path().join(".gitignore"), gitignore_content).unwrap();
+
+    let file_content = "\
+- [ ] a task
+";
+    fs::write(dir.path().join("tracked.agile.md"), file_content).unwrap();
+
+    let scratch = dir.path().join("scratch");
+    fs::create_dir(&scratch).unwrap();
+    fs::write(scratch.join("ignored.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["list", "files"]);
+
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(
+        stdout.contains("tracked.agile.md"),
+        "tracked file should be listed: {stdout:?}"
+    );
+    assert!(
+        !stdout.contains("ignored.agile.md"),
+        "gitignored file should be excluded: {stdout:?}"
     );
 }
 
