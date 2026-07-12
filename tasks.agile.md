@@ -423,8 +423,8 @@
 - [x] range support for "agile list tasks", syntax `agile tasks list START:END` ranges apply to the top-level only, but show tasks with subtasks
 
 ## First GUI write actions
-- [ ] Mark task as done from GUI
-- [ ] --kiosk flag to disable any "writing" operations
+- [x] Mark task as done from GUI
+- [x] --kiosk flag to disable any "writing" operations
 
 ## ETA
 - [ ] Milestones: ETA / time estimation. 
