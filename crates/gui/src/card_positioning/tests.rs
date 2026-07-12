@@ -254,3 +254,65 @@ fn in_progress_style_uses_track_inset_constant() {
     assert!(s.contains("(70vh - 230px)"), "got: {s}");
     assert!(s.contains("(100vw - 230px)"), "got: {s}");
 }
+
+// --- card_top_left_px / card_position_from_px ---
+//
+// These implement, in plain pixel arithmetic, the same mapping that
+// `in_progress_style` expresses as a CSS `calc()` string — needed so drag
+// handling can convert between mouse pixel coordinates and the normalized
+// physics coordinate space. Kept anchored to the same constants so both
+// stay in sync.
+
+#[test]
+fn card_top_left_px_at_origin() {
+    // x=0,y=0 → flush against the top-left margin of the track.
+    let (left, top) = card_top_left_px(0.0, 0.0, 1000.0, 800.0);
+    assert_eq!(left, EDGE_MARGIN_PX);
+    assert_eq!(top, DIAG_TOP_FRAC * 800.0 + EDGE_MARGIN_PX);
+}
+
+#[test]
+fn card_top_left_px_at_bottom_right() {
+    // x=1,y=1 → flush against the bottom-right margin of the track.
+    let (left, top) = card_top_left_px(1.0, 1.0, 1000.0, 800.0);
+    assert_eq!(left, 1000.0 - EDGE_MARGIN_PX - CARD_PX);
+    assert_eq!(
+        top,
+        DIAG_TOP_FRAC * 800.0 + DIAG_HEIGHT_FRAC * 800.0 - EDGE_MARGIN_PX - CARD_PX
+    );
+}
+
+#[test]
+fn card_top_left_px_clamps_out_of_range_input() {
+    let (left_low, top_low) = card_top_left_px(-1.0, -1.0, 1000.0, 800.0);
+    assert_eq!(
+        (left_low, top_low),
+        card_top_left_px(0.0, 0.0, 1000.0, 800.0)
+    );
+
+    let (left_high, top_high) = card_top_left_px(2.0, 2.0, 1000.0, 800.0);
+    assert_eq!(
+        (left_high, top_high),
+        card_top_left_px(1.0, 1.0, 1000.0, 800.0)
+    );
+}
+
+#[test]
+fn card_position_from_px_round_trips_card_top_left_px() {
+    for (x, y) in [(0.0, 0.0), (0.25, 0.6), (0.5, 0.5), (1.0, 1.0)] {
+        let (left, top) = card_top_left_px(x, y, 1200.0, 900.0);
+        let (rx, ry) = card_position_from_px(left, top, 1200.0, 900.0);
+        assert!((rx - x).abs() < 1e-9, "x round-trip: {rx} vs {x}");
+        assert!((ry - y).abs() < 1e-9, "y round-trip: {ry} vs {y}");
+    }
+}
+
+#[test]
+fn card_position_from_px_clamps_to_unit_range() {
+    // Way off to the top-left / bottom-right of the track → clamp to 0/1.
+    let (x, y) = card_position_from_px(-1000.0, -1000.0, 1000.0, 800.0);
+    assert_eq!((x, y), (0.0, 0.0));
+
+    let (x, y) = card_position_from_px(10_000.0, 10_000.0, 1000.0, 800.0);
+    assert_eq!((x, y), (1.0, 1.0));
+}

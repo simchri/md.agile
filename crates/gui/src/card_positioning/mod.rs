@@ -77,6 +77,38 @@ pub fn in_progress_style(x: f64, y: f64) -> String {
     )
 }
 
+/// Converts a normalized in-progress card position into the pixel
+/// coordinates of its top-left corner, given the current viewport size in
+/// pixels. This is the same mapping [`in_progress_style`] expresses as a
+/// CSS `calc()` string, expressed instead as plain arithmetic — used to
+/// convert a card's physics position into pixels for drag-and-drop.
+pub fn card_top_left_px(x: f64, y: f64, viewport_w_px: f64, viewport_h_px: f64) -> (f64, f64) {
+    let x = x.clamp(0.0, 1.0);
+    let y = y.clamp(0.0, 1.0);
+    let left_px = EDGE_MARGIN_PX + x * (viewport_w_px - TRACK_INSET_PX);
+    let top_px = DIAG_TOP_FRAC * viewport_h_px
+        + EDGE_MARGIN_PX
+        + y * (DIAG_HEIGHT_FRAC * viewport_h_px - TRACK_INSET_PX);
+    (left_px, top_px)
+}
+
+/// Converts pixel coordinates of a card's top-left corner back into the
+/// normalized physics coordinate space — the inverse of
+/// [`card_top_left_px`]. Used to convert a live mouse position into a
+/// physics position while dragging a card. Clamped to `0.0..=1.0` on each
+/// axis, since a card can't be dragged off the diagonal track.
+pub fn card_position_from_px(
+    left_px: f64,
+    top_px: f64,
+    viewport_w_px: f64,
+    viewport_h_px: f64,
+) -> (f64, f64) {
+    let x = (left_px - EDGE_MARGIN_PX) / (viewport_w_px - TRACK_INSET_PX);
+    let y = (top_px - DIAG_TOP_FRAC * viewport_h_px - EDGE_MARGIN_PX)
+        / (DIAG_HEIGHT_FRAC * viewport_h_px - TRACK_INSET_PX);
+    (x.clamp(0.0, 1.0), y.clamp(0.0, 1.0))
+}
+
 /// True when the task has at least one direct subtask marked Done or
 /// Cancelled — i.e. work has begun on it.
 #[cfg(feature = "server")]

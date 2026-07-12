@@ -431,6 +431,8 @@
 - [x] inverse to "mark done": mark tasks "not done" from the cli!
 - [x] GUI: Un-mark subtasks and tasks as done (mark as "todo")
 
+- [x] GUI board: make in-progress cards draggable with the mouse (click-and-hold to move, follows the cursor while held, other cards keep reacting to its position via the existing physics repulsion, snaps back to normal physics-driven behavior on release)
+
 ## ETA
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 

@@ -7,8 +7,8 @@ mod server;
 mod slots;
 
 use card_positioning::{
-    backlog_position_style, done_position_style, in_progress_style, status_box, status_class,
-    task_progress,
+    backlog_position_style, card_position_from_px, card_top_left_px, done_position_style,
+    in_progress_style, status_box, status_class, task_progress,
 };
 use dioxus::prelude::ServerFnError;
 use server::TaskView;
@@ -79,6 +79,18 @@ const MAX_TASK_SLOTS: usize = 60;
 /// Target frequency for physics simulation: 40 times per second (25ms per frame).
 const PHYSICS_FRAME_MS: u64 = 50;
 
+/// State for an in-progress card currently being dragged by the mouse.
+///
+/// `click_offset_px` is the offset between where the user clicked and the
+/// card's own top-left corner at drag start, so the card doesn't jump to
+/// snap its corner under the cursor — it keeps the same relative grab
+/// point for the whole gesture.
+#[derive(Clone, Copy, PartialEq)]
+struct DragState {
+    slot_index: usize,
+    click_offset_px: (f64, f64),
+}
+
 /// Derives whether write actions (e.g. the "Mark done" button) should be
 /// hidden, from the current state of the `get_kiosk_mode` resource.
 ///
@@ -109,6 +121,23 @@ fn app() -> Element {
     // done" button that then disappears.
     let kiosk_resource = use_resource(|| async { server::get_kiosk_mode().await });
     let kiosk = resolve_kiosk_flag(kiosk_resource.read().as_ref());
+
+    // Drag-and-drop for in-progress cards. `layout_rect_px` is the pixel
+    // bounding box of the `div.layout` container (origin + size), captured
+    // once on mount via `onmounted`/`get_client_rect` — needed to convert
+    // the mouse's viewport-relative coordinates into coordinates relative
+    // to the canvas, matching what `card_top_left_px` expects. `dragging`
+    // is only written on mousedown/mouseup (not on every mousemove), so
+    // reading it reactively to compute each card's `is_dragging` flag below
+    // only re-renders `app()` twice per drag gesture.
+    let mut layout_rect_px: Signal<Option<(f64, f64, f64, f64)>> = use_signal(|| None);
+    let mut dragging: Signal<Option<DragState>> = use_signal(|| None);
+
+    // Set once real mouse movement is observed during a drag, so the click
+    // event that naturally follows the mouseup at the end of a drag gesture
+    // doesn't also open the task modal — a drag should only move the card,
+    // never count as a "click" on it.
+    let mut drag_moved: Signal<bool> = use_signal(|| false);
 
     // Task data and physics live in separate signal arrays.
     // Physics signals are passed directly into TaskCard, which subscribes to
@@ -229,6 +258,13 @@ fn app() -> Element {
                 loop {
                     sleep(std::time::Duration::from_millis(PHYSICS_FRAME_MS)).await;
 
+                    // A card currently held by the mouse has its position
+                    // driven directly by the drag handlers, not by the
+                    // spring simulation below — but it still needs to be
+                    // included as an input to `physics::step` so other
+                    // cards keep reacting to its (live, dragged) position.
+                    let dragged_slot = dragging.peek().as_ref().map(|d| d.slot_index);
+
                     // update progress value in cards
                     let mut cards: Vec<physics::Card> = task_slots
                         .iter()
@@ -263,8 +299,16 @@ fn app() -> Element {
 
                     physics::step(&mut cards, dt);
 
-                    // write updated physics properties to signals
-                    for (new_card, phys_sig) in cards.into_iter().zip(card_physics.iter()) {
+                    // write updated physics properties to signals — except
+                    // for the dragged card, whose position/velocity is
+                    // owned by the drag handlers for the duration of the
+                    // gesture; overwriting it here would fight the mouse.
+                    for (idx, (new_card, phys_sig)) in
+                        cards.into_iter().zip(card_physics.iter()).enumerate()
+                    {
+                        if Some(idx) == dragged_slot {
+                            continue;
+                        }
                         let mut phys_sig = *phys_sig;
                         if phys_sig.peek().position != new_card.position {
                             phys_sig.set(new_card);
@@ -303,8 +347,49 @@ fn app() -> Element {
         }
     }
 
+    let dragging_slot = dragging().map(|d| d.slot_index);
+
     rsx! {
-        div { class: "layout",
+        div {
+            class: "layout",
+            // Captures the canvas's own pixel bounding box once mounted, so
+            // mouse coordinates (viewport-relative) can be translated into
+            // canvas-relative pixels matching `card_top_left_px`.
+            onmounted: move |evt: dioxus::events::MountedEvent| {
+                dioxus::prelude::spawn(async move {
+                    if let Ok(rect) = evt.get_client_rect().await {
+                        layout_rect_px
+                            .set(
+                                Some((
+                                    rect.origin.x,
+                                    rect.origin.y,
+                                    rect.size.width,
+                                    rect.size.height,
+                                )),
+                            );
+                    }
+                });
+            },
+            onmousemove: move |evt: MouseEvent| {
+                if let Some(drag) = dragging() {
+                    if let Some((rect_x, rect_y, w, h)) = *layout_rect_px.peek() {
+                        drag_moved.set(true);
+                        let client = evt.client_coordinates();
+                        let mouse_x = client.x - rect_x;
+                        let mouse_y = client.y - rect_y;
+                        let card_left = mouse_x - drag.click_offset_px.0;
+                        let card_top = mouse_y - drag.click_offset_px.1;
+                        let (x, y) = card_position_from_px(card_left, card_top, w, h);
+                        let mut phys_sig = card_physics[drag.slot_index];
+                        let mut card = *phys_sig.peek();
+                        card.position = physics::CardPosition { x, y };
+                        card.velocity = physics::CardVelocity { vx: 0.0, vy: 0.0 };
+                        phys_sig.set(card);
+                    }
+                }
+            },
+            onmouseup: move |_evt| dragging.set(None),
+            onmouseleave: move |_evt| dragging.set(None),
             div { class: "separator1" }
             div { class: "separator2" }
 
@@ -314,12 +399,21 @@ fn app() -> Element {
                         task,
                         physics_signal: card_physics[i],
                         z_index: if current_front == Some(i) { 100 } else { 0 },
+                        is_dragging: dragging_slot == Some(i),
+                        layout_rect_px,
                         on_click: move |t: TaskView| {
+                            if *drag_moved.peek() {
+                                drag_moved.set(false);
+                                return;
+                            }
                             front_index.set(Some(i));
                             modal_task.set(Some(t));
                         },
                         on_hover: move |_t: TaskView| {
                             front_index.set(Some(i));
+                        },
+                        on_drag_start: move |click_offset_px: (f64, f64)| {
+                            dragging.set(Some(DragState { slot_index: i, click_offset_px }));
                         },
                         lowest_rank_backlog,
                         highest_rank_done,
@@ -351,8 +445,11 @@ fn TaskCard(
     task: TaskView,
     physics_signal: Signal<physics::Card>,
     z_index: usize,
+    is_dragging: bool,
+    layout_rect_px: Signal<Option<(f64, f64, f64, f64)>>,
     on_click: EventHandler<TaskView>,
     on_hover: EventHandler<TaskView>,
+    on_drag_start: EventHandler<(f64, f64)>,
     lowest_rank_backlog: usize,
     highest_rank_done: usize,
 ) -> Element {
@@ -360,6 +457,7 @@ fn TaskCard(
     // Subscribe this component directly to the physics signal.
     // Physics-loop writes trigger only this card's re-render, not app().
     let position = physics_signal().position;
+    let is_in_progress = progress > 0.0 && progress < 1.0;
 
     let z = format!(" z-index: {z_index};");
 
@@ -384,14 +482,30 @@ fn TaskCard(
         position_style = format!("{}{z}", in_progress_style(position.x, position.y));
     }
 
+    // While being dragged, movement must track the cursor exactly — the
+    // CSS transition otherwise used to smooth ordinary physics motion would
+    // just make the card visibly lag behind the mouse.
+    let movement_class = if is_dragging { "" } else { " smooth-movement" };
+
     let t = task.clone();
     let t2 = task.clone();
     return rsx! {
         div {
-            class: "{card_style} smooth-movement",
+            class: "{card_style}{movement_class}",
             style: "{position_style}",
             onclick: move |_| on_click.call(t.clone()),
             onmouseover: move |_| on_hover.call(t2.clone()),
+            onmousedown: move |evt: MouseEvent| {
+                if is_in_progress {
+                    if let Some((rect_x, rect_y, w, h)) = *layout_rect_px.peek() {
+                        let client = evt.client_coordinates();
+                        let mouse_x = client.x - rect_x;
+                        let mouse_y = client.y - rect_y;
+                        let (card_left, card_top) = card_top_left_px(position.x, position.y, w, h);
+                        on_drag_start.call((mouse_x - card_left, mouse_y - card_top));
+                    }
+                }
+            },
             div { class: "{markers_style}",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
                 span { class: "{title_style}", "{task.title}" }
