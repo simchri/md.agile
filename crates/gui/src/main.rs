@@ -239,7 +239,6 @@ fn app() -> Element {
         // refresh under the user while they are reading it.
         move || {
             dioxus::prelude::spawn(async move {
-                log::info!("use_effect: clock START");
                 use wasmtimer::tokio::sleep;
 
                 loop {
