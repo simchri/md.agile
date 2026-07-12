@@ -25,6 +25,7 @@ fn flags_subtask_with_no_title_text() {
     let issues = empty_title(&p(file_content));
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, crate::rules::ErrorCode::EmptyTitle);
+    assert_eq!(issues[0].column, 9); // indent(2) + "- [ ] ".len(6) + 1
 }
 
 #[test]

@@ -2,7 +2,7 @@
 //! box (and any markers) are stripped, e.g. `- [ ] ` or a line consisting
 //! only of markers such as `- [ ] #urgent`.
 
-use crate::parser::{FileItem, Location, ParsingIssue, Subtask};
+use crate::parser::{FileItem, Location, ParsingIssue, Subtask, TASK_LINE_PREFIX_LEN};
 use crate::rules::Issue;
 
 pub fn empty_title(items: &[FileItem]) -> Vec<Issue> {
@@ -27,7 +27,7 @@ fn make_issue(location: &Location, indent: usize) -> Issue {
         location: location.clone(),
         code: crate::rules::ErrorCode::EmptyTitle,
         message: "Task has no title".to_string(),
-        column: indent + 1,
+        column: indent + TASK_LINE_PREFIX_LEN + 1,
         help: Some("Add a description after the status box.".to_string()),
         data: None,
     }

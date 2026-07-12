@@ -5,7 +5,7 @@
 //! subtasks. Using it outside that context is a syntax error.
 
 use crate::config::Config;
-use crate::parser::{FileItem, Marker, SubtaskKind};
+use crate::parser::{FileItem, Marker, SubtaskKind, TASK_LINE_PREFIX_LEN};
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
 
 pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Issue> {
@@ -28,7 +28,8 @@ pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Iss
                             "Quoted subtask \"{}\" is not declared as a required subtask by any property on the parent",
                             title
                         ),
-                        column: c.indent + 1,
+                        // Position at the opening `"` of the quoted title, relative to indent.
+                        column: c.indent + TASK_LINE_PREFIX_LEN + 1,
                         help: Some(
                             "Remove the surrounding quotes to make this a regular custom subtask, \
                              or declare it as a required subtask in mdagile.toml"

@@ -212,6 +212,7 @@ fn nested_subtask_transition_is_checked() {
     );
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].location.line, 2);
+    assert_eq!(issues[0].column, 3); // "child" subtask is indented 2 spaces
 }
 
 #[test]

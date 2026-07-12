@@ -25,6 +25,7 @@ fn flags_subtask_with_uppercase_x() {
     let issues = uppercase_x(&p(input));
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, crate::rules::ErrorCode::UppercaseX);
+    assert_eq!(issues[0].column, 6); // indent(2) + "- [X".len(4)
 }
 
 #[test]

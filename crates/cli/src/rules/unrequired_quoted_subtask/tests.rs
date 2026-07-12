@@ -151,6 +151,7 @@ fn issue_is_reported_at_the_subtask_line() {
     let issues = unrequired_quoted_subtask(&p(file_content), &config);
     // Parser uses 1-based lines; subtask is on source line 2.
     assert_eq!(issues[0].location.line, 2);
+    assert_eq!(issues[0].column, 9); // indent(2) + "- [ ] ".len(6) + 1, points at the opening quote
 }
 
 // ── top-level task carrying the PropertyRequired kind ─────────────────────────

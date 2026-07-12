@@ -385,7 +385,7 @@
 - [x] #bug check hint / name "ranked task completed out of order" --> "ordered task completed ..." (rank is priority rank, order is order of subtasks. Update the glossary too, to clarify this globally)
 
 - [x] #bug `agile check` --  "ranked (ordered) task completed out of order" the column indicator always points to column 0. Could be nicer: Point to the ordering number instead
-- [ ] check other similar checks - is this marker placed logically?
+- [x] check other similar checks - is this marker placed logically?
 
 ### Writing back to file from GUI
 - [ ] Mark task as done from GUI

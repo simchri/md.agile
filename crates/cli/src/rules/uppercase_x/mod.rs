@@ -9,7 +9,8 @@ pub fn uppercase_x(items: &[FileItem]) -> Vec<Issue> {
                 location: node.location().clone(),
                 code: crate::rules::ErrorCode::UppercaseX,
                 message: "Uppercase X in status box".to_string(),
-                column: node.indent() + 1,
+                // Position at the `X` character inside the status box, relative to indent.
+                column: node.indent() + 4,
                 help: Some("Use lowercase: [x]".to_string()),
                 data: None,
             });

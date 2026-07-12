@@ -37,6 +37,7 @@ struct Node<'a> {
     status: &'a Status,
     markers: &'a [Marker],
     location: &'a Location,
+    indent: usize,
 }
 
 fn flatten(items: &[FileItem]) -> Vec<Node<'_>> {
@@ -49,6 +50,7 @@ fn flatten(items: &[FileItem]) -> Vec<Node<'_>> {
                 status: &task.status,
                 markers: &task.markers,
                 location: &task.location,
+                indent: task.indent,
             });
             flatten_subtasks(&task.children, &path, &mut nodes);
         }
@@ -69,6 +71,7 @@ fn flatten_subtasks<'a>(
             status: &child.status,
             markers: &child.markers,
             location: &child.location,
+            indent: child.indent,
         });
         flatten_subtasks(&child.children, &path, nodes);
     }
@@ -172,7 +175,7 @@ pub fn unauthorized_completion(
                     .collect::<Vec<_>>()
                     .join(", "),
             ),
-            column: 1,
+            column: node.indent + 1,
             help: Some(
                 "Only assigned users (or members of an assigned group) should mark this task done."
                     .to_string(),

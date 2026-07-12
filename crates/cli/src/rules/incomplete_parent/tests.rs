@@ -66,6 +66,7 @@ fn detects_in_deeply_nested_tasks() {
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, crate::rules::ErrorCode::IncompleteParent);
     assert_eq!(issues[0].location.line, 2); // Level 2 task with incomplete child
+    assert_eq!(issues[0].column, 3); // Level 2 subtask is indented 2 spaces
 }
 
 #[test]

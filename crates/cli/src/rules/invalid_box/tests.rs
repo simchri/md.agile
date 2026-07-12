@@ -72,6 +72,7 @@ fn flags_subtask() {
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, crate::rules::ErrorCode::BoxStyleInvalid);
     assert_eq!(issues[0].message, "Box style invalid");
+    assert_eq!(issues[0].column, 5); // indent(2) + "- [".len(3)
 }
 
 #[test]

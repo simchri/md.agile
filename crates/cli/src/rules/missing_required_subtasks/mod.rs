@@ -13,6 +13,7 @@ pub fn missing_required_subtasks(items: &[FileItem], config: &Config) -> Vec<Iss
             node.markers(),
             node.children(),
             node.location(),
+            node.indent(),
             config,
         ));
     });
@@ -23,6 +24,7 @@ fn check_node(
     markers: &[Marker],
     children: &[Subtask],
     location: &crate::parser::Location,
+    indent: usize,
     config: &Config,
 ) -> Vec<Issue> {
     // Collect all required subtask strings from every property marker on this node,
@@ -78,7 +80,7 @@ fn check_node(
                 message: format!(
                     "Required subtask \"{title}\" was cancelled, but its property doesn't allow cancellation"
                 ),
-                column: 1,
+                column: child.indent + 1,
                 help: Some(
                     "Complete this subtask, or add it to `subtasks_allow_cancel` in mdagile.toml to permit cancelling it.".to_string(),
                 ),
@@ -110,7 +112,7 @@ fn check_node(
                 if missing.len() == 1 { "" } else { "s" },
                 missing_quoted.join(", "),
             ),
-            column: 1,
+            column: indent + 1,
             help: Some("Add the missing quoted subtask(s), e.g. `- [ ] \"PO review\"`".to_string()),
             data: Some(IssueData::MissingRequiredSubtasks { missing }),
         });

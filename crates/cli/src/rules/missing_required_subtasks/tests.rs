@@ -239,6 +239,7 @@ fn nested_property_on_subtask_is_checked() {
     // The top-level task is satisfied; the "developer #review" subtask is missing its child.
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].location.line, 3);
+    assert_eq!(issues[0].column, 3); // "developer #review" subtask is indented 2 spaces
     assert!(
         issues[0].message.contains("independent review"),
         "{}",
@@ -287,6 +288,7 @@ fn cancelled_required_subtask_flags_e012_when_not_allowed() {
         ErrorCode::CancelledRequiredSubtaskNotAllowed
     );
     assert_eq!(issues[0].location.line, 2);
+    assert_eq!(issues[0].column, 3); // "PO review" subtask is indented 2 spaces
     assert!(
         issues[0].message.contains("PO review"),
         "{}",

@@ -10,7 +10,11 @@ pub fn incomplete_parent(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
     for_each_node(items, |node| {
         if *node.status() == Status::Done {
-            issues.extend(check_children_complete(node.children(), node.location()));
+            issues.extend(check_children_complete(
+                node.children(),
+                node.location(),
+                node.indent(),
+            ));
         }
     });
     issues
@@ -19,6 +23,7 @@ pub fn incomplete_parent(items: &[FileItem]) -> Vec<Issue> {
 fn check_children_complete(
     children: &[Subtask],
     parent_location: &crate::parser::Location,
+    parent_indent: usize,
 ) -> Vec<Issue> {
     let mut issues = Vec::new();
 
@@ -38,7 +43,7 @@ fn check_children_complete(
                 location: parent_location.clone(),
                 code: crate::rules::ErrorCode::IncompleteParent,
                 message: "Incomplete parent".to_string(),
-                column: 1,
+                column: parent_indent + 1,
                 help: Some(
                     "This task is marked done, but it has incomplete children. \
                      Mark all required children done, cancel them, or make them optional with #OPT."
