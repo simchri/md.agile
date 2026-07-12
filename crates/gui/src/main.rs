@@ -392,11 +392,32 @@ fn TaskCard(
 }
 
 #[component]
-fn SubtaskItem(task: TaskView, depth: usize, show_body: bool) -> Element {
+fn SubtaskItem(
+    task: TaskView,
+    depth: usize,
+    show_body: bool,
+    on_toggle: Option<EventHandler<(String, usize)>>,
+    #[props(default)] toggle_disabled: bool,
+) -> Element {
     let style = format!("padding-left: {}px;", (depth - 1) * 8);
+    let is_todo = matches!(task.status, server::TaskStatus::Todo);
+    let clickable = on_toggle.is_some() && is_todo && !toggle_disabled;
+    let path = task.path.clone();
+    let line = task.line;
     rsx! {
         li { class: "subtask {status_class(&task.status)}", style: "{style}",
-            span { class: "subtask-status", {status_box(&task.status)} }
+            span {
+                class: if clickable { "subtask-status clickable" } else { "subtask-status" },
+                onclick: move |evt: MouseEvent| {
+                    if clickable {
+                        evt.stop_propagation();
+                        if let Some(on_toggle) = on_toggle {
+                            on_toggle.call((path.clone(), line));
+                        }
+                    }
+                },
+                {status_box(&task.status)}
+            }
             span { class: "subtask-title", "{task.title}" }
             if !task.markers.is_empty() {
                 span { class: "subtask-markers",
@@ -415,7 +436,13 @@ fn SubtaskItem(task: TaskView, depth: usize, show_body: bool) -> Element {
             if !task.children.is_empty() {
                 ul { class: "subtask-children",
                     for child in &task.children {
-                        SubtaskItem { task: child.clone(), depth: depth + 1, show_body: show_body }
+                        SubtaskItem {
+                            task: child.clone(),
+                            depth: depth + 1,
+                            show_body: show_body,
+                            on_toggle: on_toggle,
+                            toggle_disabled: toggle_disabled,
+                        }
                     }
                 }
             }
@@ -437,6 +464,29 @@ fn TaskModal(
     let path = task.path.clone();
     let line = task.line;
 
+    // Shared by the header checkbox and every subtask checkbox: marks the
+    // given (path, line) task done, disabling all checkboxes while the
+    // request is in flight and surfacing any failure as a single error
+    // message for the whole modal.
+    let mark_done = EventHandler::new(move |(path, line): (String, usize)| {
+        pending.set(true);
+        error.set(None);
+        dioxus::prelude::spawn(async move {
+            match server::mark_task_done(path, line).await {
+                Ok(()) => on_marked_done.call(()),
+                Err(e) => {
+                    pending.set(false);
+                    error.set(Some(e.to_string()));
+                }
+            }
+        });
+    });
+
+    // Checkboxes are clickable only outside kiosk mode, while no request is
+    // pending, and only for tasks that are still Todo (done tasks have
+    // nothing left to mark).
+    let header_clickable = !kiosk && is_todo && !pending();
+
     rsx! {
         div { class: "modal-backdrop",
             onclick: move |evt| on_close.call(evt),
@@ -450,7 +500,14 @@ fn TaskModal(
                 }
 
                 div { class: "modal-task-header",
-                    span { class: "modal-status {status_class(&task.status)}",
+                    span {
+                        class: if header_clickable { "modal-status {status_class(&task.status)} clickable" } else { "modal-status {status_class(&task.status)}" },
+                        onclick: move |evt: MouseEvent| {
+                            if header_clickable {
+                                evt.stop_propagation();
+                                mark_done.call((path.clone(), line));
+                            }
+                        },
                         {status_box(&task.status)}
                     }
                     h1 { class: "modal-task-title", "{task.title}" }
@@ -475,36 +532,19 @@ fn TaskModal(
                 if !task.children.is_empty() {
                     ul { class: "modal-children",
                         for child in &task.children {
-                            SubtaskItem { task: child.clone(), depth: 1, show_body: true }
+                            SubtaskItem {
+                                task: child.clone(),
+                                depth: 1,
+                                show_body: true,
+                                on_toggle: mark_done,
+                                toggle_disabled: kiosk || pending(),
+                            }
                         }
                     }
                 }
 
-                if !kiosk && is_todo {
-                    div { class: "modal-actions",
-                        button {
-                            class: "modal-mark-done",
-                            disabled: pending(),
-                            onclick: move |_| {
-                                let path = path.clone();
-                                pending.set(true);
-                                error.set(None);
-                                dioxus::prelude::spawn(async move {
-                                    match server::mark_task_done(path, line).await {
-                                        Ok(()) => on_marked_done.call(()),
-                                        Err(e) => {
-                                            pending.set(false);
-                                            error.set(Some(e.to_string()));
-                                        }
-                                    }
-                                });
-                            },
-                            if pending() { "Marking done…" } else { "Mark done" }
-                        }
-                        if let Some(msg) = error() {
-                            div { class: "modal-error", "{msg}" }
-                        }
-                    }
+                if let Some(msg) = error() {
+                    div { class: "modal-error", "{msg}" }
                 }
             }
         }

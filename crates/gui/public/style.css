@@ -233,29 +233,13 @@ body {
     background: rgba(0, 0, 0, 0.08);
 }
 
-.modal-actions {
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.15);
-}
-
-.modal-mark-done {
-    background: #2e7d32;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 18px;
-    font-size: 15px;
+.clickable {
     cursor: pointer;
+    border-radius: 3px;
 }
 
-.modal-mark-done:hover {
-    background: #256428;
-}
-
-.modal-mark-done:disabled {
-    background: #9e9e9e;
-    cursor: default;
+.clickable:hover {
+    background: rgba(0, 0, 0, 0.08);
 }
 
 .modal-error {
