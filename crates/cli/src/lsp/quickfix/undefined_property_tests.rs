@@ -3,6 +3,60 @@ use tempfile::TempDir;
 use tower_lsp::lsp_types::*;
 
 #[test]
+fn build_quickfix_e008_finds_toml_in_a_parent_directory() {
+    // The task file lives in a subdirectory; mdagile.toml lives in the
+    // project root above it — the toml lookup must walk up to find it.
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+
+    std::fs::write(project_dir.join("mdagile.toml"), "").unwrap();
+
+    let sub_dir = project_dir.join("tasks").join("current");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+    let tasks_file = sub_dir.join("tasks.agile.md");
+    let uri: Url = Url::from_file_path(&tasks_file).unwrap();
+    let doc = "\
+- [ ] task #undefined
+";
+
+    let diag = Diagnostic {
+        range: Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 1,
+            },
+        },
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: Some(NumberOrString::String("E008".into())),
+        source: Some("agilels".into()),
+        message: "undefined property".into(),
+        data: Some(serde_json::json!({
+            "kind": "undefined_property",
+            "property_name": "undefined",
+        })),
+        ..Diagnostic::default()
+    };
+
+    let action = build_quickfix(&diag, doc, &uri).expect("should produce a quickfix");
+
+    let toml_uri: Url = Url::from_file_path(project_dir.join("mdagile.toml")).unwrap();
+    let changes = action
+        .edit
+        .as_ref()
+        .and_then(|w| w.changes.as_ref())
+        .expect("should have changes");
+
+    assert!(
+        changes.contains_key(&toml_uri),
+        "should find mdagile.toml in the project root, not the task's own directory"
+    );
+}
+
+#[test]
 fn build_quickfix_e008_adds_property_to_empty_toml() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = temp_dir.path();

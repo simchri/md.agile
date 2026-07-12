@@ -108,18 +108,8 @@ fn issue_data(diagnostic: &Diagnostic) -> Option<IssueData> {
 /// or `.mdagile.toml`. Returns `None` if neither is found.
 fn find_toml_path(uri: &Url) -> Option<PathBuf> {
     let file_path = uri.to_file_path().ok()?;
-    let mut dir = file_path.parent()?;
-    loop {
-        let plain = dir.join("mdagile.toml");
-        let dot = dir.join(".mdagile.toml");
-        if plain.exists() {
-            return Some(plain);
-        }
-        if dot.exists() {
-            return Some(dot);
-        }
-        dir = dir.parent()?;
-    }
+    let dir = file_path.parent()?;
+    crate::config::find_config_file_upwards(dir)
 }
 
 /// Finds and reads the nearest `mdagile.toml`. Returns the resolved path and
