@@ -162,6 +162,28 @@ fn app() -> Element {
 
     let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
 
+    // While a task is open in the modal, keep it in sync with the latest
+    // fetched task list (e.g. after marking one of its subtasks done via
+    // its checkbox) — matched by path+line, since that uniquely identifies
+    // the top-level task the modal is showing. This does not close the
+    // modal; only marking the top-level task itself done does that (see
+    // `on_marked_done` below).
+    use_effect(move || {
+        let current = modal_task.peek().clone();
+        if let Some(current) = current {
+            if let Some(Ok(list)) = &*tasks_resource.read() {
+                if let Some(updated) = list
+                    .iter()
+                    .find(|t| t.path == current.path && t.line == current.line)
+                {
+                    if *updated != current {
+                        modal_task.set(Some(updated.clone()));
+                    }
+                }
+            }
+        }
+    });
+
     use_effect({
         // Clock, frequency 1s.
         // Poll updates from the server side (e.g. update task list).
@@ -303,8 +325,10 @@ fn app() -> Element {
                     on_close: move |_| {
                         modal_task.set(None);
                     },
-                    on_marked_done: move |_| {
-                        modal_task.set(None);
+                    on_marked_done: move |top_level_done: bool| {
+                        if top_level_done {
+                            modal_task.set(None);
+                        }
                         tasks_resource.restart();
                     },
                 }
@@ -455,7 +479,11 @@ fn TaskModal(
     task: TaskView,
     kiosk: bool,
     on_close: EventHandler<MouseEvent>,
-    on_marked_done: EventHandler<()>,
+    // `bool` argument is `true` when the *top-level* task shown by this
+    // modal was just marked done (so the caller should close the modal);
+    // `false` when one of its subtasks was marked done instead (the modal
+    // should stay open, showing the now-updated subtask list).
+    on_marked_done: EventHandler<bool>,
 ) -> Element {
     let mut error: Signal<Option<String>> = use_signal(|| None);
     let mut pending = use_signal(|| false);
@@ -464,16 +492,17 @@ fn TaskModal(
     let path = task.path.clone();
     let line = task.line;
 
-    // Shared by the header checkbox and every subtask checkbox: marks the
-    // given (path, line) task done, disabling all checkboxes while the
-    // request is in flight and surfacing any failure as a single error
-    // message for the whole modal.
-    let mark_done = EventHandler::new(move |(path, line): (String, usize)| {
+    // Marks the given (path, line) task done, disabling all checkboxes
+    // while the request is in flight and surfacing any failure as a single
+    // error message for the whole modal. `is_top_level` is forwarded to
+    // `on_marked_done` unchanged, so the caller only closes the modal when
+    // the top-level task itself — not a subtask — was marked done.
+    let mark_done = EventHandler::new(move |(path, line, is_top_level): (String, usize, bool)| {
         pending.set(true);
         error.set(None);
         dioxus::prelude::spawn(async move {
             match server::mark_task_done(path, line).await {
-                Ok(()) => on_marked_done.call(()),
+                Ok(()) => on_marked_done.call(is_top_level),
                 Err(e) => {
                     pending.set(false);
                     error.set(Some(e.to_string()));
@@ -481,6 +510,11 @@ fn TaskModal(
             }
         });
     });
+
+    // Subtask checkboxes always report `is_top_level: false` — only the
+    // header checkbox above can close the modal.
+    let mark_subtask_done =
+        EventHandler::new(move |(path, line): (String, usize)| mark_done.call((path, line, false)));
 
     // Checkboxes are clickable only outside kiosk mode, while no request is
     // pending, and only for tasks that are still Todo (done tasks have
@@ -505,7 +539,7 @@ fn TaskModal(
                         onclick: move |evt: MouseEvent| {
                             if header_clickable {
                                 evt.stop_propagation();
-                                mark_done.call((path.clone(), line));
+                                mark_done.call((path.clone(), line, true));
                             }
                         },
                         {status_box(&task.status)}
@@ -536,7 +570,7 @@ fn TaskModal(
                                 task: child.clone(),
                                 depth: 1,
                                 show_body: true,
-                                on_toggle: mark_done,
+                                on_toggle: mark_subtask_done,
                                 toggle_disabled: kiosk || pending(),
                             }
                         }
