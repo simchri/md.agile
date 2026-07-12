@@ -2,23 +2,16 @@
 //! box (and any markers) are stripped, e.g. `- [ ] ` or a line consisting
 //! only of markers such as `- [ ] #urgent`.
 
-use crate::parser::{FileItem, Location, ParsingIssue, Subtask, TASK_LINE_PREFIX_LEN};
-use crate::rules::Issue;
+use crate::parser::{FileItem, Location, ParsingIssue, TASK_LINE_PREFIX_LEN};
+use crate::rules::{Issue, for_each_node};
 
 pub fn empty_title(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
-
-    for item in items {
-        if let FileItem::Task(task) = item {
-            if task.parsing_issues.contains(&ParsingIssue::EmptyTitle) {
-                issues.push(make_issue(&task.location, task.indent));
-            }
-            for subtask in &task.children {
-                check_subtask_recursive(subtask, &mut issues);
-            }
+    for_each_node(items, |node| {
+        if node.parsing_issues().contains(&ParsingIssue::EmptyTitle) {
+            issues.push(make_issue(node.location(), node.indent()));
         }
-    }
-
+    });
     issues
 }
 
@@ -30,15 +23,6 @@ fn make_issue(location: &Location, indent: usize) -> Issue {
         column: indent + TASK_LINE_PREFIX_LEN + 1,
         help: Some("Add a description after the status box.".to_string()),
         data: None,
-    }
-}
-
-fn check_subtask_recursive(subtask: &Subtask, issues: &mut Vec<Issue>) {
-    if subtask.parsing_issues.contains(&ParsingIssue::EmptyTitle) {
-        issues.push(make_issue(&subtask.location, subtask.indent));
-    }
-    for child in &subtask.children {
-        check_subtask_recursive(child, issues);
     }
 }
 
