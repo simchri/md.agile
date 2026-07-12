@@ -405,7 +405,7 @@
 - [x] command: `agile task next 2.2` show the first sub-subtask of the second task etc.
 - [x] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
 - [x] command: `agile task next --mine` show the next task eligible.
-  Eligbility --> same rules as for assignment / completion validation 
+  Eligbility --> same rules as for assignment / completion validation
 
 - [x] mark tasks done from CLI
   - [x] tasks
@@ -433,27 +433,9 @@
 
 - [x] GUI board: make in-progress cards draggable with the mouse (click-and-hold to move, follows the cursor while held, other cards keep reacting to its position via the existing physics repulsion, snaps back to normal physics-driven behavior on release)
 
-- [ ] dummy task
-  - [ ] with subtasks
-  - [x] with subtasks
-  - [ ] with subtasks
-  - [ ] with subtasks
-
-- [ ] other dummy task
-  - [ ] with subtasks
-  - [x] with subtasks
-  - [ ] with subtasks
-  - [ ] with subtasks
-
-- [ ] third dummy task
-  - [ ] with subtasks
-  - [x] with subtasks
-  - [x] with subtasks
-  - [x] with subtasks
-  
 ## ETA
-- [ ] Milestones: ETA / time estimation. 
-  The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
+- [ ] Milestones: ETA / time estimation.
+  The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command,
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
 
 ### Short Forms
