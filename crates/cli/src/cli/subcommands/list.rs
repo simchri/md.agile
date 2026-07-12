@@ -19,6 +19,9 @@ use std::path::{Path, PathBuf};
 /// `next`/`last` if given: it selects a 1-based, inclusive slice of the
 /// top-level tasks that pass the `all`/`mine` filters (each still shown
 /// with its own subtree), rather than capping to a prefix/suffix.
+///
+/// `as_user` implies `mine` even if `mine` itself is `false`, so `--as alice`
+/// alone (without `--mine`) still filters by alice's eligibility.
 pub fn run_tasks(
     root: &Path,
     config: &Config,
@@ -29,6 +32,8 @@ pub fn run_tasks(
     as_user: Option<&str>,
     range: Option<&str>,
 ) {
+    let mine = mine || as_user.is_some();
+
     let identity = if mine {
         match checker::resolve_cli_identity(root, config, as_user) {
             Ok(identity) => Some(identity),

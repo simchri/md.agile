@@ -27,6 +27,8 @@ use std::path::{Path, PathBuf};
 /// [`rules::is_eligible_for`]. `mine` is only valid with no address or a
 /// plain number — combining it with a dotted address is a hard error, since
 /// a dotted address already names one exact node regardless of assignment.
+/// `as_user` implies `mine` even if `mine` itself is `false`, so `--as alice`
+/// alone (without `--mine`) still filters by alice's eligibility.
 pub fn run_next(
     root: &Path,
     config: &Config,
@@ -34,6 +36,8 @@ pub fn run_next(
     mine: bool,
     as_user: Option<&str>,
 ) {
+    let mine = mine || as_user.is_some();
+
     let parts = match address.map(parse_address) {
         None => None,
         Some(Some(parts)) => Some(parts),

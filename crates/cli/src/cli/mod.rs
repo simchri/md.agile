@@ -119,6 +119,7 @@ pub enum TaskAction {
 
         /// Resolve `--mine` as this literal `[Users.X]` config key instead
         /// of the git identity from `git config user.email`/`user.name`.
+        /// Implies `--mine` even when `--mine` isn't given.
         #[arg(long, value_name = "USER")]
         r#as: Option<String>,
     },
@@ -150,6 +151,7 @@ pub enum TaskAction {
 
         /// Resolve `--mine` as this literal `[Users.X]` config key instead
         /// of the git identity from `git config user.email`/`user.name`.
+        /// Implies `--mine` even when `--mine` isn't given.
         #[arg(long, value_name = "USER")]
         r#as: Option<String>,
     },

@@ -292,3 +292,34 @@ git_emails = [\"bob@example.com\"]
     assert!(stdout.contains("alice's task"), "stdout: {stdout:?}");
     assert!(!stdout.contains("bob's task"), "stdout: {stdout:?}");
 }
+
+#[test]
+fn task_next_as_without_mine_still_filters_by_the_named_identity() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    // Local git identity is bob, but `--as alice` (without `--mine`) should
+    // still filter to alice's eligible tasks — `--as` implies `--mine`.
+    git(dir.path(), &["config", "user.email", "bob@example.com"]);
+    git(dir.path(), &["config", "user.name", "Bob"]);
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] bob's task @bob
+- [ ] alice's task @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "next", "--as", "alice"]);
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("alice's task"), "stdout: {stdout:?}");
+    assert!(!stdout.contains("bob's task"), "stdout: {stdout:?}");
+}
