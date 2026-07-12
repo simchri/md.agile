@@ -407,6 +407,13 @@
 - [x] command: `agile task next --mine` show the next task eligible.
   Eligbility --> same rules as for assignment / completion validation 
 
+- [x] mark tasks done from CLI
+  - [x] tasks
+    - [x] by rank
+    - [x] directly by search term
+  - [x] subtasks
+    - [x] by rank (34.1.3 etc, where subtasks get a nested rank)
+
 ### cli refactor:
 - [x] "rename agile task next N.M" to "agile task show N.M"
 
@@ -414,6 +421,9 @@
 - [x] re-structure "agile list files" to "agile file" (synonym: "files")
 
 - [x] range support for "agile list tasks", syntax `agile tasks list START:END` ranges apply to the top-level only, but show tasks with subtasks
+
+## First GUI write actions
+- [ ] Mark task as done from GUI
 
 ## ETA
 - [ ] Milestones: ETA / time estimation. 
@@ -424,17 +434,13 @@
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
 
 ## GUI 2.0
-- [ ] Mark task as done from GUI
+- [ ] backlog view in GUI
+- [ ] create tasks from GUI
+- [ ] graveyard view
+- [ ] menu
+  - [ ] switch / select projects
 
-- [ ] find tasks by search string - list with done state, rank, full name
-- [ ] mark tasks done from CLI
-  - [ ] tasks
-    - [ ] by rank
-    - [ ] directly by search term
-  - [ ] subtasks
-    - [ ] by rank (34.1.3 etc, where subtasks get a nested rank)
-    - [ ] directly by search term
-
+- [ ] improved installation & launch procedure for GUI
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
