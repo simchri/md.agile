@@ -11,10 +11,25 @@ body {
     display: flex;
 }
 
+/* The dioxus mount point. As a flex item of `body`, it would otherwise
+   shrink-to-fit its content (which is all `position: absolute` and so
+   contributes no width), collapsing to 0px wide — invisible visually
+   since `.layout`'s in-progress card positions use `vw`/`vh` units, not
+   percentages of this container, but it broke `getBoundingClientRect()`
+   measurements used for mouse-drag coordinate conversion. */
+#main {
+    width: 100%;
+    height: 100%;
+}
+
 .layout {
     position: relative;
     width: 100%;
     height: 100%;
+    /* Dragging a card shouldn't also select its (or neighboring cards')
+       text — text selection is only useful inside the modal, where it's
+       explicitly re-enabled below. */
+    user-select: none;
 }
 
 .separator1 {
@@ -212,6 +227,9 @@ body {
     cursor: default;
     color: #222;
     line-height: 1.5;
+    /* Re-enable text selection here — `.layout` disables it globally to
+       stop card dragging from also selecting text on the board. */
+    user-select: text;
 }
 
 .modal-close {

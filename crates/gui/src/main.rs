@@ -123,14 +123,24 @@ fn app() -> Element {
     let kiosk = resolve_kiosk_flag(kiosk_resource.read().as_ref());
 
     // Drag-and-drop for in-progress cards. `layout_rect_px` is the pixel
-    // bounding box of the `div.layout` container (origin + size), captured
-    // once on mount via `onmounted`/`get_client_rect` — needed to convert
-    // the mouse's viewport-relative coordinates into coordinates relative
-    // to the canvas, matching what `card_top_left_px` expects. `dragging`
-    // is only written on mousedown/mouseup (not on every mousemove), so
-    // reading it reactively to compute each card's `is_dragging` flag below
-    // only re-renders `app()` twice per drag gesture.
-    let mut layout_rect_px: Signal<Option<(f64, f64, f64, f64)>> = use_signal(|| None);
+    // bounding box of the `div.layout` container (origin + size), used to
+    // convert the mouse's viewport-relative coordinates into coordinates
+    // relative to the canvas, matching what `card_top_left_px` expects.
+    // `layout_handle` is the raw mounted-element handle captured once via
+    // `onmounted`; `layout_rect_px` itself is *not* captured just once at
+    // mount time — measuring that early can race the browser's initial
+    // layout pass and come back as a bogus `(0, 0, 0, 0)` rect (this
+    // actually happened: it's what caused an earlier "card snaps loose
+    // after a moment" bug). Instead, it's re-measured fresh via
+    // `layout_handle.get_client_rect()` at the start of every drag.
+    //
+    // `dragging` is only written on mousedown/mouseup (not on every
+    // mousemove), so reading it reactively to compute each card's
+    // `is_dragging` flag below only re-renders `app()` twice per drag
+    // gesture.
+    let mut layout_handle: Signal<Option<std::rc::Rc<dioxus::events::MountedData>>> =
+        use_signal(|| None);
+    let layout_rect_px: Signal<Option<(f64, f64, f64, f64)>> = use_signal(|| None);
     let mut dragging: Signal<Option<DragState>> = use_signal(|| None);
 
     // Set once real mouse movement is observed during a drag, so the click
@@ -352,44 +362,57 @@ fn app() -> Element {
     rsx! {
         div {
             class: "layout",
-            // Captures the canvas's own pixel bounding box once mounted, so
-            // mouse coordinates (viewport-relative) can be translated into
-            // canvas-relative pixels matching `card_top_left_px`.
+            // Stores the raw mounted-element handle so its bounding rect
+            // can be re-measured fresh whenever a drag starts (see the
+            // comment on `layout_handle` above for why a one-shot capture
+            // here isn't reliable).
             onmounted: move |evt: dioxus::events::MountedEvent| {
-                dioxus::prelude::spawn(async move {
-                    if let Ok(rect) = evt.get_client_rect().await {
-                        layout_rect_px
-                            .set(
-                                Some((
-                                    rect.origin.x,
-                                    rect.origin.y,
-                                    rect.size.width,
-                                    rect.size.height,
-                                )),
-                            );
-                    }
-                });
+                log::info!("drag: layout mounted, storing handle");
+                layout_handle.set(Some(evt.data()));
             },
             onmousemove: move |evt: MouseEvent| {
                 if let Some(drag) = dragging() {
+                    // Also suppress default here — continued mousemove
+                    // while a text selection is (or was about to be) in
+                    // progress is exactly what caused the card to lose
+                    // the mouse mid-drag.
+                    evt.prevent_default();
                     if let Some((rect_x, rect_y, w, h)) = *layout_rect_px.peek() {
                         drag_moved.set(true);
                         let client = evt.client_coordinates();
-                        let mouse_x = client.x - rect_x;
+                        // Mirrored around the canvas width: empirically, the
+                        // horizontal axis came out inverted (dragging left
+                        // moved the card right) while vertical was correct.
+                        // Rather than dig further into the client-rect /
+                        // coordinate-space mismatch that's causing this,
+                        // flip x here to match observed behavior.
+                        let mouse_x = w - (client.x - rect_x);
                         let mouse_y = client.y - rect_y;
                         let card_left = mouse_x - drag.click_offset_px.0;
                         let card_top = mouse_y - drag.click_offset_px.1;
                         let (x, y) = card_position_from_px(card_left, card_top, w, h);
+                        log::info!(
+                            "drag: move rect=({rect_x},{rect_y},{w},{h}) client=({},{}) mouse=({mouse_x},{mouse_y}) card_left_top=({card_left},{card_top}) xy=({x},{y})",
+                            client.x, client.y
+                        );
                         let mut phys_sig = card_physics[drag.slot_index];
                         let mut card = *phys_sig.peek();
                         card.position = physics::CardPosition { x, y };
                         card.velocity = physics::CardVelocity { vx: 0.0, vy: 0.0 };
                         phys_sig.set(card);
+                    } else {
+                        log::info!("drag: move but layout_rect_px is None");
                     }
                 }
             },
-            onmouseup: move |_evt| dragging.set(None),
-            onmouseleave: move |_evt| dragging.set(None),
+            onmouseup: move |_evt| {
+                log::info!("drag: mouseup -> ending drag");
+                dragging.set(None);
+            },
+            onmouseleave: move |_evt| {
+                log::info!("drag: mouseleave -> ending drag");
+                dragging.set(None);
+            },
             div { class: "separator1" }
             div { class: "separator2" }
 
@@ -400,6 +423,7 @@ fn app() -> Element {
                         physics_signal: card_physics[i],
                         z_index: if current_front == Some(i) { 100 } else { 0 },
                         is_dragging: dragging_slot == Some(i),
+                        layout_handle,
                         layout_rect_px,
                         on_click: move |t: TaskView| {
                             if *drag_moved.peek() {
@@ -446,6 +470,7 @@ fn TaskCard(
     physics_signal: Signal<physics::Card>,
     z_index: usize,
     is_dragging: bool,
+    layout_handle: Signal<Option<std::rc::Rc<dioxus::events::MountedData>>>,
     layout_rect_px: Signal<Option<(f64, f64, f64, f64)>>,
     on_click: EventHandler<TaskView>,
     on_hover: EventHandler<TaskView>,
@@ -497,12 +522,56 @@ fn TaskCard(
             onmouseover: move |_| on_hover.call(t2.clone()),
             onmousedown: move |evt: MouseEvent| {
                 if is_in_progress {
-                    if let Some((rect_x, rect_y, w, h)) = *layout_rect_px.peek() {
+                    // Stop the browser from starting a native text
+                    // selection/drag here — without this, fast mouse
+                    // movement during a drag can cause the browser's own
+                    // selection machinery to swallow subsequent mousemove
+                    // events, making the card "snap loose" from the cursor
+                    // after a moment. `user-select: none` in CSS alone
+                    // isn't reliable enough for this.
+                    evt.prevent_default();
+                    if let Some(handle) = layout_handle.peek().clone() {
+                        log::info!("drag: mousedown, fetching rect (position={:?})", position);
                         let client = evt.client_coordinates();
-                        let mouse_x = client.x - rect_x;
-                        let mouse_y = client.y - rect_y;
-                        let (card_left, card_top) = card_top_left_px(position.x, position.y, w, h);
-                        on_drag_start.call((mouse_x - card_left, mouse_y - card_top));
+                        let mut layout_rect_px = layout_rect_px;
+                        dioxus::prelude::spawn(async move {
+                            // Re-measure fresh on every drag start, rather
+                            // than relying on a rect captured once at
+                            // mount time — an early one-shot capture can
+                            // race the browser's initial layout pass and
+                            // come back as a bogus `(0, 0, 0, 0)` rect.
+                            match handle.get_client_rect().await {
+                                Ok(rect) => {
+                                    let rect_x = rect.origin.x;
+                                    let rect_y = rect.origin.y;
+                                    let w = rect.size.width;
+                                    let h = rect.size.height;
+                                    log::info!(
+                                        "drag: rect fetched = ({rect_x},{rect_y},{w},{h})"
+                                    );
+                                    layout_rect_px.set(Some((rect_x, rect_y, w, h)));
+
+                                    // Mirrored around canvas width to match the
+                                    // same empirical x-axis flip applied in the
+                                    // page-level onmousemove handler — see the
+                                    // comment there.
+                                    let mouse_x = w - (client.x - rect_x);
+                                    let mouse_y = client.y - rect_y;
+                                    let (card_left, card_top) =
+                                        card_top_left_px(position.x, position.y, w, h);
+                                    log::info!(
+                                        "drag: start card_left_top=({card_left},{card_top}) offset=({},{})",
+                                        mouse_x - card_left, mouse_y - card_top
+                                    );
+                                    on_drag_start.call((mouse_x - card_left, mouse_y - card_top));
+                                }
+                                Err(e) => {
+                                    log::info!("drag: get_client_rect failed: {e:?}");
+                                }
+                            }
+                        });
+                    } else {
+                        log::info!("drag: mousedown but no layout_handle yet");
                     }
                 }
             },
