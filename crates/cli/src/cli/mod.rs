@@ -52,6 +52,17 @@ pub enum Command {
         #[arg(short = 'a', long)]
         all: bool,
 
+        /// Only list top-level tasks that are unassigned or assigned to me
+        /// (directly or via a group) — same eligibility rule as the E013
+        /// assignment/completion check and `agile task next --mine`.
+        #[arg(long)]
+        mine: bool,
+
+        /// Resolve `--mine` as this literal `[Users.X]` config key instead
+        /// of the git identity from `git config user.email`/`user.name`.
+        #[arg(long, value_name = "USER")]
+        r#as: Option<String>,
+
         #[command(subcommand)]
         what: Option<ListWhat>,
     },
@@ -104,6 +115,17 @@ pub enum ListWhat {
         /// Show all tasks including done and cancelled
         #[arg(short = 'a', long)]
         all: bool,
+
+        /// Only list top-level tasks that are unassigned or assigned to me
+        /// (directly or via a group) — same eligibility rule as the E013
+        /// assignment/completion check and `agile task next --mine`.
+        #[arg(long)]
+        mine: bool,
+
+        /// Resolve `--mine` as this literal `[Users.X]` config key instead
+        /// of the git identity from `git config user.email`/`user.name`.
+        #[arg(long, value_name = "USER")]
+        r#as: Option<String>,
     },
 
     /// Show recognised task files in priority order
@@ -194,12 +216,21 @@ pub fn run() {
             next,
             last,
             all,
+            mine,
+            r#as,
         })
         | Some(Command::List {
-            what: Some(ListWhat::Tasks { next, last, all }),
+            what:
+                Some(ListWhat::Tasks {
+                    next,
+                    last,
+                    all,
+                    mine,
+                    r#as,
+                }),
             ..
         }) => {
-            subcommands::list::run_tasks(root, next, last, all);
+            subcommands::list::run_tasks(root, &config, next, last, all, mine, r#as.as_deref());
         }
         Some(Command::List {
             what: Some(ListWhat::Files { next, last }),

@@ -19,6 +19,11 @@ Status markers used below (always at the start of the bullet):
   - done: `-n, --next <COUNT>` — show only the first COUNT entries
   - done: `--last <COUNT>` — show only the last COUNT entries
   - done: `-a, --all` — include done/cancelled tasks
+  - done: `--mine` — restrict to unassigned top-level tasks or tasks
+    assigned to me (directly or via a group), same eligibility rule
+    (`rules::is_eligible_for`) as `agile task next --mine`
+  - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
+    of the git identity from `git config user.email`/`user.name`
 - done: `list files`
   - Lists recognised task files, in priority order
   - done: `-n, --next <COUNT>`
