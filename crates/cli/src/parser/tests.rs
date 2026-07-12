@@ -357,6 +357,35 @@ fn parse_milestone() {
 }
 
 #[test]
+fn milestone_tag_glued_to_alphanumeric_suffix_is_not_recognized() {
+    // "#MILESTONEfoo" has no punctuation/whitespace boundary after the tag,
+    // so it must NOT be misread as a milestone named "foo" -- it should be
+    // treated as ordinary (silently ignored) prose, per the parser's
+    // documented handling of non-task content.
+    let input = "\
+#MILESTONEfoo
+";
+    let items = p(input);
+    assert_eq!(
+        items.len(),
+        0,
+        "expected no milestone/task parsed, got: {items:?}"
+    );
+}
+
+#[test]
+fn milestone_tag_with_punctuation_boundary_is_still_recognized() {
+    // Sanity check alongside the glued-suffix test above: punctuation
+    // directly after the tag (no space) must still work per the spec.
+    let input = "\
+#MILESTONE!Release
+";
+    let items = p(input);
+    assert_eq!(items.len(), 1);
+    assert!(matches!(&items[0], FileItem::Milestone(m) if m.name == "Release"));
+}
+
+#[test]
 fn parse_tasks_with_milestone_between() {
     let input = "\
 - [x] ship MVP

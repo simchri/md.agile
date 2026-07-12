@@ -509,6 +509,12 @@ fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, Vec<Pars
 // The punctuation immediately after `#MILESTONE` is ignored per the spec.
 fn parse_milestone_name(line: &str) -> Option<String> {
     let rest = line.trim().strip_prefix("#MILESTONE")?;
+    // Require a non-alphanumeric boundary right after the tag, so that e.g.
+    // `#MILESTONEfoo` (no punctuation/whitespace separator) is treated as
+    // ordinary prose rather than misread as milestone "foo".
+    if rest.starts_with(|c: char| c.is_alphanumeric()) {
+        return None;
+    }
     // Skip any leading non-alphanumeric chars (e.g. ": ")
     let name = rest.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '(');
     if name.is_empty() {
