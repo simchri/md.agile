@@ -435,31 +435,6 @@
 
 - [x] GUI: show ordered-subtask numbers in the task card and modal subtask lists, and enforce completion order (block marking an ordered subtask done while a lower-ordered sibling is still incomplete) from both `agile task done` and the GUI, reusing the same rule-violation error handling as other completion checks (e.g. incomplete children).
 
-- [ ] dummy task
-  - [x] with subtasks
-  - [ ] with subtasks
-  - [x] with subtasks
-  - [x] with subtasks
-
-- [ ] other dummy task
-  Some text content for the task 
-  Some text content for the task 
-  Some text content for the task 
-  - [x] with subtasks
-  - [ ] with subtasks
-    Some text content for the subtask 
-    Some text content for the subtask 
-    Some text content for the subtask 
-    Some text content for the subtask 
-  - [ ] with subtasks
-  - [x] with subtasks
-
-- [x] third dummy task
-  - [x] 1. with subtasks
-  - [x] 2. with subtasks
-  - [x] 3. with subtasks
-  - [x] with subtasks
-  
 ## ETA
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
