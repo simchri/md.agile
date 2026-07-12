@@ -8,7 +8,11 @@ fn tasks_is_alias_for_task_subcommand() {
     assert!(matches!(
         cli.command,
         Some(Command::Task {
-            action: TaskAction::Next
+            action: TaskAction::Next {
+                address: None,
+                mine: false,
+                r#as: None
+            }
         })
     ));
 }

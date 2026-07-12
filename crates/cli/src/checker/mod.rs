@@ -88,6 +88,34 @@ pub fn check_authorization(
     Ok(issues)
 }
 
+/// Resolves the acting identity for CLI flags like `agile task next --mine`
+/// (with an optional `--as` override), reusing the exact same resolution
+/// logic as the E013 authorization check's identity resolution.
+///
+/// Unlike [`check_authorization`], which silently skips E013 with a warning
+/// when no identity can be determined (there may be no real completions to
+/// check yet), this returns a hard `Err` — a caller that explicitly asked
+/// for "my" tasks needs a definite identity to filter by, so silently
+/// falling back to "show everything" or "show nothing" would be more
+/// confusing than failing with an actionable message.
+pub fn resolve_cli_identity(
+    root: &Path,
+    config: &Config,
+    identity_override: Option<&str>,
+) -> Result<ResolvedIdentity, String> {
+    match resolve_repo_identity(root, config, identity_override) {
+        IdentityResolution::Determined(identity) => Ok(identity),
+        IdentityResolution::NotAGitRepo => {
+            Err("not inside a git repository — pass `--as <USER>` to use `--mine` here".to_string())
+        }
+        IdentityResolution::NoGitIdentity => Err(
+            "could not determine your git identity (git config user.email/user.name is unset) \
+             — pass `--as <USER>`"
+                .to_string(),
+        ),
+    }
+}
+
 /// Like [`check_authorization`], but also returns the reason the check was
 /// skipped (if it was), so callers can decide how to surface that (or, in
 /// tests, assert on it directly) instead of only inferring it from an empty

@@ -125,13 +125,50 @@ pub enum ListWhat {
 
 #[derive(Subcommand)]
 pub enum TaskAction {
-    /// Show the next highest-priority incomplete task
+    /// Show the next highest-priority incomplete task(s)
     ///
-    /// Returns the first incomplete ([ ]) top-level task across all task
-    /// files in priority order, including its full subtask tree. Skips
-    /// done ([x]) and cancelled ([-]) tasks. Prints nothing if every
-    /// task is complete or cancelled.
-    Next,
+    /// With no arguments, returns the first incomplete ([ ]) top-level task
+    /// across all task files in priority order, including its full subtask
+    /// tree. Skips done ([x]) and cancelled ([-]) tasks. Prints nothing if
+    /// every task is complete or cancelled.
+    Next {
+        /// A plain count (e.g. `3`) to show the next N incomplete top-level
+        /// tasks, or a dotted address (e.g. `1.2`, `2.1.4`) to show one
+        /// specific (sub)task by position: the first number selects the Nth
+        /// still-incomplete top-level task (in priority order); each
+        /// subsequent number selects the Nth direct child of the
+        /// previously-selected node (in document order, any status).
+        /// Omit to show just the single next task.
+        address: Option<String>,
+
+        /// Only show task(s) that are unassigned (open to anyone) or
+        /// assigned to me, directly or via a group — the same eligibility
+        /// rule as the E013 assignment/completion check. Can be combined
+        /// with a plain count (e.g. `next 3 --mine`), but not with a
+        /// dotted address.
+        #[arg(long)]
+        mine: bool,
+
+        /// Resolve `--mine` as this literal `[Users.X]` config key instead
+        /// of the git identity from `git config user.email`/`user.name`.
+        #[arg(long, value_name = "USER")]
+        r#as: Option<String>,
+    },
+
+    /// Mark the (sub)task at ADDRESS done
+    ///
+    /// ADDRESS uses the same scheme as `agile task next`'s dotted address:
+    /// e.g. `2` for the 2nd still-incomplete top-level task, or `1.3` for
+    /// its 3rd direct child. Refuses (printing the violated rule instead of
+    /// writing the file) if marking the node done would leave it with
+    /// incomplete required children, missing required subtasks, or a
+    /// disallowed cancelled required subtask. Only reads/writes the one
+    /// file the addressed task lives in — it doesn't re-validate the rest
+    /// of the project.
+    Done {
+        /// Dotted address, e.g. `2` or `1.3`.
+        address: String,
+    },
 }
 
 /// Parses CLI arguments and dispatches to the matching subcommand.
@@ -171,9 +208,19 @@ pub fn run() {
             subcommands::list::run_files(root, next, last);
         }
         Some(Command::Task {
-            action: TaskAction::Next,
+            action:
+                TaskAction::Next {
+                    address,
+                    mine,
+                    r#as,
+                },
         }) => {
-            subcommands::task::run_next(root);
+            subcommands::task::run_next(root, &config, address.as_deref(), mine, r#as.as_deref());
+        }
+        Some(Command::Task {
+            action: TaskAction::Done { address },
+        }) => {
+            subcommands::task::run_done(root, &config, &address);
         }
         Some(Command::Check { r#as, base }) => {
             subcommands::check::run(root, &config, r#as.as_deref(), base.as_deref());

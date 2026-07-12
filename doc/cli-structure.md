@@ -26,23 +26,31 @@ Status markers used below (always at the start of the bullet):
   - (no `--all` — files have no status)
 - done: `task` (alias: `tasks`)
   - Command group for task-centric operations
-  - done: `next`
-    - Prints the next incomplete top-level task (+ subtasks)
-    - change: no flags/args today; `tasks.agile.md` still lists "remove
-      unused flag `--next N`" as a `#ctd-cli-commands` item, but that flag no
-      longer exists in the code, so this backlog line is stale
-  - todo: `next <N>` — show the next N incomplete tasks (positional arg,
-    replaces any flag-based count)
-  - todo: `next <I.J>` — address a specific (sub)task by position, e.g.
-    `1.1` = first subtask of the next task, `2.2` = second sub-subtask of the
-    second task
-  - todo: `done <I.J>` — mark the addressed (sub)task done; must still
-    enforce completion rules (e.g. incomplete children) and print an error
-    instead of silently failing; should be efficient (not a full-project
-    re-check)
-  - todo: `next --mine` — show the next task this identity is eligible to
-    take, using the same eligibility rules as assignment/completion
-    validation (E013)
+  - done: `next [ADDRESS]`
+    - Prints the next incomplete top-level task (+ subtasks). With no
+      `ADDRESS`, same as before: the single next incomplete top-level task.
+    - done: plain count (e.g. `next 3`) — prints that many incomplete
+      top-level tasks, each as a full block
+    - done: dotted address (e.g. `next 1.2`, `next 2.1.4`) — prints the one
+      (sub)task at that position (plus its own subtree) as its own root.
+      `I` (first segment) is 1-based, counting only still-incomplete
+      top-level tasks in priority order; each following segment is 1-based
+      and counts direct children (any status) of the previously-resolved
+      node, in document order, to arbitrary depth
+    - done: `--mine` — restrict to unassigned tasks or tasks assigned to me
+      (directly or via a group), same eligibility rule as E013. Only valid
+      with no address or a plain count, not a dotted address (a dotted
+      address already names one exact task)
+    - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
+      of the git identity from `git config user.email`/`user.name`
+  - done: `done <ADDRESS>` — mark the addressed (sub)task done in place, in
+    its own source file only. Refuses (printing the violated issue instead
+    of writing anything) if completing it now would violate E004
+    (incomplete children), E010 (missing required subtasks), or E012
+    (cancelled required subtask not allowed) — reuses the exact same rule
+    logic as `agile check`. Resolving the address parses task files one at
+    a time, stopping as soon as the addressed task is found, so this stays
+    cheap regardless of project size
 - done: `check`
   - Validates all `*.agile.md` files against the built-in rule set (E001-E016,
     see `doc/checks.md`); prints `<path>:<line>: <message>` per issue; exits 1
@@ -64,20 +72,6 @@ Status markers used below (always at the start of the bullet):
   (the `mdagile` library crate's public CLI surface). The `crates/gui`
   binary (Dioxus board view) is a separate, non-CLI surface and isn't
   included here — flag if it should be.
-- **Stale backlog item**: the `#ctd-cli-commands` bullet "remove unused flag:
-  `agile task next --next N`" no longer matches the code — `task next`
-  currently takes zero flags/args. Worth confirming with the human whether
-  that bullet should just be deleted/reworded now that the flag is already
-  gone, before the rest of the `task next <N>` / `task next <I.J>` / `task
-  done <I.J>` / `task next --mine` work is scoped.
-- **Addressing scheme for `task next <I.J>` / `task done <I.J>`**: not yet
-  specified — needs a decision on what `I` and `J` count over (all tasks in
-  priority order vs. per-file, whether cancelled/done tasks occupy a number,
-  etc.) before implementation can start.
-- **`task done <I.J>` efficiency requirement**: the backlog explicitly asks
-  to avoid checking the whole project. Today `check` always re-parses and
-  re-validates every `*.agile.md` file; a scoped single-task validation path
-  doesn't exist yet and would be new design work, not a small tweak.
 - **LSP feature surface** (diagnostics, hover, etc. — see `doc/config.md`
   and the "More LSP features" section of `tasks.agile.md`) is deliberately
   out of scope for this CLI-focused overview; it could get its own section

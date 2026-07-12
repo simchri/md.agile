@@ -102,11 +102,30 @@ pub fn parse_files(paths: &[PathBuf]) -> Vec<FileItem> {
 /// always terminated with a newline, so concatenating multiple rendered tasks
 /// yields one task per line group.
 pub fn render_task(task: &parser::Task, out: &mut String) {
-    out.push_str(status_marker(&task.status));
+    render_node_as_root(&task.status, &task.title, &task.children, out);
+}
+
+/// Renders `sub` as if it were the root of its own tree: no leading
+/// indentation for `sub` itself, with its children indented by two spaces
+/// per level exactly like [`render_task`]. Used when a dotted task address
+/// (e.g. `agile task next 1.2`) points at a specific subtask rather than a
+/// whole top-level task — the addressed subtask is displayed as its own
+/// root instead of nested under its ancestors.
+pub(crate) fn render_subtask_as_root(sub: &parser::Subtask, out: &mut String) {
+    render_node_as_root(&sub.status, &sub.title, &sub.children, out);
+}
+
+fn render_node_as_root(
+    status: &parser::Status,
+    title: &str,
+    children: &[parser::Subtask],
+    out: &mut String,
+) {
+    out.push_str(status_marker(status));
     out.push(' ');
-    out.push_str(&task.title);
+    out.push_str(title);
     out.push('\n');
-    for child in &task.children {
+    for child in children {
         render_subtask(child, 1, out);
     }
 }

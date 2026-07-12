@@ -20,7 +20,13 @@ pub fn incomplete_parent(items: &[FileItem]) -> Vec<Issue> {
     issues
 }
 
-fn check_children_complete(
+/// Flags `children` that would make `parent_location` (at `parent_indent`)
+/// an invalid "done" parent: any non-optional child that isn't done or
+/// cancelled. Exposed at `pub(crate)` so `agile task done <address>` can
+/// reuse this exact rule to check whether marking a node done right now
+/// would be valid, without duplicating the logic or running the full
+/// `incomplete_parent` rule over an entire project.
+pub(crate) fn check_children_complete(
     children: &[Subtask],
     parent_location: &crate::parser::Location,
     parent_indent: usize,

@@ -195,6 +195,13 @@ impl<'a> NodeRef<'a> {
             NodeRef::Subtask(s) => &s.parsing_issues,
         }
     }
+
+    pub fn title(&self) -> &'a str {
+        match self {
+            NodeRef::Task(t) => &t.title,
+            NodeRef::Subtask(s) => &s.title,
+        }
+    }
 }
 
 /// Walks every task and subtask in `items`, calling `f` with a [`NodeRef`]
@@ -322,6 +329,48 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
     issues
+}
+
+/// Checks whether marking `node` done right now would violate any
+/// completion-related rule: "incomplete children" (E004), "missing required
+/// subtasks" (E010), or "cancelled required subtask not allowed" (E012).
+///
+/// Used by `agile task done <address>` to validate a single addressed node
+/// in isolation, without running the full rule set over the rest of the
+/// project (which `task done` explicitly avoids for efficiency — see
+/// `doc/cli-structure.md`). Reuses the exact same rule logic as `agile
+/// check` so the two commands never disagree about what counts as a valid
+/// completion.
+pub fn check_completable(node: NodeRef, config: &Config) -> Vec<Issue> {
+    let mut issues =
+        incomplete_parent::check_children_complete(node.children(), node.location(), node.indent());
+    issues.extend(missing_required_subtasks::check_node(
+        node.markers(),
+        node.children(),
+        node.location(),
+        node.indent(),
+        config,
+    ));
+    issues
+}
+
+/// Returns whether `identity` is eligible to work on `node`: `true` if the
+/// node carries no `@user`/`@group` assignment markers at all (unassigned
+/// tasks are open to anyone, mirroring the E013 `unauthorized_completion`
+/// philosophy that assignment never restricts *unassigned* tasks), or if
+/// `identity` is directly assigned or a member of an assigned group.
+///
+/// Used by `agile task next --mine`.
+pub fn is_eligible_for(node: NodeRef, identity: &ResolvedIdentity, config: &Config) -> bool {
+    let names = unauthorized_completion::assignment_names(node.markers());
+    if names.is_empty() {
+        return true;
+    }
+    let authorized = unauthorized_completion::authorized_users(&names, config);
+    match identity {
+        ResolvedIdentity::Known(user) => authorized.iter().any(|a| a == user),
+        ResolvedIdentity::Unrecognized => false,
+    }
 }
 
 #[cfg(test)]

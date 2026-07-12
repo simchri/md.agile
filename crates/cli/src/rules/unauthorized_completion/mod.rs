@@ -78,7 +78,7 @@ fn flatten_subtasks<'a>(
 }
 
 /// Returns every `@user`/`@group` name assigned on `markers`.
-fn assignment_names(markers: &[Marker]) -> Vec<&str> {
+pub(crate) fn assignment_names(markers: &[Marker]) -> Vec<&str> {
     markers
         .iter()
         .filter_map(|m| match m {
@@ -90,7 +90,7 @@ fn assignment_names(markers: &[Marker]) -> Vec<&str> {
 
 /// Expands assignment names into the set of concrete `[Users.X]` keys they
 /// authorize: direct user names, plus every member of any assigned group.
-fn authorized_users(names: &[&str], config: &Config) -> Vec<String> {
+pub(crate) fn authorized_users(names: &[&str], config: &Config) -> Vec<String> {
     let mut authorized: Vec<String> = Vec::new();
     for &name in names {
         if config.users.contains_key(name) && !authorized.iter().any(|a| a == name) {

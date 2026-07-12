@@ -402,12 +402,12 @@
 - [ ] Mark task as done from GUI
 
 ### ctd cli commands
-- [ ] remove unused flag: `agile task next --next N`, instead:
-- [ ] command: `agile task next 3` show the next 3 tasks
-- [ ] command: `agile task next 1.1` show the first subtask of the next task
-- [ ] command: `agile task next 2.2` show the first sub-subtask of the second task etc.
-- [ ] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
-- [ ] command: `agile task next --mine` show the next task eligible.
+- [x] remove unused flag: `agile task next --next N`, instead:
+- [x] command: `agile task next 3` show the next 3 tasks
+- [x] command: `agile task next 1.1` show the first subtask of the next task
+- [x] command: `agile task next 2.2` show the first sub-subtask of the second task etc.
+- [x] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
+- [x] command: `agile task next --mine` show the next task eligible.
   Eligbility --> same rules as for assignment / completion validation 
 
 ## LSP documentation

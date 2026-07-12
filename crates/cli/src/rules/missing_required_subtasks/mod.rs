@@ -20,7 +20,12 @@ pub fn missing_required_subtasks(items: &[FileItem], config: &Config) -> Vec<Iss
     issues
 }
 
-fn check_node(
+/// Checks a single node's `markers`/`children` for missing required
+/// subtasks (E010) and disallowed-cancellation of a required subtask (E012).
+/// Exposed at `pub(crate)` so `agile task done <address>` can reuse this
+/// exact rule to validate a single addressed node without duplicating the
+/// logic or running the full rule over an entire project.
+pub(crate) fn check_node(
     markers: &[Marker],
     children: &[Subtask],
     location: &crate::parser::Location,
