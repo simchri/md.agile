@@ -426,6 +426,12 @@
 - [x] Mark task as done from GUI
 - [x] --kiosk flag to disable any "writing" operations
 
+- [ ] sample task
+  - [ ] with sample subtasks
+  - [ ] with sample subtasks
+  - [x] with sample subtasks
+  - [ ] with sample subtasks
+
 ## ETA
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
