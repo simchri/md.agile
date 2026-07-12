@@ -33,45 +33,28 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// List tasks or files (default: tasks)
-    ///
-    /// Without a subcommand, prints every task from all *.agile.md files
-    /// in priority order. Each task is shown with its status marker
-    /// ([ ] todo, [x] done, [-] cancelled) and subtasks indented by two
-    /// spaces per level.
-    List {
-        /// Show only the first COUNT entries
-        #[arg(short = 'n', long, value_name = "COUNT")]
-        next: Option<usize>,
-
-        /// Show only the last COUNT entries
-        #[arg(long, value_name = "COUNT")]
-        last: Option<usize>,
-
-        /// Show all tasks including done and cancelled
-        #[arg(short = 'a', long)]
-        all: bool,
-
-        /// Only list top-level tasks that are unassigned or assigned to me
-        /// (directly or via a group) — same eligibility rule as the E013
-        /// assignment/completion check and `agile task next --mine`.
-        #[arg(long)]
-        mine: bool,
-
-        /// Resolve `--mine` as this literal `[Users.X]` config key instead
-        /// of the git identity from `git config user.email`/`user.name`.
-        #[arg(long, value_name = "USER")]
-        r#as: Option<String>,
-
-        #[command(subcommand)]
-        what: Option<ListWhat>,
-    },
-
     /// Task operations
     #[command(alias = "tasks")]
     Task {
         #[command(subcommand)]
         action: TaskAction,
+    },
+
+    /// Show recognised task files in priority order
+    ///
+    /// Prints one line per file: filename followed by its path relative
+    /// to the current directory. Files are sorted alphabetically by
+    /// filename only — their directory path does not affect ordering.
+    /// This sort order is the global task priority order across files.
+    #[command(alias = "files")]
+    File {
+        /// Show only the first COUNT files
+        #[arg(short = 'n', long, value_name = "COUNT")]
+        next: Option<usize>,
+
+        /// Show only the last COUNT files
+        #[arg(long, value_name = "COUNT")]
+        last: Option<usize>,
     },
 
     /// Validate task files against the built-in rule set
@@ -101,14 +84,26 @@ pub enum Command {
 }
 
 #[derive(Subcommand)]
-pub enum ListWhat {
-    /// List all tasks (same as agile list with no subcommand)
-    Tasks {
-        /// Show only the first COUNT tasks
+pub enum TaskAction {
+    /// List tasks in priority order
+    ///
+    /// Without arguments, prints every incomplete (`[ ]`) top-level task
+    /// from all *.agile.md files in priority order, each with its full
+    /// subtask tree. Each task is shown with its status marker ([ ] todo,
+    /// [x] done, [-] cancelled) and subtasks indented by two spaces per
+    /// level.
+    List {
+        /// A 1-based, inclusive range over the top-level tasks that would
+        /// otherwise be shown (respecting `--all`/`--mine`), e.g. `2:4`
+        /// shows the 2nd through 4th such tasks (each with its own
+        /// subtree). Takes precedence over `--next`/`--last` if given.
+        range: Option<String>,
+
+        /// Show only the first COUNT entries
         #[arg(short = 'n', long, value_name = "COUNT")]
         next: Option<usize>,
 
-        /// Show only the last COUNT tasks
+        /// Show only the last COUNT entries
         #[arg(long, value_name = "COUNT")]
         last: Option<usize>,
 
@@ -128,31 +123,13 @@ pub enum ListWhat {
         r#as: Option<String>,
     },
 
-    /// Show recognised task files in priority order
-    ///
-    /// Prints one line per file: filename followed by its path relative
-    /// to the current directory. Files are sorted alphabetically by
-    /// filename only — their directory path does not affect ordering.
-    /// This sort order is the global task priority order across files.
-    Files {
-        /// Show only the first COUNT files
-        #[arg(short = 'n', long, value_name = "COUNT")]
-        next: Option<usize>,
-
-        /// Show only the last COUNT files
-        #[arg(long, value_name = "COUNT")]
-        last: Option<usize>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum TaskAction {
     /// Show the next highest-priority incomplete task(s)
     ///
     /// With no arguments, returns the first incomplete ([ ]) top-level task
     /// across all task files in priority order, including its full subtask
     /// tree. Skips done ([x]) and cancelled ([-]) tasks. Prints nothing if
     /// every task is complete or cancelled.
+    #[command(alias = "show")]
     Next {
         /// A plain count (e.g. `3`) to show the next N incomplete top-level
         /// tasks, or a dotted address (e.g. `1.2`, `2.1.4`) to show one
@@ -211,32 +188,30 @@ pub fn run() {
 
     match Cli::parse().command {
         None => subcommands::default::run(root),
-        Some(Command::List {
-            what: None,
-            next,
-            last,
-            all,
-            mine,
-            r#as,
-        })
-        | Some(Command::List {
-            what:
-                Some(ListWhat::Tasks {
+        Some(Command::File { next, last }) => {
+            subcommands::list::run_files(root, next, last);
+        }
+        Some(Command::Task {
+            action:
+                TaskAction::List {
+                    range,
                     next,
                     last,
                     all,
                     mine,
                     r#as,
-                }),
-            ..
+                },
         }) => {
-            subcommands::list::run_tasks(root, &config, next, last, all, mine, r#as.as_deref());
-        }
-        Some(Command::List {
-            what: Some(ListWhat::Files { next, last }),
-            ..
-        }) => {
-            subcommands::list::run_files(root, next, last);
+            subcommands::list::run_tasks(
+                root,
+                &config,
+                next,
+                last,
+                all,
+                mine,
+                r#as.as_deref(),
+                range.as_deref(),
+            );
         }
         Some(Command::Task {
             action:

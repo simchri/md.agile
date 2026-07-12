@@ -14,24 +14,28 @@ Status markers used below (always at the start of the bullet):
 
 - done: (no subcommand)
   - Opens the next active top-level task in `$VISUAL`/`$EDITOR` (`subcommands/default.rs`)
-- done: `list` / `list tasks`
-  - Prints tasks from all `*.agile.md` files in priority order
-  - done: `-n, --next <COUNT>` — show only the first COUNT entries
-  - done: `--last <COUNT>` — show only the last COUNT entries
-  - done: `-a, --all` — include done/cancelled tasks
-  - done: `--mine` — restrict to unassigned top-level tasks or tasks
-    assigned to me (directly or via a group), same eligibility rule
-    (`rules::is_eligible_for`) as `agile task next --mine`
-  - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
-    of the git identity from `git config user.email`/`user.name`
-- done: `list files`
+- done: `file` (alias: `files`)
   - Lists recognised task files, in priority order
   - done: `-n, --next <COUNT>`
   - done: `--last <COUNT>`
-  - (no `--all` — files have no status)
+  - (no `--all`/`--mine` — files have no status or assignment)
 - done: `task` (alias: `tasks`)
   - Command group for task-centric operations
-  - done: `next [ADDRESS]`
+  - done: `list [RANGE]`
+    - Prints tasks from all `*.agile.md` files in priority order, one block
+      per top-level task including its full subtree
+    - done: `RANGE` (e.g. `2:4`) — a 1-based, inclusive positional range over
+      the top-level tasks that would otherwise be shown (respecting
+      `--all`/`--mine`); takes precedence over `--next`/`--last` if given
+    - done: `-n, --next <COUNT>` — show only the first COUNT entries
+    - done: `--last <COUNT>` — show only the last COUNT entries
+    - done: `-a, --all` — include done/cancelled tasks
+    - done: `--mine` — restrict to unassigned top-level tasks or tasks
+      assigned to me (directly or via a group), same eligibility rule
+      (`rules::is_eligible_for`) as `agile task next --mine`
+    - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
+      of the git identity from `git config user.email`/`user.name`
+  - done: `next [ADDRESS]` (alias: `show`)
     - Prints exactly one (sub)task, resolved by `ADDRESS` using the exact
       same address-resolution logic as `done <ADDRESS>` (same function).
       With no `ADDRESS`, defaults to address `1` — but unlike an explicit

@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
-fn list_prints_active_tasks() {
+fn task_list_prints_active_tasks() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] first task
@@ -11,7 +11,7 @@ fn list_prints_active_tasks() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list"]);
+    let out = run_agile(dir.path(), &["task", "list"]);
 
     assert!(
         out.status.success(),
@@ -24,7 +24,7 @@ fn list_prints_active_tasks() {
 }
 
 #[test]
-fn list_excludes_done_and_cancelled_by_default() {
+fn task_list_excludes_done_and_cancelled_by_default() {
     let dir = tempdir().unwrap();
     let content = "\
 - [x] done task
@@ -33,7 +33,7 @@ fn list_excludes_done_and_cancelled_by_default() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list"]);
+    let out = run_agile(dir.path(), &["task", "list"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -49,7 +49,7 @@ fn list_excludes_done_and_cancelled_by_default() {
 }
 
 #[test]
-fn list_all_includes_done_and_cancelled() {
+fn task_list_all_includes_done_and_cancelled() {
     let dir = tempdir().unwrap();
     let content = "\
 - [x] done task
@@ -58,7 +58,7 @@ fn list_all_includes_done_and_cancelled() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "--all"]);
+    let out = run_agile(dir.path(), &["task", "list", "--all"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -68,7 +68,7 @@ fn list_all_includes_done_and_cancelled() {
 }
 
 #[test]
-fn list_includes_subtasks_in_output() {
+fn task_list_includes_subtasks_in_output() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] parent task
@@ -77,7 +77,7 @@ fn list_includes_subtasks_in_output() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list"]);
+    let out = run_agile(dir.path(), &["task", "list"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -87,7 +87,7 @@ fn list_includes_subtasks_in_output() {
 }
 
 #[test]
-fn list_with_next_limit_returns_first_n_tasks() {
+fn task_list_with_next_limit_returns_first_n_tasks() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] task one
@@ -96,7 +96,7 @@ fn list_with_next_limit_returns_first_n_tasks() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "-n", "2"]);
+    let out = run_agile(dir.path(), &["task", "list", "-n", "2"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -106,7 +106,7 @@ fn list_with_next_limit_returns_first_n_tasks() {
 }
 
 #[test]
-fn list_with_last_limit_returns_last_n_tasks() {
+fn task_list_with_last_limit_returns_last_n_tasks() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] task one
@@ -115,7 +115,7 @@ fn list_with_last_limit_returns_last_n_tasks() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "--last", "1"]);
+    let out = run_agile(dir.path(), &["task", "list", "--last", "1"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -125,7 +125,7 @@ fn list_with_last_limit_returns_last_n_tasks() {
 }
 
 #[test]
-fn list_next_flag_takes_precedence_over_last() {
+fn task_list_next_flag_takes_precedence_over_last() {
     let dir = tempdir().unwrap();
     let content = "\
 - [ ] task one
@@ -135,7 +135,7 @@ fn list_next_flag_takes_precedence_over_last() {
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
     // --next 1 and --last 1 both set: --next wins, so we get the first task
-    let out = run_agile(dir.path(), &["list", "-n", "1", "--last", "1"]);
+    let out = run_agile(dir.path(), &["task", "list", "-n", "1", "--last", "1"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -144,10 +144,10 @@ fn list_next_flag_takes_precedence_over_last() {
 }
 
 #[test]
-fn list_empty_project_exits_zero_with_no_output() {
+fn task_list_empty_project_exits_zero_with_no_output() {
     let dir = tempdir().unwrap();
 
-    let out = run_agile(dir.path(), &["list"]);
+    let out = run_agile(dir.path(), &["task", "list"]);
 
     assert!(out.status.success());
     assert!(
@@ -155,6 +155,65 @@ fn list_empty_project_exits_zero_with_no_output() {
         "expected no output: {:?}",
         String::from_utf8_lossy(&out.stdout)
     );
+}
+
+#[test]
+fn task_list_range_selects_inclusive_slice_with_subtasks() {
+    let dir = tempdir().unwrap();
+    let content = "\
+- [ ] task one
+  - [ ] one sub
+- [ ] task two
+- [ ] task three
+  - [ ] three sub
+- [ ] task four
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "list", "2:3"]);
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!stdout.contains("task one"), "stdout: {stdout:?}");
+    assert!(stdout.contains("[ ] task two"), "stdout: {stdout:?}");
+    assert!(stdout.contains("[ ] task three"), "stdout: {stdout:?}");
+    assert!(stdout.contains("  [ ] three sub"), "stdout: {stdout:?}");
+    assert!(!stdout.contains("task four"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn task_list_range_takes_precedence_over_next_and_last() {
+    let dir = tempdir().unwrap();
+    let content = "\
+- [ ] task one
+- [ ] task two
+- [ ] task three
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+
+    let out = run_agile(
+        dir.path(),
+        &["task", "list", "2:2", "-n", "1", "--last", "1"],
+    );
+
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!stdout.contains("task one"), "stdout: {stdout:?}");
+    assert!(stdout.contains("[ ] task two"), "stdout: {stdout:?}");
+    assert!(!stdout.contains("task three"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn task_list_invalid_range_exits_nonzero() {
+    let dir = tempdir().unwrap();
+    let content = "\
+- [ ] task one
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "list", "4:2"]);
+
+    assert!(!out.status.success());
 }
 
 fn git(dir: &std::path::Path, args: &[&str]) {
@@ -167,7 +226,7 @@ fn git(dir: &std::path::Path, args: &[&str]) {
 }
 
 #[test]
-fn list_mine_shows_unassigned_and_assigned_to_me_only() {
+fn task_list_mine_shows_unassigned_and_assigned_to_me_only() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -188,7 +247,7 @@ git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "--mine"]);
+    let out = run_agile(dir.path(), &["task", "list", "--mine"]);
 
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -198,7 +257,7 @@ git_emails = [\"bob@example.com\"]
 }
 
 #[test]
-fn list_tasks_mine_works_the_same_as_bare_list_mine() {
+fn tasks_list_mine_works_the_same_as_task_list_mine_via_the_tasks_alias() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -218,7 +277,9 @@ git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "tasks", "--mine"]);
+    // "tasks" is a top-level alias for "task" (see Command::Task's
+    // #[command(alias = "tasks")]) — confirm it works for "list" too.
+    let out = run_agile(dir.path(), &["tasks", "list", "--mine"]);
 
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -227,7 +288,7 @@ git_emails = [\"bob@example.com\"]
 }
 
 #[test]
-fn list_mine_with_as_override_uses_the_named_identity() {
+fn task_list_mine_with_as_override_uses_the_named_identity() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "bob@example.com"]);
@@ -249,7 +310,7 @@ git_emails = [\"bob@example.com\"]
 
     // The local git identity is bob, but --as alice should switch the
     // filter to alice's assigned tasks instead.
-    let out = run_agile(dir.path(), &["list", "--mine", "--as", "alice"]);
+    let out = run_agile(dir.path(), &["task", "list", "--mine", "--as", "alice"]);
 
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -258,7 +319,7 @@ git_emails = [\"bob@example.com\"]
 }
 
 #[test]
-fn list_mine_combined_with_all_still_filters_by_eligibility() {
+fn task_list_mine_combined_with_all_still_filters_by_eligibility() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -278,7 +339,7 @@ git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "--mine", "--all"]);
+    let out = run_agile(dir.path(), &["task", "list", "--mine", "--all"]);
 
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -287,14 +348,14 @@ git_emails = [\"bob@example.com\"]
 }
 
 #[test]
-fn list_mine_without_git_identity_errors() {
+fn task_list_mine_without_git_identity_errors() {
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] a task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "--mine"]);
+    let out = run_agile(dir.path(), &["task", "list", "--mine"]);
 
     assert!(!out.status.success());
 }

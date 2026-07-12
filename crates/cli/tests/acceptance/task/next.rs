@@ -87,6 +87,38 @@ fn tasks_alias_works_for_next() {
 }
 
 #[test]
+fn show_alias_works_bare_and_with_a_dotted_address() {
+    let dir = tempdir().unwrap();
+    let content = "\
+- [ ] first task
+  - [ ] subtask one
+  - [ ] subtask two
+- [ ] second task
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+
+    let bare = run_agile(dir.path(), &["task", "show"]);
+    assert!(bare.status.success());
+    let bare_stdout = String::from_utf8(bare.stdout).unwrap();
+    assert!(
+        bare_stdout.contains("[ ] first task"),
+        "stdout: {bare_stdout:?}"
+    );
+
+    let addressed = run_agile(dir.path(), &["task", "show", "1.2"]);
+    assert!(addressed.status.success());
+    let addressed_stdout = String::from_utf8(addressed.stdout).unwrap();
+    assert!(
+        addressed_stdout.contains("[ ] subtask two"),
+        "stdout: {addressed_stdout:?}"
+    );
+    assert!(
+        !addressed_stdout.contains("subtask one"),
+        "stdout: {addressed_stdout:?}"
+    );
+}
+
+#[test]
 fn task_next_with_plain_number_shows_only_that_task_not_all_up_to_it() {
     let dir = tempdir().unwrap();
     let content = "\

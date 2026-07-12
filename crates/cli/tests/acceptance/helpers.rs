@@ -9,12 +9,12 @@ pub fn run_check(cwd: &Path) -> Output {
         .expect("failed to spawn `agile check`")
 }
 
-pub fn run_list(cwd: &Path) -> Output {
+pub fn run_task_list(cwd: &Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_agile"))
-        .arg("list")
+        .args(["task", "list"])
         .current_dir(cwd)
         .output()
-        .expect("failed to spawn `agile list`")
+        .expect("failed to spawn `agile task list`")
 }
 
 /// Run `agile` with arbitrary args in `cwd`, inheriting the current environment.

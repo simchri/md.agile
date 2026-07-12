@@ -13,7 +13,7 @@ fn git(dir: &std::path::Path, args: &[&str]) {
 }
 
 #[test]
-fn list_files_prints_agile_md_files() {
+fn file_prints_agile_md_files() {
     let dir = tempdir().unwrap();
     let mut file_content = "\
 - [ ] a task
@@ -24,7 +24,7 @@ not a task file
 ";
     fs::write(dir.path().join("README.md"), file_content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "files"]);
+    let out = run_agile(dir.path(), &["file"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -36,14 +36,14 @@ not a task file
 }
 
 #[test]
-fn list_files_format_is_filename_then_full_path() {
+fn file_format_is_filename_then_full_path() {
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] task
 ";
     fs::write(dir.path().join("my.agile.md"), file_content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "files"]);
+    let out = run_agile(dir.path(), &["file"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -64,7 +64,7 @@ fn list_files_format_is_filename_then_full_path() {
 }
 
 #[test]
-fn list_files_with_next_limit() {
+fn file_with_next_limit() {
     let dir = tempdir().unwrap();
     let sub = dir.path().join("sub");
     fs::create_dir(&sub).unwrap();
@@ -74,7 +74,7 @@ fn list_files_with_next_limit() {
     fs::write(dir.path().join("a.agile.md"), file_content).unwrap();
     fs::write(sub.join("b.agile.md"), file_content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "files", "-n", "1"]);
+    let out = run_agile(dir.path(), &["file", "-n", "1"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -86,7 +86,7 @@ fn list_files_with_next_limit() {
 }
 
 #[test]
-fn list_files_respects_gitignore() {
+fn file_respects_gitignore() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
 
@@ -105,7 +105,7 @@ scratch/
     fs::create_dir(&scratch).unwrap();
     fs::write(scratch.join("ignored.agile.md"), file_content).unwrap();
 
-    let out = run_agile(dir.path(), &["list", "files"]);
+    let out = run_agile(dir.path(), &["file"]);
 
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
@@ -120,10 +120,10 @@ scratch/
 }
 
 #[test]
-fn list_files_empty_project_exits_zero_with_no_output() {
+fn file_empty_project_exits_zero_with_no_output() {
     let dir = tempdir().unwrap();
 
-    let out = run_agile(dir.path(), &["list", "files"]);
+    let out = run_agile(dir.path(), &["file"]);
 
     assert!(out.status.success());
     assert!(
@@ -131,4 +131,19 @@ fn list_files_empty_project_exits_zero_with_no_output() {
         "expected no output: {:?}",
         String::from_utf8_lossy(&out.stdout)
     );
+}
+
+#[test]
+fn files_is_an_alias_for_file() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] a task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["files"]);
+
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("tasks.agile.md"), "stdout: {stdout:?}");
 }

@@ -100,20 +100,22 @@ Opens the highest-priority incomplete task in your `$VISUAL` or `$EDITOR`. Jumps
 
 ### List Tasks
 ```bash
-agile list              # All active tasks (default)
-agile list --all       # All tasks including done and cancelled
-agile list -n 5        # First 5 active tasks
-agile list --last 3    # Last 3 active tasks
+agile task list              # All active tasks (default)
+agile task list --all       # All tasks including done and cancelled
+agile task list -n 5        # First 5 active tasks
+agile task list --last 3    # Last 3 active tasks
+agile task list 2:4          # Tasks 2 through 4 (1-based, inclusive), with subtasks
 ```
 
 ### List Files
 ```bash
-agile list files       # Show all task files in priority order
+agile file       # Show all task files in priority order (alias: agile files)
 ```
 
 ### Get Next Task
 ```bash
 agile task next        # Print the next incomplete task (same as `agile` with no editor)
+agile task show 2.1    # Alias for `task next`; print one specific (sub)task by address
 ```
 
 ### Validate Files
@@ -153,7 +155,7 @@ Other content (headings, prose, etc.) is ignored, so you can freely mix notes in
 
 ### Multiple Files
 
-Task files must be named `<something>.agile.md` and can live anywhere under the project root; every match is picked up automatically (`agile list files` shows them in priority order). Files are ordered alphabetically by path relative to the project root (directories first, then filename) — this determines cross-file task priority, so e.g. tasks in `tasks/50_current/001.agile.md` outrank tasks in `tasks/60_backlog/001.agile.md`.
+Task files must be named `<something>.agile.md` and can live anywhere under the project root; every match is picked up automatically (`agile file` shows them in priority order). Files are ordered alphabetically by path relative to the project root (directories first, then filename) — this determines cross-file task priority, so e.g. tasks in `tasks/50_current/001.agile.md` outrank tasks in `tasks/60_backlog/001.agile.md`.
 Other markdown files (e.g. your `README.md`s) are ignored, even if they contain syntactically valid tasks.
 
 ### Optional and Mandatory Subtasks

@@ -96,8 +96,8 @@ viewer with `nucleo` fuzzy search. When piped it prints plain text, so users can
 with external tools they already have:
 
 ```sh
-agile list tasks | fzf
-agile list tasks | grep "#bug"
+agile task list | fzf
+agile task list | grep "#bug"
 ```
 
 ---

@@ -1,4 +1,4 @@
-use crate::helpers::{run_check, run_list};
+use crate::helpers::{run_check, run_task_list};
 use std::fs;
 use tempfile::tempdir;
 
@@ -68,7 +68,7 @@ fn config_error_is_reported_regardless_of_subcommand() {
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
 
-    let out = run_list(dir.path());
+    let out = run_task_list(dir.path());
 
     assert_ne!(out.status.code(), Some(0), "expected non-zero exit");
     let stderr = String::from_utf8(out.stderr).unwrap();

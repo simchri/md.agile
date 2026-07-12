@@ -410,9 +410,13 @@
 - [x] command: `agile task next --mine` show the next task eligible.
   Eligbility --> same rules as for assignment / completion validation 
 
-- [ ] "rename agile task next N.M" to "agile task show N.M"
+### cli refactor:
+- [x] "rename agile task next N.M" to "agile task show N.M"
 
-- [ ] range support for "agile list tasks", syntax `agile list tasks START:END` ranges apply to the top-level only, but show tasks with subtasks
+- [x] re-structure the command "agile list" as subcommand to "task"/"tasks", i.e. `agile tasks list ..`
+- [x] re-structure "agile list files" to "agile file" (synonym: "files")
+
+- [x] range support for "agile list tasks", syntax `agile tasks list START:END` ranges apply to the top-level only, but show tasks with subtasks
 
 ## LSP documentation
 
