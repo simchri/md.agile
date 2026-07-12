@@ -9,7 +9,7 @@ use crate::parser::{FileItem, Order, Status, Subtask, SubtaskKind, TASK_LINE_PRE
 use crate::rules::{ErrorCode, Issue};
 
 /// Flags duplicate order numbers among siblings (E014) and ordered subtasks
-/// marked done while a lower-numbered sibling is still incomplete (E015).
+/// marked done while a lower-ordered sibling is still incomplete (E015).
 pub fn invalid_order(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
 
@@ -96,8 +96,8 @@ fn check_completion_order(siblings: &[Subtask], issues: &mut Vec<Issue>) {
                 message: "Ordered task completed out of order".to_string(),
                 column: order_number_column(sub),
                 help: Some(
-                    "This task is marked done, but a lower-numbered sibling is still incomplete. \
-                     Complete ordered siblings in sequence, or cancel the lower-numbered one."
+                    "This task is marked done, but a lower-ordered sibling is still incomplete. \
+                     Complete or cancel lower-ordered siblings."
                         .to_string(),
                 ),
                 data: None,

@@ -55,7 +55,7 @@ their direct siblings only — see [README.vision.md](../README.vision.md)
 | Code | Name | Description |
 |------|------|-------------|
 | E014 | Duplicate order number | Two sibling subtasks use the same order number (e.g. two `1.` prefixes under the same parent). |
-| E015 | Ordered task completed out of order | An ordered subtask was marked done while a lower-numbered sibling is still incomplete (not done and not cancelled). |
+| E015 | Ordered task completed out of order | An ordered subtask was marked done while a lower-ordered sibling is still incomplete (not done and not cancelled). |
 
 These checks also apply to mandatory subtasks required by a property, when
 the property's `subtasks` config bakes an order number prefix into the required

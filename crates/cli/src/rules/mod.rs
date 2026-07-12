@@ -69,7 +69,7 @@ pub enum ErrorCode {
     UnauthorizedCompletion,
     /// E014: Two ordered subtasks share the same order number among siblings
     DuplicateOrderNumber,
-    /// E015: An ordered subtask was marked done while a lower-numbered sibling is still incomplete
+    /// E015: An ordered subtask was marked done while a lower-ordered sibling is still incomplete
     OutOfOrderCompletion,
     /// E016: Task/subtask has no title text after the status box (and markers, if any)
     EmptyTitle,
