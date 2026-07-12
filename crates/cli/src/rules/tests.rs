@@ -55,3 +55,63 @@ WRONG INDENT tasks description
     assert_eq!(issues[1].code, ErrorCode::WrongBodyIndentation);
     assert_eq!(issues[1].location.line, 4);
 }
+
+#[test]
+fn check_config_independent_skips_undefined_property_and_assignment() {
+    // #undeclared/@undeclared would be flagged by check_all against any
+    // config that doesn't declare them (including Config::default()), but
+    // check_config_independent must never look at properties/users/groups
+    // at all — it's meant for use when there's no config worth trusting.
+    let input = "\
+- [ ] task #undeclared @undeclared
+";
+    let issues = check_config_independent(&p(input));
+    assert!(
+        !issues
+            .iter()
+            .any(|i| i.code == ErrorCode::UndefinedProperty),
+        "check_config_independent must not run undefined_property, got: {issues:?}"
+    );
+    assert!(
+        !issues
+            .iter()
+            .any(|i| i.code == ErrorCode::UndefinedAssignment),
+        "check_config_independent must not run undefined_assignment, got: {issues:?}"
+    );
+}
+
+#[test]
+fn check_config_independent_still_runs_structural_checks() {
+    // Structural checks (that don't need config) must still run.
+    let input = "\
+- [ ] 
+";
+    let issues = check_config_independent(&p(input));
+    assert!(
+        issues.iter().any(|i| i.code == ErrorCode::EmptyTitle),
+        "check_config_independent should still run structural checks like empty_title, got: {issues:?}"
+    );
+}
+
+#[test]
+fn check_all_equals_check_config_independent_plus_config_dependent_checks() {
+    // check_all must be exactly the union of check_config_independent and
+    // the four config-dependent rules — no rule silently duplicated or
+    // dropped when the two were split apart.
+    let input = "\
+- [ ] task #undeclared @undeclared
+";
+    let config = crate::config::Config::default();
+    let mut from_check_all = check_all(&p(input), &config);
+    let mut from_independent_plus_config_dependent = check_config_independent(&p(input));
+    from_independent_plus_config_dependent.extend(undefined_property(&p(input), &config));
+    from_independent_plus_config_dependent.extend(undefined_assignment(&p(input), &config));
+    from_independent_plus_config_dependent.extend(missing_required_subtasks(&p(input), &config));
+    from_independent_plus_config_dependent.extend(unrequired_quoted_subtask(&p(input), &config));
+
+    from_check_all.sort_by_key(|i| (i.location.line, format!("{:?}", i.code)));
+    from_independent_plus_config_dependent
+        .sort_by_key(|i| (i.location.line, format!("{:?}", i.code)));
+
+    assert_eq!(from_check_all, from_independent_plus_config_dependent);
+}

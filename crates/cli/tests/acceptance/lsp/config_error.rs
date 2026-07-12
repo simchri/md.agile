@@ -45,6 +45,55 @@ this is not valid toml [[[
 }
 
 #[test]
+fn lsp_reports_only_the_config_error_when_config_fails_to_load_not_spurious_undefined_marker_errors()
+ {
+    // With a broken mdagile.toml, the LSP must fall back to *no config
+    // checks at all* — not to an empty Config, which would make every
+    // #marker/@marker look "undefined" (E008/E009) even though the project's
+    // real (unparseable) config might well have declared them.
+    let dir = tempfile::tempdir().unwrap();
+    let file_content = "\
+this is not valid toml [[[
+";
+    std::fs::write(dir.path().join("mdagile.toml"), file_content).unwrap();
+
+    let uri = file_uri(&dir.path().join("tasks.agile.md"));
+    let root_uri = file_uri(dir.path());
+    let mut session = LspSession::start_with_root_uri(Some(&root_uri));
+    session.open_document(
+        &uri,
+        "\
+- [ ] task #some_property @some_user
+",
+    );
+
+    session.read_notification("window/showMessage");
+    let diag_notification = session.read_notification("textDocument/publishDiagnostics");
+    let diagnostics = diag_notification["params"]["diagnostics"]
+        .as_array()
+        .unwrap();
+
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d["code"].as_str() == Some("E008")),
+        "expected no spurious E008 (undefined property) while config is broken, got: {diagnostics:?}"
+    );
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d["code"].as_str() == Some("E009")),
+        "expected no spurious E009 (undefined assignment) while config is broken, got: {diagnostics:?}"
+    );
+    // The only diagnostic should be the synthetic config-error one.
+    assert_eq!(
+        diagnostics.len(),
+        1,
+        "expected only the config-error diagnostic while config is broken, got: {diagnostics:?}"
+    );
+}
+
+#[test]
 fn lsp_reports_conflicting_config_files_via_show_message() {
     let dir = tempfile::tempdir().unwrap();
     // Both mdagile.toml and .mdagile.toml existing is an explicit

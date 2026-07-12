@@ -98,4 +98,8 @@ back to an empty config: on an invalid/conflicting config it pops a
 keystroke while the same error persists) and publishes a synthetic
 diagnostic on the document being validated, so the editor makes clear that
 config-dependent checks (E008–E013) are disabled until `mdagile.toml` is
-fixed.
+fixed. It also runs only the config-*independent* rule checks while the
+config is broken (not the full rule set against an empty placeholder
+config) — otherwise every `#marker`/`@marker` in the document would be
+reported as spuriously undefined (E008/E009) on top of the real config
+error.

@@ -230,8 +230,16 @@ pub struct Issue {
     pub data: Option<IssueData>,
 }
 
-/// Runs all lint rules and returns a concatenated list of issues.
-pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
+/// Runs every lint rule that doesn't need `Config` at all — i.e. everything
+/// except [`undefined_property`], [`undefined_assignment`],
+/// [`missing_required_subtasks`] and [`unrequired_quoted_subtask`], which all
+/// look up property/user/group declarations.
+///
+/// Used when there's no config to trust yet (e.g. the LSP falls back to this
+/// when `mdagile.toml` failed to load): running the config-dependent checks
+/// against an empty placeholder `Config` would report every `#marker`/
+/// `@marker` as undefined, which is spurious noise, not a real finding.
+pub fn check_config_independent(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
     issues.extend(orphaned_subtask(items));
     issues.extend(wrong_indentation(items));
@@ -240,12 +248,18 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(missing_space_after_box(items));
     issues.extend(invalid_box(items));
     issues.extend(uppercase_x(items));
+    issues.extend(invalid_order(items));
+    issues.extend(empty_title(items));
+    issues
+}
+
+/// Runs all lint rules and returns a concatenated list of issues.
+pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
+    let mut issues = check_config_independent(items);
     issues.extend(undefined_property(items, config));
     issues.extend(undefined_assignment(items, config));
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
-    issues.extend(invalid_order(items));
-    issues.extend(empty_title(items));
     issues
 }
 

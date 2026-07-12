@@ -18,6 +18,15 @@ pub fn run(items: &[FileItem], config: &Config) -> Vec<Issue> {
     rules::check_all(items, config)
 }
 
+/// Runs only the rules that don't depend on `Config` (see
+/// [`rules::check_config_independent`]). Used when no trustworthy config is
+/// available — e.g. the LSP falls back to this instead of [`run`] when
+/// `mdagile.toml` failed to load, to avoid reporting every `#marker`/
+/// `@marker` as spuriously undefined against an empty placeholder config.
+pub fn run_config_independent(items: &[FileItem]) -> Vec<Issue> {
+    rules::check_config_independent(items)
+}
+
 /// Runs the E013 "assignment / completion validation" check across every
 /// `.agile.md` file under `root`.
 ///

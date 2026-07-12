@@ -57,18 +57,18 @@ impl Backend {
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
         let config_path = self.resolve_config_path(&uri).await;
-        let config = match &config_path {
+        let (config, config_load_failed) = match &config_path {
             Some(config_path) => {
                 let load_result =
                     Config::load(config_path.parent().unwrap_or(config_path.as_path()));
                 match load_result {
                     Ok(c) => {
                         self.clear_config_error().await;
-                        c
+                        (c, false)
                     }
                     Err(e) => {
                         self.report_config_error(e.to_string()).await;
-                        Config::default()
+                        (Config::default(), true)
                     }
                 }
             }
@@ -78,20 +78,32 @@ impl Backend {
                     path.display()
                 );
                 self.clear_config_error().await;
-                Config::default()
+                (Config::default(), false)
             }
         };
         let items = parser::parse(text, path.clone());
-        let mut issues = checker::run(&items, &config);
+        // If mdagile.toml failed to load, `config` above is just an empty
+        // placeholder, not a real "no properties/users declared" config —
+        // running the config-dependent checks against it would report every
+        // #marker/@marker as spuriously undefined. Only run the checks that
+        // don't need a trustworthy config; the config_error_diagnostic
+        // (added below) already explains why nothing else was checked.
+        let mut issues = if config_load_failed {
+            checker::run_config_independent(&items)
+        } else {
+            checker::run(&items, &config)
+        };
         // The E013 assignment/completion check needs a project root to run git
         // commands from; reuse the config file's directory (same root the CLI
         // uses for `find_task_files`), falling back to the editor-supplied
-        // workspace root if no config file was found.
+        // workspace root if no config file was found. Also depends on
+        // `[Users.X]`/`[Groups.X]` declarations, so it's skipped for the same
+        // reason as the config-dependent rule checks above.
         let git_root = config_path
             .as_ref()
             .and_then(|p| p.parent().map(|p| p.to_path_buf()))
             .or(self.root.read().await.clone());
-        if let Some(root) = git_root {
+        if let (Some(root), false) = (git_root, config_load_failed) {
             issues.extend(checker::check_authorization_for_document(
                 &root, &path, text, &config,
             ));
