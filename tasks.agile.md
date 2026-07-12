@@ -428,7 +428,7 @@
 - [x] --kiosk flag to disable any "writing" operations
 
 - [x] GUI: Errors as snackbars - an example for dx snackbars can be found in the project /data/ws/buckett - use that example to implement snack bars here
-- [ ] inverse to "mark done": mark tasks "not done" from the cli!
+- [x] inverse to "mark done": mark tasks "not done" from the cli!
 - [ ] GUI: Un-mark subtasks and tasks as done (mark as "todo")
 
 ## ETA

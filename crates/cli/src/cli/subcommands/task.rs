@@ -74,7 +74,13 @@ pub fn run_next(
     let explicit_address = parts.is_some();
     let resolve_parts = parts.unwrap_or_else(|| vec![1]);
 
-    match resolve_address(root, &resolve_parts, config, identity.as_ref()) {
+    match resolve_address(
+        root,
+        &resolve_parts,
+        config,
+        identity.as_ref(),
+        Status::Todo,
+    ) {
         Ok(resolved) => print!("{}", render_resolved(&resolved)),
         Err(e) => {
             if explicit_address {
@@ -108,7 +114,7 @@ pub fn run_done(root: &Path, config: &Config, address: &str) {
         }
     };
 
-    let resolved = match resolve_address(root, &parts, config, None) {
+    let resolved = match resolve_address(root, &parts, config, None, Status::Todo) {
         Ok(resolved) => resolved,
         Err(e) => {
             log::error!("{e}");
@@ -135,6 +141,72 @@ pub fn run_done(root: &Path, config: &Config, address: &str) {
             unreachable!("resolved address line vanished from its own parsed items");
         }
         Err(MarkDoneError::Io(e)) => {
+            log::error!("{e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// `agile task undone ADDRESS` entry point.
+///
+/// Reverts the (sub)task at `address` back to todo (`[ ]`). Unlike
+/// `agile task done`, there are no completion rules to satisfy in reverse —
+/// a done task can always be un-done regardless of its parent's or
+/// children's state.
+///
+/// The first segment of `address` still selects a top-level task by
+/// position, but — unlike `done`/`next` — it counts *done* top-level tasks
+/// only, and numbers them **from the end of the task list**: the most
+/// recently completed top-level task is `1`, the one before it `2`, and so
+/// on. This keeps addresses small and stable for the case this command is
+/// actually for (undoing a recent mistake), even in a project with a long
+/// history of completed tasks. Every subsequent segment still selects the
+/// Nth direct child in normal document order (any status), exactly like
+/// `agile task done`/`agile task next`.
+pub fn run_undone(root: &Path, config: &Config, address: &str) {
+    let mut parts = match parse_address(address) {
+        Some(parts) => parts,
+        None => {
+            log::error!(
+                "invalid task address {address:?} — expected a number or dotted address like `1.2`"
+            );
+            std::process::exit(1);
+        }
+    };
+
+    let total_done = count_matching_top_level(root, Status::Done);
+    let first_from_end = parts[0];
+    if first_from_end > total_done {
+        log::error!(
+            "no such task: address {address:?} names the #{first_from_end} done top-level task counting from the end, but only {total_done} done top-level task(s) exist"
+        );
+        std::process::exit(1);
+    }
+    // Translate "Nth from the end" into resolve_address's "Nth from the
+    // start" numbering.
+    parts[0] = total_done - first_from_end + 1;
+
+    let resolved = match resolve_address(root, &parts, config, None, Status::Done) {
+        Ok(resolved) => resolved,
+        Err(e) => {
+            log::error!("{e}");
+            std::process::exit(1);
+        }
+    };
+
+    let line = resolved.node_ref().location().line;
+    match mark_node_undone(&resolved.file, &resolved.items, line) {
+        Ok(title) => println!("undone: {title}"),
+        Err(MarkUndoneError::NotDone(title)) => {
+            log::error!("task {address:?} ({title}) is not a done task");
+            std::process::exit(1);
+        }
+        Err(MarkUndoneError::NotFound) => {
+            // Can't happen: `line` was just read from `resolved`'s own parsed
+            // `items`, so a node is guaranteed to start there.
+            unreachable!("resolved address line vanished from its own parsed items");
+        }
+        Err(MarkUndoneError::Io(e)) => {
             log::error!("{e}");
             std::process::exit(1);
         }
@@ -251,18 +323,17 @@ impl ResolvedAddress {
 /// Resolves a parsed address (see [`parse_address`]) to a concrete
 /// (sub)task.
 ///
-/// `parts[0]` selects the Nth top-level task satisfying the selection rule
-/// below (1-based, across all task files in priority order). Each
+/// `parts[0]` selects the Nth top-level task whose status is
+/// `target_status` (1-based, across all task files in priority order). Each
 /// subsequent `parts[i]` selects the Nth direct child (1-based, document
 /// order, any status) of the node selected by the previous segment.
 ///
-/// The candidate top-level tasks counted by `parts[0]` are always restricted
-/// to still-incomplete (`[ ]`) tasks. If `eligible_for` is `Some`, they're
-/// further restricted to ones [`rules::is_eligible_for`] that identity
-/// (unassigned, or assigned to them directly or via a group) — this is what
-/// backs `agile task next N --mine`. `agile task done` never passes an
-/// identity, since an address there always names one exact task regardless
-/// of who it's assigned to.
+/// If `eligible_for` is `Some`, top-level candidates are further restricted
+/// to ones [`rules::is_eligible_for`] that identity (unassigned, or assigned
+/// to them directly or via a group) — this is what backs
+/// `agile task next N --mine`. `agile task done`/`agile task undone` never
+/// pass an identity, since an address there always names one exact task
+/// regardless of who it's assigned to.
 ///
 /// Files are parsed one at a time and scanning stops as soon as the
 /// addressed top-level task is found — later files are never even read —
@@ -272,6 +343,7 @@ pub(crate) fn resolve_address(
     parts: &[usize],
     config: &Config,
     eligible_for: Option<&ResolvedIdentity>,
+    target_status: Status,
 ) -> Result<ResolvedAddress, String> {
     let Some((&first, rest)) = parts.split_first() else {
         return Err("empty task address".to_string());
@@ -284,7 +356,7 @@ pub(crate) fn resolve_address(
             let FileItem::Task(task) = item else {
                 continue;
             };
-            if task.status != Status::Todo {
+            if task.status != target_status {
                 continue;
             }
             if let Some(identity) = eligible_for {
@@ -318,10 +390,36 @@ pub(crate) fn resolve_address(
             });
         }
     }
+    let status_word = match target_status {
+        Status::Todo => "incomplete",
+        Status::Done => "done",
+        Status::Cancelled => "cancelled",
+    };
     Err(format!(
-        "no such task: address {} starts at incomplete top-level task #{first}, but only {matching_count} matching incomplete top-level task(s) exist",
+        "no such task: address {} starts at {status_word} top-level task #{first}, but only {matching_count} matching {status_word} top-level task(s) exist",
         format_address(parts)
     ))
+}
+
+/// Counts top-level tasks in `root`'s task files whose status is
+/// `target_status`.
+///
+/// Used to translate a "from the end" address (as used by
+/// `agile task undone`, which numbers done top-level tasks starting from
+/// the most recently completed one) into an equivalent "from the start"
+/// index before calling [`resolve_address`].
+pub(crate) fn count_matching_top_level(root: &Path, target_status: Status) -> usize {
+    let mut count = 0usize;
+    for file in find_task_files(root) {
+        for item in &parse_file(&file) {
+            if let FileItem::Task(task) = item {
+                if task.status == target_status {
+                    count += 1;
+                }
+            }
+        }
+    }
+    count
 }
 
 fn format_address(parts: &[usize]) -> String {
@@ -357,6 +455,20 @@ pub(crate) fn set_status_done(line: &str, indent: usize) -> Option<String> {
         return None;
     }
     chars[pos] = 'x';
+    Some(chars.into_iter().collect())
+}
+
+/// Returns `line` with the status character inside its `[...]` box replaced
+/// by a space (todo), or `None` if `indent` puts the box position past the
+/// end of `line` — the inverse of [`set_status_done`], used by
+/// [`mark_node_undone`].
+pub(crate) fn set_status_todo(line: &str, indent: usize) -> Option<String> {
+    let pos = indent + 3;
+    let mut chars: Vec<char> = line.chars().collect();
+    if pos >= chars.len() {
+        return None;
+    }
+    chars[pos] = ' ';
     Some(chars.into_iter().collect())
 }
 
@@ -424,6 +536,70 @@ fn write_done_line(file: &Path, line_no: usize, indent: usize) -> Result<(), Str
         return Err(format!("line {line_no} out of range in {}", file.display()));
     }
     let new_line = set_status_done(&lines[line_no - 1], indent)
+        .ok_or_else(|| format!("could not locate task box on {}:{line_no}", file.display()))?;
+    lines[line_no - 1] = new_line;
+
+    let mut new_content = lines.join("\n");
+    if had_trailing_newline {
+        new_content.push('\n');
+    }
+    std::fs::write(file, new_content)
+        .map_err(|e| format!("could not write {}: {e}", file.display()))?;
+    Ok(())
+}
+
+/// The reason [`mark_node_undone`] refused to revert a (sub)task to todo.
+#[derive(Debug, PartialEq)]
+pub enum MarkUndoneError {
+    /// No task or subtask starts at the given line — e.g. a stale (file,
+    /// line) identity captured before the file changed.
+    NotFound,
+    /// The addressed node exists but isn't a done (`[x]`) task; carries its
+    /// title. This also covers cancelled (`[-]`) tasks — undone only
+    /// reverts done tasks, not cancelled ones.
+    NotDone(String),
+    /// Reading or writing the file failed.
+    Io(String),
+}
+
+/// Reverts the (sub)task starting at `line` in `file` to todo (`[ ]`),
+/// after verifying it's currently a done task. Unlike [`mark_node_done`],
+/// there are no completion rules to satisfy in reverse — a done task can
+/// always be un-done regardless of its parent's or children's state.
+/// Returns the node's title on success.
+///
+/// `items` must already be the parsed contents of `file` — see
+/// [`mark_node_done`]'s docs for why the caller is responsible for parsing.
+pub fn mark_node_undone(
+    file: &Path,
+    items: &[FileItem],
+    line: usize,
+) -> Result<String, MarkUndoneError> {
+    let node = rules::find_node_by_line(items, line).ok_or(MarkUndoneError::NotFound)?;
+
+    if *node.status() != Status::Done {
+        return Err(MarkUndoneError::NotDone(node.title().to_string()));
+    }
+
+    let title = node.title().to_string();
+    let indent = node.indent();
+    write_todo_line(file, line, indent).map_err(MarkUndoneError::Io)?;
+    Ok(title)
+}
+
+/// Rewrites one line of `file` in place to revert it to todo (`[ ]`),
+/// preserving every other line and the file's trailing-newline presence
+/// exactly — the inverse of [`write_done_line`].
+fn write_todo_line(file: &Path, line_no: usize, indent: usize) -> Result<(), String> {
+    let content = std::fs::read_to_string(file)
+        .map_err(|e| format!("could not read {}: {e}", file.display()))?;
+    let had_trailing_newline = content.ends_with('\n');
+    let mut lines: Vec<String> = content.lines().map(str::to_string).collect();
+
+    if line_no == 0 || line_no > lines.len() {
+        return Err(format!("line {line_no} out of range in {}", file.display()));
+    }
+    let new_line = set_status_todo(&lines[line_no - 1], indent)
         .ok_or_else(|| format!("could not locate task box on {}:{line_no}", file.display()))?;
     lines[line_no - 1] = new_line;
 

@@ -170,6 +170,22 @@ pub enum TaskAction {
         /// Dotted address, e.g. `2` or `1.3`.
         address: String,
     },
+
+    /// Revert the (sub)task at ADDRESS back to todo
+    ///
+    /// The inverse of `agile task done`: always succeeds if the addressed
+    /// node is currently done (`[x]`) — there are no completion rules to
+    /// satisfy in reverse. The first segment of ADDRESS selects a *done*
+    /// top-level task, numbered from the end of the task list (the most
+    /// recently completed top-level task is `1`, the one before it `2`, and
+    /// so on), so addresses stay small for the common case of undoing a
+    /// recent mistake. Each subsequent segment selects the Nth direct child
+    /// in document order (any status), same as `agile task done`.
+    Undone {
+        /// Dotted address, e.g. `1` (most recently completed top-level
+        /// task) or `2.3` (its 3rd direct child).
+        address: String,
+    },
 }
 
 /// Parses CLI arguments and dispatches to the matching subcommand.
@@ -229,6 +245,11 @@ pub fn run() {
             action: TaskAction::Done { address },
         }) => {
             subcommands::task::run_done(root, &config, &address);
+        }
+        Some(Command::Task {
+            action: TaskAction::Undone { address },
+        }) => {
+            subcommands::task::run_undone(root, &config, &address);
         }
         Some(Command::Check { r#as, base }) => {
             subcommands::check::run(root, &config, r#as.as_deref(), base.as_deref());

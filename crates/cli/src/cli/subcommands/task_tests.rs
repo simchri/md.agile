@@ -57,6 +57,26 @@ fn set_status_done_none_when_line_too_short() {
     assert_eq!(set_status_done("- [", 0), None);
 }
 
+#[test]
+fn set_status_todo_replaces_done_box() {
+    let line = "- [x] my task";
+    assert_eq!(set_status_todo(line, 0).as_deref(), Some("- [ ] my task"));
+}
+
+#[test]
+fn set_status_todo_respects_indent() {
+    let line = "  - [x] nested subtask";
+    assert_eq!(
+        set_status_todo(line, 2).as_deref(),
+        Some("  - [ ] nested subtask")
+    );
+}
+
+#[test]
+fn set_status_todo_none_when_line_too_short() {
+    assert_eq!(set_status_todo("- [", 0), None);
+}
+
 fn write_temp_file(content: &str) -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("create temp dir");
     let file = dir.path().join("tasks.agile.md");
@@ -150,5 +170,86 @@ fn mark_node_done_returns_not_found_when_no_node_starts_at_that_line() {
     assert!(matches!(
         mark_node_done(&file, &items, 99, &config),
         Err(MarkDoneError::NotFound)
+    ));
+}
+
+#[test]
+fn mark_node_undone_reverts_a_done_task_and_returns_its_title() {
+    let content = "\
+- [x] a finished task
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+
+    let result = mark_node_undone(&file, &items, 1);
+    assert_eq!(result.as_deref(), Ok("a finished task"));
+
+    let written = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(written, "- [ ] a finished task\n");
+}
+
+#[test]
+fn mark_node_undone_reverts_a_nested_done_subtask() {
+    let content = "\
+- [ ] a task
+  - [x] a finished subtask
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+
+    let result = mark_node_undone(&file, &items, 2);
+    assert_eq!(result.as_deref(), Ok("a finished subtask"));
+
+    let written = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(
+        written,
+        "\
+- [ ] a task
+  - [ ] a finished subtask
+"
+    );
+}
+
+#[test]
+fn mark_node_undone_rejects_a_task_that_is_still_todo() {
+    let content = "\
+- [ ] still open
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+
+    match mark_node_undone(&file, &items, 1) {
+        Err(MarkUndoneError::NotDone(title)) => assert_eq!(title, "still open"),
+        other => panic!("expected NotDone, got {other:?}"),
+    }
+    // file must be untouched
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), content);
+}
+
+#[test]
+fn mark_node_undone_reverts_a_cancelled_task() {
+    let content = "\
+- [-] a cancelled task
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+
+    match mark_node_undone(&file, &items, 1) {
+        Err(MarkUndoneError::NotDone(title)) => assert_eq!(title, "a cancelled task"),
+        other => panic!("expected NotDone, got {other:?}"),
+    }
+}
+
+#[test]
+fn mark_node_undone_returns_not_found_when_no_node_starts_at_that_line() {
+    let content = "\
+- [x] a task
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+
+    assert!(matches!(
+        mark_node_undone(&file, &items, 99),
+        Err(MarkUndoneError::NotFound)
     ));
 }
