@@ -405,7 +405,7 @@
 - [x] command: `agile task next 2.2` show the first sub-subtask of the second task etc.
 - [x] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
 - [x] command: `agile task next --mine` show the next task eligible.
-  Eligbility --> same rules as for assignment / completion validation
+  Eligbility --> same rules as for assignment / completion validation 
 
 - [x] mark tasks done from CLI
   - [x] tasks
@@ -435,9 +435,34 @@
 
 - [x] GUI: show ordered-subtask numbers in the task card and modal subtask lists, and enforce completion order (block marking an ordered subtask done while a lower-ordered sibling is still incomplete) from both `agile task done` and the GUI, reusing the same rule-violation error handling as other completion checks (e.g. incomplete children).
 
+- [ ] dummy task
+  - [x] with subtasks
+  - [ ] with subtasks
+  - [x] with subtasks
+  - [x] with subtasks
+
+- [ ] other dummy task
+  Some text content for the task 
+  Some text content for the task 
+  Some text content for the task 
+  - [x] with subtasks
+  - [ ] with subtasks
+    Some text content for the subtask 
+    Some text content for the subtask 
+    Some text content for the subtask 
+    Some text content for the subtask 
+  - [ ] with subtasks
+  - [x] with subtasks
+
+- [x] third dummy task
+  - [x] 1. with subtasks
+  - [x] 2. with subtasks
+  - [x] 3. with subtasks
+  - [x] with subtasks
+  
 ## ETA
-- [ ] Milestones: ETA / time estimation.
-  The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command,
+- [ ] Milestones: ETA / time estimation. 
+  The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
 
 ### Short Forms
