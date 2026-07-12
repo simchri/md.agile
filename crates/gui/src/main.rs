@@ -10,6 +10,7 @@ use card_positioning::{
     backlog_position_style, done_position_style, in_progress_style, status_box, status_class,
     task_progress,
 };
+use dioxus::prelude::ServerFnError;
 use server::TaskView;
 
 fn main() {
@@ -78,6 +79,23 @@ const MAX_TASK_SLOTS: usize = 60;
 /// Target frequency for physics simulation: 40 times per second (25ms per frame).
 const PHYSICS_FRAME_MS: u64 = 50;
 
+/// Derives whether write actions (e.g. the "Mark done" button) should be
+/// hidden, from the current state of the `get_kiosk_mode` resource.
+///
+/// Defaults to `true` (hide write actions) while the fetch is still in
+/// flight (`None`) or if it failed (`Some(Err(_))`) — fail safe, so a slow
+/// or broken kiosk-mode check never flashes a write-capable UI. Only an
+/// explicit, successful `Ok(false)` response ("kiosk mode is off") flips
+/// this to `false` (show write actions). An explicit `Ok(true)` keeps it
+/// `true`, as expected.
+fn resolve_kiosk_flag(kiosk_mode: Option<&Result<bool, ServerFnError>>) -> bool {
+    !matches!(kiosk_mode, Some(Ok(false)))
+}
+
+#[cfg(test)]
+#[path = "main_tests.rs"]
+mod tests;
+
 fn app() -> Element {
     let mut tasks_resource = use_resource(|| async {
         let tasks = server::get_tasks().await;
@@ -89,8 +107,8 @@ fn app() -> Element {
     // that changes while the GUI is open. Defaults to hiding write actions
     // (`true`) while the fetch is in flight, to avoid a flash of a "mark
     // done" button that then disappears.
-    let kiosk = use_resource(|| async { server::get_kiosk_mode().await });
-    let kiosk = matches!(&*kiosk.read(), Some(Ok(false)));
+    let kiosk_resource = use_resource(|| async { server::get_kiosk_mode().await });
+    let kiosk = resolve_kiosk_flag(kiosk_resource.read().as_ref());
 
     // Task data and physics live in separate signal arrays.
     // Physics signals are passed directly into TaskCard, which subscribes to
