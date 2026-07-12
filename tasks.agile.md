@@ -410,6 +410,10 @@
 - [x] command: `agile task next --mine` show the next task eligible.
   Eligbility --> same rules as for assignment / completion validation 
 
+- [ ] "rename agile task next N.M" to "agile task show N.M"
+
+- [ ] range support for "agile list tasks", syntax `agile list tasks START:END` ranges apply to the top-level only, but show tasks with subtasks
+
 ## LSP documentation
 
 - [ ] LSP Phase 3: IDE Integration
