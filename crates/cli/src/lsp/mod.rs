@@ -27,7 +27,12 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-use crate::{checker, config::Config, parser, rules::Issue};
+use crate::{
+    checker,
+    config::{Config, find_config_file_in, find_config_file_upwards},
+    parser,
+    rules::Issue,
+};
 
 struct Backend {
     client: Client,
@@ -155,24 +160,14 @@ impl Backend {
     async fn resolve_config_path(&self, uri: &Url) -> Option<PathBuf> {
         let root = self.root.read().await;
         if let Some(root) = root.as_ref() {
-            Self::find_config_file(root)
+            find_config_file_in(root)
         } else {
             let file_path = uri
                 .to_file_path()
                 .unwrap_or_else(|_| PathBuf::from(uri.path()));
-            config_file_for_path(&file_path)
+            let dir = file_path.parent()?;
+            find_config_file_upwards(dir)
         }
-    }
-
-    /// Find the config file path for the given root directory.
-    fn find_config_file(root: &std::path::Path) -> Option<PathBuf> {
-        for name in &["mdagile.toml", ".mdagile.toml"] {
-            let path = root.join(name);
-            if path.exists() {
-                return Some(path);
-            }
-        }
-        None
     }
 
     /// Check if config file has been modified since last check, and re-validate all docs if so.
@@ -182,7 +177,7 @@ impl Backend {
             None => return,
         };
 
-        let config_path = match Self::find_config_file(&root) {
+        let config_path = match find_config_file_in(&root) {
             Some(p) => p,
             None => return,
         };
@@ -522,20 +517,6 @@ pub fn run() -> std::io::Result<()> {
 
 fn ranges_overlap(a: &Range, b: &Range) -> bool {
     a.start.line <= b.end.line && b.start.line <= a.end.line
-}
-
-/// Walk up from `file_path`'s directory to find the nearest mdagile config file.
-fn config_file_for_path(file_path: &std::path::Path) -> Option<PathBuf> {
-    let mut dir = file_path.parent()?;
-    loop {
-        for name in &["mdagile.toml", ".mdagile.toml"] {
-            let p = dir.join(name);
-            if p.exists() {
-                return Some(p);
-            }
-        }
-        dir = dir.parent()?;
-    }
 }
 
 fn format_message(msg: String) -> String {

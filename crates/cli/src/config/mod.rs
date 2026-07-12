@@ -1,5 +1,36 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// The two file names mdagile recognizes as its config file, in the order
+/// they're preferred when only one is present. Exactly one of these is
+/// expected per project directory; both present at once is a
+/// [`ConfigError::ConflictingConfig`].
+pub const CONFIG_FILE_NAMES: [&str; 2] = ["mdagile.toml", ".mdagile.toml"];
+
+/// Returns the config file path in `dir`, if exactly one of
+/// [`CONFIG_FILE_NAMES`] exists there. Doesn't distinguish "neither exists"
+/// from "both exist" — callers that need to raise [`ConfigError::ConflictingConfig`]
+/// should go through [`Config::load`] instead, which needs both candidate
+/// paths anyway to build that error.
+pub fn find_config_file_in(dir: &Path) -> Option<PathBuf> {
+    CONFIG_FILE_NAMES
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|path| path.exists())
+}
+
+/// Walks up from `start_dir` (inclusive) through its ancestors, returning the
+/// config file path in the nearest directory that has one.
+pub fn find_config_file_upwards(start_dir: &Path) -> Option<PathBuf> {
+    let mut dir = Some(start_dir);
+    while let Some(d) = dir {
+        if let Some(path) = find_config_file_in(d) {
+            return Some(path);
+        }
+        dir = d.parent();
+    }
+    None
+}
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Config {
@@ -325,8 +356,8 @@ impl Config {
     }
 
     pub fn load(root: &Path) -> Result<Self, ConfigError> {
-        let plain = root.join("mdagile.toml");
-        let dot = root.join(".mdagile.toml");
+        let plain = root.join(CONFIG_FILE_NAMES[0]);
+        let dot = root.join(CONFIG_FILE_NAMES[1]);
         match (plain.exists(), dot.exists()) {
             (true, true) => Err(ConfigError::ConflictingConfig {
                 paths: [plain, dot],
