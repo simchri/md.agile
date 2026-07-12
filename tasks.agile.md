@@ -377,18 +377,15 @@
 - [ ] #bug `agile check` --  "ranked (ordered) task completed out of order" the column indicator always points to column 0. Could be nicer: Point to the ordering number instead
 - [ ] check other similar checks - is this marker placed logically?
 
-## Events
-- [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
-  - [ ] formulate "vision"
-
-## Agile Fix
-- [ ] Apply existing quick fixes via `agile fix` on the command line
+### Writing back to file from GUI
+- [ ] Mark task as done from GUI
 
 ## More CLI features
 
 - [ ] create a global overview of the planned CLI structure as some markdown file, with a tree-like view
   - [ ] list of subcommands and their functions
-  - [ ] most important flags to each subcommand
+  - [ ] all flags to each subcommand
+  - [ ] clearly mark what is already implemented / what's missing
   - [ ] let human review and adjust the overview
 - [x] introduce a logging library for the CLI crate and replace raw `eprintln!` calls with structured log calls (uses `tracing`, controlled by `AGILE_LOG`)
 
@@ -398,14 +395,7 @@
 - [ ] command: `agile task next 2.2` show the first sub-subtask of the second task etc.
 - [ ] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
 - [ ] command: `agile task next --mine` show the next task eligible.
-  Eligbility:
-  - If the task is not assigned to any group or person --> elligible
-  - task assigned to me (and potentially others) --> elligible
-  - task assigned to a group that I am a part of (and potentially others) --> elligible
-  - otherwise --> not elligible
-
-
-
+  Eligbility --> same rules as for assignment / completion validation 
 
 ## LSP documentation
 
@@ -455,5 +445,12 @@
     - [ ] by rank (34.1.3 etc, where subtasks get a nested rank)
     - [ ] directly by search term
 
-### Writing back to file from GUI
-- [ ] Mark task as done from GUI
+
+## Events
+- [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
+  - [ ] formulate "vision"
+
+## Agile Fix
+- [ ] Apply existing quick fixes via `agile fix` on the command line
+
+
