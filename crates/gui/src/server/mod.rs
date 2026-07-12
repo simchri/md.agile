@@ -45,6 +45,13 @@ pub struct TaskView {
     pub markers: Vec<String>,
     pub body: Vec<String>,
     pub children: Vec<TaskView>,
+    /// The explicit sibling order number (the `1` in `- [ ] 1. do this`), if
+    /// this node is an ordered subtask. Always `None` for top-level tasks —
+    /// only subtasks can be ordered — and for subtasks without an order
+    /// prefix at all. Lets the UI both display the order and (via the
+    /// server-side completion check) refuse to mark a lower-ordered
+    /// sibling's task done out of turn.
+    pub order: Option<u32>,
     pub rank: usize,
     pub path: String,
     pub line: usize,
@@ -147,6 +154,7 @@ fn task_to_view(task: &mdagile::parser::Task, rank: usize, root: &Path) -> TaskV
             .iter()
             .map(|s| subtask_to_view(s, root))
             .collect(),
+        order: None,
         rank,
         path: relative_path(&task.location.path, root),
         line: task.location.line,
@@ -165,6 +173,10 @@ fn subtask_to_view(sub: &mdagile::parser::Subtask, root: &Path) -> TaskView {
             .iter()
             .map(|s| subtask_to_view(s, root))
             .collect(),
+        order: match sub.order {
+            mdagile::parser::Order::Ordered(n) => Some(n),
+            mdagile::parser::Order::None => None,
+        },
         rank: 0,
         path: relative_path(&sub.location.path, root),
         line: sub.location.line,

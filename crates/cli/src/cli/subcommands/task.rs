@@ -482,7 +482,7 @@ pub fn mark_node_done(
         return Err(MarkDoneError::NotTodo(node.title().to_string()));
     }
 
-    let issues = rules::check_completable(node, config);
+    let issues = rules::check_completable(items, node, config);
     if !issues.is_empty() {
         return Err(MarkDoneError::RuleViolations(issues));
     }

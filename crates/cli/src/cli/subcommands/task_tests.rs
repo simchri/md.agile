@@ -159,6 +159,42 @@ fn mark_node_done_rejects_a_task_with_incomplete_required_children() {
 }
 
 #[test]
+fn mark_node_done_rejects_out_of_order_subtask_completion() {
+    let content = "\
+- [ ] a task
+  - [ ] 1. first step
+  - [ ] 2. second step
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+    let config = Config::default();
+
+    // Line 3 is "2. second step" — its lower-ordered sibling (line 2) is
+    // still todo, so completing it out of order must be rejected.
+    match mark_node_done(&file, &items, 3, &config) {
+        Err(MarkDoneError::RuleViolations(issues)) => assert!(!issues.is_empty()),
+        other => panic!("expected RuleViolations, got {other:?}"),
+    }
+    // file must be untouched
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), content);
+}
+
+#[test]
+fn mark_node_done_allows_in_order_subtask_completion() {
+    let content = "\
+- [ ] a task
+  - [ ] 1. first step
+  - [ ] 2. second step
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+    let config = Config::default();
+
+    let result = mark_node_done(&file, &items, 2, &config);
+    assert_eq!(result.as_deref(), Ok("first step"));
+}
+
+#[test]
 fn mark_node_done_returns_not_found_when_no_node_starts_at_that_line() {
     let content = "\
 - [ ] a task

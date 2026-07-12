@@ -433,6 +433,8 @@
 
 - [x] GUI board: make in-progress cards draggable with the mouse (click-and-hold to move, follows the cursor while held, other cards keep reacting to its position via the existing physics repulsion, snaps back to normal physics-driven behavior on release)
 
+- [x] GUI: show ordered-subtask numbers in the task card and modal subtask lists, and enforce completion order (block marking an ordered subtask done while a lower-ordered sibling is still incomplete) from both `agile task done` and the GUI, reusing the same rule-violation error handling as other completion checks (e.g. incomplete children).
+
 ## ETA
 - [ ] Milestones: ETA / time estimation.
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command,

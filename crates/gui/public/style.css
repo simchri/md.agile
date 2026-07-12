@@ -137,6 +137,13 @@ body {
     color: #555;
 }
 
+.subtask-order {
+    font-family: monospace;
+    margin-right: 3px;
+    color: #888;
+    font-weight: bold;
+}
+
 .subtask-title {
     color: #333;
 }

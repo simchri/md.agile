@@ -133,7 +133,7 @@ impl std::str::FromStr for ErrorCode {
 }
 
 use crate::config::Config;
-use crate::parser::{FileItem, Location, Marker, ParsingIssue, Status, Subtask, Task};
+use crate::parser::{FileItem, Location, Marker, Order, ParsingIssue, Status, Subtask, Task};
 use serde::{Deserialize, Serialize};
 
 /// A read-only view over a [`Task`] or [`Subtask`] that exposes the fields
@@ -202,6 +202,15 @@ impl<'a> NodeRef<'a> {
             NodeRef::Subtask(s) => &s.title,
         }
     }
+
+    /// The node's own ordering, if any. Always `None` for a top-level
+    /// [`Task`] — only [`Subtask`] carries an [`Order`].
+    pub fn order(&self) -> Option<&'a Order> {
+        match self {
+            NodeRef::Task(_) => None,
+            NodeRef::Subtask(s) => Some(&s.order),
+        }
+    }
 }
 
 /// Walks every task and subtask in `items`, calling `f` with a [`NodeRef`]
@@ -258,6 +267,37 @@ pub fn find_node_by_line(items: &[FileItem], line: usize) -> Option<NodeRef<'_>>
                 return Some(NodeRef::Task(task));
             }
             if let Some(found) = find_in_subtasks(&task.children, line) {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
+/// Finds the sibling list (i.e. the parent's `children`) that contains the
+/// subtask starting at `line`. Returns `None` if `line` doesn't identify a
+/// subtask at all (e.g. it's a top-level task, which has no `Order` and no
+/// meaningful "siblings" for ordering purposes) or doesn't exist.
+///
+/// Used by [`check_completable`] to validate ordered-subtask completion
+/// (E015) *before* a node is marked done, the same way [`find_node_by_line`]
+/// locates the node itself.
+fn find_siblings_by_line(items: &[FileItem], line: usize) -> Option<&[Subtask]> {
+    fn find_in(subtasks: &[Subtask], line: usize) -> Option<&[Subtask]> {
+        for sub in subtasks {
+            if sub.location.line == line {
+                return Some(subtasks);
+            }
+            if let Some(found) = find_in(&sub.children, line) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    for item in items {
+        if let FileItem::Task(task) = item {
+            if let Some(found) = find_in(&task.children, line) {
                 return Some(found);
             }
         }
@@ -369,7 +409,12 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
 
 /// Checks whether marking `node` done right now would violate any
 /// completion-related rule: "incomplete children" (E004), "missing required
-/// subtasks" (E010), or "cancelled required subtask not allowed" (E012).
+/// subtasks" (E010), "cancelled required subtask not allowed" (E012), or —
+/// if `node` is an ordered subtask — "out-of-order completion" (E015).
+///
+/// `items` is the full parsed file `node` came from; it's only used to
+/// locate `node`'s siblings for the ordering check (see
+/// [`find_siblings_by_line`]) and is otherwise unused here.
 ///
 /// Used by `agile task done <address>` to validate a single addressed node
 /// in isolation, without running the full rule set over the rest of the
@@ -377,7 +422,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
 /// `doc/cli-structure.md`). Reuses the exact same rule logic as `agile
 /// check` so the two commands never disagree about what counts as a valid
 /// completion.
-pub fn check_completable(node: NodeRef, config: &Config) -> Vec<Issue> {
+pub fn check_completable(items: &[FileItem], node: NodeRef, config: &Config) -> Vec<Issue> {
     let mut issues =
         incomplete_parent::check_children_complete(node.children(), node.location(), node.indent());
     issues.extend(missing_required_subtasks::check_node(
@@ -387,7 +432,41 @@ pub fn check_completable(node: NodeRef, config: &Config) -> Vec<Issue> {
         node.indent(),
         config,
     ));
+    issues.extend(check_order_completable(items, node));
     issues
+}
+
+/// The E015 half of [`check_completable`]: if `node` is an ordered subtask,
+/// checks whether any lower-ordered sibling is still incomplete (not done,
+/// not cancelled) and, if so, refuses the completion — pre-empting the
+/// out-of-order state that [`invalid_order::invalid_order`] would otherwise
+/// only catch after the fact, on the next `agile check`.
+fn check_order_completable(items: &[FileItem], node: NodeRef) -> Vec<Issue> {
+    let Some(Order::Ordered(order_number)) = node.order() else {
+        return Vec::new();
+    };
+    let NodeRef::Subtask(sub) = node else {
+        return Vec::new();
+    };
+    let Some(siblings) = find_siblings_by_line(items, node.location().line) else {
+        return Vec::new();
+    };
+    if invalid_order::blocked_by_incomplete_lower_order(siblings, *order_number) {
+        vec![Issue {
+            location: node.location().clone(),
+            code: ErrorCode::OutOfOrderCompletion,
+            message: "Ordered task completed out of order".to_string(),
+            column: invalid_order::order_number_column(sub),
+            help: Some(
+                "A lower-ordered sibling is still incomplete. Complete or cancel lower-ordered \
+                 siblings first."
+                    .to_string(),
+            ),
+            data: None,
+        }]
+    } else {
+        Vec::new()
+    }
 }
 
 /// Returns whether `identity` is eligible to work on `node`: `true` if the

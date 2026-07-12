@@ -603,6 +603,9 @@ fn SubtaskItem(
                 },
                 {status_box(&task.status)}
             }
+            if let Some(order) = task.order {
+                span { class: "subtask-order", "{order}." }
+            }
             span { class: "subtask-title", "{task.title}" }
             if !task.markers.is_empty() {
                 span { class: "subtask-markers",

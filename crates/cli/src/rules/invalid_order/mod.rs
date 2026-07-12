@@ -41,7 +41,7 @@ fn check_siblings(siblings: &[Subtask], issues: &mut Vec<Issue>) {
 /// character of the title; `PropertyRequired` subtasks are quoted (e.g.
 /// `"1. do this"`), so the prefix sits one character further in, after the
 /// opening `"`.
-fn order_number_column(sub: &Subtask) -> usize {
+pub(crate) fn order_number_column(sub: &Subtask) -> usize {
     let title_relative_column = match sub.kind {
         SubtaskKind::PropertyRequired => 2,
         SubtaskKind::Custom => 1,
@@ -82,14 +82,7 @@ fn check_completion_order(siblings: &[Subtask], issues: &mut Vec<Issue>) {
         if sub.status != Status::Done {
             continue;
         }
-        let blocked_by_incomplete_lower_order_number =
-            siblings.iter().any(|other| match other.order {
-                Order::Ordered(other_order_number) if other_order_number < order_number => {
-                    other.status != Status::Done && other.status != Status::Cancelled
-                }
-                _ => false,
-            });
-        if blocked_by_incomplete_lower_order_number {
+        if blocked_by_incomplete_lower_order(siblings, order_number) {
             issues.push(Issue {
                 location: sub.location.clone(),
                 code: ErrorCode::OutOfOrderCompletion,
@@ -104,6 +97,20 @@ fn check_completion_order(siblings: &[Subtask], issues: &mut Vec<Issue>) {
             });
         }
     }
+}
+
+/// Whether some sibling ordered strictly before `order_number` is still
+/// incomplete (neither done nor cancelled). Shared by [`check_completion_order`]
+/// (checking already-done siblings for `agile check`) and
+/// [`crate::rules::check_completable`] (checking *before* a node is marked
+/// done, e.g. from `agile task done` or the GUI).
+pub(crate) fn blocked_by_incomplete_lower_order(siblings: &[Subtask], order_number: u32) -> bool {
+    siblings.iter().any(|other| match other.order {
+        Order::Ordered(other_order_number) if other_order_number < order_number => {
+            other.status != Status::Done && other.status != Status::Cancelled
+        }
+        _ => false,
+    })
 }
 
 #[cfg(test)]
