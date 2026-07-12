@@ -34,7 +34,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// Task operations
-    #[command(alias = "tasks")]
+    #[command(visible_alias = "tasks")]
     Task {
         #[command(subcommand)]
         action: TaskAction,
@@ -46,7 +46,7 @@ pub enum Command {
     /// to the current directory. Files are sorted alphabetically by
     /// filename only — their directory path does not affect ordering.
     /// This sort order is the global task priority order across files.
-    #[command(alias = "files")]
+    #[command(visible_alias = "files")]
     File {
         /// Show only the first COUNT files
         #[arg(short = 'n', long, value_name = "COUNT")]
@@ -129,7 +129,7 @@ pub enum TaskAction {
     /// across all task files in priority order, including its full subtask
     /// tree. Skips done ([x]) and cancelled ([-]) tasks. Prints nothing if
     /// every task is complete or cancelled.
-    #[command(alias = "show")]
+    #[command(visible_alias = "show")]
     Next {
         /// A plain count (e.g. `3`) to show the next N incomplete top-level
         /// tasks, or a dotted address (e.g. `1.2`, `2.1.4`) to show one
