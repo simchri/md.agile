@@ -9,6 +9,8 @@ fn todo_task(title: &str, children: Vec<TaskView>) -> TaskView {
         body: vec![],
         children,
         rank: 0,
+        path: String::new(),
+        line: 0,
     }
 }
 
@@ -20,6 +22,8 @@ fn done_task(title: &str) -> TaskView {
         body: vec![],
         children: vec![],
         rank: 0,
+        path: String::new(),
+        line: 0,
     }
 }
 
@@ -31,6 +35,8 @@ fn cancelled_task(title: &str) -> TaskView {
         body: vec![],
         children: vec![],
         rank: 0,
+        path: String::new(),
+        line: 0,
     }
 }
 

@@ -4,12 +4,16 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 use {
     log::{error, info},
-    std::path::PathBuf,
+    std::path::{Path, PathBuf},
     std::sync::Mutex,
 };
 
 #[cfg(feature = "server")]
 static WORKING_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+/// Cached result of [`is_kiosk_mode`]. `None` means "not yet resolved".
+#[cfg(feature = "server")]
+static KIOSK_MODE: Mutex<Option<bool>> = Mutex::new(None);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum TaskStatus {
@@ -28,6 +32,12 @@ pub enum TaskStatus {
 /// in-file order). It defines the visual ordering on the canvas regardless of
 /// which slot a task happens to occupy. Subtasks carry `rank == 0` since they
 /// are rendered inline within their parent and never positioned independently.
+///
+/// `path` (relative to the project root, forward-slash separated) and `line`
+/// (1-based) together identify exactly where this node lives in its source
+/// file — the same [`mdagile::parser::Location`] the parser already tracks
+/// internally. This is the handle [`mark_task_done`] uses to locate and
+/// mutate the right line without any separate addressing scheme.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TaskView {
     pub status: TaskStatus,
@@ -36,6 +46,8 @@ pub struct TaskView {
     pub body: Vec<String>,
     pub children: Vec<TaskView>,
     pub rank: usize,
+    pub path: String,
+    pub line: usize,
 }
 
 #[cfg(feature = "server")]
@@ -88,7 +100,7 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
             rank += 1;
             match task.status {
                 Status::Todo => {
-                    let view = task_to_view(task, task_rank);
+                    let view = task_to_view(task, task_rank, &root);
                     if crate::card_positioning::has_started(&view) {
                         if in_progress.len() < IN_PROGRESS_LIMIT {
                             in_progress.push(view);
@@ -97,7 +109,7 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
                         backlog.push(view);
                     }
                 }
-                Status::Done => dones.push(task_to_view(task, task_rank)),
+                Status::Done => dones.push(task_to_view(task, task_rank, &root)),
                 Status::Cancelled => {}
             }
         }
@@ -124,27 +136,52 @@ pub async fn get_tasks() -> Result<Vec<TaskView>, ServerFnError> {
 }
 
 #[cfg(feature = "server")]
-fn task_to_view(task: &mdagile::parser::Task, rank: usize) -> TaskView {
+fn task_to_view(task: &mdagile::parser::Task, rank: usize, root: &Path) -> TaskView {
     TaskView {
         status: status_to_view(&task.status),
         title: task.title.clone(),
         markers: task.markers.iter().map(format_marker).collect(),
         body: task.body.clone(),
-        children: task.children.iter().map(subtask_to_view).collect(),
+        children: task
+            .children
+            .iter()
+            .map(|s| subtask_to_view(s, root))
+            .collect(),
         rank,
+        path: relative_path(&task.location.path, root),
+        line: task.location.line,
     }
 }
 
 #[cfg(feature = "server")]
-fn subtask_to_view(sub: &mdagile::parser::Subtask) -> TaskView {
+fn subtask_to_view(sub: &mdagile::parser::Subtask, root: &Path) -> TaskView {
     TaskView {
         status: status_to_view(&sub.status),
         title: sub.title.clone(),
         markers: sub.markers.iter().map(format_marker).collect(),
         body: sub.body.clone(),
-        children: sub.children.iter().map(subtask_to_view).collect(),
+        children: sub
+            .children
+            .iter()
+            .map(|s| subtask_to_view(s, root))
+            .collect(),
         rank: 0,
+        path: relative_path(&sub.location.path, root),
+        line: sub.location.line,
     }
+}
+
+/// Renders `path` relative to `root` as a forward-slash-separated string
+/// suitable for round-tripping to [`mark_task_done`] — never an absolute
+/// path, so the client never sees (or needs to send back) filesystem layout
+/// outside the project.
+#[cfg(feature = "server")]
+fn relative_path(path: &Path, root: &Path) -> String {
+    let rel = path.strip_prefix(root).unwrap_or(path);
+    rel.components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 #[cfg(feature = "server")]
@@ -223,4 +260,79 @@ fn get_or_init_working_dir() -> Result<PathBuf, ServerFnError> {
 
     *cached = Some(dir.clone());
     Ok(dir)
+}
+
+/// Resolves and caches whether the GUI is running in kiosk mode (write
+/// actions disabled), analogous to [`get_or_init_working_dir`]'s handling of
+/// `MDAGILE_WORKDIR`: read once from the `MDAGILE_KIOSK` env var (any
+/// non-empty value other than `"0"`/`"false"` enables it), then cached for
+/// the lifetime of the server process.
+#[cfg(feature = "server")]
+fn is_kiosk_mode() -> bool {
+    let mut cached = KIOSK_MODE.lock().unwrap();
+    if let Some(kiosk) = *cached {
+        return kiosk;
+    }
+
+    let kiosk = std::env::var("MDAGILE_KIOSK")
+        .map(|v| !v.is_empty() && v != "0" && v.to_lowercase() != "false")
+        .unwrap_or(false);
+    *cached = Some(kiosk);
+    kiosk
+}
+
+/// Reports whether the server is running in kiosk mode, so the frontend can
+/// hide write-capable UI (e.g. the "mark done" button). This is purely a UX
+/// convenience — [`mark_task_done`] independently re-checks kiosk mode
+/// server-side before making any change, since the client can't be trusted
+/// to honor a hidden button.
+#[server]
+pub async fn get_kiosk_mode() -> Result<bool, ServerFnError> {
+    Ok(is_kiosk_mode())
+}
+
+/// Marks the task or subtask identified by `path` (relative to the project
+/// root, as returned in a [`TaskView`]) and `line` done.
+///
+/// Reuses exactly the same core logic (and completion rules) as `agile task
+/// done` — see [`mdagile::cli::subcommands::task::mark_node_done`] — so a
+/// task that the CLI would refuse to complete (e.g. incomplete required
+/// children) is refused here too, with the same reasons.
+#[server]
+pub async fn mark_task_done(path: String, line: usize) -> Result<(), ServerFnError> {
+    use mdagile::cli::common::{find_task_files, parse_file};
+    use mdagile::cli::subcommands::task::{mark_node_done, MarkDoneError};
+
+    if is_kiosk_mode() {
+        return Err(ServerFnError::new("kiosk mode: write actions are disabled"));
+    }
+
+    let root = get_or_init_working_dir()?;
+    let file = root.join(&path);
+
+    // Only accept paths `find_task_files` itself would discover — this is
+    // also what prevents a stale or malicious client from pointing this
+    // write action at an arbitrary path outside the project.
+    if !find_task_files(&root).iter().any(|f| *f == file) {
+        return Err(ServerFnError::new("not a recognized task file"));
+    }
+
+    let config = mdagile::config::Config::load(&root)
+        .map_err(|e| ServerFnError::new(format!("could not load config: {e}")))?;
+    let items = parse_file(&file);
+
+    match mark_node_done(&file, &items, line, &config) {
+        Ok(_title) => Ok(()),
+        Err(MarkDoneError::NotFound) => Err(ServerFnError::new(
+            "task changed on disk — please refresh and try again",
+        )),
+        Err(MarkDoneError::NotTodo(title)) => {
+            Err(ServerFnError::new(format!("\"{title}\" is already done")))
+        }
+        Err(MarkDoneError::RuleViolations(issues)) => {
+            let messages: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
+            Err(ServerFnError::new(messages.join("; ")))
+        }
+        Err(MarkDoneError::Io(e)) => Err(ServerFnError::new(e)),
+    }
 }

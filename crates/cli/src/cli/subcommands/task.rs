@@ -5,7 +5,7 @@ use crate::cli::common::{find_task_files, parse_file, render_subtask_as_root, re
 use crate::config::Config;
 use crate::formatter;
 use crate::parser::{FileItem, Status, Subtask};
-use crate::rules::{self, NodeRef, ResolvedIdentity};
+use crate::rules::{self, Issue, NodeRef, ResolvedIdentity};
 use std::path::{Path, PathBuf};
 
 /// `agile task next [ADDRESS]` entry point.
@@ -116,27 +116,29 @@ pub fn run_done(root: &Path, config: &Config, address: &str) {
         }
     };
 
-    let node = resolved.node_ref();
-
-    if *node.status() != Status::Todo {
-        log::error!("task {address:?} ({}) is not a todo task", node.title());
-        std::process::exit(1);
-    }
-
-    let issues = rules::check_completable(node, config);
-    if !issues.is_empty() {
-        for issue in &issues {
-            print!("{}", formatter::format_issue(issue));
+    let line = resolved.node_ref().location().line;
+    match mark_node_done(&resolved.file, &resolved.items, line, config) {
+        Ok(title) => println!("done: {title}"),
+        Err(MarkDoneError::NotTodo(title)) => {
+            log::error!("task {address:?} ({title}) is not a todo task");
+            std::process::exit(1);
         }
-        std::process::exit(1);
+        Err(MarkDoneError::RuleViolations(issues)) => {
+            for issue in &issues {
+                print!("{}", formatter::format_issue(issue));
+            }
+            std::process::exit(1);
+        }
+        Err(MarkDoneError::NotFound) => {
+            // Can't happen: `line` was just read from `resolved`'s own parsed
+            // `items`, so a node is guaranteed to start there.
+            unreachable!("resolved address line vanished from its own parsed items");
+        }
+        Err(MarkDoneError::Io(e)) => {
+            log::error!("{e}");
+            std::process::exit(1);
+        }
     }
-
-    if let Err(e) = mark_done_in_file(&resolved) {
-        log::error!("{e}");
-        std::process::exit(1);
-    }
-
-    println!("done: {}", node.title());
 }
 
 /// Returns the first incomplete top-level task block from `items`.
@@ -358,39 +360,79 @@ pub(crate) fn set_status_done(line: &str, indent: usize) -> Option<String> {
     Some(chars.into_iter().collect())
 }
 
-/// Rewrites the addressed (sub)task's line in its own source file to mark it
-/// done (`[x]`), preserving every other line and the file's trailing-newline
-/// presence exactly. Only the one file the (sub)task lives in is touched.
-fn mark_done_in_file(resolved: &ResolvedAddress) -> Result<(), String> {
-    let node = resolved.node_ref();
-    let line_no = node.location().line;
-    let indent = node.indent();
+/// The reason [`mark_node_done`] refused to mark a (sub)task done.
+#[derive(Debug, PartialEq)]
+pub enum MarkDoneError {
+    /// No task or subtask starts at the given line — e.g. a stale (file,
+    /// line) identity captured before the file changed.
+    NotFound,
+    /// The addressed node exists but isn't a todo (`[ ]`) task; carries its
+    /// title.
+    NotTodo(String),
+    /// The addressed node is a todo task but fails one or more completion
+    /// rules (e.g. incomplete required children) — see [`rules::check_completable`].
+    RuleViolations(Vec<Issue>),
+    /// Reading or writing the file failed.
+    Io(String),
+}
 
-    let content = std::fs::read_to_string(&resolved.file)
-        .map_err(|e| format!("could not read {}: {e}", resolved.file.display()))?;
+/// Marks the (sub)task starting at `line` in `file` done (`[x]`), after
+/// verifying it's a todo task that satisfies every completion rule (see
+/// [`rules::check_completable`]) — the same checks `agile task done`
+/// enforces via an address. Returns the node's title on success.
+///
+/// `items` must already be the parsed contents of `file` (the caller is
+/// responsible for parsing — this function neither reads nor re-parses the
+/// file except to perform the actual write). This lets a caller that has
+/// already parsed the file for another purpose (e.g. [`resolve_address`])
+/// reuse that work, and lets a caller that only knows a (file, line) pair —
+/// e.g. the GUI, from a `TaskView` returned by an earlier listing — locate
+/// the node itself via [`rules::find_node_by_line`] without needing to know
+/// its position in the tree.
+pub fn mark_node_done(
+    file: &Path,
+    items: &[FileItem],
+    line: usize,
+    config: &Config,
+) -> Result<String, MarkDoneError> {
+    let node = rules::find_node_by_line(items, line).ok_or(MarkDoneError::NotFound)?;
+
+    if *node.status() != Status::Todo {
+        return Err(MarkDoneError::NotTodo(node.title().to_string()));
+    }
+
+    let issues = rules::check_completable(node, config);
+    if !issues.is_empty() {
+        return Err(MarkDoneError::RuleViolations(issues));
+    }
+
+    let title = node.title().to_string();
+    let indent = node.indent();
+    write_done_line(file, line, indent).map_err(MarkDoneError::Io)?;
+    Ok(title)
+}
+
+/// Rewrites one line of `file` in place to mark it done (`[x]`), preserving
+/// every other line and the file's trailing-newline presence exactly.
+fn write_done_line(file: &Path, line_no: usize, indent: usize) -> Result<(), String> {
+    let content = std::fs::read_to_string(file)
+        .map_err(|e| format!("could not read {}: {e}", file.display()))?;
     let had_trailing_newline = content.ends_with('\n');
     let mut lines: Vec<String> = content.lines().map(str::to_string).collect();
 
     if line_no == 0 || line_no > lines.len() {
-        return Err(format!(
-            "line {line_no} out of range in {}",
-            resolved.file.display()
-        ));
+        return Err(format!("line {line_no} out of range in {}", file.display()));
     }
-    let new_line = set_status_done(&lines[line_no - 1], indent).ok_or_else(|| {
-        format!(
-            "could not locate task box on {}:{line_no}",
-            resolved.file.display()
-        )
-    })?;
+    let new_line = set_status_done(&lines[line_no - 1], indent)
+        .ok_or_else(|| format!("could not locate task box on {}:{line_no}", file.display()))?;
     lines[line_no - 1] = new_line;
 
     let mut new_content = lines.join("\n");
     if had_trailing_newline {
         new_content.push('\n');
     }
-    std::fs::write(&resolved.file, new_content)
-        .map_err(|e| format!("could not write {}: {e}", resolved.file.display()))?;
+    std::fs::write(file, new_content)
+        .map_err(|e| format!("could not write {}: {e}", file.display()))?;
     Ok(())
 }
 

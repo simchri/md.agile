@@ -229,6 +229,42 @@ where
     }
 }
 
+/// Locates the (sub)task starting at the given 1-based source line, scanning
+/// `items` in the same document order as [`for_each_node`] but returning as
+/// soon as a match is found instead of visiting every node.
+///
+/// Used to resolve a (file, line) identity — e.g. one captured client-side by
+/// the GUI from an earlier task listing — back to a concrete node, without
+/// requiring the caller to know its position in the tree (task index / child
+/// indices) the way [`crate::cli::subcommands::task::resolve_address`] does
+/// for CLI addresses. Returns `None` if no task or subtask starts at that
+/// line, e.g. because the file changed since the line was captured.
+pub fn find_node_by_line(items: &[FileItem], line: usize) -> Option<NodeRef<'_>> {
+    fn find_in_subtasks(subtasks: &[Subtask], line: usize) -> Option<NodeRef<'_>> {
+        for sub in subtasks {
+            if sub.location.line == line {
+                return Some(NodeRef::Subtask(sub));
+            }
+            if let Some(found) = find_in_subtasks(&sub.children, line) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    for item in items {
+        if let FileItem::Task(task) = item {
+            if task.location.line == line {
+                return Some(NodeRef::Task(task));
+            }
+            if let Some(found) = find_in_subtasks(&task.children, line) {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
 /// Machine-readable, rule-specific payload attached to an [`Issue`].
 ///
 /// Lets consumers (notably the LSP code-action handler) act on the issue

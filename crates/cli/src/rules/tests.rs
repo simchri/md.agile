@@ -115,3 +115,37 @@ fn check_all_equals_check_config_independent_plus_config_dependent_checks() {
 
     assert_eq!(from_check_all, from_independent_plus_config_dependent);
 }
+
+#[test]
+fn find_node_by_line_locates_top_level_task() {
+    let input = "\
+- [ ] first task
+  - [ ] a subtask
+- [ ] second task
+";
+    let items = p(input);
+    let node = find_node_by_line(&items, 3).expect("expected a node at line 3");
+    assert_eq!(node.title(), "second task");
+}
+
+#[test]
+fn find_node_by_line_locates_nested_subtask() {
+    let input = "\
+- [ ] first task
+  - [ ] a subtask
+    - [ ] a nested subtask
+";
+    let items = p(input);
+    let node = find_node_by_line(&items, 3).expect("expected a node at line 3");
+    assert_eq!(node.title(), "a nested subtask");
+}
+
+#[test]
+fn find_node_by_line_returns_none_when_no_node_starts_there() {
+    let input = "\
+- [ ] only task
+";
+    let items = p(input);
+    assert!(find_node_by_line(&items, 2).is_none());
+    assert!(find_node_by_line(&items, 0).is_none());
+}

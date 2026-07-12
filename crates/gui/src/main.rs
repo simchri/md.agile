@@ -48,6 +48,14 @@ fn app() -> Element {
         tasks
     });
 
+    // Fetched once and effectively static for the lifetime of the running
+    // server — kiosk mode is a startup-time configuration, not something
+    // that changes while the GUI is open. Defaults to hiding write actions
+    // (`true`) while the fetch is in flight, to avoid a flash of a "mark
+    // done" button that then disappears.
+    let kiosk = use_resource(|| async { server::get_kiosk_mode().await });
+    let kiosk = matches!(&*kiosk.read(), Some(Ok(false)));
+
     // Task data and physics live in separate signal arrays.
     // Physics signals are passed directly into TaskCard, which subscribes to
     // them internally. This means physics-loop writes only re-render the one
@@ -237,8 +245,13 @@ fn app() -> Element {
             if let Some(task) = modal_task() {
                 TaskModal {
                     task: task,
+                    kiosk,
                     on_close: move |_| {
                         modal_task.set(None);
+                    },
+                    on_marked_done: move |_| {
+                        modal_task.set(None);
+                        tasks_resource.restart();
                     },
                 }
             }
@@ -357,7 +370,19 @@ fn SubtaskItem(task: TaskView, depth: usize, show_body: bool) -> Element {
 }
 
 #[component]
-fn TaskModal(task: TaskView, on_close: EventHandler<MouseEvent>) -> Element {
+fn TaskModal(
+    task: TaskView,
+    kiosk: bool,
+    on_close: EventHandler<MouseEvent>,
+    on_marked_done: EventHandler<()>,
+) -> Element {
+    let mut error: Signal<Option<String>> = use_signal(|| None);
+    let mut pending = use_signal(|| false);
+
+    let is_todo = matches!(task.status, server::TaskStatus::Todo);
+    let path = task.path.clone();
+    let line = task.line;
+
     rsx! {
         div { class: "modal-backdrop",
             onclick: move |evt| on_close.call(evt),
@@ -397,6 +422,33 @@ fn TaskModal(task: TaskView, on_close: EventHandler<MouseEvent>) -> Element {
                     ul { class: "modal-children",
                         for child in &task.children {
                             SubtaskItem { task: child.clone(), depth: 1, show_body: true }
+                        }
+                    }
+                }
+
+                if !kiosk && is_todo {
+                    div { class: "modal-actions",
+                        button {
+                            class: "modal-mark-done",
+                            disabled: pending(),
+                            onclick: move |_| {
+                                let path = path.clone();
+                                pending.set(true);
+                                error.set(None);
+                                dioxus::prelude::spawn(async move {
+                                    match server::mark_task_done(path, line).await {
+                                        Ok(()) => on_marked_done.call(()),
+                                        Err(e) => {
+                                            pending.set(false);
+                                            error.set(Some(e.to_string()));
+                                        }
+                                    }
+                                });
+                            },
+                            if pending() { "Marking done…" } else { "Mark done" }
+                        }
+                        if let Some(msg) = error() {
+                            div { class: "modal-error", "{msg}" }
                         }
                     }
                 }
