@@ -470,6 +470,7 @@
 
 ## More CLI features
 - [ ] Apply existing quick fixes via `agile fix` on the command line
+- [ ] `agile task undone` cannot reopen an already fully-done top-level task (only a done subtask under a still-open parent) — its address only counts still-incomplete top-level tasks, same as `agile task done`, so a done top-level task is never reachable by number. Needs a dedicated way to reopen a whole completed top-level task (e.g. a separate addressing scheme/command), if that's ever wanted.
 
 ## More LSP features
 - [ ] LSP Phase 4: Enhanced Features (Optional)
