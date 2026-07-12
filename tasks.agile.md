@@ -416,7 +416,9 @@
 - [x] range support for "agile list tasks", syntax `agile tasks list START:END` ranges apply to the top-level only, but show tasks with subtasks
 
 ## ETA
-- [ ] Milestones: ETA / time estimation. The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
+- [ ] Milestones: ETA / time estimation. 
+  The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
+  no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
