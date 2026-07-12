@@ -1,5 +1,7 @@
 #[path = "lsp/code_action.rs"]
 mod code_action;
+#[path = "lsp/config_error.rs"]
+mod config_error;
 #[path = "lsp/diagnostics.rs"]
 mod diagnostics;
 #[path = "lsp/e013.rs"]

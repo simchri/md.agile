@@ -41,6 +41,14 @@ struct Backend {
     diagnostics: Arc<RwLock<HashMap<Url, Vec<Diagnostic>>>>,
     /// Last known modification time of the config file (for polling).
     config_mtime: Arc<RwLock<Option<SystemTime>>>,
+    /// The current config-load error message, if the last attempt to load
+    /// `mdagile.toml`/`.mdagile.toml` failed (invalid TOML, conflicting
+    /// config files, property/group/identity validation). `None` when the
+    /// config loaded successfully or no config file exists. Tracked so
+    /// `validate()` only pops a `show_message` notification on the
+    /// broken → fixed → broken *transition*, not on every keystroke while
+    /// the config stays broken.
+    config_error: Arc<RwLock<Option<String>>>,
 }
 
 impl Backend {
@@ -51,14 +59,25 @@ impl Backend {
         let config_path = self.resolve_config_path(&uri).await;
         let config = match &config_path {
             Some(config_path) => {
-                Config::load(config_path.parent().unwrap_or(config_path.as_path()))
-                    .unwrap_or_default()
+                let load_result =
+                    Config::load(config_path.parent().unwrap_or(config_path.as_path()));
+                match load_result {
+                    Ok(c) => {
+                        self.clear_config_error().await;
+                        c
+                    }
+                    Err(e) => {
+                        self.report_config_error(e.to_string()).await;
+                        Config::default()
+                    }
+                }
             }
             None => {
                 log::warn!(
                     "No config file found for {}. Falling back to empty config.",
                     path.display()
                 );
+                self.clear_config_error().await;
                 Config::default()
             }
         };
@@ -77,7 +96,11 @@ impl Backend {
                 &root, &path, text, &config,
             ));
         }
-        let diagnostics: Vec<Diagnostic> = issues.into_iter().map(issue_to_diagnostic).collect();
+        let mut diagnostics: Vec<Diagnostic> =
+            issues.into_iter().map(issue_to_diagnostic).collect();
+        if let Some(message) = self.config_error.read().await.as_ref() {
+            diagnostics.push(config_error_diagnostic(message));
+        }
         self.diagnostics
             .write()
             .await
@@ -85,6 +108,31 @@ impl Backend {
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;
+    }
+
+    /// Records that config loading failed with `message`, and — only on the
+    /// transition into this error (or into a *different* error message) —
+    /// pops a visible `window/showMessage` notification. Repeated
+    /// `validate()` calls while the same error persists (e.g. one per
+    /// keystroke) don't re-notify.
+    async fn report_config_error(&self, message: String) {
+        let mut current = self.config_error.write().await;
+        if current.as_deref() != Some(message.as_str()) {
+            self.client
+                .show_message(
+                    MessageType::ERROR,
+                    format!("mdagile config error: {message}"),
+                )
+                .await;
+        }
+        *current = Some(message);
+    }
+
+    /// Clears any previously-recorded config-load error (config is now valid,
+    /// or no config file exists at all).
+    async fn clear_config_error(&self) {
+        let mut current = self.config_error.write().await;
+        *current = None;
     }
 
     /// Resolve the config file path for the given document URI.
@@ -141,6 +189,34 @@ impl Backend {
                 self.validate(uri, &text, None).await;
             }
         }
+    }
+}
+
+/// A synthetic diagnostic (not tied to a specific line of the document) that
+/// surfaces a broken `mdagile.toml`/`.mdagile.toml` load. Placed at the top
+/// of whichever document is being validated, since there's no
+/// document-independent way to report a workspace-level problem over LSP.
+fn config_error_diagnostic(message: &str) -> Diagnostic {
+    let range = Range {
+        start: Position {
+            line: 0,
+            character: 0,
+        },
+        end: Position {
+            line: 0,
+            character: 1,
+        },
+    };
+    Diagnostic {
+        range,
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: None,
+        source: Some("agilels".to_string()),
+        message: format!(
+            "mdagile config error: {message}\nProperty/assignment/completion checks are disabled until mdagile.toml is fixed."
+        ),
+        data: None,
+        ..Diagnostic::default()
     }
 }
 
@@ -237,6 +313,7 @@ impl LanguageServer for Backend {
         let docs = self.docs.clone();
         let diagnostics = self.diagnostics.clone();
         let config_mtime = self.config_mtime.clone();
+        let config_error = self.config_error.clone();
 
         tokio::spawn(async move {
             loop {
@@ -248,6 +325,7 @@ impl LanguageServer for Backend {
                     docs: docs.clone(),
                     diagnostics: diagnostics.clone(),
                     config_mtime: config_mtime.clone(),
+                    config_error: config_error.clone(),
                 };
                 backend.check_config_changed().await;
             }
@@ -421,6 +499,7 @@ pub fn run() -> std::io::Result<()> {
             docs: Arc::new(RwLock::new(HashMap::new())),
             diagnostics: Arc::new(RwLock::new(HashMap::new())),
             config_mtime: Arc::new(RwLock::new(None)),
+            config_error: Arc::new(RwLock::new(None)),
         });
         Server::new(stdin, stdout, socket).serve(service).await;
     });

@@ -49,7 +49,9 @@ an undeclared `@marker` is [E009](checks.md).
 
 - `git_emails` — email addresses that identify this user's git commits.
   Matched against `git config user.email` for the [assignment / completion
-  validation check (E013)](assignment-validation.md).
+  validation check (E013)](assignment-validation.md). The same email/name
+  must not be listed on more than one user — that's a config validation
+  error (identity resolution would otherwise be ambiguous).
 - `git_names` — display names (`git config user.name`), used as a fallback
   identity match when no email match is found.
 
@@ -83,13 +85,17 @@ checks — in these cases:
   match any `[Users.X]` key.
 - **Mismatched `subtasks_allow_cancel` length** — must be empty, or exactly
   as long as `subtasks`.
+- **Duplicate identity** — the same `git_emails`/`git_names` value listed on
+  more than one `[Users.X]` entry.
 
 These are reported on stderr and exit the process with status `1`, distinct
 from normal per-task check issues (which are printed to stdout as
 `<path>:<line>: <message>`).
 
-The language server currently does **not** surface these errors: on an
-invalid config it silently falls back to an empty configuration, which
-means every config-dependent check (E008–E013) goes quiet with no
-indication why. This is a known gap, not an intentional design choice —
-run `agile check` to see config errors reliably.
+The language server surfaces the same errors instead of silently falling
+back to an empty config: on an invalid/conflicting config it pops a
+`window/showMessage` notification (once per distinct error, not on every
+keystroke while the same error persists) and publishes a synthetic
+diagnostic on the document being validated, so the editor makes clear that
+config-dependent checks (E008–E013) are disabled until `mdagile.toml` is
+fixed.
