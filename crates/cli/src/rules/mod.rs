@@ -133,30 +133,91 @@ impl std::str::FromStr for ErrorCode {
 }
 
 use crate::config::Config;
-use crate::parser::{FileItem, Location, Marker, Subtask};
+use crate::parser::{FileItem, Location, Marker, ParsingIssue, Status, Subtask, Task};
 use serde::{Deserialize, Serialize};
 
-/// Walks every task and subtask in `items`, calling `f` with the markers,
-/// location, and indent of each node. Eliminates the boilerplate tree-walk
-/// duplicated across rules.
-pub fn for_each_node<F>(items: &[FileItem], mut f: F)
+/// A read-only view over a [`Task`] or [`Subtask`] that exposes the fields
+/// rules typically need, so tree-walking rules can share one traversal
+/// instead of each hand-rolling a parallel `check_task`/`check_subtask_recursive`
+/// pair over the two (structurally near-identical) node types.
+#[derive(Clone, Copy)]
+pub enum NodeRef<'a> {
+    Task(&'a Task),
+    Subtask(&'a Subtask),
+}
+
+impl<'a> NodeRef<'a> {
+    pub fn location(&self) -> &'a Location {
+        match self {
+            NodeRef::Task(t) => &t.location,
+            NodeRef::Subtask(s) => &s.location,
+        }
+    }
+
+    pub fn indent(&self) -> usize {
+        match self {
+            NodeRef::Task(t) => t.indent,
+            NodeRef::Subtask(s) => s.indent,
+        }
+    }
+
+    pub fn status(&self) -> &'a Status {
+        match self {
+            NodeRef::Task(t) => &t.status,
+            NodeRef::Subtask(s) => &s.status,
+        }
+    }
+
+    pub fn markers(&self) -> &'a [Marker] {
+        match self {
+            NodeRef::Task(t) => &t.markers,
+            NodeRef::Subtask(s) => &s.markers,
+        }
+    }
+
+    pub fn body(&self) -> &'a [String] {
+        match self {
+            NodeRef::Task(t) => &t.body,
+            NodeRef::Subtask(s) => &s.body,
+        }
+    }
+
+    pub fn children(&self) -> &'a [Subtask] {
+        match self {
+            NodeRef::Task(t) => &t.children,
+            NodeRef::Subtask(s) => &s.children,
+        }
+    }
+
+    pub fn parsing_issues(&self) -> &'a [ParsingIssue] {
+        match self {
+            NodeRef::Task(t) => &t.parsing_issues,
+            NodeRef::Subtask(s) => &s.parsing_issues,
+        }
+    }
+}
+
+/// Walks every task and subtask in `items`, calling `f` with a [`NodeRef`]
+/// for each node. Eliminates the boilerplate recursive tree-walk (task +
+/// mirrored `Subtask` recursion) duplicated across rules.
+pub fn for_each_node<'a, F>(items: &'a [FileItem], mut f: F)
 where
-    F: FnMut(&[Marker], &Location, usize),
+    F: FnMut(NodeRef<'a>),
 {
     for item in items {
         if let FileItem::Task(task) = item {
-            f(&task.markers, &task.location, task.indent);
+            f(NodeRef::Task(task));
             walk_subtask_nodes(&task.children, &mut f);
         }
     }
 }
 
-fn walk_subtask_nodes<F>(subtasks: &[Subtask], f: &mut F)
+fn walk_subtask_nodes<'a, F>(subtasks: &'a [Subtask], f: &mut F)
 where
-    F: FnMut(&[Marker], &Location, usize),
+    F: FnMut(NodeRef<'a>),
 {
     for sub in subtasks {
-        f(&sub.markers, &sub.location, sub.indent);
+        f(NodeRef::Subtask(sub));
         walk_subtask_nodes(&sub.children, f);
     }
 }

@@ -1,41 +1,21 @@
-use crate::parser::{FileItem, Location, ParsingIssue, Subtask};
-use crate::rules::Issue;
+use crate::parser::{FileItem, ParsingIssue};
+use crate::rules::{Issue, for_each_node};
 
 pub fn uppercase_x(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
-
-    for item in items {
-        if let FileItem::Task(task) = item {
-            if task.parsing_issues.contains(&ParsingIssue::UppercaseX) {
-                issues.push(make_issue(&task.location, task.indent));
-            }
-            for subtask in &task.children {
-                check_subtask_recursive(subtask, &mut issues);
-            }
+    for_each_node(items, |node| {
+        if node.parsing_issues().contains(&ParsingIssue::UppercaseX) {
+            issues.push(Issue {
+                location: node.location().clone(),
+                code: crate::rules::ErrorCode::UppercaseX,
+                message: "Uppercase X in status box".to_string(),
+                column: node.indent() + 1,
+                help: Some("Use lowercase: [x]".to_string()),
+                data: None,
+            });
         }
-    }
-
+    });
     issues
-}
-
-fn make_issue(location: &Location, indent: usize) -> Issue {
-    Issue {
-        location: location.clone(),
-        code: crate::rules::ErrorCode::UppercaseX,
-        message: "Uppercase X in status box".to_string(),
-        column: indent + 1,
-        help: Some("Use lowercase: [x]".to_string()),
-        data: None,
-    }
-}
-
-fn check_subtask_recursive(subtask: &Subtask, issues: &mut Vec<Issue>) {
-    if subtask.parsing_issues.contains(&ParsingIssue::UppercaseX) {
-        issues.push(make_issue(&subtask.location, subtask.indent));
-    }
-    for child in &subtask.children {
-        check_subtask_recursive(child, issues);
-    }
 }
 
 #[cfg(test)]

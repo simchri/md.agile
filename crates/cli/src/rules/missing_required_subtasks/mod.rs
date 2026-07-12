@@ -2,47 +2,27 @@
 //! E012 — flags a required subtask that was cancelled without the property allowing it.
 
 use crate::config::Config;
-use crate::parser::Location;
 use crate::parser::{FileItem, Marker, Status, Subtask, SubtaskKind};
-use crate::rules::{ErrorCode, Issue, IssueData};
+use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
 use std::collections::HashMap;
 
 pub fn missing_required_subtasks(items: &[FileItem], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
-    for item in items {
-        if let FileItem::Task(task) = item {
-            issues.extend(check_node(
-                &task.markers,
-                &task.children,
-                &task.location,
-                config,
-            ));
-            for child in &task.children {
-                issues.extend(check_subtask_node(child, config));
-            }
-        }
-    }
-    issues
-}
-
-fn check_subtask_node(subtask: &Subtask, config: &Config) -> Vec<Issue> {
-    let mut issues = Vec::new();
-    issues.extend(check_node(
-        &subtask.markers,
-        &subtask.children,
-        &subtask.location,
-        config,
-    ));
-    for child in &subtask.children {
-        issues.extend(check_subtask_node(child, config));
-    }
+    for_each_node(items, |node| {
+        issues.extend(check_node(
+            node.markers(),
+            node.children(),
+            node.location(),
+            config,
+        ));
+    });
     issues
 }
 
 fn check_node(
     markers: &[Marker],
     children: &[Subtask],
-    location: &Location,
+    location: &crate::parser::Location,
     config: &Config,
 ) -> Vec<Issue> {
     // Collect all required subtask strings from every property marker on this node,

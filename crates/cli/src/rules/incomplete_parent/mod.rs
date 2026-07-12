@@ -1,55 +1,18 @@
 //! E004 — flags done parents with incomplete non-optional children.
 
 use crate::parser::{FileItem, SpecialMarkerKind, Status, Subtask};
-use crate::rules::Issue;
+use crate::rules::{Issue, for_each_node};
 
 /// Flags tasks/subtasks marked done `[x]` that have incomplete children.
 /// A done parent with incomplete children is invalid unless the children are optional (`#OPT`).
 /// Cancelled parents are ignored.
 pub fn incomplete_parent(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
-
-    for item in items {
-        if let FileItem::Task(task) = item {
-            issues.extend(check_task_completion(task));
+    for_each_node(items, |node| {
+        if *node.status() == Status::Done {
+            issues.extend(check_children_complete(node.children(), node.location()));
         }
-    }
-
-    issues
-}
-
-fn check_task_completion(task: &crate::parser::Task) -> Vec<Issue> {
-    let mut issues = Vec::new();
-
-    // Check task's children
-    if task.status == Status::Done {
-        issues.extend(check_children_complete(&task.children, &task.location));
-    }
-
-    // Recurse into subtasks
-    for subtask in &task.children {
-        issues.extend(check_subtask_completion(subtask));
-    }
-
-    issues
-}
-
-fn check_subtask_completion(subtask: &Subtask) -> Vec<Issue> {
-    let mut issues = Vec::new();
-
-    // Check if this subtask is done but has incomplete children
-    if subtask.status == Status::Done {
-        issues.extend(check_children_complete(
-            &subtask.children,
-            &subtask.location,
-        ));
-    }
-
-    // Recurse into subtask children
-    for child in &subtask.children {
-        issues.extend(check_subtask_completion(child));
-    }
-
+    });
     issues
 }
 
