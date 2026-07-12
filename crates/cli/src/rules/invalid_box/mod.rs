@@ -9,8 +9,9 @@ pub fn invalid_box(items: &[FileItem]) -> Vec<Issue> {
                 location: node.location().clone(),
                 code: crate::rules::ErrorCode::BoxStyleInvalid,
                 message: "Box style invalid".to_string(),
-                // Position at the `[` opening the status box, relative to indent.
-                column: node.indent() + 3,
+                // Position at the invalid character inside the status box
+                // (or the closing `]` if the box is empty), relative to indent.
+                column: node.indent() + 4,
                 help: Some("Valid task boxes look like this: [ ] [x] [-]".to_string()),
                 data: None,
             });
