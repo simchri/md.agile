@@ -18,9 +18,45 @@ fn main() {
 
     #[cfg(feature = "server")]
     {
-        let addr = dioxus_cli_config::fullstack_address_or_localhost();
-        info!("server starting on http://{addr}");
-        println!("Server running on http://{addr}");
+        // `fullstack_address_or_localhost` is where *this* process's own axum
+        // server actually binds (via `dioxus::launch` below) — driven by the
+        // `PORT`/`IP` env vars, defaulting to 127.0.0.1:8080 if unset.
+        //
+        // When running under `dx serve`, that is *not* the address a browser
+        // should be pointed at: `dx serve` runs its own devserver/proxy in
+        // front of this backend, listening on whatever `--port`/`--addr` (or
+        // `DIOXUS_DEVSERVER_PORT`/`_IP`) were given, and this backend itself
+        // is bound to a separate, often OS-assigned ephemeral port that only
+        // the devserver talks to directly. So we log both, labelled, so it's
+        // unambiguous which one to actually open in a browser.
+        let backend_addr = dioxus_cli_config::fullstack_address_or_localhost();
+        if dioxus_cli_config::is_cli_enabled() {
+            match dioxus_cli_config::devserver_raw_addr() {
+                Some(devserver_addr) => {
+                    info!(
+                        "running under `dx serve`: browser-facing devserver at http://{devserver_addr} (this is what --port/--addr controls); internal backend bound to http://{backend_addr} (not meant to be opened directly)"
+                    );
+                    println!(
+                        "Open in your browser: http://{devserver_addr}  (internal backend: http://{backend_addr})"
+                    );
+                }
+                None => {
+                    // `is_cli_enabled()` was true but no devserver address was
+                    // published — fall back to the backend address, flagging
+                    // the assumption so this isn't silently misleading.
+                    info!(
+                        "running under `dx` but no devserver address was found; assuming the backend address is also the browser-facing one: http://{backend_addr}"
+                    );
+                    println!("Server running on http://{backend_addr}");
+                }
+            }
+        } else {
+            // Not running under the `dx` CLI (e.g. `cargo run`, or a shipped
+            // binary) — there is no separate devserver/proxy, so this really
+            // is the address a client should connect to.
+            info!("server starting on http://{backend_addr}");
+            println!("Server running on http://{backend_addr}");
+        }
     }
 
     dioxus::launch(app);
