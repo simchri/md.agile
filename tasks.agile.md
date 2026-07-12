@@ -246,6 +246,8 @@
 
 - [x] syntax highlighting for '#properties'
 
+- [x] introduce a logging library for the CLI crate and replace raw `eprintln!` calls with structured log calls (uses `tracing`, controlled by `AGILE_LOG`)
+
 #MILESTONE: Some milestone
 
 - [x] Missing required subtasks
@@ -395,7 +397,6 @@
   - [ ] all flags to each subcommand
   - [ ] clearly mark what is already implemented / what's missing
   - [ ] let human review and adjust the overview
-- [x] introduce a logging library for the CLI crate and replace raw `eprintln!` calls with structured log calls (uses `tracing`, controlled by `AGILE_LOG`)
 
 ### Writing back to file from GUI
 - [ ] Mark task as done from GUI
