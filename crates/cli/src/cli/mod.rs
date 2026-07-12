@@ -175,15 +175,16 @@ pub enum TaskAction {
     ///
     /// The inverse of `agile task done`: always succeeds if the addressed
     /// node is currently done (`[x]`) — there are no completion rules to
-    /// satisfy in reverse. The first segment of ADDRESS selects a *done*
-    /// top-level task, numbered from the end of the task list (the most
-    /// recently completed top-level task is `1`, the one before it `2`, and
-    /// so on), so addresses stay small for the common case of undoing a
-    /// recent mistake. Each subsequent segment selects the Nth direct child
-    /// in document order (any status), same as `agile task done`.
+    /// satisfy in reverse. ADDRESS uses *exactly* the same scheme as
+    /// `agile task done`: `2` for the 2nd still-incomplete top-level task,
+    /// or `1.3` for its 3rd direct child (any status). This is meant for
+    /// correcting a mistakenly-completed subtask while its parent task is
+    /// still open — a top-level task that is itself already fully done is
+    /// consequently unreachable by this address, since only incomplete
+    /// top-level tasks are counted; reopening a whole completed task isn't
+    /// supported here (a dedicated command may be added for that later).
     Undone {
-        /// Dotted address, e.g. `1` (most recently completed top-level
-        /// task) or `2.3` (its 3rd direct child).
+        /// Dotted address, e.g. `2` or `1.3`.
         address: String,
     },
 }

@@ -154,17 +154,19 @@ pub fn run_done(root: &Path, config: &Config, address: &str) {
 /// a done task can always be un-done regardless of its parent's or
 /// children's state.
 ///
-/// The first segment of `address` still selects a top-level task by
-/// position, but — unlike `done`/`next` — it counts *done* top-level tasks
-/// only, and numbers them **from the end of the task list**: the most
-/// recently completed top-level task is `1`, the one before it `2`, and so
-/// on. This keeps addresses small and stable for the case this command is
-/// actually for (undoing a recent mistake), even in a project with a long
-/// history of completed tasks. Every subsequent segment still selects the
-/// Nth direct child in normal document order (any status), exactly like
-/// `agile task done`/`agile task next`.
+/// `address` uses *exactly* the same resolution as `agile task done`'s
+/// address (see [`resolve_address`]): the first segment selects the Nth
+/// still-incomplete top-level task, and every subsequent segment selects
+/// the Nth direct child (any status) from there. This is intentional: this
+/// command exists to correct a mistakenly-completed *subtask* while its
+/// parent is still open, not to reopen an already fully-completed
+/// top-level task — a top-level task that's itself done is consequently
+/// unreachable by this address (there's no number that resolves to it),
+/// which is an accepted limitation, not a bug. Reopening a whole completed
+/// top-level task is expected to need a different, dedicated command if
+/// it's ever added.
 pub fn run_undone(root: &Path, config: &Config, address: &str) {
-    let mut parts = match parse_address(address) {
+    let parts = match parse_address(address) {
         Some(parts) => parts,
         None => {
             log::error!(
@@ -174,19 +176,7 @@ pub fn run_undone(root: &Path, config: &Config, address: &str) {
         }
     };
 
-    let total_done = count_matching_top_level(root, Status::Done);
-    let first_from_end = parts[0];
-    if first_from_end > total_done {
-        log::error!(
-            "no such task: address {address:?} names the #{first_from_end} done top-level task counting from the end, but only {total_done} done top-level task(s) exist"
-        );
-        std::process::exit(1);
-    }
-    // Translate "Nth from the end" into resolve_address's "Nth from the
-    // start" numbering.
-    parts[0] = total_done - first_from_end + 1;
-
-    let resolved = match resolve_address(root, &parts, config, None, Status::Done) {
+    let resolved = match resolve_address(root, &parts, config, None, Status::Todo) {
         Ok(resolved) => resolved,
         Err(e) => {
             log::error!("{e}");
@@ -399,27 +389,6 @@ pub(crate) fn resolve_address(
         "no such task: address {} starts at {status_word} top-level task #{first}, but only {matching_count} matching {status_word} top-level task(s) exist",
         format_address(parts)
     ))
-}
-
-/// Counts top-level tasks in `root`'s task files whose status is
-/// `target_status`.
-///
-/// Used to translate a "from the end" address (as used by
-/// `agile task undone`, which numbers done top-level tasks starting from
-/// the most recently completed one) into an equivalent "from the start"
-/// index before calling [`resolve_address`].
-pub(crate) fn count_matching_top_level(root: &Path, target_status: Status) -> usize {
-    let mut count = 0usize;
-    for file in find_task_files(root) {
-        for item in &parse_file(&file) {
-            if let FileItem::Task(task) = item {
-                if task.status == target_status {
-                    count += 1;
-                }
-            }
-        }
-    }
-    count
 }
 
 fn format_address(parts: &[usize]) -> String {
