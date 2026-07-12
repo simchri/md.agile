@@ -5,7 +5,7 @@
 //! order number only has meaning relative to the other children of the same
 //! parent.
 
-use crate::parser::{FileItem, Order, Status, Subtask};
+use crate::parser::{FileItem, Order, Status, Subtask, SubtaskKind, TASK_LINE_PREFIX_LEN};
 use crate::rules::{ErrorCode, Issue};
 
 /// Flags duplicate order numbers among siblings (E014) and ordered subtasks
@@ -36,6 +36,19 @@ fn check_siblings(siblings: &[Subtask], issues: &mut Vec<Issue>) {
     check_completion_order(siblings, issues);
 }
 
+/// Column of the order-number prefix (e.g. the `1` in `1. do this`) within
+/// the source line. Ordinary (`Custom`) subtasks have it as the very first
+/// character of the title; `PropertyRequired` subtasks are quoted (e.g.
+/// `"1. do this"`), so the prefix sits one character further in, after the
+/// opening `"`.
+fn order_number_column(sub: &Subtask) -> usize {
+    let title_relative_column = match sub.kind {
+        SubtaskKind::PropertyRequired => 2,
+        SubtaskKind::Custom => 1,
+    };
+    sub.indent + TASK_LINE_PREFIX_LEN + title_relative_column
+}
+
 fn check_duplicate_order_numbers(siblings: &[Subtask], issues: &mut Vec<Issue>) {
     for (i, sub) in siblings.iter().enumerate() {
         let Order::Ordered(order_number) = sub.order else {
@@ -50,7 +63,7 @@ fn check_duplicate_order_numbers(siblings: &[Subtask], issues: &mut Vec<Issue>) 
                 location: sub.location.clone(),
                 code: ErrorCode::DuplicateOrderNumber,
                 message: format!("Duplicate order number {order_number}"),
-                column: 1,
+                column: order_number_column(sub),
                 help: Some(
                     "Another sibling task already uses this order number. Order numbers must be unique among siblings."
                         .to_string(),
@@ -81,7 +94,7 @@ fn check_completion_order(siblings: &[Subtask], issues: &mut Vec<Issue>) {
                 location: sub.location.clone(),
                 code: ErrorCode::OutOfOrderCompletion,
                 message: "Ordered task completed out of order".to_string(),
-                column: 1,
+                column: order_number_column(sub),
                 help: Some(
                     "This task is marked done, but a lower-numbered sibling is still incomplete. \
                      Complete ordered siblings in sequence, or cancel the lower-numbered one."

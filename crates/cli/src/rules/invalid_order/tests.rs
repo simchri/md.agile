@@ -41,6 +41,30 @@ fn detects_duplicate_order_number_among_siblings() {
     );
     assert_eq!(issues[0].location.line, 2);
     assert_eq!(issues[1].location.line, 3);
+    // "  - [ ] 1. add performance UI test" — the "1" sits at column 9
+    // (2 spaces indent + 6-char "- [ ] " prefix + 1), not column 1.
+    assert_eq!(
+        issues[0].column, 9,
+        "column should point to the order number, not column 1"
+    );
+    assert_eq!(issues[1].column, 9);
+}
+
+#[test]
+fn duplicate_order_number_column_points_past_the_opening_quote_for_property_required_subtasks() {
+    let file_content = "\
+- [ ] #feature: add basket
+  - [ ] \"1. dev implementation\"
+  - [ ] \"1. dev documentation\"
+";
+    let items = parse(file_content, PathBuf::from("test.agile.md"));
+    let issues = super::invalid_order(&items);
+
+    assert_eq!(issues.len(), 2);
+    // "  - [ ] \"1. dev implementation\"" — the "1" sits at column 10
+    // (2 spaces indent + 6-char "- [ ] " prefix + 1 for the opening quote + 1).
+    assert_eq!(issues[0].column, 10);
+    assert_eq!(issues[1].column, 10);
 }
 
 #[test]
@@ -74,6 +98,11 @@ fn detects_ordered_task_done_while_lower_numbered_sibling_incomplete() {
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, ErrorCode::OutOfOrderCompletion);
     assert_eq!(issues[0].location.line, 3); // "2. refactor signals"
+    // "  - [x] 2. refactor signals" — the "2" sits at column 9, not column 1.
+    assert_eq!(
+        issues[0].column, 9,
+        "column should point to the order number, not column 1"
+    );
 }
 
 #[test]
