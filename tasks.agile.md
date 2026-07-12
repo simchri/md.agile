@@ -433,6 +433,24 @@
 
 - [x] GUI board: make in-progress cards draggable with the mouse (click-and-hold to move, follows the cursor while held, other cards keep reacting to its position via the existing physics repulsion, snaps back to normal physics-driven behavior on release)
 
+- [ ] dummy task
+  - [ ] with subtasks
+  - [x] with subtasks
+  - [ ] with subtasks
+  - [ ] with subtasks
+
+- [ ] other dummy task
+  - [ ] with subtasks
+  - [x] with subtasks
+  - [ ] with subtasks
+  - [ ] with subtasks
+
+- [ ] third dummy task
+  - [ ] with subtasks
+  - [x] with subtasks
+  - [x] with subtasks
+  - [x] with subtasks
+  
 ## ETA
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
