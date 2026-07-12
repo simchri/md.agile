@@ -393,9 +393,9 @@
 ## More CLI features
 
 - [ ] create a global overview of the planned CLI structure as some markdown file, with a tree-like view
-  - [ ] list of subcommands and their functions
-  - [ ] all flags to each subcommand
-  - [ ] clearly mark what is already implemented / what's missing
+  - [x] list of subcommands and their functions
+  - [x] all flags to each subcommand
+  - [x] clearly mark what is already implemented / what's missing
   - [ ] let human review and adjust the overview
 
 ### Writing back to file from GUI
