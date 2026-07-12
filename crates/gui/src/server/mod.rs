@@ -336,3 +336,43 @@ pub async fn mark_task_done(path: String, line: usize) -> Result<(), ServerFnErr
         Err(MarkDoneError::Io(e)) => Err(ServerFnError::new(e)),
     }
 }
+
+/// Reverts the task or subtask identified by `path` (relative to the
+/// project root, as returned in a [`TaskView`]) and `line` back to todo.
+///
+/// Reuses exactly the same core logic as `agile task undone` — see
+/// [`mdagile::cli::subcommands::task::mark_node_undone`] — so, like the
+/// CLI, there are no completion rules to satisfy in reverse: a done task
+/// can always be un-done regardless of its parent's or children's state.
+#[server]
+pub async fn mark_task_undone(path: String, line: usize) -> Result<(), ServerFnError> {
+    use mdagile::cli::common::{find_task_files, parse_file};
+    use mdagile::cli::subcommands::task::{mark_node_undone, MarkUndoneError};
+
+    if is_kiosk_mode() {
+        return Err(ServerFnError::new("kiosk mode: write actions are disabled"));
+    }
+
+    let root = get_or_init_working_dir()?;
+    let file = root.join(&path);
+
+    // Only accept paths `find_task_files` itself would discover — this is
+    // also what prevents a stale or malicious client from pointing this
+    // write action at an arbitrary path outside the project.
+    if !find_task_files(&root).iter().any(|f| *f == file) {
+        return Err(ServerFnError::new("not a recognized task file"));
+    }
+
+    let items = parse_file(&file);
+
+    match mark_node_undone(&file, &items, line) {
+        Ok(_title) => Ok(()),
+        Err(MarkUndoneError::NotFound) => Err(ServerFnError::new(
+            "task changed on disk — please refresh and try again",
+        )),
+        Err(MarkUndoneError::NotDone(title)) => {
+            Err(ServerFnError::new(format!("\"{title}\" is not done")))
+        }
+        Err(MarkUndoneError::Io(e)) => Err(ServerFnError::new(e)),
+    }
+}

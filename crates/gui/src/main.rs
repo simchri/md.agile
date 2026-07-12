@@ -163,11 +163,11 @@ fn app() -> Element {
     let mut modal_task: Signal<Option<TaskView>> = use_signal(|| None);
 
     // While a task is open in the modal, keep it in sync with the latest
-    // fetched task list (e.g. after marking one of its subtasks done via
-    // its checkbox) — matched by path+line, since that uniquely identifies
-    // the top-level task the modal is showing. This does not close the
-    // modal; only marking the top-level task itself done does that (see
-    // `on_marked_done` below).
+    // fetched task list (e.g. after toggling one of its subtasks done/todo
+    // via its checkbox) — matched by path+line, since that uniquely
+    // identifies the top-level task the modal is showing. This does not
+    // close the modal; only toggling the top-level task itself does that
+    // (see `on_marked_done` below).
     //
     // `tasks_resource.read()` is called unconditionally (not nested inside
     // the `if let Some(current) = ...` below) so this effect always
@@ -429,12 +429,16 @@ fn SubtaskItem(
     task: TaskView,
     depth: usize,
     show_body: bool,
-    on_toggle: Option<EventHandler<(String, usize)>>,
+    // `bool` is `true` when the task being toggled is currently *done*
+    // (so the handler should revert it to todo) and `false` when it's
+    // currently *todo* (so the handler should mark it done).
+    on_toggle: Option<EventHandler<(String, usize, bool)>>,
     #[props(default)] toggle_disabled: bool,
 ) -> Element {
     let style = format!("padding-left: {}px;", (depth - 1) * 8);
     let is_todo = matches!(task.status, server::TaskStatus::Todo);
-    let clickable = on_toggle.is_some() && is_todo && !toggle_disabled;
+    let is_done = matches!(task.status, server::TaskStatus::Done);
+    let clickable = on_toggle.is_some() && (is_todo || is_done) && !toggle_disabled;
     let path = task.path.clone();
     let line = task.line;
     rsx! {
@@ -445,7 +449,7 @@ fn SubtaskItem(
                     if clickable {
                         evt.stop_propagation();
                         if let Some(on_toggle) = on_toggle {
-                            on_toggle.call((path.clone(), line));
+                            on_toggle.call((path.clone(), line, is_done));
                         }
                     }
                 },
@@ -489,9 +493,10 @@ fn TaskModal(
     kiosk: bool,
     on_close: EventHandler<MouseEvent>,
     // `bool` argument is `true` when the *top-level* task shown by this
-    // modal was just marked done (so the caller should close the modal);
-    // `false` when one of its subtasks was marked done instead (the modal
-    // should stay open, showing the now-updated subtask list).
+    // modal was just marked done or reverted to todo (so the caller should
+    // close the modal); `false` when one of its subtasks was toggled
+    // instead (the modal should stay open, showing the now-updated subtask
+    // list).
     on_marked_done: EventHandler<bool>,
 ) -> Element {
     let mut error_text: Signal<String> = use_signal(String::new);
@@ -499,6 +504,7 @@ fn TaskModal(
     let mut pending = use_signal(|| false);
 
     let is_todo = matches!(task.status, server::TaskStatus::Todo);
+    let is_done = matches!(task.status, server::TaskStatus::Done);
     let path = task.path.clone();
     let line = task.line;
 
@@ -528,15 +534,45 @@ fn TaskModal(
         });
     });
 
+    // Reverts the given (path, line) task to todo — the same
+    // pending/error/close-modal-only-for-top-level dance as `mark_done`,
+    // just calling the inverse server action.
+    let mark_undone =
+        EventHandler::new(move |(path, line, is_top_level): (String, usize, bool)| {
+            pending.set(true);
+            error_show.set(false);
+            dioxus::prelude::spawn(async move {
+                match server::mark_task_undone(path, line).await {
+                    Ok(()) => {
+                        pending.set(false);
+                        on_marked_done.call(is_top_level);
+                    }
+                    Err(e) => {
+                        pending.set(false);
+                        error_text.set(e.to_string());
+                        error_show.set(true);
+                    }
+                }
+            });
+        });
+
     // Subtask checkboxes always report `is_top_level: false` — only the
-    // header checkbox above can close the modal.
-    let mark_subtask_done =
-        EventHandler::new(move |(path, line): (String, usize)| mark_done.call((path, line, false)));
+    // header checkbox above can close the modal. `was_done` picks which
+    // direction to toggle: a currently-done subtask is reverted to todo,
+    // a currently-todo one is marked done.
+    let mark_subtask_toggle =
+        EventHandler::new(move |(path, line, was_done): (String, usize, bool)| {
+            if was_done {
+                mark_undone.call((path, line, false));
+            } else {
+                mark_done.call((path, line, false));
+            }
+        });
 
     // Checkboxes are clickable only outside kiosk mode, while no request is
-    // pending, and only for tasks that are still Todo (done tasks have
-    // nothing left to mark).
-    let header_clickable = !kiosk && is_todo && !pending();
+    // pending, and only for tasks that are still Todo or Done (cancelled
+    // tasks have no toggle action defined).
+    let header_clickable = !kiosk && (is_todo || is_done) && !pending();
 
     rsx! {
         div { class: "modal-backdrop",
@@ -556,7 +592,11 @@ fn TaskModal(
                         onclick: move |evt: MouseEvent| {
                             if header_clickable {
                                 evt.stop_propagation();
-                                mark_done.call((path.clone(), line, true));
+                                if is_done {
+                                    mark_undone.call((path.clone(), line, true));
+                                } else {
+                                    mark_done.call((path.clone(), line, true));
+                                }
                             }
                         },
                         {status_box(&task.status)}
@@ -587,7 +627,7 @@ fn TaskModal(
                                 task: child.clone(),
                                 depth: 1,
                                 show_body: true,
-                                on_toggle: mark_subtask_done,
+                                on_toggle: mark_subtask_toggle,
                                 toggle_disabled: kiosk || pending(),
                             }
                         }
