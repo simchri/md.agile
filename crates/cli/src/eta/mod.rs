@@ -3,7 +3,7 @@
 use crate::cli::common::find_task_files;
 use crate::git;
 use crate::parser::{self, FileItem, Status};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -33,6 +33,13 @@ pub struct StatusTransition {
     pub depth: usize,
     pub indent: usize,
     pub title: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct FallbackSignature {
+    depth: usize,
+    title: String,
+    parent_title: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -190,20 +197,70 @@ pub fn status_transitions(old_items: &[FileItem], new_items: &[FileItem]) -> Vec
     let old_by_key: HashMap<TransitionKey, FlatNode> =
         old_nodes.into_iter().map(|n| (n.key.clone(), n)).collect();
 
-    new_nodes
-        .into_iter()
-        .map(|new| {
-            let old_status = old_by_key.get(&new.key).map(|old| old.status.clone());
-            StatusTransition {
-                key: new.key,
-                old_status,
-                new_status: new.status,
-                depth: new.depth,
-                indent: new.indent,
-                title: new.title,
-            }
-        })
-        .collect()
+    let mut matched_old = HashSet::new();
+    let mut transitions = Vec::with_capacity(new_nodes.len());
+    let mut unmatched_new = Vec::new();
+    for new in new_nodes {
+        let old_status = old_by_key.get(&new.key).map(|old| {
+            matched_old.insert(new.key.clone());
+            old.status.clone()
+        });
+        if old_status.is_none() {
+            unmatched_new.push(new.clone());
+        }
+        transitions.push(StatusTransition {
+            key: new.key,
+            old_status,
+            new_status: new.status,
+            depth: new.depth,
+            indent: new.indent,
+            title: new.title,
+        });
+    }
+
+    // Fallback matcher: when strict path+occurrence fails (e.g. ancestor title
+    // churn), match uniquely by local structural signature.
+    let mut old_unmatched_by_sig: HashMap<FallbackSignature, Vec<TransitionKey>> = HashMap::new();
+    for (key, old) in &old_by_key {
+        if matched_old.contains(key) {
+            continue;
+        }
+        old_unmatched_by_sig
+            .entry(fallback_signature(old))
+            .or_default()
+            .push(key.clone());
+    }
+
+    let mut consumed_old_fallback = HashSet::new();
+    for t in &mut transitions {
+        if t.old_status.is_some() {
+            continue;
+        }
+        let sig = FallbackSignature {
+            depth: t.depth,
+            title: t.title.clone(),
+            parent_title: parent_title_from_path(&t.key.path),
+        };
+        let Some(candidates) = old_unmatched_by_sig.get(&sig) else {
+            continue;
+        };
+        // Conservative: only use fallback when there is one unambiguous old node.
+        let available: Vec<&TransitionKey> = candidates
+            .iter()
+            .filter(|k| !consumed_old_fallback.contains(*k))
+            .collect();
+        if available.len() != 1 {
+            continue;
+        }
+        let key = available[0];
+        let Some(old) = old_by_key.get(key) else {
+            continue;
+        };
+        consumed_old_fallback.insert(key.clone());
+        t.old_status = Some(old.status.clone());
+    }
+
+    transitions
 }
 
 fn flatten_nodes(items: &[FileItem]) -> Vec<FlatNode> {
@@ -265,6 +322,18 @@ fn flatten_subtasks(
 
 fn weight_for_depth(depth: usize) -> f64 {
     1.0 / (depth as f64)
+}
+
+fn fallback_signature(node: &FlatNode) -> FallbackSignature {
+    FallbackSignature {
+        depth: node.depth,
+        title: node.title.clone(),
+        parent_title: parent_title_from_path(&node.key.path),
+    }
+}
+
+fn parent_title_from_path(path: &[String]) -> Option<String> {
+    path.len().checked_sub(2).map(|idx| path[idx].clone())
 }
 
 #[cfg(test)]

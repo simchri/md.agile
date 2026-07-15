@@ -101,10 +101,25 @@ pub fn file_content_at_ref(dir: &Path, git_ref: &str, relative_path: &Path) -> O
 /// timestamps.
 pub fn commits_touching_path(dir: &Path, relative_path: &Path) -> Vec<CommitRef> {
     let path = relative_path.to_string_lossy().to_string();
-    let Some(output) = run_git(
+    let output = run_git(
         dir,
-        &["log", "--first-parent", "--format=%H %ct", "--", &path],
-    ) else {
+        &[
+            "log",
+            "--follow",
+            "--first-parent",
+            "--format=%H %ct",
+            "--",
+            &path,
+        ],
+    )
+    .or_else(|| run_git(dir, &["log", "--follow", "--format=%H %ct", "--", &path]))
+    .or_else(|| {
+        run_git(
+            dir,
+            &["log", "--first-parent", "--format=%H %ct", "--", &path],
+        )
+    });
+    let Some(output) = output else {
         return Vec::new();
     };
 

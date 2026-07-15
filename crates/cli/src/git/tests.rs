@@ -179,6 +179,31 @@ fn commits_touching_path_returns_newest_first_for_that_file() {
     assert_ne!(commits[0].sha, commits[1].sha);
 }
 
+#[test]
+fn commits_touching_path_follows_renames() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+
+    std::fs::write(dir.path().join("a.agile.md"), "- [ ] one\n").unwrap();
+    commit_all(dir.path(), "create a");
+
+    let status = Command::new("git")
+        .args(["mv", "a.agile.md", "b.agile.md"])
+        .current_dir(dir.path())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    commit_all(dir.path(), "rename a->b");
+
+    std::fs::write(dir.path().join("b.agile.md"), "- [x] one\n").unwrap();
+    commit_all(dir.path(), "touch b");
+
+    let commits = commits_touching_path(dir.path(), Path::new("b.agile.md"));
+
+    // With rename following enabled, history includes pre-rename ancestry.
+    assert_eq!(commits.len(), 3, "commits: {commits:?}");
+}
+
 // ── resolve_identity_user ───────────────────────────────────────────────────────
 
 use crate::config::{Config, UserConfig};

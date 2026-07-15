@@ -112,3 +112,24 @@ fn completion_weight_delta_counts_todo_to_done_even_when_another_node_reopens() 
     assert_eq!(events, 1, "events: {events}");
     assert!((delta - 1.0).abs() < f64::EPSILON, "delta: {delta}");
 }
+
+#[test]
+fn completion_weight_delta_uses_fallback_matching_when_ancestor_title_changes() {
+    let old_file_content = "\
+- [ ] grand old
+  - [ ] parent
+    - [ ] leaf
+";
+    let new_file_content = "\
+- [ ] grand new
+  - [ ] parent
+    - [x] leaf
+";
+
+    let old_items = parse_items(old_file_content);
+    let new_items = parse_items(new_file_content);
+    let (delta, events) = completion_weight_delta(&old_items, &new_items);
+
+    assert_eq!(events, 1, "events: {events}");
+    assert!((delta - (1.0 / 3.0)).abs() < f64::EPSILON, "delta: {delta}");
+}
