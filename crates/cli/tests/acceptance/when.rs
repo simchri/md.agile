@@ -102,6 +102,42 @@ fn when_velocity_reordering_done_and_todo_tasks_does_not_increase_velocity() {
 }
 
 #[test]
+fn when_velocity_reordering_done_and_todo_tasks_preserves_nonzero_velocity() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "complete task a", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [ ] task b
+- [x] task a
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(
+        dir.path(),
+        "reorder after completion",
+        "2026-07-12T12:00:00Z",
+    );
+
+    // 1 completion over a 2-day span; reordering later must not add velocity.
+    assert_velocity(dir.path(), "0.50 weight/day\n");
+}
+
+#[test]
 fn when_velocity_deleting_done_tasks_does_not_change_velocity() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
