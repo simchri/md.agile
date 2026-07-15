@@ -12,3 +12,5 @@ pub mod helpers;
 mod lsp;
 #[path = "acceptance/task.rs"]
 mod task;
+#[path = "acceptance/when.rs"]
+mod when;

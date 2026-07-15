@@ -81,6 +81,19 @@ pub enum Command {
         #[arg(long, value_name = "REF")]
         base: Option<String>,
     },
+
+    /// ETA and velocity reporting
+    When {
+        /// Show the current velocity estimate (weighted completions per day)
+        #[arg(long)]
+        velocity: bool,
+
+        /// Show detailed ETA info for the Nth future milestone.
+        ///
+        /// Not implemented yet.
+        #[arg(long, value_name = "RANK", conflicts_with = "velocity")]
+        next: Option<usize>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -254,6 +267,9 @@ pub fn run() {
         }
         Some(Command::Check { r#as, base }) => {
             subcommands::check::run(root, &config, r#as.as_deref(), base.as_deref());
+        }
+        Some(Command::When { velocity, next }) => {
+            subcommands::when::run(root, &config, next, velocity);
         }
     }
 }

@@ -16,6 +16,13 @@ pub struct GitIdentity {
     pub name: Option<String>,
 }
 
+/// A commit that touched a specific path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitRef {
+    pub sha: String,
+    pub timestamp: i64,
+}
+
 /// Returns `true` if `dir` is inside a git working tree.
 pub fn is_git_repo(dir: &Path) -> bool {
     run_git(dir, &["rev-parse", "--is-inside-work-tree"])
@@ -86,6 +93,30 @@ pub fn ref_exists(dir: &Path, git_ref: &str) -> bool {
 pub fn file_content_at_ref(dir: &Path, git_ref: &str, relative_path: &Path) -> Option<String> {
     let spec = format!("{git_ref}:{}", relative_path.to_string_lossy());
     run_git(dir, &["show", &spec])
+}
+
+/// Returns commits that touched `relative_path`, newest first.
+///
+/// Commits are read from first-parent history and include commit unix
+/// timestamps.
+pub fn commits_touching_path(dir: &Path, relative_path: &Path) -> Vec<CommitRef> {
+    let path = relative_path.to_string_lossy().to_string();
+    let Some(output) = run_git(
+        dir,
+        &["log", "--first-parent", "--format=%H %ct", "--", &path],
+    ) else {
+        return Vec::new();
+    };
+
+    output
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.split_whitespace();
+            let sha = parts.next()?.to_string();
+            let timestamp = parts.next()?.parse::<i64>().ok()?;
+            Some(CommitRef { sha, timestamp })
+        })
+        .collect()
 }
 
 /// Runs `git` with `args` in `dir`, returning stdout as a `String` on success

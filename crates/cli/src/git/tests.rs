@@ -159,6 +159,26 @@ fn ref_exists_false_for_bogus_ref() {
     assert!(!ref_exists(dir.path(), "no-such-ref"));
 }
 
+#[test]
+fn commits_touching_path_returns_newest_first_for_that_file() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+
+    std::fs::write(dir.path().join("a.agile.md"), "- [ ] one\n").unwrap();
+    commit_all(dir.path(), "base");
+
+    std::fs::write(dir.path().join("other.txt"), "x\n").unwrap();
+    commit_all(dir.path(), "unrelated");
+
+    std::fs::write(dir.path().join("a.agile.md"), "- [x] one\n").unwrap();
+    commit_all(dir.path(), "touch a again");
+
+    let commits = commits_touching_path(dir.path(), Path::new("a.agile.md"));
+
+    assert_eq!(commits.len(), 2, "commits: {commits:?}");
+    assert_ne!(commits[0].sha, commits[1].sha);
+}
+
 // ── resolve_identity_user ───────────────────────────────────────────────────────
 
 use crate::config::{Config, UserConfig};
