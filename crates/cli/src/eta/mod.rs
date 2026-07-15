@@ -8,6 +8,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const VELOCITY_WINDOW_DAYS: f64 = 90.0;
+const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
 const VELOCITY_WINDOW_SECS: i64 = (VELOCITY_WINDOW_DAYS as i64) * 24 * 60 * 60;
 
 #[derive(Clone)]
@@ -30,6 +31,8 @@ pub fn estimate_velocity(root: &Path) -> Option<f64> {
 
     let mut total_completed_weight = 0.0f64;
     let mut saw_any_comparable_pair = false;
+    let mut min_timestamp: Option<i64> = None;
+    let mut max_timestamp: Option<i64> = None;
 
     for path in find_task_files(root) {
         let mut commits = git::commits_touching_path(root, &path);
@@ -55,6 +58,8 @@ pub fn estimate_velocity(root: &Path) -> Option<f64> {
             };
 
             saw_any_comparable_pair = true;
+            min_timestamp = Some(min_timestamp.map_or(old.timestamp, |t| t.min(old.timestamp)));
+            max_timestamp = Some(max_timestamp.map_or(new.timestamp, |t| t.max(new.timestamp)));
 
             let old_items = parser::parse(&old_content, path.clone());
             let new_items = parser::parse(&new_content, path.clone());
@@ -66,7 +71,13 @@ pub fn estimate_velocity(root: &Path) -> Option<f64> {
         return None;
     }
 
-    Some(total_completed_weight / VELOCITY_WINDOW_DAYS)
+    let span_secs = (max_timestamp? - min_timestamp?).max(0) as f64;
+    let span_days = span_secs / SECONDS_PER_DAY;
+    if span_days <= 0.0 {
+        return None;
+    }
+
+    Some(total_completed_weight / span_days)
 }
 
 fn completion_weight_delta(old_items: &[FileItem], new_items: &[FileItem]) -> f64 {

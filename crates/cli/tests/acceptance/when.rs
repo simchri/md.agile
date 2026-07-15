@@ -70,7 +70,6 @@ fn when_velocity_prints_weight_per_day_with_two_decimals() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
-    // The current implementation uses a fixed 90-day denominator:
-    // one completed top-level task (weight 1) => 1/90 = 0.01 (2 decimals).
-    assert_eq!(stdout, "0.01 weight/day\n", "stdout: {stdout:?}");
+    // One completed top-level task (weight 1) over a 1-day commit span.
+    assert_eq!(stdout, "1.00 weight/day\n", "stdout: {stdout:?}");
 }
