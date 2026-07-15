@@ -443,16 +443,16 @@
   - [ ] improvements to agile when:
     - [x] `last -N`
     - [x] supports subtasks with weighting correctly
-  - [ ] `agile history` Show done tasks with their completion date, if possible, otherwise `unknown`:
+  - [x] `agile history` Show done tasks with their completion date, if possible, otherwise `unknown`:
     ```bash
     agile history
     2024-04-23 - [x] foo
     2024-04-22   - [x] bar
     2024-04-23 - [-] baz
     ```
-  - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
-  - [ ] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
-  - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
+  - [x] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
+  - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
+  - [x] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
   - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
   - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
   - [ ] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
