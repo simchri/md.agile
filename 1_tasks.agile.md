@@ -439,6 +439,7 @@
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
+  - [ ] Implement `agile when --velocity` first: compute and print current velocity estimate as a standalone subcommand output (later extensible with error margins)
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [ ] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
   - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)

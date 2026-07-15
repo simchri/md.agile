@@ -7,6 +7,7 @@ Implement milestone planning/ETA exactly as described in `README.vision.md`:
 1. `agile milestones` (`milestone` alias) lists milestones by rank
 2. `agile when` prints ETA for all milestones in backlog order
 3. `agile when --next <rank>` prints detailed info for one milestone
+4. `agile when --velocity` prints the currently estimated velocity (first delivery slice)
 
 ETA is based on weighted task counts and historical average time per task.
 
@@ -29,7 +30,10 @@ ETA is based on weighted task counts and historical average time per task.
      - `>= 3 years` => years
      - otherwise => months
    - output example is compact single-line per milestone
-4. ETA detail mode (`agile when --next <rank>`)
+4. Velocity inspection mode (`agile when --velocity`)
+   - outputs current velocity estimate used by ETA calculation
+   - initially a single point estimate, to be extended later with error margins
+5. ETA detail mode (`agile when --next <rank>`)
    - milestone name
    - next-rank and total-rank
    - ETA (relative) and ETA date
@@ -58,7 +62,7 @@ ETA is based on weighted task counts and historical average time per task.
 
 - in `crates/cli/src/cli/mod.rs`:
   - `Command::Milestone { ... }` with aliases needed by vision wording
-  - `Command::When { next: Option<usize> }`
+  - `Command::When { next: Option<usize>, velocity: bool }`
 - in `crates/cli/src/cli/subcommands/mod.rs`:
   - add `milestone` and `when` modules
 
@@ -67,6 +71,7 @@ ETA is based on weighted task counts and historical average time per task.
 - `milestone::run_list(root, config, next_only)`
   - enumerate milestones and render rank/name lines
 - `when::run(root, config, next_rank)`
+  - `--velocity`: print current velocity estimate and return
   - no rank: list ETA lines for milestones
   - with rank: render detailed report block
 
@@ -125,6 +130,10 @@ Integrate into `rules::check_all` and tests.
 
 ## 6) Output formatting
 
+Velocity mode (`agile when --velocity`):
+- print current velocity in a stable machine/human-readable line
+- first version returns only point estimate (no confidence bounds yet)
+
 List mode (`agile when`):
 - `<eta>  <name>`
 - unit conversion follows vision thresholds exactly
@@ -150,8 +159,8 @@ Milestone list mode (`agile milestones --list [--next]`):
 
 ## 8) Delivery phases
 
-1. Milestone command and ranking foundation
-2. ETA stats/weight engine
-3. Velocity engine
+1. Velocity engine + `agile when --velocity` command (first shipped slice)
+2. Milestone command and ranking foundation
+3. ETA stats/weight engine
 4. `agile when` list + detail mode formatting
 5. Validation rule + docs/help alignment
