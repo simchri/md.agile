@@ -121,15 +121,11 @@ You can then get ...
 with the `agile when` command:
 ```bash
 $ agile when
-Milestone: Release of MVP :)
-ETA: 2024-07-01
-Done: 8
-Remaining: 5
+3 days   0.8 alpha
+3 weeks  Release of MVP :)
+8 weeks  Release of v2.0
+2 years  Product generation 2
 
-Milestone: Release of v2.0
-ETA: 2024-08-15
-Done: 4
-Remaining: 12
 ```
 (c.f. also `agile when --help`)
 
