@@ -105,6 +105,9 @@ pub enum Command {
         #[arg(long, value_name = "RANK", conflicts_with = "velocity")]
         next: Option<usize>,
     },
+
+    /// Show currently closed tasks with completion date when known
+    History,
 }
 
 #[derive(Subcommand)]
@@ -285,6 +288,9 @@ pub fn run() {
             next,
         }) => {
             subcommands::when::run(root, &config, next, velocity, last);
+        }
+        Some(Command::History) => {
+            subcommands::history::run(root);
         }
     }
 }

@@ -443,7 +443,7 @@
   - [x] improvements to agile when:
     - [x] `last -N`
     - [x] supports subtasks with weighting correctly
-  - [ ] `agile history` Show done tasks with their completion date, if possible, otherwise `unknown`:
+  - [x] `agile history` Show done tasks with their completion date, if possible, otherwise `unknown`:
     ```bash
     agile history
     2024-04-23 - [x] foo

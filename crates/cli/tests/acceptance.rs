@@ -8,6 +8,8 @@ mod default;
 mod file;
 #[path = "acceptance/helpers.rs"]
 pub mod helpers;
+#[path = "acceptance/history.rs"]
+mod history;
 #[path = "acceptance/lsp.rs"]
 mod lsp;
 #[path = "acceptance/task.rs"]
