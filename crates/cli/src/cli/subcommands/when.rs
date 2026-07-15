@@ -7,7 +7,13 @@ use std::path::Path;
 /// `agile when` entry point.
 ///
 /// For now, only `--velocity` is implemented.
-pub fn run(root: &Path, _config: &Config, next: Option<usize>, velocity: bool) {
+pub fn run(
+    root: &Path,
+    _config: &Config,
+    next: Option<usize>,
+    velocity: bool,
+    last_days: Option<u32>,
+) {
     if next.is_some() {
         log::error!("`agile when --next <rank>` is not implemented yet");
         std::process::exit(1);
@@ -18,7 +24,8 @@ pub fn run(root: &Path, _config: &Config, next: Option<usize>, velocity: bool) {
         std::process::exit(1);
     }
 
-    match eta::estimate_velocity(root) {
+    let window_days = last_days.unwrap_or(eta::DEFAULT_VELOCITY_WINDOW_DAYS);
+    match eta::estimate_velocity_with_window(root, window_days) {
         Some(value) => println!("{value:.2} weight/day"),
         None => println!("unknown"),
     }

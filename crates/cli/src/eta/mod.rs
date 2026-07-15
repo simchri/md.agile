@@ -5,11 +5,10 @@ use crate::git;
 use crate::parser::{self, FileItem, Status};
 use std::collections::HashMap;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-const VELOCITY_WINDOW_DAYS: f64 = 90.0;
+pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
-const VELOCITY_WINDOW_SECS: i64 = (VELOCITY_WINDOW_DAYS as i64) * 24 * 60 * 60;
 
 #[derive(Debug, Clone, PartialEq)]
 struct FlatNode {
@@ -32,18 +31,35 @@ pub struct VelocityEstimate {
 ///
 /// Returns `None` when there isn't enough git data to produce an estimate.
 pub fn estimate_velocity(root: &Path) -> Option<f64> {
-    estimate_velocity_details(root).map(|v| v.weight_per_day)
+    estimate_velocity_with_window(root, DEFAULT_VELOCITY_WINDOW_DAYS)
+}
+
+/// Estimates velocity over a caller-provided trailing window (in days).
+pub fn estimate_velocity_with_window(root: &Path, window_days: u32) -> Option<f64> {
+    estimate_velocity_details_with_window(root, window_days).map(|v| v.weight_per_day)
 }
 
 /// Like [`estimate_velocity`], but returns additional metadata useful for
 /// diagnostics and future confidence/error-margin reporting.
 pub fn estimate_velocity_details(root: &Path) -> Option<VelocityEstimate> {
+    estimate_velocity_details_with_window(root, DEFAULT_VELOCITY_WINDOW_DAYS)
+}
+
+/// Like [`estimate_velocity_with_window`], but returns additional metadata.
+pub fn estimate_velocity_details_with_window(
+    root: &Path,
+    window_days: u32,
+) -> Option<VelocityEstimate> {
     if !git::is_git_repo(root) {
+        return None;
+    }
+    if window_days == 0 {
         return None;
     }
 
     let now_secs = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs() as i64;
-    let since_secs = now_secs - VELOCITY_WINDOW_SECS;
+    let window_secs = Duration::from_secs(u64::from(window_days) * 24 * 60 * 60).as_secs() as i64;
+    let since_secs = now_secs - window_secs;
 
     let mut total_completed_weight = 0.0f64;
     let mut comparable_pairs = 0usize;
@@ -75,7 +91,8 @@ pub fn estimate_velocity_details(root: &Path) -> Option<VelocityEstimate> {
             };
 
             comparable_pairs += 1;
-            min_timestamp = Some(min_timestamp.map_or(old.timestamp, |t| t.min(old.timestamp)));
+            let old_for_span = old.timestamp.max(since_secs);
+            min_timestamp = Some(min_timestamp.map_or(old_for_span, |t| t.min(old_for_span)));
             max_timestamp = Some(max_timestamp.map_or(new.timestamp, |t| t.max(new.timestamp)));
 
             let old_items = parser::parse(&old_content, path.clone());

@@ -1,6 +1,7 @@
 use crate::helpers::run_agile;
 use std::fs;
 use std::process::Command;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tempfile::tempdir;
 
 fn git(dir: &std::path::Path, args: &[&str]) {
@@ -25,7 +26,11 @@ fn commit_all_at(dir: &std::path::Path, message: &str, iso_timestamp: &str) {
 }
 
 fn assert_velocity(dir: &std::path::Path, expected_stdout: &str) {
-    let out = run_agile(dir, &["when", "--velocity"]);
+    assert_velocity_with_args(dir, &["when", "--velocity"], expected_stdout);
+}
+
+fn assert_velocity_with_args(dir: &std::path::Path, args: &[&str], expected_stdout: &str) {
+    let out = run_agile(dir, args);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -33,6 +38,17 @@ fn assert_velocity(dir: &std::path::Path, expected_stdout: &str) {
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert_eq!(stdout, expected_stdout, "stdout: {stdout:?}");
+}
+
+fn unix_ts_days_ago(days: u64) -> i64 {
+    (SystemTime::now() - Duration::from_secs(days * 24 * 60 * 60))
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
+}
+
+fn git_date_from_unix_secs(ts: i64) -> String {
+    format!("{ts} +0000")
 }
 
 #[test]
@@ -300,4 +316,64 @@ fn when_velocity_same_timestamp_span_yields_unknown() {
     commit_all_at(dir.path(), "complete task", "2026-07-10T12:00:00Z");
 
     assert_velocity(dir.path(), "unknown\n");
+}
+
+#[test]
+fn when_velocity_last_flag_restricts_history_window() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(6));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(4));
+    let t2 = git_date_from_unix_secs(unix_ts_days_ago(1));
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", &t0);
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "complete a", &t1);
+
+    let file_content = "\
+- [x] task a
+- [x] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "complete b", &t2);
+
+    // Default window considers full observed span: 2 completions over 5 days.
+    assert_velocity(dir.path(), "0.40 weight/day\n");
+    // Restricting to last 2 days considers only the recent completion window.
+    assert_velocity_with_args(
+        dir.path(),
+        &["when", "--velocity", "--last", "2"],
+        "1.00 weight/day\n",
+    );
+}
+
+#[test]
+fn when_last_requires_velocity() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["when", "--last", "2"]);
+
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(
+        stderr.contains("--velocity"),
+        "expected clap error mentioning --velocity requirement, stderr: {stderr:?}"
+    );
 }

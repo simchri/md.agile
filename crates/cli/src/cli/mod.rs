@@ -88,6 +88,17 @@ pub enum Command {
         #[arg(long)]
         velocity: bool,
 
+        /// Restrict velocity history to the last N days.
+        ///
+        /// Only valid with `--velocity`.
+        #[arg(
+            long,
+            value_name = "DAYS",
+            requires = "velocity",
+            value_parser = clap::value_parser!(u32).range(1..)
+        )]
+        last: Option<u32>,
+
         /// Show detailed ETA info for the Nth future milestone.
         ///
         /// Not implemented yet.
@@ -268,8 +279,12 @@ pub fn run() {
         Some(Command::Check { r#as, base }) => {
             subcommands::check::run(root, &config, r#as.as_deref(), base.as_deref());
         }
-        Some(Command::When { velocity, next }) => {
-            subcommands::when::run(root, &config, next, velocity);
+        Some(Command::When {
+            velocity,
+            last,
+            next,
+        }) => {
+            subcommands::when::run(root, &config, next, velocity, last);
         }
     }
 }
