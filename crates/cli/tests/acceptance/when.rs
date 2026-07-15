@@ -12,9 +12,16 @@ fn git(dir: &std::path::Path, args: &[&str]) {
     assert!(status.success(), "git {args:?} failed");
 }
 
-fn commit_all(dir: &std::path::Path, message: &str) {
+fn commit_all_at(dir: &std::path::Path, message: &str, iso_timestamp: &str) {
     git(dir, &["add", "-A"]);
-    git(dir, &["commit", "-q", "-m", message]);
+    let status = Command::new("git")
+        .args(["commit", "-q", "-m", message])
+        .current_dir(dir)
+        .env("GIT_AUTHOR_DATE", iso_timestamp)
+        .env("GIT_COMMITTER_DATE", iso_timestamp)
+        .status()
+        .expect("git command failed to start");
+    assert!(status.success(), "git commit at {iso_timestamp:?} failed");
 }
 
 #[test]
@@ -47,13 +54,13 @@ fn when_velocity_prints_weight_per_day_with_two_decimals() {
 - [ ] one task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all(dir.path(), "initial");
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
 
     let file_content = "\
 - [x] one task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all(dir.path(), "complete task");
+    commit_all_at(dir.path(), "complete task", "2026-07-11T12:00:00Z");
 
     let out = run_agile(dir.path(), &["when", "--velocity"]);
 
@@ -63,5 +70,7 @@ fn when_velocity_prints_weight_per_day_with_two_decimals() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
+    // The current implementation uses a fixed 90-day denominator:
+    // one completed top-level task (weight 1) => 1/90 = 0.01 (2 decimals).
     assert_eq!(stdout, "0.01 weight/day\n", "stdout: {stdout:?}");
 }
