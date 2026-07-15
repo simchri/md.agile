@@ -138,6 +138,36 @@ fn when_velocity_reordering_done_and_todo_tasks_preserves_nonzero_velocity() {
 }
 
 #[test]
+fn when_velocity_counts_completion_when_another_task_reopens_in_same_commit() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+- [x] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(
+        dir.path(),
+        "complete a and reopen b",
+        "2026-07-11T12:00:00Z",
+    );
+
+    // One completion (task a) over a 1-day span; reopening task b must not
+    // cancel out the completion for velocity.
+    assert_velocity(dir.path(), "1.00 weight/day\n");
+}
+
+#[test]
 fn when_velocity_deleting_done_tasks_does_not_change_velocity() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

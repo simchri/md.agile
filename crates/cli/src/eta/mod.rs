@@ -11,10 +11,20 @@ const VELOCITY_WINDOW_DAYS: f64 = 90.0;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
 const VELOCITY_WINDOW_SECS: i64 = (VELOCITY_WINDOW_DAYS as i64) * 24 * 60 * 60;
 
-#[derive(Default, Clone, Copy)]
-struct DepthStatusCounts {
-    todo: u32,
-    done: u32,
+#[derive(Debug, Clone, PartialEq)]
+struct FlatNode {
+    path: Vec<String>,
+    status: Status,
+    depth: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VelocityEstimate {
+    pub weight_per_day: f64,
+    pub completed_weight: f64,
+    pub span_days: f64,
+    pub comparable_pairs: usize,
+    pub completion_events: usize,
 }
 
 /// Estimates current project velocity as weighted completions per day over the
@@ -22,6 +32,12 @@ struct DepthStatusCounts {
 ///
 /// Returns `None` when there isn't enough git data to produce an estimate.
 pub fn estimate_velocity(root: &Path) -> Option<f64> {
+    estimate_velocity_details(root).map(|v| v.weight_per_day)
+}
+
+/// Like [`estimate_velocity`], but returns additional metadata useful for
+/// diagnostics and future confidence/error-margin reporting.
+pub fn estimate_velocity_details(root: &Path) -> Option<VelocityEstimate> {
     if !git::is_git_repo(root) {
         return None;
     }
@@ -30,7 +46,8 @@ pub fn estimate_velocity(root: &Path) -> Option<f64> {
     let since_secs = now_secs - VELOCITY_WINDOW_SECS;
 
     let mut total_completed_weight = 0.0f64;
-    let mut saw_any_comparable_pair = false;
+    let mut comparable_pairs = 0usize;
+    let mut completion_events = 0usize;
     let mut min_timestamp: Option<i64> = None;
     let mut max_timestamp: Option<i64> = None;
 
@@ -57,17 +74,19 @@ pub fn estimate_velocity(root: &Path) -> Option<f64> {
                 continue;
             };
 
-            saw_any_comparable_pair = true;
+            comparable_pairs += 1;
             min_timestamp = Some(min_timestamp.map_or(old.timestamp, |t| t.min(old.timestamp)));
             max_timestamp = Some(max_timestamp.map_or(new.timestamp, |t| t.max(new.timestamp)));
 
             let old_items = parser::parse(&old_content, path.clone());
             let new_items = parser::parse(&new_content, path.clone());
-            total_completed_weight += completion_weight_delta(&old_items, &new_items);
+            let (delta_weight, delta_events) = completion_weight_delta(&old_items, &new_items);
+            total_completed_weight += delta_weight;
+            completion_events += delta_events;
         }
     }
 
-    if !saw_any_comparable_pair {
+    if comparable_pairs == 0 {
         return None;
     }
 
@@ -77,56 +96,80 @@ pub fn estimate_velocity(root: &Path) -> Option<f64> {
         return None;
     }
 
-    Some(total_completed_weight / span_days)
+    Some(VelocityEstimate {
+        weight_per_day: total_completed_weight / span_days,
+        completed_weight: total_completed_weight,
+        span_days,
+        comparable_pairs,
+        completion_events,
+    })
 }
 
-fn completion_weight_delta(old_items: &[FileItem], new_items: &[FileItem]) -> f64 {
-    let old_counts = collect_done_counts_by_depth(old_items);
-    let new_counts = collect_done_counts_by_depth(new_items);
+fn completion_weight_delta(old_items: &[FileItem], new_items: &[FileItem]) -> (f64, usize) {
+    let old_nodes = flatten_nodes(old_items);
+    let new_nodes = flatten_nodes(new_items);
 
-    let mut completed_weight = 0.0f64;
-    for (depth, new) in new_counts {
-        let old = old_counts.get(&depth).copied().unwrap_or_default();
-        let additional_done = new.done.saturating_sub(old.done);
-        let completed_nodes = additional_done.min(old.todo) as f64;
-        if completed_nodes <= 0.0 {
-            continue;
-        }
-        completed_weight += completed_nodes * weight_for_depth(depth);
+    // Same path may legitimately occur multiple times (duplicate sibling titles).
+    // Match by path+occurrence index (document order), same strategy as E013.
+    let mut old_status_by_path: HashMap<Vec<String>, Vec<Status>> = HashMap::new();
+    for node in old_nodes {
+        old_status_by_path
+            .entry(node.path)
+            .or_default()
+            .push(node.status);
     }
-    completed_weight
+
+    let mut occurrence_index: HashMap<Vec<String>, usize> = HashMap::new();
+    let mut completed_weight = 0.0f64;
+    let mut completion_events = 0usize;
+    for new in new_nodes {
+        let idx = occurrence_index.entry(new.path.clone()).or_insert(0);
+        let old_status = old_status_by_path
+            .get(&new.path)
+            .and_then(|v| v.get(*idx))
+            .cloned();
+        *idx += 1;
+
+        if old_status == Some(Status::Todo) && new.status == Status::Done {
+            completion_events += 1;
+            completed_weight += weight_for_depth(new.depth);
+        }
+    }
+    (completed_weight, completion_events)
 }
 
-fn collect_done_counts_by_depth(items: &[FileItem]) -> HashMap<usize, DepthStatusCounts> {
-    let mut out = HashMap::new();
+fn flatten_nodes(items: &[FileItem]) -> Vec<FlatNode> {
+    let mut out = Vec::new();
     for item in items {
         let FileItem::Task(task) = item else {
             continue;
         };
-        let level = out.entry(1).or_insert_with(DepthStatusCounts::default);
-        if task.status == Status::Todo {
-            level.todo += 1;
-        } else if task.status == Status::Done {
-            level.done += 1;
-        }
-        collect_subtasks(&mut out, &task.children, 2);
+        let path = vec![task.title.clone()];
+        out.push(FlatNode {
+            path: path.clone(),
+            status: task.status.clone(),
+            depth: 1,
+        });
+        flatten_subtasks(&mut out, &path, &task.children, 2);
     }
     out
 }
 
-fn collect_subtasks(
-    out: &mut HashMap<usize, DepthStatusCounts>,
+fn flatten_subtasks(
+    out: &mut Vec<FlatNode>,
+    parent_path: &[String],
     children: &[parser::Subtask],
     depth: usize,
 ) {
     for child in children {
-        let level = out.entry(depth).or_insert_with(DepthStatusCounts::default);
-        if child.status == Status::Todo {
-            level.todo += 1;
-        } else if child.status == Status::Done {
-            level.done += 1;
-        }
-        collect_subtasks(out, &child.children, depth + 1);
+        let mut path = parent_path.to_vec();
+        path.push(child.title.clone());
+        out.push(FlatNode {
+            path: path.clone(),
+            status: child.status.clone(),
+            depth,
+        });
+        flatten_subtasks(out, &path, &child.children, depth + 1);
     }
 }
 
