@@ -24,6 +24,17 @@ fn commit_all_at(dir: &std::path::Path, message: &str, iso_timestamp: &str) {
     assert!(status.success(), "git commit at {iso_timestamp:?} failed");
 }
 
+fn assert_velocity(dir: &std::path::Path, expected_stdout: &str) {
+    let out = run_agile(dir, &["when", "--velocity"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert_eq!(stdout, expected_stdout, "stdout: {stdout:?}");
+}
+
 #[test]
 fn when_velocity_prints_unknown_when_velocity_cannot_be_estimated() {
     let dir = tempdir().unwrap();
@@ -62,14 +73,129 @@ fn when_velocity_prints_weight_per_day_with_two_decimals() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete task", "2026-07-11T12:00:00Z");
 
-    let out = run_agile(dir.path(), &["when", "--velocity"]);
-
-    assert!(
-        out.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let stdout = String::from_utf8(out.stdout).unwrap();
     // One completed top-level task (weight 1) over a 1-day commit span.
-    assert_eq!(stdout, "1.00 weight/day\n", "stdout: {stdout:?}");
+    assert_velocity(dir.path(), "1.00 weight/day\n");
+}
+
+#[test]
+fn when_velocity_reordering_done_and_todo_tasks_does_not_increase_velocity() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [x] done task
+- [ ] todo task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [ ] todo task
+- [x] done task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "reorder only", "2026-07-11T12:00:00Z");
+
+    assert_velocity(dir.path(), "0.00 weight/day\n");
+}
+
+#[test]
+fn when_velocity_deleting_done_tasks_does_not_change_velocity() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [x] done task
+- [ ] todo task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [ ] todo task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "delete done task", "2026-07-11T12:00:00Z");
+
+    assert_velocity(dir.path(), "0.00 weight/day\n");
+}
+
+#[test]
+fn when_velocity_editing_title_of_done_task_does_not_change_velocity() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [x] done task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] renamed done task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "rename done task", "2026-07-11T12:00:00Z");
+
+    assert_velocity(dir.path(), "0.00 weight/day\n");
+}
+
+#[test]
+fn when_velocity_counts_real_completion_only_once_even_if_moved_later() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "complete task a", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [ ] task b
+- [x] task a
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "move completed task a", "2026-07-12T12:00:00Z");
+
+    // 1 completion over a 2-day observed span.
+    assert_velocity(dir.path(), "0.50 weight/day\n");
+}
+
+#[test]
+fn when_velocity_same_timestamp_span_yields_unknown() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "complete task", "2026-07-10T12:00:00Z");
+
+    assert_velocity(dir.path(), "unknown\n");
 }

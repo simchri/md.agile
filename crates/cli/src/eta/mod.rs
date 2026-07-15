@@ -11,10 +11,10 @@ const VELOCITY_WINDOW_DAYS: f64 = 90.0;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
 const VELOCITY_WINDOW_SECS: i64 = (VELOCITY_WINDOW_DAYS as i64) * 24 * 60 * 60;
 
-#[derive(Clone)]
-struct NodeSnapshot {
-    status: Status,
-    weight: f64,
+#[derive(Default, Clone, Copy)]
+struct DepthStatusCounts {
+    todo: u32,
+    done: u32,
 }
 
 /// Estimates current project velocity as weighted completions per day over the
@@ -81,61 +81,57 @@ pub fn estimate_velocity(root: &Path) -> Option<f64> {
 }
 
 fn completion_weight_delta(old_items: &[FileItem], new_items: &[FileItem]) -> f64 {
-    let old_nodes = collect_nodes(old_items);
-    let new_nodes = collect_nodes(new_items);
+    let old_counts = collect_done_counts_by_depth(old_items);
+    let new_counts = collect_done_counts_by_depth(new_items);
 
-    let mut completed = 0.0f64;
-    for (key, new_node) in new_nodes {
-        let Some(old_node) = old_nodes.get(&key) else {
+    let mut completed_weight = 0.0f64;
+    for (depth, new) in new_counts {
+        let old = old_counts.get(&depth).copied().unwrap_or_default();
+        let additional_done = new.done.saturating_sub(old.done);
+        let completed_nodes = additional_done.min(old.todo) as f64;
+        if completed_nodes <= 0.0 {
             continue;
-        };
-        if old_node.status == Status::Todo && new_node.status == Status::Done {
-            completed += new_node.weight;
         }
+        completed_weight += completed_nodes * weight_for_depth(depth);
     }
-    completed
+    completed_weight
 }
 
-fn collect_nodes(items: &[FileItem]) -> HashMap<String, NodeSnapshot> {
+fn collect_done_counts_by_depth(items: &[FileItem]) -> HashMap<usize, DepthStatusCounts> {
     let mut out = HashMap::new();
-    let mut top_index = 0usize;
-
     for item in items {
         let FileItem::Task(task) = item else {
             continue;
         };
-        top_index += 1;
-        let key = top_index.to_string();
-        out.insert(
-            key.clone(),
-            NodeSnapshot {
-                status: task.status.clone(),
-                weight: 1.0,
-            },
-        );
-        collect_subtasks(&mut out, &key, &task.children, 2);
+        let level = out.entry(1).or_insert_with(DepthStatusCounts::default);
+        if task.status == Status::Todo {
+            level.todo += 1;
+        } else if task.status == Status::Done {
+            level.done += 1;
+        }
+        collect_subtasks(&mut out, &task.children, 2);
     }
-
     out
 }
 
 fn collect_subtasks(
-    out: &mut HashMap<String, NodeSnapshot>,
-    parent_key: &str,
+    out: &mut HashMap<usize, DepthStatusCounts>,
     children: &[parser::Subtask],
     depth: usize,
 ) {
-    for (idx, child) in children.iter().enumerate() {
-        let key = format!("{parent_key}.{}", idx + 1);
-        out.insert(
-            key.clone(),
-            NodeSnapshot {
-                status: child.status.clone(),
-                weight: 1.0 / (depth as f64),
-            },
-        );
-        collect_subtasks(out, &key, &child.children, depth + 1);
+    for child in children {
+        let level = out.entry(depth).or_insert_with(DepthStatusCounts::default);
+        if child.status == Status::Todo {
+            level.todo += 1;
+        } else if child.status == Status::Done {
+            level.done += 1;
+        }
+        collect_subtasks(out, &child.children, depth + 1);
     }
+}
+
+fn weight_for_depth(depth: usize) -> f64 {
+    1.0 / (depth as f64)
 }
 
 #[cfg(test)]
