@@ -439,6 +439,13 @@
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
+  - [ ] Decide `agile when` behavior for unresolved edge-cases (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
+  - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
+  - [ ] Implement ETA domain module (`eta`) with weighted remaining-work calculation per milestone boundary (task=1, subtask depth n => 1/n)
+  - [ ] Implement velocity estimation from git history as weighted completions/day over a defined window, reusing existing git access patterns
+  - [ ] Add `agile when` CLI subcommand wiring and human-readable output formatting for milestone ETA lines
+  - [ ] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
+  - [ ] Update CLI/help/docs for milestone ETA behavior, assumptions, and limits
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
