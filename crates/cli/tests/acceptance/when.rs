@@ -71,6 +71,30 @@ fn when_velocity_prints_unknown_when_velocity_cannot_be_estimated() {
 }
 
 #[test]
+fn when_velocity_includes_uncommitted_worktree_state_as_latest() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(2));
+    let file_content = "\
+- [ ] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", &t0);
+
+    // Keep this change uncommitted: velocity should still include it.
+    let file_content = "\
+- [x] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    // 1 completion over ~2 days (using worktree as latest state).
+    assert_velocity(dir.path(), "0.50 weight/day\n");
+}
+
+#[test]
 fn when_velocity_prints_weight_per_day_with_two_decimals() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

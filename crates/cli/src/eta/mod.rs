@@ -69,9 +69,10 @@ pub fn estimate_velocity_details_with_window(
 
     for path in find_task_files(root) {
         let mut commits = git::commits_touching_path(root, &path);
-        if commits.len() < 2 {
+        if commits.is_empty() {
             continue;
         }
+        let latest_commit = commits.first().cloned();
 
         // git log returns newest -> oldest, but transitions are computed from
         // older snapshot to newer snapshot.
@@ -97,6 +98,34 @@ pub fn estimate_velocity_details_with_window(
 
             let old_items = parser::parse(&old_content, path.clone());
             let new_items = parser::parse(&new_content, path.clone());
+            let (delta_weight, delta_events) = completion_weight_delta(&old_items, &new_items);
+            total_completed_weight += delta_weight;
+            completion_events += delta_events;
+        }
+
+        // Include the current working tree as the latest state so uncommitted
+        // changes contribute to velocity.
+        if let Some(latest) = latest_commit {
+            let Some(latest_content) = git::file_content_at_ref(root, &latest.sha, &path) else {
+                continue;
+            };
+            let worktree_path = root.join(&path);
+            let worktree_content = match std::fs::read_to_string(&worktree_path) {
+                Ok(content) => content,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+                Err(_) => continue,
+            };
+            if worktree_content == latest_content {
+                continue;
+            }
+
+            comparable_pairs += 1;
+            let old_for_span = latest.timestamp.max(since_secs);
+            min_timestamp = Some(min_timestamp.map_or(old_for_span, |t| t.min(old_for_span)));
+            max_timestamp = Some(max_timestamp.map_or(now_secs, |t| t.max(now_secs)));
+
+            let old_items = parser::parse(&latest_content, path.clone());
+            let new_items = parser::parse(&worktree_content, path.clone());
             let (delta_weight, delta_events) = completion_weight_delta(&old_items, &new_items);
             total_completed_weight += delta_weight;
             completion_events += delta_events;
