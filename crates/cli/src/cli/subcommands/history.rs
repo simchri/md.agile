@@ -1,31 +1,18 @@
 //! `agile history` — list currently closed tasks with completion dates.
 
 use crate::cli::common::{find_task_files, parse_file};
+use crate::eta::{self, StatusTransition, TransitionKey};
 use crate::git;
-use crate::parser::{self, FileItem, Status};
+use crate::parser::{self, Status};
 use std::collections::HashMap;
 use std::path::Path;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct NodeKey {
-    path: Vec<String>,
-    occurrence: usize,
-}
-
-#[derive(Debug, Clone)]
-struct FlatNode {
-    key: NodeKey,
-    status: Status,
-    indent: usize,
-    title: String,
-}
 
 /// `agile history` entry point.
 pub fn run(root: &Path) {
     let mut out = String::new();
     for file in find_task_files(root) {
         let items = parse_file(&file);
-        let current_nodes = flatten_nodes(&items);
+        let current_nodes = eta::status_transitions(&[], &items);
         if current_nodes.is_empty() {
             continue;
         }
@@ -33,7 +20,7 @@ pub fn run(root: &Path) {
         let completion_dates = completion_dates_for_file(root, &file);
         for node in current_nodes
             .iter()
-            .filter(|n| matches!(n.status, Status::Done | Status::Cancelled))
+            .filter(|n| matches!(n.new_status, Status::Done | Status::Cancelled))
         {
             let date = completion_dates
                 .get(&node.key)
@@ -45,11 +32,11 @@ pub fn run(root: &Path) {
     print!("{out}");
 }
 
-fn render_history_line(date: &str, node: &FlatNode) -> String {
+fn render_history_line(date: &str, node: &StatusTransition) -> String {
     format!(
         "{date} {}- {} {}\n",
         " ".repeat(node.indent),
-        status_marker(&node.status),
+        status_marker(&node.new_status),
         node.title
     )
 }
@@ -62,7 +49,7 @@ fn status_marker(status: &Status) -> &'static str {
     }
 }
 
-fn completion_dates_for_file(root: &Path, relative_path: &Path) -> HashMap<NodeKey, String> {
+fn completion_dates_for_file(root: &Path, relative_path: &Path) -> HashMap<TransitionKey, String> {
     if !git::is_git_repo(root) {
         return HashMap::new();
     }
@@ -87,79 +74,18 @@ fn completion_dates_for_file(root: &Path, relative_path: &Path) -> HashMap<NodeK
 
         let old_items = parser::parse(&old_content, relative_path.to_path_buf());
         let new_items = parser::parse(&new_content, relative_path.to_path_buf());
-        let old_nodes = flatten_nodes(&old_items);
-        let new_nodes = flatten_nodes(&new_items);
-
-        let old_status_by_key: HashMap<NodeKey, Status> = old_nodes
-            .into_iter()
-            .map(|n| (n.key, n.status))
-            .collect::<HashMap<_, _>>();
+        let transitions = eta::status_transitions(&old_items, &new_items);
 
         let date = unix_to_yyyy_mm_dd(new.timestamp);
-        for node in new_nodes {
-            let was_closed = old_status_by_key
-                .get(&node.key)
-                .is_some_and(|s| is_closed(s));
-            if !was_closed && is_closed(&node.status) {
-                completion_dates.insert(node.key, date.clone());
+        for t in transitions {
+            let was_closed = t.old_status.as_ref().is_some_and(is_closed);
+            if !was_closed && is_closed(&t.new_status) {
+                completion_dates.insert(t.key, date.clone());
             }
         }
     }
 
     completion_dates
-}
-
-fn flatten_nodes(items: &[FileItem]) -> Vec<FlatNode> {
-    let mut raw = Vec::new();
-    for item in items {
-        let FileItem::Task(task) = item else {
-            continue;
-        };
-        let path = vec![task.title.clone()];
-        raw.push((
-            path.clone(),
-            task.status.clone(),
-            task.indent,
-            task.title.clone(),
-        ));
-        flatten_subtasks(&mut raw, &path, &task.children);
-    }
-
-    let mut occurrence_index: HashMap<Vec<String>, usize> = HashMap::new();
-    raw.into_iter()
-        .map(|(path, status, indent, title)| {
-            let occurrence = occurrence_index.entry(path.clone()).or_insert(0);
-            let key = NodeKey {
-                path,
-                occurrence: *occurrence,
-            };
-            *occurrence += 1;
-            FlatNode {
-                key,
-                status,
-                indent,
-                title,
-            }
-        })
-        .collect()
-}
-
-fn flatten_subtasks(
-    out: &mut Vec<(Vec<String>, Status, usize, String)>,
-    parent_path: &[String],
-    children: &[parser::Subtask],
-) {
-    for child in children {
-        let mut path = parent_path.to_vec();
-        path.push(child.title.clone());
-        out.push((
-            path.clone(),
-            child.status.clone(),
-            child.indent,
-            child.title.clone(),
-        ));
-        flatten_subtasks(out, &path, &child.children);
-    }
 }
 
 fn is_closed(status: &Status) -> bool {

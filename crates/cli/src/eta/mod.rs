@@ -12,9 +12,27 @@ const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
 
 #[derive(Debug, Clone, PartialEq)]
 struct FlatNode {
-    path: Vec<String>,
+    key: TransitionKey,
     status: Status,
     depth: usize,
+    indent: usize,
+    title: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TransitionKey {
+    pub path: Vec<String>,
+    pub occurrence: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StatusTransition {
+    pub key: TransitionKey,
+    pub old_status: Option<Status>,
+    pub new_status: Status,
+    pub depth: usize,
+    pub indent: usize,
+    pub title: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -152,57 +170,81 @@ pub fn estimate_velocity_details_with_window(
 }
 
 fn completion_weight_delta(old_items: &[FileItem], new_items: &[FileItem]) -> (f64, usize) {
-    let old_nodes = flatten_nodes(old_items);
-    let new_nodes = flatten_nodes(new_items);
-
-    // Same path may legitimately occur multiple times (duplicate sibling titles).
-    // Match by path+occurrence index (document order), same strategy as E013.
-    let mut old_status_by_path: HashMap<Vec<String>, Vec<Status>> = HashMap::new();
-    for node in old_nodes {
-        old_status_by_path
-            .entry(node.path)
-            .or_default()
-            .push(node.status);
-    }
-
-    let mut occurrence_index: HashMap<Vec<String>, usize> = HashMap::new();
+    let transitions = status_transitions(old_items, new_items);
     let mut completed_weight = 0.0f64;
     let mut completion_events = 0usize;
-    for new in new_nodes {
-        let idx = occurrence_index.entry(new.path.clone()).or_insert(0);
-        let old_status = old_status_by_path
-            .get(&new.path)
-            .and_then(|v| v.get(*idx))
-            .cloned();
-        *idx += 1;
-
-        if old_status == Some(Status::Todo) && new.status == Status::Done {
+    for t in transitions {
+        if t.old_status == Some(Status::Todo) && t.new_status == Status::Done {
             completion_events += 1;
-            completed_weight += weight_for_depth(new.depth);
+            completed_weight += weight_for_depth(t.depth);
         }
     }
     (completed_weight, completion_events)
 }
 
+/// Returns path+occurrence-matched status transitions from `old_items` to
+/// `new_items`.
+pub fn status_transitions(old_items: &[FileItem], new_items: &[FileItem]) -> Vec<StatusTransition> {
+    let old_nodes = flatten_nodes(old_items);
+    let new_nodes = flatten_nodes(new_items);
+    let old_by_key: HashMap<TransitionKey, FlatNode> =
+        old_nodes.into_iter().map(|n| (n.key.clone(), n)).collect();
+
+    new_nodes
+        .into_iter()
+        .map(|new| {
+            let old_status = old_by_key.get(&new.key).map(|old| old.status.clone());
+            StatusTransition {
+                key: new.key,
+                old_status,
+                new_status: new.status,
+                depth: new.depth,
+                indent: new.indent,
+                title: new.title,
+            }
+        })
+        .collect()
+}
+
 fn flatten_nodes(items: &[FileItem]) -> Vec<FlatNode> {
-    let mut out = Vec::new();
+    let mut raw = Vec::new();
     for item in items {
         let FileItem::Task(task) = item else {
             continue;
         };
         let path = vec![task.title.clone()];
-        out.push(FlatNode {
-            path: path.clone(),
-            status: task.status.clone(),
-            depth: 1,
-        });
-        flatten_subtasks(&mut out, &path, &task.children, 2);
+        raw.push((
+            path.clone(),
+            task.status.clone(),
+            1usize,
+            task.indent,
+            task.title.clone(),
+        ));
+        flatten_subtasks(&mut raw, &path, &task.children, 2);
     }
-    out
+
+    let mut occurrence_index: HashMap<Vec<String>, usize> = HashMap::new();
+    raw.into_iter()
+        .map(|(path, status, depth, indent, title)| {
+            let occurrence = occurrence_index.entry(path.clone()).or_insert(0);
+            let key = TransitionKey {
+                path: path.clone(),
+                occurrence: *occurrence,
+            };
+            *occurrence += 1;
+            FlatNode {
+                key,
+                status,
+                depth,
+                indent,
+                title,
+            }
+        })
+        .collect()
 }
 
 fn flatten_subtasks(
-    out: &mut Vec<FlatNode>,
+    out: &mut Vec<(Vec<String>, Status, usize, usize, String)>,
     parent_path: &[String],
     children: &[parser::Subtask],
     depth: usize,
@@ -210,11 +252,13 @@ fn flatten_subtasks(
     for child in children {
         let mut path = parent_path.to_vec();
         path.push(child.title.clone());
-        out.push(FlatNode {
-            path: path.clone(),
-            status: child.status.clone(),
+        out.push((
+            path.clone(),
+            child.status.clone(),
             depth,
-        });
+            child.indent,
+            child.title.clone(),
+        ));
         flatten_subtasks(out, &path, &child.children, depth + 1);
     }
 }
