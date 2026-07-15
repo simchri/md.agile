@@ -441,8 +441,8 @@
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
   - [x] Implement `agile when --velocity` first: compute and print current velocity estimate as a standalone subcommand output (later extensible with error margins)
   - [ ] improvements to agile when:
-    - [ ] `last -N`
-    - [ ] supports subtasks with weighting correctly
+    - [x] `last -N`
+    - [x] supports subtasks with weighting correctly
   - [ ] `agile history` Show done tasks with their completion date, if possible, otherwise `unknown`:
     ```bash
     agile history

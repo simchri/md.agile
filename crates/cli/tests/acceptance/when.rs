@@ -94,6 +94,58 @@ fn when_velocity_prints_weight_per_day_with_two_decimals() {
 }
 
 #[test]
+fn when_velocity_counts_direct_subtask_completion_with_half_weight() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] parent
+  - [ ] child
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [ ] parent
+  - [x] child
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "complete child", "2026-07-11T12:00:00Z");
+
+    // A level-2 subtask contributes weight 1/2 over a 1-day span.
+    assert_velocity(dir.path(), "0.50 weight/day\n");
+}
+
+#[test]
+fn when_velocity_counts_nested_subtask_completion_with_depth_weight() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] parent
+  - [ ] child
+    - [ ] grandchild
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [ ] parent
+  - [ ] child
+    - [x] grandchild
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "complete grandchild", "2026-07-11T12:00:00Z");
+
+    // A level-3 subtask contributes weight 1/3 over a 1-day span.
+    assert_velocity(dir.path(), "0.33 weight/day\n");
+}
+
+#[test]
 fn when_velocity_reordering_done_and_todo_tasks_does_not_increase_velocity() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
