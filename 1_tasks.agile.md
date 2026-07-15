@@ -439,13 +439,16 @@
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
-  - [ ] Decide `agile when` behavior for unresolved edge-cases (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
+  - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
+  - [ ] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
+  - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
+  - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
   - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
-  - [ ] Implement ETA domain module (`eta`) with weighted remaining-work calculation per milestone boundary (task=1, subtask depth n => 1/n)
+  - [ ] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
+  - [ ] Implement vision-aligned task counting for ETA that includes property-required subtasks, including short-form implied subtasks once short-forms are supported
   - [ ] Implement velocity estimation from git history as weighted completions/day over a defined window, reusing existing git access patterns
-  - [ ] Add `agile when` CLI subcommand wiring and human-readable output formatting for milestone ETA lines
   - [ ] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
-  - [ ] Update CLI/help/docs for milestone ETA behavior, assumptions, and limits
+  - [ ] Update CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.

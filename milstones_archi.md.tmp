@@ -1,174 +1,157 @@
-# Milestones / `agile when` — architecture draft
+# Milestones / `agile when` — architecture draft (aligned to current vision)
 
 ## Goal
 
-Implement `agile when` to project ETA for each milestone (`#MILESTONE: name`) from:
+Implement milestone planning/ETA exactly as described in `README.vision.md`:
 
-1. Remaining weighted work up to that milestone
-2. Historical completion velocity (weighted work/day)
+1. `agile milestones` (`milestone` alias) lists milestones by rank
+2. `agile when` prints ETA for all milestones in backlog order
+3. `agile when --next <rank>` prints detailed info for one milestone
 
-This should follow `README.vision.md` and stay aligned with existing CLI/parser/rules patterns.
+ETA is based on weighted task counts and historical average time per task.
 
-## Scope (first implementation)
+## Vision-aligned requirements
 
-- Add `agile when` subcommand
-- Compute weighted remaining work per milestone
-- Compute project velocity from git history
-- Print human-readable ETAs for upcoming milestones
-- Add checks for milestone validity required by the vision (uniqueness, etc.)
+1. Milestone syntax and semantics
+   - milestone marker is standalone `#MILESTONE` line
+   - punctuation after tag is ignored (`#MILESTONE:`, `#MILESTONE!`, ...)
+   - milestone name is required
+   - milestone names must be unique project-wide
+   - milestone is reached when all tasks above it are complete
+2. Milestone list command
+   - command spelling per vision: `agile milstones --list --next` (retain this spelling, plus canonical/alias forms in CLI design)
+   - `--next` means milestones after the first incomplete task
+   - output includes milestone rank and name
+3. ETA list command (`agile when`)
+   - default: compute ETA for all milestones and print in milestone order
+   - unit display rule from vision:
+     - `< 8 weeks` => weeks
+     - `>= 3 years` => years
+     - otherwise => months
+   - output example is compact single-line per milestone
+4. ETA detail mode (`agile when --next <rank>`)
+   - milestone name
+   - next-rank and total-rank
+   - ETA (relative) and ETA date
+   - task counts since previous milestone: total/todo/done
+5. Task weight model
+   - task weight = `1 + sum(child weights)`
+   - subtask at depth `n` contributes `1/n`
+   - use weighted counts for ETA math
+   - include property-required subtasks, including short-form implied subtasks
 
-## Open behavior questions (to decide before implementation)
+## Open implementation questions (still not fully specified)
 
-1. **No milestones found:** Should output be empty, informational text, or hard error?
-2. **Already reached milestones:** Show only upcoming milestones, or include reached ones as `now`/`done`?
-3. **Velocity window:** Use all history by default, or a rolling window (e.g. last 30/60/90 days)?
-4. **Very low or zero velocity:** Print `unknown`, `∞`, or fallback to unweighted count heuristic?
-5. **No git / no commits / parseable history missing:** Should command fail hard or return a structured “insufficient data” result with exit 0?
-6. **Cancelled tasks `[-]`:** Should they contribute zero remaining weight (likely), and do cancellation transitions contribute to velocity?
-7. **Milestone boundary rule:** Is milestone considered reached when all work *strictly before* the marker is done (per vision), even if tasks at the marker line file continue?
-8. **Cross-file behavior:** Confirm milestone ordering is global file order (`find_task_files` sort) + in-file position.
-9. **Display format:** Keep “relative duration + name” only, or include date/timestamp column too?
-10. **CLI flags for v1:** none, or include `--json` and `--as-of` from the start?
+1. Exact canonical command names vs aliases (`milstones` typo compatibility, `milestone`, `milestones`)
+2. Whether `agile when` should include already-reached milestones or collapse them to zero-time
+3. Behavior when velocity data is unavailable (new repo/no commits)
+4. Exact velocity estimation window and smoothing strategy
+5. Whether cancelled tasks contribute to velocity history or only reduce remaining work
+6. How to compute implied short-form subtasks in ETA before short-form feature lands
+7. Exit codes and messages when no milestones exist
 
-## Proposed functional behavior (default proposal)
-
-- `agile when` lists **upcoming milestones only** in global task priority order.
-- A milestone is reached when all tasks/subtasks before its marker are done or cancelled.
-- Remaining weight:
-  - todo task: contributes node weight
-  - done/cancelled task: contributes 0
-  - node weight = `1` for top-level task, `1/n` for subtask depth `n`
-- Velocity:
-  - based on weighted transitions to done (`[ ] -> [x]`) from git history
-  - default window: last 90 days (configurable later)
-- ETA:
-  - `eta_days = remaining_weight / velocity_per_day`
-  - milestone date = `today + eta_days`
-- If velocity cannot be computed (insufficient history), print milestone with `unknown` ETA (not hard error).
-
-## Architecture plan
+## Proposed architecture
 
 ## 1) Command surface
 
-### CLI wiring
+### CLI additions
 
-- Add new top-level subcommand in `crates/cli/src/cli/mod.rs`:
-  - `Command::When`
-- Dispatch to `cli::subcommands::when::run(root, &config)`.
-- Register module in `crates/cli/src/cli/subcommands/mod.rs`.
+- in `crates/cli/src/cli/mod.rs`:
+  - `Command::Milestone { ... }` with aliases needed by vision wording
+  - `Command::When { next: Option<usize> }`
+- in `crates/cli/src/cli/subcommands/mod.rs`:
+  - add `milestone` and `when` modules
 
-### Subcommand output contract (v1)
+### Subcommands
 
-- One line per upcoming milestone.
-- Suggested format:
-  - `<relative_eta>  <milestone_name>`
-  - examples: `3 days  MVP`, `2 weeks  Release v2`
-- If no upcoming milestones: print nothing (or agreed informational line once open questions are resolved).
+- `milestone::run_list(root, config, next_only)`
+  - enumerate milestones and render rank/name lines
+- `when::run(root, config, next_rank)`
+  - no rank: list ETA lines for milestones
+  - with rank: render detailed report block
 
-## 2) ETA domain module
+## 2) New ETA module
 
-Create `crates/cli/src/eta/mod.rs` with pure computation helpers and small structs:
+Create `crates/cli/src/eta/mod.rs` as computation-only domain logic.
 
-- `MilestoneProgress { name, line, remaining_weight }`
-- `VelocitySample { from, to, completed_weight }`
+Suggested core types:
+
+- `MilestoneEntry { rank, name, file, line, preceding_span }`
+- `MilestoneStats { rank, total_rank, tasks_since_prev, todo, done, remaining_weight }`
 - `Velocity { weight_per_day }`
-- `MilestoneEta { name, remaining_weight, eta_days: Option<f64> }`
+- `MilestoneEta { rank, name, eta_days, eta_date }`
 
-Public entrypoint:
+Public functions:
 
-- `compute_milestone_etas(root, config, now) -> Result<Vec<MilestoneEta>, EtaError>`
+- `collect_milestones(root) -> Vec<MilestoneEntry>`
+- `collect_milestone_stats(items, config) -> Vec<MilestoneStats>`
+- `estimate_velocity(root, config) -> Result<Velocity, EtaError>`
+- `compute_etas(stats, velocity, now) -> Vec<MilestoneEta>`
 
-Responsibility split:
-
-- **Parse phase**: gather ordered `FileItem`s from all task files.
-- **Progress phase**: compute remaining weight prefix-sums at each milestone boundary.
-- **Velocity phase**: compute weighted completion/day from git history.
-- **Projection phase**: derive ETAs.
-
-## 3) Remaining-weight computation
-
-Input: ordered global `Vec<FileItem>` (already available via `find_task_files` + `parse_file`).
+## 3) Remaining work and milestone stats
 
 Algorithm:
 
-1. Walk in order.
-2. Maintain cumulative remaining weight.
-3. For each `Task`, recursively sum remaining node weights for todo descendants.
-4. For each `Milestone`, snapshot cumulative remaining weight into `MilestoneProgress`.
-5. Filter reached milestones (`remaining_weight == 0`) if we only show upcoming ones.
+1. Parse all `.agile.md` files in existing global order.
+2. Build ordered stream of `FileItem`.
+3. Track current milestone span (from previous milestone boundary).
+4. For each task/subtask in span, accumulate:
+   - weighted total
+   - weighted todo
+   - weighted done
+5. On milestone boundary, snapshot stats and reset span counters.
 
-Notes:
+This directly supports both list and detail outputs.
 
-- Keep weight logic in one function reused by progress + velocity code.
-- Preserve floating-point precision internally (`f64`), round only at formatting boundary.
+## 4) Velocity estimation
 
-## 4) Velocity from git history
+Use existing git wrapper style (`crate::git`, shelling out to git CLI).
 
-Use existing `crate::git` style (CLI git wrapper), not new git2 dependency for v1.
+1. Walk history of task files.
+2. Parse old/new snapshots and detect completion transitions to `[x]`.
+3. Convert transitions to weighted completed work.
+4. Compute average weight/day (plus guardrails for sparse history).
 
-Approach:
+Keep velocity computation isolated so algorithm tweaks do not affect command wiring.
 
-1. For each task file, collect commit history over selected window.
-2. For each consecutive pair of snapshots (`old`, `new`):
-   - parse both versions
-   - detect nodes transitioning to done
-   - add their weighted contribution once
-3. Aggregate weighted completions over elapsed days to produce `weight/day`.
+## 5) Validation/rules
 
-Key design choices:
+Add milestone validation in `crates/cli/src/rules/`:
 
-- Match nodes by stable address within file tree (line number alone is unstable across edits).
-- Deduplicate within a commit pair to avoid double counting parent+child transitions incorrectly.
-- Ignore reverted transitions `[x] -> [ ]` in v1 (count only completion events).
+- duplicate milestone names => checker issue
+- (name required already handled by parser milestone recognition behavior)
 
-## 5) Validation/rules updates
+Integrate into `rules::check_all` and tests.
 
-Milestone-specific checks to align with vision:
+## 6) Output formatting
 
-- milestone name required (already parser-level behavior)
-- milestone names unique project-wide (new rule)
+List mode (`agile when`):
+- `<eta>  <name>`
+- unit conversion follows vision thresholds exactly
 
-Add rule in `crates/cli/src/rules/` and include in checker orchestration.
+Detail mode (`agile when --next <rank>`):
+- structured block with fields shown in vision example
 
-## 6) Formatting and UX
+Milestone list mode (`agile milestones --list [--next]`):
+- `<rank> <name>`
 
-Add formatter helpers in CLI layer:
+## 7) Testing plan
 
-- duration bucket: days/weeks/months/years (compact)
-- optionally include concrete date when under/over threshold (pending decision)
-- stable ordering, stable rounding
-
-Error behavior:
-
-- hard errors for malformed data paths / git command failures that indicate operational faults
-- soft “unknown ETA” when data is insufficient but command can still provide milestone list
-
-## 7) Testing strategy
-
-### Unit tests
-
-- weight calculation across nested subtasks
-- milestone prefix accumulation across mixed files
-- reached/upcoming filtering
-- duration formatting rounding boundaries
-
-### Integration / subcommand tests
-
-- `agile when` output with synthetic fixture files
-- no milestones
-- all milestones reached
-- unknown velocity path
-
-### Rule tests
-
-- duplicate milestone names across files produce issue
+1. Unit tests
+   - milestone extraction/ranking
+   - weighted counting across nested tasks/subtasks
+   - unit-threshold formatting (`weeks/months/years`)
+2. Integration tests
+   - `agile milestones --list --next`
+   - `agile when` list output
+   - `agile when --next <rank>` detail output
+3. Rule tests
+   - duplicate milestone names across files
 
 ## 8) Delivery phases
 
-1. **Phase A — core math + milestone progress**
-2. **Phase B — velocity extraction from git history**
-3. **Phase C — CLI output + formatting**
-4. **Phase D — validation rule + docs**
-
-Each phase should land with focused tests before moving on.
-
+1. Milestone command and ranking foundation
+2. ETA stats/weight engine
+3. Velocity engine
+4. `agile when` list + detail mode formatting
+5. Validation rule + docs/help alignment
