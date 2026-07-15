@@ -112,6 +112,19 @@ A milestone is simply a marker between tasks, identified by the special tag `#MI
 ```
 Punctuation directly behind the tag is ignored (`#MILESTONE` is equivalent to `#MILESTONE:`, `#MILESTONE!` etc.). A milestone name must be provided, and milestones must be unique across the project.
 
+The `milestone` (alias `milestones`) command allows you to manage milestones:
+
+```bash
+$ agile milstones --list --next
+1 0.8 alpha
+2 Release of MVP :)
+3 Release of v2.0
+4 Product generation 2
+```
+The flag `--next` limits output to future milestones, i.e. milestones that appear after the first incomplete task in the backlog.
+
+(c.f. also `agile when --help`)
+
 You can then get ...
 
 - count of remaining tasks (and subtasks) to milestones
@@ -121,13 +134,29 @@ You can then get ...
 with the `agile when` command:
 ```bash
 $ agile when
-3 days   0.8 alpha
-3 weeks  Release of MVP :)
-8 weeks  Release of v2.0
-2 years  Product generation 2
-
+7 days    0.8 alpha
+3 weeks   Release of MVP :)
+4 months  Release of v2.0
+2 years   Product generation 2
 ```
+Alone, `agile when` calculates the ETA for all milestones and lists them in order as they appear in your backlog (which by design is the same as ordering by ETA). The time unit is weeks for ETAs below 8 weeks, years from 3 years and higher, months otherwise.
+
+You can inspect one milestone in more detail by providing its rank (as provided by `agile milestones --list [--next]`), e.g. 
+```bash
+$ agile when --next 2
+milestone: Release of MVP :)
+next rank: 1
+total rank: 5
+ETA: 3 weeks
+ETA date: 2026-05-04
+tasks since last milestone: 21
+to do: 18
+done: 3
+```
+
+
 (c.f. also `agile when --help`)
+
 
 ### ETA - Task Weights
 
