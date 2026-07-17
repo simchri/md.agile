@@ -1,21 +1,45 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGET_DIR="${1:-sample-plot-repo}"
 MODE="stable"
+TARGET_DIR="sample-plot-repo"
 
-if [[ $# -ge 2 ]]; then
-    if [[ "$2" == "--mode" ]]; then
-        MODE="${3:-}"
-        if [[ -z "$MODE" ]]; then
-            echo "error: missing value for --mode" >&2
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --mode)
+            MODE="${2:-}"
+            if [[ -z "$MODE" ]]; then
+                echo "error: missing value for --mode" >&2
+                exit 1
+            fi
+            shift 2
+            ;;
+        --help|-h)
+            cat <<'EOF'
+usage: ./scripts/create-sample-plot-repo.sh [target-dir] [--mode <mode>]
+
+modes:
+  stable
+  messy-total
+  messy-done
+  messy-both
+EOF
+            exit 0
+            ;;
+        -*)
+            echo "error: unknown option '$1' (expected --mode <stable|messy-total|messy-done|messy-both>)" >&2
             exit 1
-        fi
-    else
-        echo "error: unknown option '$2' (expected --mode <stable|messy-total|messy-done|messy-both>)" >&2
-        exit 1
-    fi
-fi
+            ;;
+        *)
+            if [[ "$TARGET_DIR" != "sample-plot-repo" ]]; then
+                echo "error: multiple target directories specified ('$TARGET_DIR' and '$1')" >&2
+                exit 1
+            fi
+            TARGET_DIR="$1"
+            shift
+            ;;
+    esac
+done
 
 case "$MODE" in
     stable|messy-total|messy-done|messy-both) ;;
