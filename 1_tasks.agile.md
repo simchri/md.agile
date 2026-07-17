@@ -543,3 +543,5 @@
 ## Events
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
   - [ ] formulate "vision"
+
+#MILESTONE: Done
