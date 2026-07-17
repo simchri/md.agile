@@ -4,10 +4,11 @@ use crate::cli::common::find_task_files;
 use crate::git;
 use crate::history_cache;
 use crate::parser::{self, FileItem, Status};
+use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use textplots::{Chart, Plot, Shape};
+use textplots::{Chart, ColorPlot, Shape};
 
 pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
@@ -232,7 +233,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
     if ascii {
         out.push_str(&render_ascii_plot(&sampled));
     } else {
-        out.push_str("legend: textplots line1=total_weight line2=done_weight\n");
+        out.push_str("legend: textplots total_weight(red) done_weight(green)\n");
         out.push_str(&render_textplots_chart(&sampled));
     }
 
@@ -275,8 +276,11 @@ fn render_textplots_chart(points: &[TodoDonePlotPoint]) -> String {
 
     let total_shape = Shape::Lines(total_series.as_slice());
     let done_shape = Shape::Lines(done_series.as_slice());
-    let mut chart = Chart::new_with_y_range(120, 36, 0.0, xmax, 0.0, ymax);
-    let chart_ref = chart.lineplot(&total_shape).lineplot(&done_shape);
+    // Keep a square canvas in plot-space (1:1).
+    let mut chart = Chart::new_with_y_range(96, 96, 0.0, xmax, 0.0, ymax);
+    let chart_ref = chart
+        .linecolorplot(&total_shape, RGB8::new(255, 0, 0))
+        .linecolorplot(&done_shape, RGB8::new(0, 255, 0));
     chart_ref.axis();
     chart_ref.figures();
     format!("{chart_ref}\n")

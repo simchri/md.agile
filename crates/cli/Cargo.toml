@@ -30,3 +30,4 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "tim
 tower-lsp = "0.20"
 test-log = "0.2.21"
 textplots = "0.8"
+rgb = "0.8"
