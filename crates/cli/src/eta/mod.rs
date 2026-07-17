@@ -52,6 +52,19 @@ pub struct VelocityEstimate {
     pub completion_events: usize,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct TodoDonePlotPoint {
+    pub date: String,
+    pub open_weight: f64,
+    pub done_weight: f64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TodoDonePlot {
+    pub milestone_name: String,
+    pub points: Vec<TodoDonePlotPoint>,
+}
+
 /// Estimates current project velocity as weighted completions per day over the
 /// last 90 days.
 ///
@@ -168,6 +181,217 @@ pub fn estimate_velocity_details_with_window(
         comparable_pairs,
         completion_events,
     })
+}
+
+pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDonePlot, String> {
+    if !git::is_git_repo(root) {
+        return Err("`agile when --plot` requires a git repository".to_string());
+    }
+    if milestone_rank == 0 {
+        return Err("milestone rank must be >= 1".to_string());
+    }
+
+    let milestone_name = milestone_name_for_rank(root, milestone_rank)
+        .ok_or_else(|| format!("milestone rank {milestone_rank} does not exist"))?;
+    let cache = history_cache::update(root)
+        .ok_or_else(|| "could not read or build history cache for plotting".to_string())?;
+
+    let mut points = Vec::new();
+    for entry in &cache.entries {
+        let (open_weight, done_weight, found_milestone) =
+            weights_until_milestone_at_ref(root, &entry.commit_hash, &milestone_name);
+        if !found_milestone {
+            continue;
+        }
+        points.push(TodoDonePlotPoint {
+            date: entry.commit_date.clone(),
+            open_weight,
+            done_weight,
+        });
+    }
+
+    if points.is_empty() {
+        return Err(format!(
+            "milestone '{}' is not present in comparable history entries",
+            milestone_name
+        ));
+    }
+
+    Ok(TodoDonePlot {
+        milestone_name,
+        points,
+    })
+}
+
+pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
+    let sampled = downsample_plot_points(&plot.points, 72);
+    let width = sampled.len().max(1);
+    let height = 12usize;
+
+    let max_open = sampled.iter().map(|p| p.open_weight).fold(0.0, f64::max);
+    let max_done = sampled.iter().map(|p| p.done_weight).fold(0.0, f64::max);
+    let y_max = max_open.max(max_done).max(1.0);
+
+    let open_char = if ascii { '*' } else { '●' };
+    let done_char = if ascii { 'o' } else { '○' };
+    let overlap_char = if ascii { 'X' } else { '◆' };
+
+    let mut grid = vec![vec![' '; width]; height];
+    for (x, p) in sampled.iter().enumerate() {
+        let open_row = y_to_row(p.open_weight, y_max, height);
+        let done_row = y_to_row(p.done_weight, y_max, height);
+        place_marker(&mut grid, open_row, x, open_char, overlap_char);
+        place_marker(&mut grid, done_row, x, done_char, overlap_char);
+    }
+
+    let mut out = String::new();
+    out.push_str(&format!("milestone: {}\n", plot.milestone_name));
+    out.push_str(&format!(
+        "legend: {} open_weight, {} done_weight, {} overlap\n",
+        open_char, done_char, overlap_char
+    ));
+    for (row_idx, row) in grid.iter().enumerate() {
+        let y = if height == 1 {
+            0.0
+        } else {
+            y_max * ((height - 1 - row_idx) as f64) / ((height - 1) as f64)
+        };
+        out.push_str(&format!("{:>7.2} |", y));
+        for c in row {
+            out.push(*c);
+        }
+        out.push('\n');
+    }
+    out.push_str("         +");
+    out.push_str(&"-".repeat(width));
+    out.push('\n');
+
+    let start_date = sampled
+        .first()
+        .map(|p| p.date.clone())
+        .unwrap_or_else(|| "n/a".to_string());
+    let end_date = sampled
+        .last()
+        .map(|p| p.date.clone())
+        .unwrap_or_else(|| "n/a".to_string());
+    out.push_str(&format!("         {} .. {}\n", start_date, end_date));
+
+    if let Some(last) = sampled.last() {
+        out.push_str(&format!(
+            "latest: open_weight={:.2}, done_weight={:.2}\n",
+            last.open_weight, last.done_weight
+        ));
+    }
+    out
+}
+
+fn place_marker(
+    grid: &mut [Vec<char>],
+    row: usize,
+    col: usize,
+    marker: char,
+    overlap_marker: char,
+) {
+    let current = grid[row][col];
+    grid[row][col] = if current == ' ' || current == marker {
+        marker
+    } else {
+        overlap_marker
+    };
+}
+
+fn y_to_row(value: f64, y_max: f64, height: usize) -> usize {
+    if height <= 1 {
+        return 0;
+    }
+    let clamped = if y_max <= 0.0 {
+        0.0
+    } else {
+        (value / y_max).clamp(0.0, 1.0)
+    };
+    ((1.0 - clamped) * (height as f64 - 1.0)).round() as usize
+}
+
+fn downsample_plot_points(
+    points: &[TodoDonePlotPoint],
+    max_points: usize,
+) -> Vec<TodoDonePlotPoint> {
+    if points.len() <= max_points || max_points == 0 {
+        return points.to_vec();
+    }
+    if max_points == 1 {
+        return vec![points[points.len() - 1].clone()];
+    }
+    let mut out = Vec::with_capacity(max_points);
+    for i in 0..max_points {
+        let idx = i * (points.len() - 1) / (max_points - 1);
+        out.push(points[idx].clone());
+    }
+    out
+}
+
+fn milestone_name_for_rank(root: &Path, milestone_rank: usize) -> Option<String> {
+    let mut milestones = Vec::new();
+    for path in find_task_files(root) {
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let items = parser::parse(&content, path);
+        for item in items {
+            let FileItem::Milestone(m) = item else {
+                continue;
+            };
+            milestones.push(m.name);
+        }
+    }
+    milestones.get(milestone_rank - 1).cloned()
+}
+
+fn weights_until_milestone_at_ref(
+    root: &Path,
+    git_ref: &str,
+    target_milestone: &str,
+) -> (f64, f64, bool) {
+    let mut paths = git::task_files_at_ref(root, git_ref);
+    paths.sort();
+
+    let mut open_weight = 0.0;
+    let mut done_weight = 0.0;
+    for path in paths {
+        let Some(content) = git::file_content_at_ref(root, git_ref, &path) else {
+            continue;
+        };
+        let items = parser::parse(&content, path);
+        for item in items {
+            match item {
+                FileItem::Task(task) => {
+                    let weight = task_total_weight(&task);
+                    match task.status {
+                        Status::Todo => open_weight += weight,
+                        Status::Done | Status::Cancelled => done_weight += weight,
+                    }
+                }
+                FileItem::Milestone(m) => {
+                    if m.name == target_milestone {
+                        return (open_weight, done_weight, true);
+                    }
+                }
+            }
+        }
+    }
+
+    (0.0, 0.0, false)
+}
+
+fn task_total_weight(task: &parser::Task) -> f64 {
+    1.0 + subtasks_total_weight(&task.children, 2)
+}
+
+fn subtasks_total_weight(children: &[parser::Subtask], depth: usize) -> f64 {
+    children
+        .iter()
+        .map(|c| (1.0 / depth as f64) + subtasks_total_weight(&c.children, depth + 1))
+        .sum()
 }
 
 pub(crate) fn completion_weight_delta(

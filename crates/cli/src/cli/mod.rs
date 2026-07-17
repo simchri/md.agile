@@ -88,6 +88,16 @@ pub enum Command {
         #[arg(long)]
         velocity: bool,
 
+        /// Show a terminal plot of open vs done weighted work over time.
+        ///
+        /// Requires `--next <rank>` to select the milestone boundary.
+        #[arg(long, conflicts_with = "velocity")]
+        plot: bool,
+
+        /// Use ASCII markers for plot output instead of Unicode dots.
+        #[arg(long, requires = "plot")]
+        ascii: bool,
+
         /// Restrict velocity history to the last N days.
         ///
         /// Only valid with `--velocity`.
@@ -99,9 +109,9 @@ pub enum Command {
         )]
         last: Option<u32>,
 
-        /// Show detailed ETA info for the Nth future milestone.
+        /// Select the Nth milestone rank.
         ///
-        /// Not implemented yet.
+        /// Currently used by `--plot` to choose the milestone boundary.
         #[arg(long, value_name = "RANK", conflicts_with = "velocity")]
         next: Option<usize>,
     },
@@ -284,10 +294,12 @@ pub fn run() {
         }
         Some(Command::When {
             velocity,
+            plot,
+            ascii,
             last,
             next,
         }) => {
-            subcommands::when::run(root, &config, next, velocity, last);
+            subcommands::when::run(root, &config, next, velocity, plot, ascii, last);
         }
         Some(Command::History) => {
             subcommands::history::run(root);

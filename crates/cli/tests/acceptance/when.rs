@@ -453,3 +453,87 @@ fn when_last_requires_velocity() {
         "expected clap error mentioning --velocity requirement, stderr: {stderr:?}"
     );
 }
+
+#[test]
+fn when_plot_until_milestone_renders_unicode_chart() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+#MILESTONE: Alpha
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+#MILESTONE: Alpha
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "close task a", "2026-07-11T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--plot", "--next", "1"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("milestone: Alpha"), "stdout: {stdout:?}");
+    assert!(stdout.contains("open_weight"), "stdout: {stdout:?}");
+    assert!(stdout.contains("done_weight"), "stdout: {stdout:?}");
+    assert!(stdout.contains("●"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn when_plot_ascii_flag_uses_ascii_markers() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+#MILESTONE: Alpha
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+#MILESTONE: Alpha
+- [ ] task b
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "close task a", "2026-07-11T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--plot", "--next", "1", "--ascii"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("legend:"), "stdout: {stdout:?}");
+    assert!(stdout.contains("*"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn when_plot_requires_next_rank() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: Alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    let out = run_agile(dir.path(), &["when", "--plot"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("--next"), "stderr: {stderr:?}");
+}

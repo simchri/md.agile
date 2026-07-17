@@ -6,14 +6,32 @@ use std::path::Path;
 
 /// `agile when` entry point.
 ///
-/// For now, only `--velocity` is implemented.
+/// Supports `--velocity` and terminal plotting via `--plot --next <rank>`.
 pub fn run(
     root: &Path,
     _config: &Config,
     next: Option<usize>,
     velocity: bool,
+    plot: bool,
+    ascii: bool,
     last_days: Option<u32>,
 ) {
+    if plot {
+        let Some(rank) = next else {
+            log::error!("`agile when --plot` requires `--next <rank>`");
+            std::process::exit(1);
+        };
+        let plot = match eta::build_todo_done_plot(root, rank) {
+            Ok(plot) => plot,
+            Err(msg) => {
+                log::error!("{msg}");
+                std::process::exit(1);
+            }
+        };
+        print!("{}", eta::render_todo_done_plot(&plot, ascii));
+        return;
+    }
+
     if next.is_some() {
         log::error!("`agile when --next <rank>` is not implemented yet");
         std::process::exit(1);
