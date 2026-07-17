@@ -12,8 +12,6 @@ use textplots::{Chart, ColorPlot, Shape};
 
 pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
-const UNICODE_PLOT_DOT_WIDTH: u32 = 120;
-const UNICODE_PLOT_DOT_HEIGHT: u32 = 80;
 
 #[derive(Debug, Clone, PartialEq)]
 struct FlatNode {
@@ -237,7 +235,6 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
     } else {
         out.push_str("legend: textplots total_weight(red) done_weight(green)\n");
         out.push_str(&render_textplots_chart(&sampled));
-        out.push_str(&render_unicode_measurement_markers(&sampled));
     }
 
     let start_date = sampled
@@ -279,72 +276,14 @@ fn render_textplots_chart(points: &[TodoDonePlotPoint]) -> String {
 
     let total_shape = Shape::Lines(total_series.as_slice());
     let done_shape = Shape::Lines(done_series.as_slice());
-    // Keep a 3:2 canvas in plot-space (1.5x wider than high).
-    let mut chart = Chart::new_with_y_range(
-        UNICODE_PLOT_DOT_WIDTH,
-        UNICODE_PLOT_DOT_HEIGHT,
-        0.0,
-        xmax,
-        0.0,
-        ymax,
-    );
+    // Keep a square canvas in plot-space (1:1).
+    let mut chart = Chart::new_with_y_range(96, 96, 0.0, xmax, 0.0, ymax);
     let chart_ref = chart
         .linecolorplot(&total_shape, RGB8::new(255, 0, 0))
         .linecolorplot(&done_shape, RGB8::new(0, 255, 0));
     chart_ref.axis();
     chart_ref.figures();
     format!("{chart_ref}\n")
-}
-
-fn render_unicode_measurement_markers(points: &[TodoDonePlotPoint]) -> String {
-    let cols = (UNICODE_PLOT_DOT_WIDTH / 2) as usize;
-    let (total_row, done_row) = build_measurement_marker_rows(points.len(), cols, '▲', '■', '◆');
-    format!(
-        "markers(total): {}\nmarkers(done):  {}\n",
-        colorize_marker_row(&total_row, '▲', 31, '◆', 35),
-        colorize_marker_row(&done_row, '■', 32, '◆', 35)
-    )
-}
-
-fn build_measurement_marker_rows(
-    point_count: usize,
-    cols: usize,
-    total_marker: char,
-    done_marker: char,
-    _overlap_marker: char,
-) -> (Vec<char>, Vec<char>) {
-    let mut total_row = vec![' '; cols];
-    let mut done_row = vec![' '; cols];
-    if point_count == 0 || cols == 0 {
-        return (total_row, done_row);
-    }
-    let denom = point_count.saturating_sub(1).max(1);
-    for i in 0..point_count {
-        let col = i * (cols - 1) / denom;
-        total_row[col] = total_marker;
-        done_row[col] = done_marker;
-    }
-    (total_row, done_row)
-}
-
-fn colorize_marker_row(
-    row: &[char],
-    marker: char,
-    marker_color: u8,
-    overlap_marker: char,
-    overlap_color: u8,
-) -> String {
-    let mut out = String::new();
-    for c in row {
-        if *c == marker {
-            out.push_str(&format!("\x1b[{}m{}\x1b[0m", marker_color, marker));
-        } else if *c == overlap_marker {
-            out.push_str(&format!("\x1b[{}m{}\x1b[0m", overlap_color, overlap_marker));
-        } else {
-            out.push(' ');
-        }
-    }
-    out
 }
 
 fn render_ascii_plot(points: &[TodoDonePlotPoint]) -> String {
