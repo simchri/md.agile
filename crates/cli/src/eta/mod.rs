@@ -202,7 +202,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
         out.push_str(&render_ascii_plot(&sampled, total_trend, done_trend));
     } else {
         out.push_str(
-            "legend: points total(red '*') done(green 'o'); trend total(yellow) done(cyan)\n",
+            "legend: total(red line+*), done(green line+o), trend total(yellow), trend done(cyan)\n",
         );
         out.push_str(&render_textplots_chart(&sampled, total_trend, done_trend));
     }
@@ -288,15 +288,19 @@ fn render_textplots_chart(
     }
     let ymax = ymax.max(1.0) as f32;
 
-    let total_shape = Shape::Points(total_series.as_slice());
-    let done_shape = Shape::Points(done_series.as_slice());
+    let total_line_shape = Shape::Lines(total_series.as_slice());
+    let done_line_shape = Shape::Lines(done_series.as_slice());
+    let total_point_shape = Shape::Points(total_series.as_slice());
+    let done_point_shape = Shape::Points(done_series.as_slice());
     let total_trend_shape = Shape::Lines(total_trend_series.as_slice());
     let done_trend_shape = Shape::Lines(done_trend_series.as_slice());
     // Keep a 3:2 canvas (width:height).
     let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
     let chart_ref = chart
-        .linecolorplot(&total_shape, RGB8::new(255, 0, 0))
-        .linecolorplot(&done_shape, RGB8::new(0, 255, 0))
+        .linecolorplot(&total_line_shape, RGB8::new(255, 0, 0))
+        .linecolorplot(&done_line_shape, RGB8::new(0, 255, 0))
+        .linecolorplot(&total_point_shape, RGB8::new(255, 0, 0))
+        .linecolorplot(&done_point_shape, RGB8::new(0, 255, 0))
         .linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0))
         .linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255));
     chart_ref.axis();
