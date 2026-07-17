@@ -2,6 +2,7 @@
 
 use crate::cli::common::find_task_files;
 use crate::git;
+use crate::history_cache;
 use crate::parser::{self, FileItem, Status};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -86,52 +87,51 @@ pub fn estimate_velocity_details_with_window(
     let window_secs = Duration::from_secs(u64::from(window_days) * 24 * 60 * 60).as_secs() as i64;
     let since_secs = now_secs - window_secs;
 
-    let mut total_completed_weight = 0.0f64;
+    let mut total_completed_weight = 0.0;
     let mut comparable_pairs = 0usize;
     let mut completion_events = 0usize;
     let mut min_timestamp: Option<i64> = None;
     let mut max_timestamp: Option<i64> = None;
 
-    for path in find_task_files(root) {
-        let mut commits = git::commits_touching_path(root, &path);
-        if commits.is_empty() {
+    let cache = history_cache::update(root)?;
+    for (old, new) in cache.entries.iter().zip(cache.entries.iter().skip(1)) {
+        if new.commit_timestamp < since_secs {
             continue;
         }
-        let latest_commit = commits.first().cloned();
+        comparable_pairs += 1;
+        let old_for_span = old.commit_timestamp.max(since_secs);
+        min_timestamp = Some(min_timestamp.map_or(old_for_span, |t| t.min(old_for_span)));
+        max_timestamp =
+            Some(max_timestamp.map_or(new.commit_timestamp, |t| t.max(new.commit_timestamp)));
+        total_completed_weight += new.completed_weight_from_previous;
+        completion_events += new.completion_events_from_previous;
+    }
 
-        // git log returns newest -> oldest, but transitions are computed from
-        // older snapshot to newer snapshot.
-        commits.reverse();
-        for pair in commits.windows(2) {
-            let old = &pair[0];
-            let new = &pair[1];
-            if new.timestamp < since_secs {
-                continue;
-            }
-
-            let Some(old_content) = git::file_content_at_ref(root, &old.sha, &path) else {
-                continue;
-            };
-            let Some(new_content) = git::file_content_at_ref(root, &new.sha, &path) else {
-                continue;
-            };
-
+    if let Some(latest_entry) = cache.entries.last() {
+        let (delta_weight, delta_events, worktree_changed) =
+            worktree_completion_delta(root, &latest_entry.commit_hash);
+        if worktree_changed {
             comparable_pairs += 1;
-            let old_for_span = old.timestamp.max(since_secs);
+            let old_for_span = latest_entry.commit_timestamp.max(since_secs);
             min_timestamp = Some(min_timestamp.map_or(old_for_span, |t| t.min(old_for_span)));
-            max_timestamp = Some(max_timestamp.map_or(new.timestamp, |t| t.max(new.timestamp)));
-
-            let old_items = parser::parse(&old_content, path.clone());
-            let new_items = parser::parse(&new_content, path.clone());
-            let (delta_weight, delta_events) = completion_weight_delta(&old_items, &new_items);
+            max_timestamp = Some(max_timestamp.map_or(now_secs, |t| t.max(now_secs)));
             total_completed_weight += delta_weight;
             completion_events += delta_events;
         }
+    }
 
-        // Include the current working tree as the latest state so uncommitted
-        // changes contribute to velocity.
-        if let Some(latest) = latest_commit {
-            let Some(latest_content) = git::file_content_at_ref(root, &latest.sha, &path) else {
+    if comparable_pairs == 0 {
+        return None;
+    }
+
+    fn worktree_completion_delta(root: &Path, latest_commit_sha: &str) -> (f64, usize, bool) {
+        let mut total_completed_weight = 0.0;
+        let mut completion_events = 0usize;
+        let mut worktree_changed = false;
+
+        for path in find_task_files(root) {
+            let Some(latest_content) = git::file_content_at_ref(root, latest_commit_sha, &path)
+            else {
                 continue;
             };
             let worktree_path = root.join(&path);
@@ -143,11 +143,7 @@ pub fn estimate_velocity_details_with_window(
             if worktree_content == latest_content {
                 continue;
             }
-
-            comparable_pairs += 1;
-            let old_for_span = latest.timestamp.max(since_secs);
-            min_timestamp = Some(min_timestamp.map_or(old_for_span, |t| t.min(old_for_span)));
-            max_timestamp = Some(max_timestamp.map_or(now_secs, |t| t.max(now_secs)));
+            worktree_changed = true;
 
             let old_items = parser::parse(&latest_content, path.clone());
             let new_items = parser::parse(&worktree_content, path.clone());
@@ -155,10 +151,8 @@ pub fn estimate_velocity_details_with_window(
             total_completed_weight += delta_weight;
             completion_events += delta_events;
         }
-    }
 
-    if comparable_pairs == 0 {
-        return None;
+        (total_completed_weight, completion_events, worktree_changed)
     }
 
     let span_secs = (max_timestamp? - min_timestamp?).max(0) as f64;
@@ -176,7 +170,10 @@ pub fn estimate_velocity_details_with_window(
     })
 }
 
-fn completion_weight_delta(old_items: &[FileItem], new_items: &[FileItem]) -> (f64, usize) {
+pub(crate) fn completion_weight_delta(
+    old_items: &[FileItem],
+    new_items: &[FileItem],
+) -> (f64, usize) {
     let transitions = status_transitions(old_items, new_items);
     let mut completed_weight = 0.0f64;
     let mut completion_events = 0usize;

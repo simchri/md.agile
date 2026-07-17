@@ -43,6 +43,8 @@ fn update_appends_entry_for_new_commits() {
 
     let cache = update(dir.path()).expect("cache");
     assert_eq!(cache.entries.len(), 1);
+    assert_eq!(cache.entries[0].completion_events_from_previous, 0);
+    assert!((cache.entries[0].completed_weight_from_previous - 0.0).abs() < f64::EPSILON);
     assert_eq!(cache.entries[0].open_tasks_count, 1);
     assert_eq!(cache.entries[0].done_tasks_count, 0);
     assert!((cache.entries[0].open_tasks_weight - 1.5).abs() < f64::EPSILON);
@@ -56,6 +58,8 @@ fn update_appends_entry_for_new_commits() {
 
     let cache = update(dir.path()).expect("cache");
     assert_eq!(cache.entries.len(), 2);
+    assert_eq!(cache.entries[1].completion_events_from_previous, 2);
+    assert!((cache.entries[1].completed_weight_from_previous - 1.5).abs() < f64::EPSILON);
     assert_eq!(cache.entries[1].open_tasks_count, 0);
     assert_eq!(cache.entries[1].done_tasks_count, 1);
     assert!((cache.entries[1].done_tasks_weight - 1.5).abs() < f64::EPSILON);
@@ -125,5 +129,7 @@ fn update_invalidates_changed_commit_and_following_entries() {
     assert_eq!(cache.entries.len(), 2);
     assert_eq!(cache.entries[0].commit_hash, first_sha);
     assert_eq!(cache.entries[1].commit_hash, new_second_sha);
+    assert_eq!(cache.entries[1].completion_events_from_previous, 0);
+    assert!((cache.entries[1].completed_weight_from_previous - 0.0).abs() < f64::EPSILON);
     assert_eq!(cache.entries[1].done_tasks_count, 1);
 }

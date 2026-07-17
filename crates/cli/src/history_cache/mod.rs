@@ -1,10 +1,12 @@
 //! Commit-by-commit cache for task history snapshots.
 
+use crate::eta;
 use crate::git;
 use crate::parser::{self, FileItem, Status, Subtask, Task};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HistoryCache {
@@ -15,10 +17,15 @@ pub struct HistoryCache {
 pub struct HistoryCacheEntry {
     pub commit_hash: String,
     pub commit_date: String,
+    pub commit_timestamp: i64,
     pub open_tasks_count: usize,
     pub open_tasks_weight: f64,
     pub done_tasks_count: usize,
     pub done_tasks_weight: f64,
+    #[serde(default)]
+    pub completed_weight_from_previous: f64,
+    #[serde(default)]
+    pub completion_events_from_previous: usize,
 }
 
 pub fn update(root: &Path) -> Option<HistoryCache> {
@@ -42,9 +49,25 @@ pub fn update(root: &Path) -> Option<HistoryCache> {
         .count();
     cache.entries.truncate(common_prefix_len);
 
+    let mut previous_snapshot = if common_prefix_len == 0 {
+        None
+    } else {
+        Some(snapshot_at_ref(root, &commits[common_prefix_len - 1].sha))
+    };
+
     for commit in commits.iter().skip(common_prefix_len) {
-        let entry = compute_entry(root, &commit.sha, commit.timestamp);
+        let current_snapshot = snapshot_at_ref(root, &commit.sha);
+        let (completed_weight_from_previous, completion_events_from_previous) =
+            completion_delta(previous_snapshot.as_ref(), &current_snapshot);
+        let entry = compute_entry(
+            &current_snapshot,
+            &commit.sha,
+            commit.timestamp,
+            completed_weight_from_previous,
+            completion_events_from_previous,
+        );
         cache.entries.push(entry);
+        previous_snapshot = Some(current_snapshot);
     }
 
     if write_cache_file(&cache_path, &cache).is_err() {
@@ -53,17 +76,19 @@ pub fn update(root: &Path) -> Option<HistoryCache> {
     Some(cache)
 }
 
-fn compute_entry(root: &Path, commit_hash: &str, timestamp: i64) -> HistoryCacheEntry {
+fn compute_entry(
+    snapshot: &Snapshot,
+    commit_hash: &str,
+    timestamp: i64,
+    completed_weight_from_previous: f64,
+    completion_events_from_previous: usize,
+) -> HistoryCacheEntry {
     let mut open_tasks_count = 0usize;
     let mut open_tasks_weight = 0.0f64;
     let mut done_tasks_count = 0usize;
     let mut done_tasks_weight = 0.0f64;
 
-    for path in git::task_files_at_ref(root, commit_hash) {
-        let Some(content) = git::file_content_at_ref(root, commit_hash, &path) else {
-            continue;
-        };
-        let items = parser::parse(&content, path);
+    for items in snapshot.files.values() {
         for item in items {
             let FileItem::Task(task) = item else {
                 continue;
@@ -85,11 +110,61 @@ fn compute_entry(root: &Path, commit_hash: &str, timestamp: i64) -> HistoryCache
     HistoryCacheEntry {
         commit_hash: commit_hash.to_string(),
         commit_date: unix_to_yyyy_mm_dd(timestamp),
+        commit_timestamp: timestamp,
         open_tasks_count,
         open_tasks_weight,
         done_tasks_count,
         done_tasks_weight,
+        completed_weight_from_previous,
+        completion_events_from_previous,
     }
+}
+
+#[derive(Debug, Clone)]
+struct Snapshot {
+    files: HashMap<PathBuf, Vec<FileItem>>,
+}
+
+fn snapshot_at_ref(root: &Path, commit_hash: &str) -> Snapshot {
+    let mut files = HashMap::new();
+    for path in git::task_files_at_ref(root, commit_hash) {
+        let Some(content) = git::file_content_at_ref(root, commit_hash, &path) else {
+            continue;
+        };
+        files.insert(path.clone(), parser::parse(&content, path));
+    }
+    Snapshot { files }
+}
+
+fn completion_delta(previous: Option<&Snapshot>, current: &Snapshot) -> (f64, usize) {
+    let Some(previous) = previous else {
+        return (0.0, 0);
+    };
+
+    let mut total_weight = 0.0;
+    let mut total_events = 0usize;
+    let all_paths: HashSet<PathBuf> = previous
+        .files
+        .keys()
+        .chain(current.files.keys())
+        .cloned()
+        .collect();
+    for path in all_paths {
+        let old_items = previous
+            .files
+            .get(&path)
+            .map(Vec::as_slice)
+            .unwrap_or(&[] as &[FileItem]);
+        let new_items = current
+            .files
+            .get(&path)
+            .map(Vec::as_slice)
+            .unwrap_or(&[] as &[FileItem]);
+        let (delta_weight, delta_events) = eta::completion_weight_delta(old_items, new_items);
+        total_weight += delta_weight;
+        total_events += delta_events;
+    }
+    (total_weight, total_events)
 }
 
 fn task_weight(task: &Task) -> f64 {
