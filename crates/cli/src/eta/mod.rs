@@ -277,7 +277,7 @@ fn render_textplots_chart(points: &[TodoDonePlotPoint]) -> String {
     let total_shape = Shape::Lines(total_series.as_slice());
     let done_shape = Shape::Lines(done_series.as_slice());
     // Keep a square canvas in plot-space (1:1).
-    let mut chart = Chart::new_with_y_range(96, 96, 0.0, xmax, 0.0, ymax);
+    let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
     let chart_ref = chart
         .linecolorplot(&total_shape, RGB8::new(255, 0, 0))
         .linecolorplot(&done_shape, RGB8::new(0, 255, 0));
