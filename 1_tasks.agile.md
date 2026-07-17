@@ -469,6 +469,11 @@
     - [x] new dedicated history cache
 
 - [x] to-do vs total plot: Over time show total and completed tasks by weight (until a given milestone)
+
+- [ ] sample script mode for dir with messy "total" tasks - number of total tasks globaly increases, but with significant noise
+- [ ] sample script mode for dir with messy "done" tasks 
+- [ ] sample script mode for dir with messy "done" + "total" tasks 
+
 - [ ] trendlines in plot - basic linear
 - [ ] trendlines in plot - recency weighted linear
 - [ ] trendlines in plot - with uncertainty regions
