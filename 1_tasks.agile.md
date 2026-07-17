@@ -463,6 +463,10 @@
   - [x] update & invalidation strategy: When commit hashes change (history changed, rebase etc.) --> entry and subsequent entries are invalidated
   - [x] when new commit: Append data for the new commit
 
+- [ ] current commands actually use cache
+  - [ ] --velocity
+  - [ ] history
+
 - [ ] to-do vs done plot: Over time show open vs. completed tasks (until a given milestone)
 - [ ] trendlines in plot - basic linear
 - [ ] trendlines in plot - recency weighted linear
