@@ -466,6 +466,7 @@
 - [ ] current commands actually use cache
   - [ ] --velocity
   - [ ] history
+    - [ ] new dedicated history cache
 
 - [ ] to-do vs done plot: Over time show open vs. completed tasks (until a given milestone)
 - [ ] trendlines in plot - basic linear
