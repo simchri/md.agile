@@ -60,7 +60,12 @@ task_name() {
         "Improve cache invalidation notes"
         "Polish release checklist"
     )
-    echo "${names[$((idx - 1))]}"
+    local array_idx=$((idx - 1))
+    if [[ "$array_idx" -lt "${#names[@]}" ]]; then
+        echo "${names[$array_idx]}"
+    else
+        echo "Generated sample task $idx"
+    fi
 }
 
 write_snapshot() {
