@@ -468,7 +468,7 @@
   - [x] history
     - [x] new dedicated history cache
 
-- [x] to-do vs done plot: Over time show open vs. completed tasks (until a given milestone)
+- [x] to-do vs total plot: Over time show total and completed tasks by weight (until a given milestone)
 - [ ] trendlines in plot - basic linear
 - [ ] trendlines in plot - recency weighted linear
 - [ ] trendlines in plot - with uncertainty regions
