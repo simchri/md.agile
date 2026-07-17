@@ -10,6 +10,7 @@ pub mod eta;
 pub mod formatter;
 pub mod git;
 pub mod history_cache;
+pub mod lifecycle_cache;
 pub mod lsp;
 pub mod parser;
 pub mod rules;

@@ -1,11 +1,10 @@
 //! `agile history` — list currently closed tasks with completion dates.
 
 use crate::cli::common::{find_task_files, parse_file};
-use crate::eta::{self, StatusTransition, TransitionKey};
-use crate::git;
+use crate::eta::{self, StatusTransition};
 use crate::history_cache;
-use crate::parser::{self, Status};
-use std::collections::HashMap;
+use crate::lifecycle_cache;
+use crate::parser::Status;
 use std::path::Path;
 
 /// `agile history` entry point.
@@ -19,7 +18,8 @@ pub fn run(root: &Path) {
             continue;
         }
 
-        let completion_dates = completion_dates_for_file(root, &file);
+        let completion_dates =
+            lifecycle_cache::completion_dates_for_current_file(root, &file, &items);
         for node in current_nodes
             .iter()
             .filter(|n| matches!(n.new_status, Status::Done | Status::Cancelled))
@@ -51,49 +51,7 @@ fn status_marker(status: &Status) -> &'static str {
     }
 }
 
-fn completion_dates_for_file(root: &Path, relative_path: &Path) -> HashMap<TransitionKey, String> {
-    if !git::is_git_repo(root) {
-        return HashMap::new();
-    }
-
-    let mut completion_dates = HashMap::new();
-    let mut commits = git::commits_touching_path(root, relative_path);
-    if commits.len() < 2 {
-        return completion_dates;
-    }
-
-    // Walk oldest -> newest to keep the latest transition-to-closed date.
-    commits.reverse();
-    for pair in commits.windows(2) {
-        let old = &pair[0];
-        let new = &pair[1];
-        let Some(old_content) = git::file_content_at_ref(root, &old.sha, relative_path) else {
-            continue;
-        };
-        let Some(new_content) = git::file_content_at_ref(root, &new.sha, relative_path) else {
-            continue;
-        };
-
-        let old_items = parser::parse(&old_content, relative_path.to_path_buf());
-        let new_items = parser::parse(&new_content, relative_path.to_path_buf());
-        let transitions = eta::status_transitions(&old_items, &new_items);
-
-        let date = unix_to_yyyy_mm_dd(new.timestamp);
-        for t in transitions {
-            let was_closed = t.old_status.as_ref().is_some_and(is_closed);
-            if !was_closed && is_closed(&t.new_status) {
-                completion_dates.insert(t.key, date.clone());
-            }
-        }
-    }
-
-    completion_dates
-}
-
-fn is_closed(status: &Status) -> bool {
-    matches!(status, Status::Done | Status::Cancelled)
-}
-
+#[cfg(test)]
 fn unix_to_yyyy_mm_dd(unix_ts: i64) -> String {
     let days = unix_ts.div_euclid(86_400);
     let (year, month, day) = civil_from_days(days);
@@ -101,6 +59,7 @@ fn unix_to_yyyy_mm_dd(unix_ts: i64) -> String {
 }
 
 // Converts days since Unix epoch to a Gregorian date in UTC.
+#[cfg(test)]
 fn civil_from_days(days_since_unix_epoch: i64) -> (i64, i64, i64) {
     let z = days_since_unix_epoch + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;

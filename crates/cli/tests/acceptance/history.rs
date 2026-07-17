@@ -129,3 +129,52 @@ fn history_and_velocity_share_transition_logic_for_balanced_close_reopen_commit(
     );
     assert!(!stdout.contains("task b"), "stdout: {stdout:?}");
 }
+
+#[test]
+fn history_uses_latest_reclose_date_after_reopen() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "first close", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [ ] task a
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "reopen", "2026-07-12T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "reclose", "2026-07-13T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["history"]);
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(
+        stdout.contains("2026-07-13 - [x] task a"),
+        "stdout: {stdout:?}"
+    );
+    assert!(
+        !stdout.contains("2026-07-11 - [x] task a"),
+        "stdout: {stdout:?}"
+    );
+}
