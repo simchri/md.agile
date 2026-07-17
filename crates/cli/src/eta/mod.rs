@@ -297,12 +297,12 @@ fn render_textplots_chart(
     // Keep a 3:2 canvas (width:height).
     let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
     let chart_ref = chart
+        .linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0))
+        .linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255))
         .linecolorplot(&total_line_shape, RGB8::new(255, 0, 0))
         .linecolorplot(&done_line_shape, RGB8::new(0, 255, 0))
         .linecolorplot(&total_point_shape, RGB8::new(255, 0, 0))
-        .linecolorplot(&done_point_shape, RGB8::new(0, 255, 0))
-        .linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0))
-        .linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255));
+        .linecolorplot(&done_point_shape, RGB8::new(0, 255, 0));
     chart_ref.axis();
     chart_ref.figures();
     format!("{chart_ref}\n")
