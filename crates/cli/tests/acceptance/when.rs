@@ -487,7 +487,7 @@ fn when_plot_until_milestone_renders_unicode_chart() {
     assert!(stdout.contains("milestone: Alpha"), "stdout: {stdout:?}");
     assert!(stdout.contains("total_weight"), "stdout: {stdout:?}");
     assert!(stdout.contains("done_weight"), "stdout: {stdout:?}");
-    assert!(stdout.contains("●"), "stdout: {stdout:?}");
+    assert!(stdout.contains("textplots"), "stdout: {stdout:?}");
 }
 
 #[test]

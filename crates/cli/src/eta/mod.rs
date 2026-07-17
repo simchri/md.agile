@@ -7,6 +7,7 @@ use crate::parser::{self, FileItem, Status};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use textplots::{Chart, Plot, Shape};
 
 pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
@@ -224,47 +225,16 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
 }
 
 pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
-    let sampled = downsample_plot_points(&plot.points, 72);
-    let width = sampled.len().max(1);
-    let height = 12usize;
-
-    let max_total = sampled.iter().map(|p| p.total_weight).fold(0.0, f64::max);
-    let max_done = sampled.iter().map(|p| p.done_weight).fold(0.0, f64::max);
-    let y_max = max_total.max(max_done).max(1.0);
-
-    let total_char = if ascii { '*' } else { '●' };
-    let done_char = if ascii { 'o' } else { '○' };
-    let overlap_char = if ascii { 'X' } else { '◆' };
-
-    let mut grid = vec![vec![' '; width]; height];
-    for (x, p) in sampled.iter().enumerate() {
-        let total_row = y_to_row(p.total_weight, y_max, height);
-        let done_row = y_to_row(p.done_weight, y_max, height);
-        place_marker(&mut grid, total_row, x, total_char, overlap_char);
-        place_marker(&mut grid, done_row, x, done_char, overlap_char);
-    }
+    let sampled = downsample_plot_points(&plot.points, 96);
 
     let mut out = String::new();
     out.push_str(&format!("milestone: {}\n", plot.milestone_name));
-    out.push_str(&format!(
-        "legend: {} total_weight, {} done_weight, {} overlap\n",
-        total_char, done_char, overlap_char
-    ));
-    for (row_idx, row) in grid.iter().enumerate() {
-        let y = if height == 1 {
-            0.0
-        } else {
-            y_max * ((height - 1 - row_idx) as f64) / ((height - 1) as f64)
-        };
-        out.push_str(&format!("{:>7.2} |", y));
-        for c in row {
-            out.push(*c);
-        }
-        out.push('\n');
+    if ascii {
+        out.push_str(&render_ascii_plot(&sampled));
+    } else {
+        out.push_str("legend: textplots line1=total_weight line2=done_weight\n");
+        out.push_str(&render_textplots_chart(&sampled));
     }
-    out.push_str("         +");
-    out.push_str(&"-".repeat(width));
-    out.push('\n');
 
     let start_date = sampled
         .first()
@@ -282,6 +252,69 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
             last.total_weight, last.done_weight
         ));
     }
+    out
+}
+
+fn render_textplots_chart(points: &[TodoDonePlotPoint]) -> String {
+    let total_series: Vec<(f32, f32)> = points
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (i as f32, p.total_weight as f32))
+        .collect();
+    let done_series: Vec<(f32, f32)> = points
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (i as f32, p.done_weight as f32))
+        .collect();
+    let xmax = (points.len().saturating_sub(1).max(1)) as f32;
+    let ymax = points
+        .iter()
+        .map(|p| p.total_weight.max(p.done_weight))
+        .fold(0.0, f64::max)
+        .max(1.0) as f32;
+
+    let total_shape = Shape::Lines(total_series.as_slice());
+    let done_shape = Shape::Lines(done_series.as_slice());
+    let mut chart = Chart::new_with_y_range(120, 36, 0.0, xmax, 0.0, ymax);
+    let chart_ref = chart.lineplot(&total_shape).lineplot(&done_shape);
+    chart_ref.axis();
+    chart_ref.figures();
+    format!("{chart_ref}\n")
+}
+
+fn render_ascii_plot(points: &[TodoDonePlotPoint]) -> String {
+    let width = points.len().max(1);
+    let height = 12usize;
+    let y_max = points
+        .iter()
+        .map(|p| p.total_weight.max(p.done_weight))
+        .fold(0.0, f64::max)
+        .max(1.0);
+    let mut grid = vec![vec![' '; width]; height];
+    for (x, p) in points.iter().enumerate() {
+        let total_row = y_to_row(p.total_weight, y_max, height);
+        let done_row = y_to_row(p.done_weight, y_max, height);
+        place_marker(&mut grid, total_row, x, '*', 'X');
+        place_marker(&mut grid, done_row, x, 'o', 'X');
+    }
+
+    let mut out = String::new();
+    out.push_str("legend: * total_weight, o done_weight, X overlap\n");
+    for (row_idx, row) in grid.iter().enumerate() {
+        let y = if height == 1 {
+            0.0
+        } else {
+            y_max * ((height - 1 - row_idx) as f64) / ((height - 1) as f64)
+        };
+        out.push_str(&format!("{:>7.2} |", y));
+        for c in row {
+            out.push(*c);
+        }
+        out.push('\n');
+    }
+    out.push_str("         +");
+    out.push_str(&"-".repeat(width));
+    out.push('\n');
     out
 }
 
