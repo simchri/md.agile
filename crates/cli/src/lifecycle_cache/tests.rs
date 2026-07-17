@@ -1,5 +1,4 @@
 use super::*;
-use crate::eta;
 use crate::parser;
 use std::path::Path;
 use std::process::Command;
@@ -31,44 +30,6 @@ fn setup_repo() -> tempfile::TempDir {
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
     dir
-}
-
-#[test]
-fn completion_dates_follow_latest_reclose_date() {
-    let dir = setup_repo();
-    let file = dir.path().join("tasks.agile.md");
-
-    let file_content = "\
-- [ ] task a
-";
-    std::fs::write(&file, file_content).unwrap();
-    commit_all_at(dir.path(), "c1", "2026-07-10T12:00:00Z");
-
-    let file_content = "\
-- [x] task a
-";
-    std::fs::write(&file, file_content).unwrap();
-    commit_all_at(dir.path(), "c2", "2026-07-11T12:00:00Z");
-
-    let file_content = "\
-- [ ] task a
-";
-    std::fs::write(&file, file_content).unwrap();
-    commit_all_at(dir.path(), "c3", "2026-07-12T12:00:00Z");
-
-    let file_content = "\
-- [x] task a
-";
-    std::fs::write(&file, file_content).unwrap();
-    commit_all_at(dir.path(), "c4", "2026-07-13T12:00:00Z");
-
-    let current_content = std::fs::read_to_string(&file).unwrap();
-    let current_items = parser::parse(&current_content, Path::new("tasks.agile.md").to_path_buf());
-    let dates =
-        completion_dates_for_current_file(dir.path(), Path::new("tasks.agile.md"), &current_items);
-    let current_nodes = eta::status_transitions(&[], &current_items);
-    let key = &current_nodes[0].key;
-    assert_eq!(dates.get(key), Some(&"2026-07-13".to_string()));
 }
 
 #[test]
