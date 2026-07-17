@@ -450,6 +450,20 @@
     2024-04-22   - [x] bar
     2024-04-23 - [-] baz
     ```
+
+- [ ] History Cache: to prepare for upcoming features build a cached history of tasks 
+  one entry per commit. Store:
+  - commit hash
+  - commit date
+  - open tasks count (top level tasks)
+  - open tasks weights
+  - done tasks count (top level tasks)
+  - done tasks weights
+  History cache is human + machine readable (json)
+  - [ ] update & invalidation strategy: When commit hashes change (history changed, rebase etc.) --> entry and subsequent entries are invalidated
+  - [ ] when new commit: Append data for the new commit
+
+- [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [ ] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
   - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
@@ -460,6 +474,12 @@
   - [ ] Implement velocity estimation from git history as weighted completions/day over a defined window, reusing existing git access patterns
   - [ ] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
   - [ ] Update CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
+
+- [ ] to-do vs done plot: Over time show open vs. completed tasks (until a given milestone)
+- [ ] trendlines in plot - basic linear
+- [ ] trendlines in plot - recency weighted linear
+- [ ] trendlines in plot - with uncertainty regions
+
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
@@ -503,6 +523,8 @@
     - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
     - [ ] idem "@assignments" relevant, e.g. for groups
   - [ ] textDocument/completion — suggest properties, users, groups
+- [ ] "go to" next open task
+- [ ] "go to" next my open task
 
 ## Events
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
