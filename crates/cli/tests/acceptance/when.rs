@@ -426,8 +426,8 @@ fn when_velocity_last_flag_restricts_history_window() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete b", &t2);
 
-    // Default window considers full observed span: 2 completions over 5 days.
-    assert_velocity(dir.path(), "0.40 weight/day\n");
+    // Default window now reports the linear done-trend slope over the observed span.
+    assert_velocity(dir.path(), "0.39 weight/day\n");
     // Restricting to last 2 days considers only the recent completion window.
     assert_velocity_with_args(
         dir.path(),

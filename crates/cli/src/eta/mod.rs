@@ -67,6 +67,12 @@ pub struct TodoDonePlot {
     pub points: Vec<TodoDonePlotPoint>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct LinearTrend {
+    slope: f64,
+    intercept: f64,
+}
+
 /// Estimates current project velocity as weighted completions per day over the
 /// last 90 days.
 ///
@@ -102,83 +108,43 @@ pub fn estimate_velocity_details_with_window(
     let window_secs = Duration::from_secs(u64::from(window_days) * 24 * 60 * 60).as_secs() as i64;
     let since_secs = now_secs - window_secs;
 
-    let mut total_completed_weight = 0.0;
+    let cache = history_cache::update(root)?;
+    let mut done_points = completion_trend_points_for_velocity(&cache.entries, since_secs);
+
+    let mut completed_weight = 0.0;
     let mut comparable_pairs = 0usize;
     let mut completion_events = 0usize;
-    let mut min_timestamp: Option<i64> = None;
-    let mut max_timestamp: Option<i64> = None;
-
-    let cache = history_cache::update(root)?;
-    for (old, new) in cache.entries.iter().zip(cache.entries.iter().skip(1)) {
+    for (_old, new) in cache.entries.iter().zip(cache.entries.iter().skip(1)) {
         if new.commit_timestamp < since_secs {
             continue;
         }
         comparable_pairs += 1;
-        let old_for_span = old.commit_timestamp.max(since_secs);
-        min_timestamp = Some(min_timestamp.map_or(old_for_span, |t| t.min(old_for_span)));
-        max_timestamp =
-            Some(max_timestamp.map_or(new.commit_timestamp, |t| t.max(new.commit_timestamp)));
-        total_completed_weight += new.completed_weight_from_previous;
+        completed_weight += new.completed_weight_from_previous;
         completion_events += new.completion_events_from_previous;
     }
-
-    if let Some(latest_entry) = cache.entries.last() {
-        let (delta_weight, delta_events, worktree_changed) =
-            worktree_completion_delta(root, &latest_entry.commit_hash);
-        if worktree_changed {
-            comparable_pairs += 1;
-            let old_for_span = latest_entry.commit_timestamp.max(since_secs);
-            min_timestamp = Some(min_timestamp.map_or(old_for_span, |t| t.min(old_for_span)));
-            max_timestamp = Some(max_timestamp.map_or(now_secs, |t| t.max(now_secs)));
-            total_completed_weight += delta_weight;
-            completion_events += delta_events;
+    if let Some((worktree_completion_delta, worktree_events, latest_commit_ts)) =
+        worktree_completion_delta(root, &cache.entries)
+    {
+        if done_points.is_empty() {
+            done_points.push((latest_commit_ts.max(since_secs), 0.0));
         }
+        let cumulative =
+            done_points.last().map(|(_, y)| *y).unwrap_or(0.0) + worktree_completion_delta;
+        done_points.push((now_secs, cumulative));
+        comparable_pairs += 1;
+        completed_weight += worktree_completion_delta;
+        completion_events += worktree_events;
     }
 
-    if comparable_pairs == 0 {
-        return None;
-    }
-
-    fn worktree_completion_delta(root: &Path, latest_commit_sha: &str) -> (f64, usize, bool) {
-        let mut total_completed_weight = 0.0;
-        let mut completion_events = 0usize;
-        let mut worktree_changed = false;
-
-        for path in find_task_files(root) {
-            let Some(latest_content) = git::file_content_at_ref(root, latest_commit_sha, &path)
-            else {
-                continue;
-            };
-            let worktree_path = root.join(&path);
-            let worktree_content = match std::fs::read_to_string(&worktree_path) {
-                Ok(content) => content,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-                Err(_) => continue,
-            };
-            if worktree_content == latest_content {
-                continue;
-            }
-            worktree_changed = true;
-
-            let old_items = parser::parse(&latest_content, path.clone());
-            let new_items = parser::parse(&worktree_content, path.clone());
-            let (delta_weight, delta_events) = completion_weight_delta(&old_items, &new_items);
-            total_completed_weight += delta_weight;
-            completion_events += delta_events;
-        }
-
-        (total_completed_weight, completion_events, worktree_changed)
-    }
-
-    let span_secs = (max_timestamp? - min_timestamp?).max(0) as f64;
-    let span_days = span_secs / SECONDS_PER_DAY;
+    let trend = linear_trend_by_timestamp(&done_points)?;
+    let span_days = (done_points.last()?.0 - done_points.first()?.0) as f64 / SECONDS_PER_DAY;
     if span_days <= 0.0 {
         return None;
     }
 
     Some(VelocityEstimate {
-        weight_per_day: total_completed_weight / span_days,
-        completed_weight: total_completed_weight,
+        weight_per_day: trend.slope * SECONDS_PER_DAY,
+        completed_weight,
         span_days,
         comparable_pairs,
         completion_events,
@@ -227,14 +193,18 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
 
 pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
     let sampled = downsample_plot_points(&plot.points, 96);
+    let total_trend = linear_trend_by_index(sampled.iter().map(|p| p.total_weight).collect());
+    let done_trend = linear_trend_by_index(sampled.iter().map(|p| p.done_weight).collect());
 
     let mut out = String::new();
     out.push_str(&format!("milestone: {}\n", plot.milestone_name));
     if ascii {
-        out.push_str(&render_ascii_plot(&sampled));
+        out.push_str(&render_ascii_plot(&sampled, total_trend, done_trend));
     } else {
-        out.push_str("legend: textplots total_weight(red) done_weight(green)\n");
-        out.push_str(&render_textplots_chart(&sampled));
+        out.push_str(
+            "legend: points total(red '*') done(green 'o'); trend total(yellow) done(cyan)\n",
+        );
+        out.push_str(&render_textplots_chart(&sampled, total_trend, done_trend));
     }
 
     let start_date = sampled
@@ -253,10 +223,26 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
             last.total_weight, last.done_weight
         ));
     }
+    if let Some(trend) = total_trend {
+        out.push_str(&format!(
+            "trend(total): slope={:.3} weight/index\n",
+            trend.slope
+        ));
+    }
+    if let Some(trend) = done_trend {
+        out.push_str(&format!(
+            "trend(done):  slope={:.3} weight/index\n",
+            trend.slope
+        ));
+    }
     out
 }
 
-fn render_textplots_chart(points: &[TodoDonePlotPoint]) -> String {
+fn render_textplots_chart(
+    points: &[TodoDonePlotPoint],
+    total_trend: Option<LinearTrend>,
+    done_trend: Option<LinearTrend>,
+) -> String {
     let total_series: Vec<(f32, f32)> = points
         .iter()
         .enumerate()
@@ -267,34 +253,94 @@ fn render_textplots_chart(points: &[TodoDonePlotPoint]) -> String {
         .enumerate()
         .map(|(i, p)| (i as f32, p.done_weight as f32))
         .collect();
+    let total_trend_series: Vec<(f32, f32)> = points
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            let x = i as f64;
+            let y = total_trend.map_or(0.0, |t| t.slope * x + t.intercept);
+            (i as f32, y as f32)
+        })
+        .collect();
+    let done_trend_series: Vec<(f32, f32)> = points
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            let x = i as f64;
+            let y = done_trend.map_or(0.0, |t| t.slope * x + t.intercept);
+            (i as f32, y as f32)
+        })
+        .collect();
     let xmax = (points.len().saturating_sub(1).max(1)) as f32;
-    let ymax = points
+    let mut ymax = points
         .iter()
         .map(|p| p.total_weight.max(p.done_weight))
-        .fold(0.0, f64::max)
-        .max(1.0) as f32;
+        .fold(0.0, f64::max);
+    if let Some(t) = total_trend {
+        ymax = ymax
+            .max(t.intercept)
+            .max(t.slope * xmax as f64 + t.intercept);
+    }
+    if let Some(t) = done_trend {
+        ymax = ymax
+            .max(t.intercept)
+            .max(t.slope * xmax as f64 + t.intercept);
+    }
+    let ymax = ymax.max(1.0) as f32;
 
-    let total_shape = Shape::Lines(total_series.as_slice());
-    let done_shape = Shape::Lines(done_series.as_slice());
-    // Keep a square canvas in plot-space (1:1).
+    let total_shape = Shape::Points(total_series.as_slice());
+    let done_shape = Shape::Points(done_series.as_slice());
+    let total_trend_shape = Shape::Lines(total_trend_series.as_slice());
+    let done_trend_shape = Shape::Lines(done_trend_series.as_slice());
+    // Keep a 3:2 canvas (width:height).
     let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
     let chart_ref = chart
         .linecolorplot(&total_shape, RGB8::new(255, 0, 0))
-        .linecolorplot(&done_shape, RGB8::new(0, 255, 0));
+        .linecolorplot(&done_shape, RGB8::new(0, 255, 0))
+        .linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0))
+        .linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255));
     chart_ref.axis();
     chart_ref.figures();
     format!("{chart_ref}\n")
 }
 
-fn render_ascii_plot(points: &[TodoDonePlotPoint]) -> String {
+fn render_ascii_plot(
+    points: &[TodoDonePlotPoint],
+    total_trend: Option<LinearTrend>,
+    done_trend: Option<LinearTrend>,
+) -> String {
     let width = points.len().max(1);
     let height = 12usize;
-    let y_max = points
+    let mut y_max = points
         .iter()
         .map(|p| p.total_weight.max(p.done_weight))
         .fold(0.0, f64::max)
         .max(1.0);
+    if let Some(t) = total_trend {
+        y_max = y_max
+            .max(t.intercept)
+            .max(t.slope * (width as f64) + t.intercept);
+    }
+    if let Some(t) = done_trend {
+        y_max = y_max
+            .max(t.intercept)
+            .max(t.slope * (width as f64) + t.intercept);
+    }
     let mut grid = vec![vec![' '; width]; height];
+    if let Some(trend) = total_trend {
+        for x in 0..width {
+            let y = trend.slope * (x as f64) + trend.intercept;
+            let row = y_to_row(y, y_max, height);
+            place_marker(&mut grid, row, x, '+', '#');
+        }
+    }
+    if let Some(trend) = done_trend {
+        for x in 0..width {
+            let y = trend.slope * (x as f64) + trend.intercept;
+            let row = y_to_row(y, y_max, height);
+            place_marker(&mut grid, row, x, '.', '#');
+        }
+    }
     for (x, p) in points.iter().enumerate() {
         let total_row = y_to_row(p.total_weight, y_max, height);
         let done_row = y_to_row(p.done_weight, y_max, height);
@@ -303,7 +349,7 @@ fn render_ascii_plot(points: &[TodoDonePlotPoint]) -> String {
     }
 
     let mut out = String::new();
-    out.push_str("legend: * total_weight, o done_weight, X overlap\n");
+    out.push_str("legend: * total, o done, + total trend, . done trend, X/# overlap\n");
     for (row_idx, row) in grid.iter().enumerate() {
         let y = if height == 1 {
             0.0
@@ -365,6 +411,111 @@ fn downsample_plot_points(
         out.push(points[idx].clone());
     }
     out
+}
+
+fn completion_trend_points_for_velocity(
+    entries: &[history_cache::HistoryCacheEntry],
+    since_secs: i64,
+) -> Vec<(i64, f64)> {
+    let mut points = Vec::new();
+    let mut cumulative = 0.0;
+    for (old, new) in entries.iter().zip(entries.iter().skip(1)) {
+        if new.commit_timestamp < since_secs {
+            continue;
+        }
+        if points.is_empty() {
+            points.push((old.commit_timestamp.max(since_secs), cumulative));
+        }
+        cumulative += new.completed_weight_from_previous;
+        points.push((new.commit_timestamp, cumulative));
+    }
+    points
+}
+
+fn worktree_completion_delta(
+    root: &Path,
+    entries: &[history_cache::HistoryCacheEntry],
+) -> Option<(f64, usize, i64)> {
+    let latest_entry = entries.last()?;
+    let latest_commit_sha = &latest_entry.commit_hash;
+
+    let mut worktree_changed = false;
+    let mut completion_delta = 0.0;
+    let mut completion_events = 0usize;
+
+    for path in find_task_files(root) {
+        let Some(latest_content) = git::file_content_at_ref(root, latest_commit_sha, &path) else {
+            continue;
+        };
+        let worktree_path = root.join(&path);
+        let worktree_content = match std::fs::read_to_string(&worktree_path) {
+            Ok(content) => content,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(_) => continue,
+        };
+        if worktree_content == latest_content {
+            continue;
+        }
+        worktree_changed = true;
+
+        let old_items = parser::parse(&latest_content, path.clone());
+        let new_items = parser::parse(&worktree_content, path.clone());
+        let (delta_weight, delta_events) = completion_weight_delta(&old_items, &new_items);
+        completion_delta += delta_weight;
+        completion_events += delta_events;
+    }
+
+    if !worktree_changed {
+        return None;
+    }
+
+    Some((
+        completion_delta,
+        completion_events,
+        latest_entry.commit_timestamp,
+    ))
+}
+
+fn linear_trend_by_index(values: Vec<f64>) -> Option<LinearTrend> {
+    if values.len() < 2 {
+        return None;
+    }
+    let points: Vec<(f64, f64)> = values
+        .into_iter()
+        .enumerate()
+        .map(|(i, y)| (i as f64, y))
+        .collect();
+    linear_trend(&points)
+}
+
+fn linear_trend_by_timestamp(points: &[(i64, f64)]) -> Option<LinearTrend> {
+    if points.len() < 2 {
+        return None;
+    }
+    let x0 = points[0].0 as f64;
+    let normalized: Vec<(f64, f64)> = points.iter().map(|(ts, y)| (*ts as f64 - x0, *y)).collect();
+    linear_trend(&normalized)
+}
+
+fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {
+    if points.len() < 2 {
+        return None;
+    }
+    let n = points.len() as f64;
+    let mean_x = points.iter().map(|(x, _)| *x).sum::<f64>() / n;
+    let mean_y = points.iter().map(|(_, y)| *y).sum::<f64>() / n;
+    let mut cov = 0.0;
+    let mut var = 0.0;
+    for (x, y) in points {
+        cov += (x - mean_x) * (y - mean_y);
+        var += (x - mean_x) * (x - mean_x);
+    }
+    if var <= f64::EPSILON {
+        return None;
+    }
+    let slope = cov / var;
+    let intercept = mean_y - slope * mean_x;
+    Some(LinearTrend { slope, intercept })
 }
 
 fn milestone_name_for_rank(root: &Path, milestone_rank: usize) -> Option<String> {

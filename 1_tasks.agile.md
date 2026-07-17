@@ -474,7 +474,7 @@
 - [x] sample script mode for dir with messy "done" tasks 
 - [x] sample script mode for dir with messy "done" + "total" tasks 
 
-- [ ] trendlines in plot - basic linear
+- [x] trendlines in plot - basic linear
 - [ ] trendlines in plot - recency weighted linear
 - [ ] trendlines in plot - with uncertainty regions
 

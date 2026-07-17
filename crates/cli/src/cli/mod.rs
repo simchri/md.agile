@@ -84,11 +84,11 @@ pub enum Command {
 
     /// ETA and velocity reporting
     When {
-        /// Show the current velocity estimate (weighted completions per day)
+        /// Show the current velocity estimate (done-trend slope, weighted/day)
         #[arg(long)]
         velocity: bool,
 
-        /// Show a terminal plot of open vs done weighted work over time.
+        /// Show a terminal plot of total vs done weighted work over time.
         ///
         /// Requires `--next <rank>` to select the milestone boundary.
         #[arg(long, conflicts_with = "velocity")]
