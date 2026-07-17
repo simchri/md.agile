@@ -2,6 +2,29 @@
 set -euo pipefail
 
 TARGET_DIR="${1:-sample-plot-repo}"
+MODE="stable"
+
+if [[ $# -ge 2 ]]; then
+    if [[ "$2" == "--mode" ]]; then
+        MODE="${3:-}"
+        if [[ -z "$MODE" ]]; then
+            echo "error: missing value for --mode" >&2
+            exit 1
+        fi
+    else
+        echo "error: unknown option '$2' (expected --mode <stable|messy-total|messy-done|messy-both>)" >&2
+        exit 1
+    fi
+fi
+
+case "$MODE" in
+    stable|messy-total|messy-done|messy-both) ;;
+    *)
+        echo "error: invalid mode '$MODE' (expected stable|messy-total|messy-done|messy-both)" >&2
+        exit 1
+        ;;
+esac
+
 if [[ -e "$TARGET_DIR" ]]; then
     echo "error: target already exists: $TARGET_DIR" >&2
     exit 1
@@ -66,8 +89,14 @@ commit_snapshot() {
         git commit -q -m "snapshot $index: total=$total done=$done"
 }
 
-totals=(12 12 12 12 13 13 13 14 14 14)
-dones=(1 2 3 4 5 6 7 8 9 10)
+stable_totals=(12 12 12 12 13 13 13 14 14 14)
+stable_dones=(1 2 3 4 5 6 7 8 9 10)
+messy_total_totals=(12 14 11 15 13 16 14 17 15 18)
+messy_total_dones=(1 2 3 4 5 6 7 8 9 10)
+messy_done_totals=(13 13 13 13 14 14 14 14 15 15)
+messy_done_dones=(1 4 2 5 3 7 6 9 8 11)
+messy_both_totals=(12 15 11 14 13 16 14 17 15 18)
+messy_both_dones=(1 3 2 6 4 8 7 10 9 12)
 dates=(
     "2026-01-01T12:00:00Z"
     "2026-01-08T12:00:00Z"
@@ -81,6 +110,27 @@ dates=(
     "2026-03-05T12:00:00Z"
 )
 
+totals=()
+dones=()
+case "$MODE" in
+    stable)
+        totals=("${stable_totals[@]}")
+        dones=("${stable_dones[@]}")
+        ;;
+    messy-total)
+        totals=("${messy_total_totals[@]}")
+        dones=("${messy_total_dones[@]}")
+        ;;
+    messy-done)
+        totals=("${messy_done_totals[@]}")
+        dones=("${messy_done_dones[@]}")
+        ;;
+    messy-both)
+        totals=("${messy_both_totals[@]}")
+        dones=("${messy_both_dones[@]}")
+        ;;
+esac
+
 for i in "${!totals[@]}"; do
     step=$((i + 1))
     commit_snapshot "$step" "${totals[$i]}" "${dones[$i]}" "${dates[$i]}"
@@ -88,3 +138,4 @@ done
 
 echo "created sample repo: $TARGET_DIR"
 echo "commits: 10"
+echo "mode: $MODE"
