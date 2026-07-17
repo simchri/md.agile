@@ -485,7 +485,7 @@ fn when_plot_until_milestone_renders_unicode_chart() {
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("milestone: Alpha"), "stdout: {stdout:?}");
-    assert!(stdout.contains("open_weight"), "stdout: {stdout:?}");
+    assert!(stdout.contains("total_weight"), "stdout: {stdout:?}");
     assert!(stdout.contains("done_weight"), "stdout: {stdout:?}");
     assert!(stdout.contains("●"), "stdout: {stdout:?}");
 }

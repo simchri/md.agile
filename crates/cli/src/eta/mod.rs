@@ -55,7 +55,7 @@ pub struct VelocityEstimate {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TodoDonePlotPoint {
     pub date: String,
-    pub open_weight: f64,
+    pub total_weight: f64,
     pub done_weight: f64,
 }
 
@@ -198,14 +198,14 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
 
     let mut points = Vec::new();
     for entry in &cache.entries {
-        let (open_weight, done_weight, found_milestone) =
+        let (total_weight, done_weight, found_milestone) =
             weights_until_milestone_at_ref(root, &entry.commit_hash, &milestone_name);
         if !found_milestone {
             continue;
         }
         points.push(TodoDonePlotPoint {
             date: entry.commit_date.clone(),
-            open_weight,
+            total_weight,
             done_weight,
         });
     }
@@ -228,27 +228,27 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
     let width = sampled.len().max(1);
     let height = 12usize;
 
-    let max_open = sampled.iter().map(|p| p.open_weight).fold(0.0, f64::max);
+    let max_total = sampled.iter().map(|p| p.total_weight).fold(0.0, f64::max);
     let max_done = sampled.iter().map(|p| p.done_weight).fold(0.0, f64::max);
-    let y_max = max_open.max(max_done).max(1.0);
+    let y_max = max_total.max(max_done).max(1.0);
 
-    let open_char = if ascii { '*' } else { '●' };
+    let total_char = if ascii { '*' } else { '●' };
     let done_char = if ascii { 'o' } else { '○' };
     let overlap_char = if ascii { 'X' } else { '◆' };
 
     let mut grid = vec![vec![' '; width]; height];
     for (x, p) in sampled.iter().enumerate() {
-        let open_row = y_to_row(p.open_weight, y_max, height);
+        let total_row = y_to_row(p.total_weight, y_max, height);
         let done_row = y_to_row(p.done_weight, y_max, height);
-        place_marker(&mut grid, open_row, x, open_char, overlap_char);
+        place_marker(&mut grid, total_row, x, total_char, overlap_char);
         place_marker(&mut grid, done_row, x, done_char, overlap_char);
     }
 
     let mut out = String::new();
     out.push_str(&format!("milestone: {}\n", plot.milestone_name));
     out.push_str(&format!(
-        "legend: {} open_weight, {} done_weight, {} overlap\n",
-        open_char, done_char, overlap_char
+        "legend: {} total_weight, {} done_weight, {} overlap\n",
+        total_char, done_char, overlap_char
     ));
     for (row_idx, row) in grid.iter().enumerate() {
         let y = if height == 1 {
@@ -278,8 +278,8 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
 
     if let Some(last) = sampled.last() {
         out.push_str(&format!(
-            "latest: open_weight={:.2}, done_weight={:.2}\n",
-            last.open_weight, last.done_weight
+            "latest: total_weight={:.2}, done_weight={:.2}\n",
+            last.total_weight, last.done_weight
         ));
     }
     out
@@ -355,7 +355,7 @@ fn weights_until_milestone_at_ref(
     let mut paths = git::task_files_at_ref(root, git_ref);
     paths.sort();
 
-    let mut open_weight = 0.0;
+    let mut total_weight = 0.0;
     let mut done_weight = 0.0;
     for path in paths {
         let Some(content) = git::file_content_at_ref(root, git_ref, &path) else {
@@ -366,14 +366,15 @@ fn weights_until_milestone_at_ref(
             match item {
                 FileItem::Task(task) => {
                     let weight = task_total_weight(&task);
+                    total_weight += weight;
                     match task.status {
-                        Status::Todo => open_weight += weight,
                         Status::Done | Status::Cancelled => done_weight += weight,
+                        Status::Todo => {}
                     }
                 }
                 FileItem::Milestone(m) => {
                     if m.name == target_milestone {
-                        return (open_weight, done_weight, true);
+                        return (total_weight, done_weight, true);
                     }
                 }
             }
