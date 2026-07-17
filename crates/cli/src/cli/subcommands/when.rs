@@ -2,6 +2,7 @@
 
 use crate::config::Config;
 use crate::eta;
+use crate::history_cache;
 use std::path::Path;
 
 /// `agile when` entry point.
@@ -24,6 +25,7 @@ pub fn run(
         std::process::exit(1);
     }
 
+    let _ = history_cache::update(root);
     let window_days = last_days.unwrap_or(eta::DEFAULT_VELOCITY_WINDOW_DAYS);
     match eta::estimate_velocity_with_window(root, window_days) {
         Some(value) => println!("{value:.2} weight/day"),

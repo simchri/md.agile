@@ -451,7 +451,7 @@
     2024-04-23 - [-] baz
     ```
 
-- [ ] History Cache: to prepare for upcoming features build a cached history of tasks 
+- [x] History Cache: to prepare for upcoming features build a cached history of tasks 
   one entry per commit. Store:
   - commit hash
   - commit date
@@ -460,8 +460,17 @@
   - done tasks count (top level tasks)
   - done tasks weights
   History cache is human + machine readable (json)
-  - [ ] update & invalidation strategy: When commit hashes change (history changed, rebase etc.) --> entry and subsequent entries are invalidated
-  - [ ] when new commit: Append data for the new commit
+  - [x] update & invalidation strategy: When commit hashes change (history changed, rebase etc.) --> entry and subsequent entries are invalidated
+  - [x] when new commit: Append data for the new commit
+
+- [ ] to-do vs done plot: Over time show open vs. completed tasks (until a given milestone)
+- [ ] trendlines in plot - basic linear
+- [ ] trendlines in plot - recency weighted linear
+- [ ] trendlines in plot - with uncertainty regions
+
+- [ ] "velocity" is the slope of the (weighted) linear trend 
+
+- [ ] parameters for agile.md.toml to override defaults ETA algorithm parameters. NO COMMAND LINE OPTIONS TO DO THE SAME - THIS CAN ONLY BE DONE THROUGH A VERSIONED CHANGE
 
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
@@ -475,10 +484,6 @@
   - [ ] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
   - [ ] Update CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
 
-- [ ] to-do vs done plot: Over time show open vs. completed tasks (until a given milestone)
-- [ ] trendlines in plot - basic linear
-- [ ] trendlines in plot - recency weighted linear
-- [ ] trendlines in plot - with uncertainty regions
 
 
 ### Short Forms

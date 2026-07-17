@@ -204,6 +204,42 @@ fn commits_touching_path_follows_renames() {
     assert_eq!(commits.len(), 3, "commits: {commits:?}");
 }
 
+#[test]
+fn git_dir_resolves_dot_git_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+    let git_dir_path = git_dir(dir.path()).expect("git dir");
+    assert!(git_dir_path.ends_with(".git"));
+}
+
+#[test]
+fn commits_returns_repository_history_newest_first() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+
+    std::fs::write(dir.path().join("tasks.agile.md"), "- [ ] one\n").unwrap();
+    commit_all(dir.path(), "c1");
+    std::fs::write(dir.path().join("tasks.agile.md"), "- [x] one\n").unwrap();
+    commit_all(dir.path(), "c2");
+
+    let refs = commits(dir.path());
+    assert!(refs.len() >= 2);
+    assert_ne!(refs[0].sha, refs[1].sha);
+}
+
+#[test]
+fn task_files_at_ref_lists_only_agile_files() {
+    let dir = tempfile::tempdir().unwrap();
+    init_repo(dir.path(), "a@b.com", "A B");
+
+    std::fs::write(dir.path().join("tasks.agile.md"), "- [ ] one\n").unwrap();
+    std::fs::write(dir.path().join("notes.txt"), "hello\n").unwrap();
+    commit_all(dir.path(), "initial");
+
+    let files = task_files_at_ref(dir.path(), "HEAD");
+    assert_eq!(files, vec![std::path::PathBuf::from("tasks.agile.md")]);
+}
+
 // ── resolve_identity_user ───────────────────────────────────────────────────────
 
 use crate::config::{Config, UserConfig};

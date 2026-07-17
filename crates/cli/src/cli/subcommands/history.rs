@@ -3,12 +3,14 @@
 use crate::cli::common::{find_task_files, parse_file};
 use crate::eta::{self, StatusTransition, TransitionKey};
 use crate::git;
+use crate::history_cache;
 use crate::parser::{self, Status};
 use std::collections::HashMap;
 use std::path::Path;
 
 /// `agile history` entry point.
 pub fn run(root: &Path) {
+    let _ = history_cache::update(root);
     let mut out = String::new();
     for file in find_task_files(root) {
         let items = parse_file(&file);

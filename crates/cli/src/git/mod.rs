@@ -6,7 +6,7 @@
 //! `git` rather than adding a library dependency (`git2`), since `git` is
 //! already a required tool in this project's environment.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// The current user's git identity, as reported by `git config`.
@@ -21,6 +21,24 @@ pub struct GitIdentity {
 pub struct CommitRef {
     pub sha: String,
     pub timestamp: i64,
+}
+
+/// Returns the resolved git directory path for `dir` (typically `<repo>/.git`).
+///
+/// If `git rev-parse --git-dir` returns a relative path, it is resolved
+/// relative to `dir`.
+pub fn git_dir(dir: &Path) -> Option<PathBuf> {
+    let raw = run_git(dir, &["rev-parse", "--git-dir"])?;
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    let path = PathBuf::from(raw);
+    if path.is_absolute() {
+        Some(path)
+    } else {
+        Some(dir.join(path))
+    }
 }
 
 /// Returns `true` if `dir` is inside a git working tree.
@@ -123,6 +141,34 @@ pub fn commits_touching_path(dir: &Path, relative_path: &Path) -> Vec<CommitRef>
         return Vec::new();
     };
 
+    parse_commit_refs(&output)
+}
+
+/// Returns all commits in the repository, newest first.
+pub fn commits(dir: &Path) -> Vec<CommitRef> {
+    let Some(output) = run_git(dir, &["log", "--first-parent", "--format=%H %ct"]) else {
+        return Vec::new();
+    };
+    parse_commit_refs(&output)
+}
+
+/// Lists all `*.agile.md` files present at `git_ref`, relative to repo root.
+pub fn task_files_at_ref(dir: &Path, git_ref: &str) -> Vec<PathBuf> {
+    let Some(output) = run_git(
+        dir,
+        &["ls-tree", "-r", "--name-only", "--full-tree", git_ref],
+    ) else {
+        return Vec::new();
+    };
+    output
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.ends_with(".agile.md"))
+        .map(PathBuf::from)
+        .collect()
+}
+
+fn parse_commit_refs(output: &str) -> Vec<CommitRef> {
     output
         .lines()
         .filter_map(|line| {
