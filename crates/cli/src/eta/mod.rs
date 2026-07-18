@@ -197,9 +197,12 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
     let done_trend = linear_trend_by_index(sampled.iter().map(|p| p.done_weight).collect());
 
     let mut out = String::new();
-    out.push_str(&format!("milestone: {}\n", plot.milestone_name));
-    out.push_str(&render_plot_legend());
+    out.push_str("\n");
+    out.push_str(&format!("Milestone: {}\n", plot.milestone_name));
+    out.push_str("\n");
     out.push_str(&render_textplots_chart(&sampled, total_trend, done_trend));
+    out.push_str(&render_plot_legend());
+    out.push_str("\n");
 
     // let start_date = sampled
     //     .first()
@@ -237,7 +240,7 @@ fn render_plot_legend() -> String {
     let green = ansi_rgb_sample(0, 255, 0);
     let yellow = ansi_rgb_sample(255, 255, 0);
     let cyan = ansi_rgb_sample(0, 255, 255);
-    format!("legend:\n{red} total    {green} done\n{yellow} total trend    {cyan} done trend\n")
+    format!("{red} total          {green} done\n{yellow} total trend    {cyan} done trend\n")
 }
 
 fn ansi_rgb_sample(r: u8, g: u8, b: u8) -> String {
