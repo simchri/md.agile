@@ -105,6 +105,12 @@ pub enum Command {
         )]
         last: Option<u32>,
 
+        /// Fit the vertical axis to the data range (default starts at zero).
+        ///
+        /// Only valid with `--plot`.
+        #[arg(long, requires = "plot")]
+        fit: bool,
+
         /// Select the Nth milestone rank.
         ///
         /// Currently used by `--plot` to choose the milestone boundary.
@@ -291,10 +297,11 @@ pub fn run() {
         Some(Command::When {
             velocity,
             plot,
+            fit,
             last,
             next,
         }) => {
-            subcommands::when::run(root, &config, next, velocity, plot, last);
+            subcommands::when::run(root, &config, next, velocity, plot, fit, last);
         }
         Some(Command::History) => {
             subcommands::history::run(root);

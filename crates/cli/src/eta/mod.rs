@@ -195,7 +195,7 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
     })
 }
 
-pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
+pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
     let sampled = downsample_plot_points(&plot.points, 96);
     let today_unix_days = unix_days_from_unix_seconds(
         SystemTime::now()
@@ -230,6 +230,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
         &geometry,
         total_trend,
         done_trend,
+        fit,
     ));
     out.push_str(&render_plot_legend());
     if let Some(latest) = plot.points.last() {
@@ -267,6 +268,7 @@ fn render_textplots_chart(
     geometry: &PlotGeometry,
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
+    fit: bool,
 ) -> String {
     let total_series: Vec<(f32, f32)> = points
         .iter()
@@ -329,7 +331,11 @@ fn render_textplots_chart(
     let done_trend_shape = Shape::Lines(&done_trend_series);
     let today_shape = Shape::Lines(&today_series);
     // Keep a 3:2 canvas (width:height).
-    let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
+    let mut chart = if fit {
+        Chart::new(120, 80, 0.0, xmax)
+    } else {
+        Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax)
+    };
     let mut chart_ref = &mut chart;
     chart_ref = chart_ref.y_label_format(LabelFormat::None);
     if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {

@@ -13,6 +13,7 @@ pub fn run(
     next: Option<usize>,
     velocity: bool,
     plot: bool,
+    fit: bool,
     last_days: Option<u32>,
 ) {
     if plot {
@@ -27,7 +28,7 @@ pub fn run(
                 std::process::exit(1);
             }
         };
-        print!("{}", eta::render_todo_done_plot(&plot));
+        print!("{}", eta::render_todo_done_plot(&plot, fit));
         return;
     }
 
