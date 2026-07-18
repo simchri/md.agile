@@ -303,21 +303,22 @@ fn render_textplots_chart(
         })
         .unwrap_or_default();
     let xmax = geometry.chart_x_max as f32;
-    let mut ymax = points
+    let data_ymax: f64 = points
         .iter()
         .map(|p| p.total_weight.max(p.done_weight))
         .fold(0.0, f64::max);
+    let mut full_ymax = data_ymax;
     if let Some(t) = total_trend {
-        ymax = ymax
+        full_ymax = full_ymax
             .max(t.intercept)
             .max(t.slope * geometry.trend_end_x + t.intercept);
     }
     if let Some(t) = done_trend {
-        ymax = ymax
+        full_ymax = full_ymax
             .max(t.intercept)
             .max(t.slope * geometry.trend_end_x + t.intercept);
     }
-    let ymax = ymax.max(1.0) as f32;
+    let ymax = (if fit { full_ymax } else { data_ymax }).max(1.0) as f32;
     let today_series = vec![
         (geometry.today_x as f32, 0.0_f32),
         (geometry.today_x as f32, ymax),
