@@ -8,3 +8,4 @@ mdagile-gui
 mdagile
 *.tmp.md
 sample-plot-repo/
+sample_dir_*/
