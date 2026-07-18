@@ -474,9 +474,24 @@
 - [x] sample script mode for dir with messy "done" tasks 
 - [x] sample script mode for dir with messy "done" + "total" tasks 
 
-- [x] trendlines in plot - basic linear
+- [ ] trendlines in plot - basic linear
+  - [x] basics 
+  - [x] improved legend
+  - [x] testing script
+  - [ ] proper date legend
+  - [ ] output ETA
+
+- [ ] extensions to testing script
+  - [ ] edge case scenarios, 
+    - [ ] e.g. no convergence
+    - [ ] other milestone than latest
+    - [ ] done milestone
+      ...
+
 - [ ] trendlines in plot - recency weighted linear
 - [ ] trendlines in plot - with uncertainty regions
+  - [ ] display uncertainty
+  - [ ] refuse to display ETA if uncertainty to high
 
 - [ ] non-terminal plots 
   - [ ] SVG
