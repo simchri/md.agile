@@ -142,7 +142,9 @@ for mode in "${MODES[@]}"; do
     echo "Recreating sample repo: $target_dir (mode=$mode)"
     create_sample_repo "$mode" "$target_dir"
     echo "Running plot command in $target_dir"
-    devenv . --no-tty -a -c "cd $target_dir && ../target/debug/agile when --plot --next 1 >/dev/null"
+    echo "----- plot output: $target_dir -----"
+    devenv . --no-tty -a -c "cd $target_dir && ../target/debug/agile when --plot --next 1"
+    echo "----- end plot output: $target_dir -----"
 done
 
 echo "Created and validated sample repos:"
