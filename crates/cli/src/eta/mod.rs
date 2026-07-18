@@ -305,9 +305,6 @@ fn render_textplots_chart(
         (geometry.today_x as f32, 0.0_f32),
         (geometry.today_x as f32, ymax),
     ];
-    let x_axis_tick_height = (ymax * 0.06).max(0.25);
-    let start_tick_series = vec![(0.0_f32, 0.0_f32), (0.0_f32, x_axis_tick_height)];
-    let end_tick_series = vec![(xmax, 0.0_f32), (xmax, x_axis_tick_height)];
 
     let total_line_shape = Shape::Lines(&total_series);
     let done_line_shape = Shape::Lines(&done_series);
@@ -316,8 +313,6 @@ fn render_textplots_chart(
     let total_trend_shape = Shape::Lines(&total_trend_series);
     let done_trend_shape = Shape::Lines(&done_trend_series);
     let today_shape = Shape::Lines(&today_series);
-    let start_tick_shape = Shape::Lines(&start_tick_series);
-    let end_tick_shape = Shape::Lines(&end_tick_series);
     // Keep a 3:2 canvas (width:height).
     let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
     let mut chart_ref = &mut chart;
@@ -338,9 +333,6 @@ fn render_textplots_chart(
         chart_ref = chart_ref.linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255));
     }
     chart_ref = chart_ref.linecolorplot(&today_shape, RGB8::new(255, 255, 255));
-    chart_ref = chart_ref
-        .linecolorplot(&start_tick_shape, RGB8::new(255, 255, 255))
-        .linecolorplot(&end_tick_shape, RGB8::new(255, 255, 255));
     chart_ref = chart_ref
         .linecolorplot(&total_line_shape, RGB8::new(255, 0, 0))
         .linecolorplot(&done_line_shape, RGB8::new(0, 255, 0))
