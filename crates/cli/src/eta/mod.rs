@@ -8,7 +8,7 @@ use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use textplots::{Chart, ColorPlot, Shape};
+use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Shape};
 
 pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
@@ -229,35 +229,6 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
     ));
     out.push_str(&render_plot_legend());
     out.push_str("\n");
-
-    // let start_date = sampled
-    //     .first()
-    //     .map(|p| p.date.clone())
-    //     .unwrap_or_else(|| "n/a".to_string());
-    // let end_date = sampled
-    //     .last()
-    //     .map(|p| p.date.clone())
-    //     .unwrap_or_else(|| "n/a".to_string());
-    // out.push_str(&format!("         {} .. {}\n", start_date, end_date));
-    //
-    // if let Some(last) = sampled.last() {
-    //     out.push_str(&format!(
-    //         "latest: total_weight={:.2}, done_weight={:.2}\n",
-    //         last.total_weight, last.done_weight
-    //     ));
-    // }
-    // if let Some(trend) = total_trend {
-    //     out.push_str(&format!(
-    //         "trend(total): slope={:.3} weight/index\n",
-    //         trend.slope
-    //     ));
-    // }
-    // if let Some(trend) = done_trend {
-    //     out.push_str(&format!(
-    //         "trend(done):  slope={:.3} weight/index\n",
-    //         trend.slope
-    //     ));
-    // }
     out
 }
 
@@ -268,7 +239,7 @@ fn render_plot_legend() -> String {
     let cyan = ansi_rgb_sample(0, 255, 255);
     let white = ansi_rgb_sample(255, 255, 255);
     format!(
-        "legend:\n{red} total          {green} done\n{yellow} total trend    {cyan} done trend\n{white} today\n"
+        "{red} total          {green} done\n{yellow} total trend    {cyan} done trend\n{white} today\n"
     )
 }
 
@@ -345,6 +316,16 @@ fn render_textplots_chart(
     // Keep a 3:2 canvas (width:height).
     let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
     let mut chart_ref = &mut chart;
+    if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {
+        let split_x = xmax / 2.0;
+        chart_ref = chart_ref.x_label_format(LabelFormat::Custom(Box::new(move |x| {
+            if x <= split_x {
+                start_label.clone()
+            } else {
+                end_label.clone()
+            }
+        })));
+    }
     if !total_trend_series.is_empty() {
         chart_ref = chart_ref.linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0));
     }
@@ -360,6 +341,17 @@ fn render_textplots_chart(
     chart_ref.axis();
     chart_ref.figures();
     format!("{chart_ref}\n")
+}
+
+fn x_axis_date_labels(
+    points: &[TodoDonePlotPoint],
+    geometry: &PlotGeometry,
+) -> Option<(String, String)> {
+    let first_point = points.first()?;
+    let first_unix_days = parse_yyyy_mm_dd_to_unix_days(&first_point.date)?;
+    let chart_end_days = first_unix_days + geometry.chart_x_max.ceil() as i64;
+    let end_date = format_yyyy_mm_dd_from_unix_days(chart_end_days);
+    Some((first_point.date.clone(), end_date))
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -789,6 +781,27 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     let doy = (153 * month_prime + 2) / 5 + day - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     era * 146_097 + doe - 719_468
+}
+
+fn format_yyyy_mm_dd_from_unix_days(unix_days: i64) -> String {
+    let (year, month, day) = civil_from_days(unix_days);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn civil_from_days(unix_days: i64) -> (i64, i64, i64) {
+    let z = unix_days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let mut year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    if month <= 2 {
+        year += 1;
+    }
+    (year, month, day)
 }
 
 #[cfg(test)]
