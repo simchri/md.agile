@@ -8,7 +8,7 @@ use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use textplots::{AxisBuilder, Chart, ColorPlot, LabelBuilder, LabelFormat, LineStyle, Shape};
+use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Shape};
 
 pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
@@ -332,7 +332,6 @@ fn render_textplots_chart(
     let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
     let mut chart_ref = &mut chart;
     chart_ref = chart_ref.y_label_format(LabelFormat::None);
-    chart_ref = chart_ref.y_axis_style(LineStyle::None);
     if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {
         let split_x = xmax / 2.0;
         chart_ref = chart_ref.x_label_format(LabelFormat::Custom(Box::new(move |x| {
