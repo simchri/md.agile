@@ -198,9 +198,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
 
     let mut out = String::new();
     out.push_str(&format!("milestone: {}\n", plot.milestone_name));
-    out.push_str(
-        "legend: total(red line+*), done(green line+o), trend total(yellow), trend done(cyan)\n",
-    );
+    out.push_str(&render_plot_legend());
     out.push_str(&render_textplots_chart(&sampled, total_trend, done_trend));
 
     // let start_date = sampled
@@ -232,6 +230,18 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
     //     ));
     // }
     out
+}
+
+fn render_plot_legend() -> String {
+    let red = ansi_rgb_sample(255, 0, 0);
+    let green = ansi_rgb_sample(0, 255, 0);
+    let yellow = ansi_rgb_sample(255, 255, 0);
+    let cyan = ansi_rgb_sample(0, 255, 255);
+    format!("legend:\n{red} total    {green} done\n{yellow} total trend    {cyan} done trend\n")
+}
+
+fn ansi_rgb_sample(r: u8, g: u8, b: u8) -> String {
+    format!("\x1b[38;2;{r};{g};{b}m....\x1b[0m")
 }
 
 fn render_textplots_chart(

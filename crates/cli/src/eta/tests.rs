@@ -133,3 +133,34 @@ fn completion_weight_delta_uses_fallback_matching_when_ancestor_title_changes() 
     assert_eq!(events, 1, "events: {events}");
     assert!((delta - (1.0 / 3.0)).abs() < f64::EPSILON, "delta: {delta}");
 }
+
+#[test]
+fn render_todo_done_plot_legend_uses_2x2_colored_grid() {
+    let plot = TodoDonePlot {
+        milestone_name: "M1".to_string(),
+        points: vec![
+            TodoDonePlotPoint {
+                date: "2026-01-01".to_string(),
+                total_weight: 3.0,
+                done_weight: 1.0,
+            },
+            TodoDonePlotPoint {
+                date: "2026-01-02".to_string(),
+                total_weight: 2.0,
+                done_weight: 1.5,
+            },
+        ],
+    };
+
+    let rendered = render_todo_done_plot(&plot);
+    let expected_legend = "\
+legend:
+\u{1b}[38;2;255;0;0m....\u{1b}[0m total    \u{1b}[38;2;0;255;0m....\u{1b}[0m done
+\u{1b}[38;2;255;255;0m....\u{1b}[0m total trend    \u{1b}[38;2;0;255;255m....\u{1b}[0m done trend
+";
+
+    assert!(
+        rendered.contains(expected_legend),
+        "expected legend block:\n{expected_legend}\nrendered:\n{rendered}"
+    );
+}
