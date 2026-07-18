@@ -193,14 +193,40 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
 
 pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
     let sampled = downsample_plot_points(&plot.points, 96);
-    let total_trend = linear_trend_by_index(sampled.iter().map(|p| p.total_weight).collect());
-    let done_trend = linear_trend_by_index(sampled.iter().map(|p| p.done_weight).collect());
+    let today_unix_days = unix_days_from_unix_seconds(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_secs() as i64),
+    );
+    let geometry = compute_plot_geometry(&sampled, today_unix_days);
+    let total_trend = linear_trend(
+        &geometry
+            .x_values
+            .iter()
+            .zip(sampled.iter())
+            .map(|(x, p)| (*x, p.total_weight))
+            .collect::<Vec<_>>(),
+    );
+    let done_trend = linear_trend(
+        &geometry
+            .x_values
+            .iter()
+            .zip(sampled.iter())
+            .map(|(x, p)| (*x, p.done_weight))
+            .collect::<Vec<_>>(),
+    );
 
     let mut out = String::new();
     out.push_str("\n");
     out.push_str(&format!("Milestone: {}\n", plot.milestone_name));
     out.push_str("\n");
-    out.push_str(&render_textplots_chart(&sampled, total_trend, done_trend));
+    out.push_str(&render_textplots_chart(
+        &sampled,
+        &geometry,
+        total_trend,
+        done_trend,
+    ));
     out.push_str(&render_plot_legend());
     out.push_str("\n");
 
@@ -240,7 +266,10 @@ fn render_plot_legend() -> String {
     let green = ansi_rgb_sample(0, 255, 0);
     let yellow = ansi_rgb_sample(255, 255, 0);
     let cyan = ansi_rgb_sample(0, 255, 255);
-    format!("{red} total          {green} done\n{yellow} total trend    {cyan} done trend\n")
+    let white = ansi_rgb_sample(255, 255, 255);
+    format!(
+        "legend:\n{red} total          {green} done\n{yellow} total trend    {cyan} done trend\n{white} today\n"
+    )
 }
 
 fn ansi_rgb_sample(r: u8, g: u8, b: u8) -> String {
@@ -249,38 +278,43 @@ fn ansi_rgb_sample(r: u8, g: u8, b: u8) -> String {
 
 fn render_textplots_chart(
     points: &[TodoDonePlotPoint],
+    geometry: &PlotGeometry,
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
 ) -> String {
     let total_series: Vec<(f32, f32)> = points
         .iter()
-        .enumerate()
-        .map(|(i, p)| (i as f32, p.total_weight as f32))
+        .zip(geometry.x_values.iter())
+        .map(|(p, x)| (*x as f32, p.total_weight as f32))
         .collect();
     let done_series: Vec<(f32, f32)> = points
         .iter()
-        .enumerate()
-        .map(|(i, p)| (i as f32, p.done_weight as f32))
+        .zip(geometry.x_values.iter())
+        .map(|(p, x)| (*x as f32, p.done_weight as f32))
         .collect();
-    let total_trend_series: Vec<(f32, f32)> = points
-        .iter()
-        .enumerate()
-        .map(|(i, _)| {
-            let x = i as f64;
-            let y = total_trend.map_or(0.0, |t| t.slope * x + t.intercept);
-            (i as f32, y as f32)
+    let total_trend_series = total_trend
+        .map(|t| {
+            vec![
+                (0.0_f32, t.intercept as f32),
+                (
+                    geometry.trend_end_x as f32,
+                    (t.slope * geometry.trend_end_x + t.intercept) as f32,
+                ),
+            ]
         })
-        .collect();
-    let done_trend_series: Vec<(f32, f32)> = points
-        .iter()
-        .enumerate()
-        .map(|(i, _)| {
-            let x = i as f64;
-            let y = done_trend.map_or(0.0, |t| t.slope * x + t.intercept);
-            (i as f32, y as f32)
+        .unwrap_or_default();
+    let done_trend_series = done_trend
+        .map(|t| {
+            vec![
+                (0.0_f32, t.intercept as f32),
+                (
+                    geometry.trend_end_x as f32,
+                    (t.slope * geometry.trend_end_x + t.intercept) as f32,
+                ),
+            ]
         })
-        .collect();
-    let xmax = (points.len().saturating_sub(1).max(1)) as f32;
+        .unwrap_or_default();
+    let xmax = geometry.chart_x_max as f32;
     let mut ymax = points
         .iter()
         .map(|p| p.total_weight.max(p.done_weight))
@@ -288,26 +322,37 @@ fn render_textplots_chart(
     if let Some(t) = total_trend {
         ymax = ymax
             .max(t.intercept)
-            .max(t.slope * xmax as f64 + t.intercept);
+            .max(t.slope * geometry.trend_end_x + t.intercept);
     }
     if let Some(t) = done_trend {
         ymax = ymax
             .max(t.intercept)
-            .max(t.slope * xmax as f64 + t.intercept);
+            .max(t.slope * geometry.trend_end_x + t.intercept);
     }
     let ymax = ymax.max(1.0) as f32;
+    let today_series = vec![
+        (geometry.today_x as f32, 0.0_f32),
+        (geometry.today_x as f32, ymax),
+    ];
 
-    let total_line_shape = Shape::Lines(total_series.as_slice());
-    let done_line_shape = Shape::Lines(done_series.as_slice());
-    let total_point_shape = Shape::Points(total_series.as_slice());
-    let done_point_shape = Shape::Points(done_series.as_slice());
-    let total_trend_shape = Shape::Lines(total_trend_series.as_slice());
-    let done_trend_shape = Shape::Lines(done_trend_series.as_slice());
+    let total_line_shape = Shape::Lines(&total_series);
+    let done_line_shape = Shape::Lines(&done_series);
+    let total_point_shape = Shape::Points(&total_series);
+    let done_point_shape = Shape::Points(&done_series);
+    let total_trend_shape = Shape::Lines(&total_trend_series);
+    let done_trend_shape = Shape::Lines(&done_trend_series);
+    let today_shape = Shape::Lines(&today_series);
     // Keep a 3:2 canvas (width:height).
     let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
-    let chart_ref = chart
-        .linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0))
-        .linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255))
+    let mut chart_ref = &mut chart;
+    if !total_trend_series.is_empty() {
+        chart_ref = chart_ref.linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0));
+    }
+    if !done_trend_series.is_empty() {
+        chart_ref = chart_ref.linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255));
+    }
+    chart_ref = chart_ref.linecolorplot(&today_shape, RGB8::new(255, 255, 255));
+    chart_ref = chart_ref
         .linecolorplot(&total_line_shape, RGB8::new(255, 0, 0))
         .linecolorplot(&done_line_shape, RGB8::new(0, 255, 0))
         .linecolorplot(&total_point_shape, RGB8::new(255, 0, 0))
@@ -315,6 +360,64 @@ fn render_textplots_chart(
     chart_ref.axis();
     chart_ref.figures();
     format!("{chart_ref}\n")
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct PlotGeometry {
+    x_values: Vec<f64>,
+    trend_end_x: f64,
+    today_x: f64,
+    chart_x_max: f64,
+}
+
+fn compute_plot_geometry(
+    points: &[TodoDonePlotPoint],
+    today_unix_days: Option<i64>,
+) -> PlotGeometry {
+    let index_fallback = || {
+        let x_values: Vec<f64> = (0..points.len()).map(|i| i as f64).collect();
+        let start_x = *x_values.first().unwrap_or(&0.0);
+        let end_x = *x_values.last().unwrap_or(&0.0);
+        let measurement_range = (end_x - start_x).max(0.0);
+        let trend_end_x = end_x + (measurement_range / 3.0);
+        let today_x = end_x;
+        let chart_x_max = trend_end_x.max(today_x).max(1.0);
+        PlotGeometry {
+            x_values,
+            trend_end_x,
+            today_x,
+            chart_x_max,
+        }
+    };
+    let Some(first_date_days) = points
+        .first()
+        .and_then(|p| parse_yyyy_mm_dd_to_unix_days(&p.date))
+    else {
+        return index_fallback();
+    };
+
+    let mut x_values = Vec::with_capacity(points.len());
+    for point in points {
+        let Some(unix_days) = parse_yyyy_mm_dd_to_unix_days(&point.date) else {
+            return index_fallback();
+        };
+        x_values.push((unix_days - first_date_days) as f64);
+    }
+
+    let start_x = *x_values.first().unwrap_or(&0.0);
+    let end_x = *x_values.last().unwrap_or(&0.0);
+    let measurement_range = (end_x - start_x).max(0.0);
+    let trend_end_x = end_x + (measurement_range / 3.0);
+    let today_x = today_unix_days
+        .map(|d| (d - first_date_days) as f64)
+        .unwrap_or(end_x);
+    let chart_x_max = trend_end_x.max(today_x).max(1.0);
+    PlotGeometry {
+        x_values,
+        trend_end_x,
+        today_x,
+        chart_x_max,
+    }
 }
 
 fn downsample_plot_points(
@@ -396,18 +499,6 @@ fn worktree_completion_delta(
         completion_events,
         latest_entry.commit_timestamp,
     ))
-}
-
-fn linear_trend_by_index(values: Vec<f64>) -> Option<LinearTrend> {
-    if values.len() < 2 {
-        return None;
-    }
-    let points: Vec<(f64, f64)> = values
-        .into_iter()
-        .enumerate()
-        .map(|(i, y)| (i as f64, y))
-        .collect();
-    linear_trend(&points)
 }
 
 fn linear_trend_by_timestamp(points: &[(i64, f64)]) -> Option<LinearTrend> {
@@ -666,6 +757,38 @@ fn fallback_signature(node: &FlatNode) -> FallbackSignature {
 
 fn parent_title_from_path(path: &[String]) -> Option<String> {
     path.len().checked_sub(2).map(|idx| path[idx].clone())
+}
+
+fn unix_days_from_unix_seconds(unix_seconds: Option<i64>) -> Option<i64> {
+    unix_seconds.map(|s| s.div_euclid(86_400))
+}
+
+fn parse_yyyy_mm_dd_to_unix_days(date: &str) -> Option<i64> {
+    let mut parts = date.split('-');
+    let year = parts.next()?.parse::<i64>().ok()?;
+    let month = parts.next()?.parse::<i64>().ok()?;
+    let day = parts.next()?.parse::<i64>().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+    Some(days_from_civil(year, month, day))
+}
+
+fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let adjusted_year = year - if month <= 2 { 1 } else { 0 };
+    let era = if adjusted_year >= 0 {
+        adjusted_year
+    } else {
+        adjusted_year - 399
+    } / 400;
+    let yoe = adjusted_year - era * 400;
+    let month_prime = month + if month > 2 { -3 } else { 9 };
+    let doy = (153 * month_prime + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
 }
 
 #[cfg(test)]

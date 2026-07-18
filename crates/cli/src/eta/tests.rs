@@ -155,12 +155,73 @@ fn render_todo_done_plot_legend_uses_2x2_colored_grid() {
     let rendered = render_todo_done_plot(&plot);
     let expected_legend = "\
 legend:
-\u{1b}[38;2;255;0;0m....\u{1b}[0m total    \u{1b}[38;2;0;255;0m....\u{1b}[0m done
+\u{1b}[38;2;255;0;0m....\u{1b}[0m total          \u{1b}[38;2;0;255;0m....\u{1b}[0m done
 \u{1b}[38;2;255;255;0m....\u{1b}[0m total trend    \u{1b}[38;2;0;255;255m....\u{1b}[0m done trend
+\u{1b}[38;2;255;255;255m....\u{1b}[0m today
 ";
 
     assert!(
         rendered.contains(expected_legend),
         "expected legend block:\n{expected_legend}\nrendered:\n{rendered}"
+    );
+}
+
+#[test]
+fn compute_plot_geometry_extends_trendline_by_one_third_of_measurement_range() {
+    let points = vec![
+        TodoDonePlotPoint {
+            date: "2026-01-01".to_string(),
+            total_weight: 10.0,
+            done_weight: 2.0,
+        },
+        TodoDonePlotPoint {
+            date: "2026-01-31".to_string(),
+            total_weight: 8.0,
+            done_weight: 4.0,
+        },
+    ];
+    let today = Some(days_from_civil(2026, 1, 15));
+
+    let geometry = compute_plot_geometry(&points, today);
+
+    assert!(
+        (geometry.trend_end_x - 40.0).abs() < f64::EPSILON,
+        "trend_end_x: {}",
+        geometry.trend_end_x
+    );
+    assert!(
+        (geometry.chart_x_max - 40.0).abs() < f64::EPSILON,
+        "chart_x_max: {}",
+        geometry.chart_x_max
+    );
+}
+
+#[test]
+fn compute_plot_geometry_expands_chart_range_to_include_today() {
+    let points = vec![
+        TodoDonePlotPoint {
+            date: "2026-01-01".to_string(),
+            total_weight: 10.0,
+            done_weight: 2.0,
+        },
+        TodoDonePlotPoint {
+            date: "2026-01-31".to_string(),
+            total_weight: 8.0,
+            done_weight: 4.0,
+        },
+    ];
+    let today = Some(days_from_civil(2026, 3, 15));
+
+    let geometry = compute_plot_geometry(&points, today);
+
+    assert!(
+        (geometry.today_x - 73.0).abs() < f64::EPSILON,
+        "today_x: {}",
+        geometry.today_x
+    );
+    assert!(
+        (geometry.chart_x_max - 73.0).abs() < f64::EPSILON,
+        "chart_x_max: {}",
+        geometry.chart_x_max
     );
 }
