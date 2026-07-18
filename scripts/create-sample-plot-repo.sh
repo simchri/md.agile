@@ -5,25 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
-declare -a MODES=("stable" "messy-total" "messy-done" "messy-both")
+MODE="messy-both"
+TARGET_DIR="sample_dir_plot_messy_both"
 declare -a PLOT_DEVENV_ARGS=(. -a)
 if [[ ! -t 0 || ! -t 1 ]]; then
     PLOT_DEVENV_ARGS=(. --no-tty -a)
 fi
-
-sample_dir_for_mode() {
-    local mode="$1"
-    case "$mode" in
-        stable) echo "sample_dir_plot_stable" ;;
-        messy-total) echo "sample_dir_plot_messy_total" ;;
-        messy-done) echo "sample_dir_plot_messy_done" ;;
-        messy-both) echo "sample_dir_plot_messy_both" ;;
-        *)
-            echo "error: unsupported mode: $mode" >&2
-            exit 1
-            ;;
-    esac
-}
 
 create_sample_repo() {
     local mode="$1"
@@ -94,12 +81,6 @@ EOF
             git commit -q -m "snapshot $index: total=$total done=$done"
     }
 
-    stable_totals=(12 12 12 12 13 13 13 14 14 14)
-    stable_dones=(1 2 3 4 5 6 7 8 9 10)
-    messy_total_totals=(12 14 11 15 13 16 14 17 15 18)
-    messy_total_dones=(1 2 3 4 5 6 7 8 9 10)
-    messy_done_totals=(13 13 13 13 14 14 14 14 15 15)
-    messy_done_dones=(1 4 2 5 3 7 6 9 8 11)
     messy_both_totals=(12 15 11 14 13 16 14 17 15 18)
     messy_both_dones=(1 3 2 6 4 8 7 10 9 12)
     dates=()
@@ -112,21 +93,13 @@ EOF
     totals=()
     dones=()
     case "$mode" in
-        stable)
-            totals=("${stable_totals[@]}")
-            dones=("${stable_dones[@]}")
-            ;;
-        messy-total)
-            totals=("${messy_total_totals[@]}")
-            dones=("${messy_total_dones[@]}")
-            ;;
-        messy-done)
-            totals=("${messy_done_totals[@]}")
-            dones=("${messy_done_dones[@]}")
-            ;;
         messy-both)
             totals=("${messy_both_totals[@]}")
             dones=("${messy_both_dones[@]}")
+            ;;
+        *)
+            echo "error: unsupported mode: $mode" >&2
+            exit 1
             ;;
     esac
 
@@ -141,17 +114,10 @@ EOF
 echo "Building agile CLI..."
 devenv . --no-tty -a -c "cargo build --bin agile"
 
-for mode in "${MODES[@]}"; do
-    target_dir="$(sample_dir_for_mode "$mode")"
-    echo "Recreating sample repo: $target_dir (mode=$mode)"
-    create_sample_repo "$mode" "$target_dir"
-    echo "Running plot command in $target_dir"
-    echo "----- plot output: $target_dir -----"
-    CLICOLOR_FORCE=1 devenv "${PLOT_DEVENV_ARGS[@]}" -c "cd $target_dir && ../target/debug/agile when --plot --next 1"
-    echo "----- end plot output: $target_dir -----"
-done
-
-echo "Created and validated sample repos:"
-for mode in "${MODES[@]}"; do
-    echo "  - $(sample_dir_for_mode "$mode")"
-done
+echo "Recreating sample repo: $TARGET_DIR (mode=$MODE)"
+create_sample_repo "$MODE" "$TARGET_DIR"
+echo "Running plot command in $TARGET_DIR"
+echo "----- plot output: $TARGET_DIR -----"
+CLICOLOR_FORCE=1 devenv "${PLOT_DEVENV_ARGS[@]}" -c "cd $TARGET_DIR && ../target/debug/agile when --plot --next 1"
+echo "----- end plot output: $TARGET_DIR -----"
+echo "Created and validated sample repo: $TARGET_DIR"
