@@ -94,10 +94,6 @@ pub enum Command {
         #[arg(long, conflicts_with = "velocity")]
         plot: bool,
 
-        /// Use ASCII markers for plot output instead of Unicode dots.
-        #[arg(long, requires = "plot")]
-        ascii: bool,
-
         /// Restrict velocity history to the last N days.
         ///
         /// Only valid with `--velocity`.
@@ -295,11 +291,10 @@ pub fn run() {
         Some(Command::When {
             velocity,
             plot,
-            ascii,
             last,
             next,
         }) => {
-            subcommands::when::run(root, &config, next, velocity, plot, ascii, last);
+            subcommands::when::run(root, &config, next, velocity, plot, last);
         }
         Some(Command::History) => {
             subcommands::history::run(root);

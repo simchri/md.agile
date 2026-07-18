@@ -191,50 +191,46 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
     })
 }
 
-pub fn render_todo_done_plot(plot: &TodoDonePlot, ascii: bool) -> String {
+pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
     let sampled = downsample_plot_points(&plot.points, 96);
     let total_trend = linear_trend_by_index(sampled.iter().map(|p| p.total_weight).collect());
     let done_trend = linear_trend_by_index(sampled.iter().map(|p| p.done_weight).collect());
 
     let mut out = String::new();
     out.push_str(&format!("milestone: {}\n", plot.milestone_name));
-    if ascii {
-        out.push_str(&render_ascii_plot(&sampled, total_trend, done_trend));
-    } else {
-        out.push_str(
-            "legend: total(red line+*), done(green line+o), trend total(yellow), trend done(cyan)\n",
-        );
-        out.push_str(&render_textplots_chart(&sampled, total_trend, done_trend));
-    }
+    out.push_str(
+        "legend: total(red line+*), done(green line+o), trend total(yellow), trend done(cyan)\n",
+    );
+    out.push_str(&render_textplots_chart(&sampled, total_trend, done_trend));
 
-    let start_date = sampled
-        .first()
-        .map(|p| p.date.clone())
-        .unwrap_or_else(|| "n/a".to_string());
-    let end_date = sampled
-        .last()
-        .map(|p| p.date.clone())
-        .unwrap_or_else(|| "n/a".to_string());
-    out.push_str(&format!("         {} .. {}\n", start_date, end_date));
-
-    if let Some(last) = sampled.last() {
-        out.push_str(&format!(
-            "latest: total_weight={:.2}, done_weight={:.2}\n",
-            last.total_weight, last.done_weight
-        ));
-    }
-    if let Some(trend) = total_trend {
-        out.push_str(&format!(
-            "trend(total): slope={:.3} weight/index\n",
-            trend.slope
-        ));
-    }
-    if let Some(trend) = done_trend {
-        out.push_str(&format!(
-            "trend(done):  slope={:.3} weight/index\n",
-            trend.slope
-        ));
-    }
+    // let start_date = sampled
+    //     .first()
+    //     .map(|p| p.date.clone())
+    //     .unwrap_or_else(|| "n/a".to_string());
+    // let end_date = sampled
+    //     .last()
+    //     .map(|p| p.date.clone())
+    //     .unwrap_or_else(|| "n/a".to_string());
+    // out.push_str(&format!("         {} .. {}\n", start_date, end_date));
+    //
+    // if let Some(last) = sampled.last() {
+    //     out.push_str(&format!(
+    //         "latest: total_weight={:.2}, done_weight={:.2}\n",
+    //         last.total_weight, last.done_weight
+    //     ));
+    // }
+    // if let Some(trend) = total_trend {
+    //     out.push_str(&format!(
+    //         "trend(total): slope={:.3} weight/index\n",
+    //         trend.slope
+    //     ));
+    // }
+    // if let Some(trend) = done_trend {
+    //     out.push_str(&format!(
+    //         "trend(done):  slope={:.3} weight/index\n",
+    //         trend.slope
+    //     ));
+    // }
     out
 }
 
@@ -306,97 +302,6 @@ fn render_textplots_chart(
     chart_ref.axis();
     chart_ref.figures();
     format!("{chart_ref}\n")
-}
-
-fn render_ascii_plot(
-    points: &[TodoDonePlotPoint],
-    total_trend: Option<LinearTrend>,
-    done_trend: Option<LinearTrend>,
-) -> String {
-    let width = points.len().max(1);
-    let height = 12usize;
-    let mut y_max = points
-        .iter()
-        .map(|p| p.total_weight.max(p.done_weight))
-        .fold(0.0, f64::max)
-        .max(1.0);
-    if let Some(t) = total_trend {
-        y_max = y_max
-            .max(t.intercept)
-            .max(t.slope * (width as f64) + t.intercept);
-    }
-    if let Some(t) = done_trend {
-        y_max = y_max
-            .max(t.intercept)
-            .max(t.slope * (width as f64) + t.intercept);
-    }
-    let mut grid = vec![vec![' '; width]; height];
-    if let Some(trend) = total_trend {
-        for x in 0..width {
-            let y = trend.slope * (x as f64) + trend.intercept;
-            let row = y_to_row(y, y_max, height);
-            place_marker(&mut grid, row, x, '+', '#');
-        }
-    }
-    if let Some(trend) = done_trend {
-        for x in 0..width {
-            let y = trend.slope * (x as f64) + trend.intercept;
-            let row = y_to_row(y, y_max, height);
-            place_marker(&mut grid, row, x, '.', '#');
-        }
-    }
-    for (x, p) in points.iter().enumerate() {
-        let total_row = y_to_row(p.total_weight, y_max, height);
-        let done_row = y_to_row(p.done_weight, y_max, height);
-        place_marker(&mut grid, total_row, x, '*', 'X');
-        place_marker(&mut grid, done_row, x, 'o', 'X');
-    }
-
-    let mut out = String::new();
-    out.push_str("legend: * total, o done, + total trend, . done trend, X/# overlap\n");
-    for (row_idx, row) in grid.iter().enumerate() {
-        let y = if height == 1 {
-            0.0
-        } else {
-            y_max * ((height - 1 - row_idx) as f64) / ((height - 1) as f64)
-        };
-        out.push_str(&format!("{:>7.2} |", y));
-        for c in row {
-            out.push(*c);
-        }
-        out.push('\n');
-    }
-    out.push_str("         +");
-    out.push_str(&"-".repeat(width));
-    out.push('\n');
-    out
-}
-
-fn place_marker(
-    grid: &mut [Vec<char>],
-    row: usize,
-    col: usize,
-    marker: char,
-    overlap_marker: char,
-) {
-    let current = grid[row][col];
-    grid[row][col] = if current == ' ' || current == marker {
-        marker
-    } else {
-        overlap_marker
-    };
-}
-
-fn y_to_row(value: f64, y_max: f64, height: usize) -> usize {
-    if height <= 1 {
-        return 0;
-    }
-    let clamped = if y_max <= 0.0 {
-        0.0
-    } else {
-        (value / y_max).clamp(0.0, 1.0)
-    };
-    ((1.0 - clamped) * (height as f64 - 1.0)).round() as usize
 }
 
 fn downsample_plot_points(
