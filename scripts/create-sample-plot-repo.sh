@@ -6,6 +6,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 declare -a MODES=("stable" "messy-total" "messy-done" "messy-both")
+declare -a PLOT_DEVENV_ARGS=(. -a)
+if [[ ! -t 0 || ! -t 1 ]]; then
+    PLOT_DEVENV_ARGS=(. --no-tty -a)
+fi
 
 sample_dir_for_mode() {
     local mode="$1"
@@ -143,7 +147,7 @@ for mode in "${MODES[@]}"; do
     create_sample_repo "$mode" "$target_dir"
     echo "Running plot command in $target_dir"
     echo "----- plot output: $target_dir -----"
-    devenv . --no-tty -a -c "cd $target_dir && ../target/debug/agile when --plot --next 1"
+    CLICOLOR_FORCE=1 devenv "${PLOT_DEVENV_ARGS[@]}" -c "cd $target_dir && ../target/debug/agile when --plot --next 1"
     echo "----- end plot output: $target_dir -----"
 done
 
