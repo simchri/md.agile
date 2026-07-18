@@ -303,6 +303,15 @@ fn render_textplots_chart(
         })
         .unwrap_or_default();
     let xmax = geometry.chart_x_max as f32;
+    let data_ymin: f64 = points
+        .iter()
+        .map(|p| p.done_weight.min(p.total_weight))
+        .fold(f64::INFINITY, f64::min);
+    let data_ymin = if data_ymin.is_infinite() {
+        0.0
+    } else {
+        data_ymin
+    };
     let data_ymax: f64 = points
         .iter()
         .map(|p| p.total_weight.max(p.done_weight))
@@ -318,9 +327,13 @@ fn render_textplots_chart(
             .max(t.intercept)
             .max(t.slope * geometry.trend_end_x + t.intercept);
     }
-    let ymax = (if fit { full_ymax } else { data_ymax }).max(1.0) as f32;
+    let (ymin, ymax) = if fit {
+        (data_ymin as f32, full_ymax.max(data_ymin + 1.0) as f32)
+    } else {
+        (0.0_f32, data_ymax.max(1.0) as f32)
+    };
     let today_series = vec![
-        (geometry.today_x as f32, 0.0_f32),
+        (geometry.today_x as f32, ymin),
         (geometry.today_x as f32, ymax),
     ];
 
@@ -332,11 +345,7 @@ fn render_textplots_chart(
     let done_trend_shape = Shape::Lines(&done_trend_series);
     let today_shape = Shape::Lines(&today_series);
     // Keep a 3:2 canvas (width:height).
-    let mut chart = if fit {
-        Chart::new(120, 80, 0.0, xmax)
-    } else {
-        Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax)
-    };
+    let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, ymin, ymax);
     let mut chart_ref = &mut chart;
     chart_ref = chart_ref.y_label_format(LabelFormat::None);
     if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {
