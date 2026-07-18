@@ -8,7 +8,7 @@ use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Shape};
+use textplots::{AxisBuilder, Chart, ColorPlot, LabelBuilder, LabelFormat, LineStyle, Shape};
 
 pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
 const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
@@ -59,6 +59,8 @@ pub struct TodoDonePlotPoint {
     pub date: String,
     pub total_weight: f64,
     pub done_weight: f64,
+    pub total_count: usize,
+    pub done_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -166,7 +168,7 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
 
     let mut points = Vec::new();
     for entry in &cache.entries {
-        let (total_weight, done_weight, found_milestone) =
+        let (total_weight, done_weight, total_count, done_count, found_milestone) =
             weights_until_milestone_at_ref(root, &entry.commit_hash, &milestone_name);
         if !found_milestone {
             continue;
@@ -175,6 +177,8 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
             date: entry.commit_date.clone(),
             total_weight,
             done_weight,
+            total_count,
+            done_count,
         });
     }
 
@@ -228,6 +232,10 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot) -> String {
         done_trend,
     ));
     out.push_str(&render_plot_legend());
+    if let Some(latest) = plot.points.last() {
+        out.push_str("\n");
+        out.push_str(&render_plot_stats(latest));
+    }
     out.push_str("\n");
     out
 }
@@ -240,6 +248,13 @@ fn render_plot_legend() -> String {
     let white = ansi_rgb_sample(255, 255, 255);
     format!(
         "{red} total          {green} done\n{yellow} total trend    {cyan} done trend\n{white} today\n"
+    )
+}
+
+fn render_plot_stats(latest: &TodoDonePlotPoint) -> String {
+    format!(
+        "total:  {} tasks  (weight {:.2})\ndone:   {} tasks  (weight {:.2})\n",
+        latest.total_count, latest.total_weight, latest.done_count, latest.done_weight,
     )
 }
 
@@ -316,6 +331,8 @@ fn render_textplots_chart(
     // Keep a 3:2 canvas (width:height).
     let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, 0.0, ymax);
     let mut chart_ref = &mut chart;
+    chart_ref = chart_ref.y_label_format(LabelFormat::None);
+    chart_ref = chart_ref.y_axis_style(LineStyle::None);
     if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {
         let split_x = xmax / 2.0;
         chart_ref = chart_ref.x_label_format(LabelFormat::Custom(Box::new(move |x| {
@@ -544,12 +561,14 @@ fn weights_until_milestone_at_ref(
     root: &Path,
     git_ref: &str,
     target_milestone: &str,
-) -> (f64, f64, bool) {
+) -> (f64, f64, usize, usize, bool) {
     let mut paths = git::task_files_at_ref(root, git_ref);
     paths.sort();
 
     let mut total_weight = 0.0;
     let mut done_weight = 0.0;
+    let mut total_count = 0usize;
+    let mut done_count = 0usize;
     for path in paths {
         let Some(content) = git::file_content_at_ref(root, git_ref, &path) else {
             continue;
@@ -559,22 +578,29 @@ fn weights_until_milestone_at_ref(
             match item {
                 FileItem::Task(task) => {
                     let weight = task_total_weight(&task);
+                    let count = task_total_count(&task);
                     total_weight += weight;
+                    total_count += count;
                     match task.status {
-                        Status::Done | Status::Cancelled => done_weight += weight,
-                        Status::Todo => {}
+                        Status::Done | Status::Cancelled => {
+                            done_weight += weight;
+                            done_count += task_done_count(&task);
+                        }
+                        Status::Todo => {
+                            done_count += task_done_count(&task);
+                        }
                     }
                 }
                 FileItem::Milestone(m) => {
                     if m.name == target_milestone {
-                        return (total_weight, done_weight, true);
+                        return (total_weight, done_weight, total_count, done_count, true);
                     }
                 }
             }
         }
     }
 
-    (0.0, 0.0, false)
+    (0.0, 0.0, 0, 0, false)
 }
 
 fn task_total_weight(task: &parser::Task) -> f64 {
@@ -585,6 +611,32 @@ fn subtasks_total_weight(children: &[parser::Subtask], depth: usize) -> f64 {
     children
         .iter()
         .map(|c| (1.0 / depth as f64) + subtasks_total_weight(&c.children, depth + 1))
+        .sum()
+}
+
+fn task_total_count(task: &parser::Task) -> usize {
+    1 + subtasks_total_count(&task.children)
+}
+
+fn subtasks_total_count(children: &[parser::Subtask]) -> usize {
+    children
+        .iter()
+        .map(|c| 1 + subtasks_total_count(&c.children))
+        .sum()
+}
+
+fn task_done_count(task: &parser::Task) -> usize {
+    let self_done = matches!(task.status, Status::Done | Status::Cancelled) as usize;
+    self_done + subtasks_done_count(&task.children)
+}
+
+fn subtasks_done_count(children: &[parser::Subtask]) -> usize {
+    children
+        .iter()
+        .map(|c| {
+            let self_done = matches!(c.status, Status::Done | Status::Cancelled) as usize;
+            self_done + subtasks_done_count(&c.children)
+        })
         .sum()
 }
 
