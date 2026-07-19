@@ -498,7 +498,7 @@
     - stores all transitions of that milestone: 
     - .. change of rank (the rank of a milestone is the rank of the task just before the milestone)
 
-- [ ] rebuild "to-do vs total" plot on top of the lifecycle cache
+- [x] rebuild "to-do vs total" plot on top of the lifecycle cache
   rough algorithm (to review before implementing):
   - for the target milestone, find its current rank R (position of the task just before it); this rank is treated as fixed for the whole plot, no milestone rank-history replay needed
   - build the list of commits from the lifecycle cache's commit_chain (oldest -> newest)

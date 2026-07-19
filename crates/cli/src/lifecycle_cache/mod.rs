@@ -7,7 +7,7 @@
 //! per-commit aggregate cache; anything else needed (e.g. velocity, plots)
 //! must be recomputed from this transition log.
 
-use crate::eta::TransitionKey;
+use crate::eta::{TodoDonePlotPoint, TransitionKey};
 use crate::git;
 use crate::parser::{self, FileItem, Status};
 use std::cmp::Ordering;
@@ -16,7 +16,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-const CACHE_VERSION: u32 = 2;
+const CACHE_VERSION: u32 = 3;
 const MATCH_THRESHOLD: f64 = 0.70;
 const MATCH_TIE_DELTA: f64 = 0.05;
 const TITLE_WEIGHT: f64 = 0.50;
@@ -48,6 +48,11 @@ pub struct CachedEntity {
     /// Position among top-level tasks in the global (cross-file) priority
     /// order, 1-based. `None` for subtasks, which have no independent rank.
     pub last_known_rank: Option<usize>,
+    /// For subtasks, the entity ID of their nearest top-level task ancestor
+    /// (used to look up an inherited rank for scoping plots). `None` for
+    /// top-level tasks themselves. Reflects the *current* ancestor only —
+    /// re-parenting across commits isn't tracked historically.
+    pub top_level_entity_id: Option<String>,
     pub transitions: Vec<Transition>,
 }
 
@@ -271,6 +276,193 @@ fn latest_close_date(entity: &CachedEntity) -> Option<&str> {
         }
     }
     None
+}
+
+/// Per-entity replay state used to reconstruct historical scope/status
+/// without re-parsing any commit content: everything needed is already in
+/// the entity's transition log.
+struct EntityTimeline<'a> {
+    depth: usize,
+    weight: f64,
+    first_index: usize,
+    /// Index of the commit at which this entity was deleted, if ever. The
+    /// entity counts in neither total nor done from this commit onward.
+    deleted_index: Option<usize>,
+    top_level_entity_id: Option<&'a str>,
+    /// (commit_index, rank) breakpoints, ascending by commit_index. Only
+    /// populated for top-level tasks (depth == 1); rank holds constant
+    /// between breakpoints.
+    rank_breaks: Vec<(usize, usize)>,
+    /// (commit_index, is_closed) breakpoints, ascending by commit_index.
+    closed_breaks: Vec<(usize, bool)>,
+}
+
+/// Reads the step-function value in `breaks` that's in effect at `commit_index`
+/// (the value from the latest breakpoint at or before `commit_index`).
+fn step_value<T: Copy>(breaks: &[(usize, T)], commit_index: usize) -> Option<T> {
+    breaks
+        .iter()
+        .rev()
+        .find(|(idx, _)| *idx <= commit_index)
+        .map(|(_, v)| *v)
+}
+
+/// Recomputes a "to-do vs done" time series scoped to a milestone, purely
+/// from the already-built lifecycle cache — no re-parsing of historical
+/// commit content is needed.
+///
+/// `target_rank` is the milestone's rank (the rank of the top-level task
+/// immediately preceding it), treated as fixed across the whole timeline: we
+/// don't replay the milestone's own historical rank changes, we just ask "was
+/// this task's rank at or before the milestone's *current* rank at the time".
+/// `None` means the milestone precedes every task, so nothing is ever in
+/// scope.
+///
+/// Known simplification: if an entity's very first recorded status
+/// transition is `Cancelled` (with no preceding `Done`), we can't tell
+/// whether it started out open or already done — we assume it started open,
+/// since a task being cancelled directly from todo is the far more common
+/// case. Similarly, a subtask's top-level ancestor is resolved using its
+/// *current* ancestor only; re-parenting across commits isn't tracked.
+pub fn todo_done_timeline(
+    cache: &LifecycleCache,
+    commits: &[git::CommitRef],
+    target_rank: Option<usize>,
+) -> Vec<TodoDonePlotPoint> {
+    let commit_index: HashMap<&str, usize> = cache
+        .commit_chain
+        .iter()
+        .enumerate()
+        .map(|(i, sha)| (sha.as_str(), i))
+        .collect();
+    let commit_dates: Vec<String> = cache
+        .commit_chain
+        .iter()
+        .map(|sha| {
+            commits
+                .iter()
+                .find(|c| &c.sha == sha)
+                .map(|c| unix_to_yyyy_mm_dd(c.timestamp))
+                .unwrap_or_default()
+        })
+        .collect();
+
+    let mut timelines: HashMap<&str, EntityTimeline<'_>> = HashMap::new();
+    for (id, entity) in &cache.entities {
+        let Some(&first_index) = commit_index.get(entity.first_seen_commit.as_str()) else {
+            continue;
+        };
+        let deleted_index = entity.transitions.iter().find_map(|t| match t.kind {
+            TransitionKind::Deleted => commit_index.get(t.commit_hash.as_str()).copied(),
+            _ => None,
+        });
+
+        let mut rank_breaks = Vec::new();
+        if entity.fingerprint.depth == 1 {
+            let initial_rank = entity
+                .transitions
+                .iter()
+                .find_map(|t| match t.kind {
+                    TransitionKind::RankChanged { old_rank, .. } => Some(old_rank),
+                    _ => None,
+                })
+                .or(entity.last_known_rank)
+                .unwrap_or(1);
+            rank_breaks.push((first_index, initial_rank));
+            for t in &entity.transitions {
+                if let TransitionKind::RankChanged { new_rank, .. } = t.kind {
+                    if let Some(&idx) = commit_index.get(t.commit_hash.as_str()) {
+                        rank_breaks.push((idx, new_rank));
+                    }
+                }
+            }
+        }
+
+        let initial_closed = entity
+            .transitions
+            .iter()
+            .find_map(|t| match t.kind {
+                TransitionKind::Done | TransitionKind::Cancelled => Some(false),
+                TransitionKind::Reopened => Some(true),
+                _ => None,
+            })
+            .unwrap_or_else(|| !matches!(entity.last_known_status, CachedStatus::Todo));
+        let mut closed_breaks = vec![(first_index, initial_closed)];
+        for t in &entity.transitions {
+            let new_closed = match t.kind {
+                TransitionKind::Done | TransitionKind::Cancelled => Some(true),
+                TransitionKind::Reopened => Some(false),
+                _ => None,
+            };
+            if let Some(closed) = new_closed {
+                if let Some(&idx) = commit_index.get(t.commit_hash.as_str()) {
+                    closed_breaks.push((idx, closed));
+                }
+            }
+        }
+
+        timelines.insert(
+            id.as_str(),
+            EntityTimeline {
+                depth: entity.fingerprint.depth,
+                weight: crate::eta::weight_for_depth(entity.fingerprint.depth),
+                first_index,
+                deleted_index,
+                top_level_entity_id: entity.top_level_entity_id.as_deref(),
+                rank_breaks,
+                closed_breaks,
+            },
+        );
+    }
+
+    let is_alive_at = |t: &EntityTimeline<'_>, i: usize| {
+        i >= t.first_index && t.deleted_index.map_or(true, |d| i < d)
+    };
+
+    (0..cache.commit_chain.len())
+        .map(|i| {
+            let mut total_weight = 0.0;
+            let mut done_weight = 0.0;
+            let mut total_count = 0;
+            let mut done_count = 0;
+            for timeline in timelines.values() {
+                if !is_alive_at(timeline, i) {
+                    continue;
+                }
+                let rank = if timeline.depth == 1 {
+                    step_value(&timeline.rank_breaks, i)
+                } else {
+                    match timeline
+                        .top_level_entity_id
+                        .and_then(|tid| timelines.get(tid))
+                    {
+                        Some(ancestor) if is_alive_at(ancestor, i) => {
+                            step_value(&ancestor.rank_breaks, i)
+                        }
+                        _ => None,
+                    }
+                };
+                let Some(rank) = rank else { continue };
+                let in_scope = target_rank.is_some_and(|r| rank <= r);
+                if !in_scope {
+                    continue;
+                }
+                total_weight += timeline.weight;
+                total_count += 1;
+                if step_value(&timeline.closed_breaks, i).unwrap_or(false) {
+                    done_weight += timeline.weight;
+                    done_count += 1;
+                }
+            }
+            TodoDonePlotPoint {
+                date: commit_dates[i].clone(),
+                total_weight,
+                done_weight,
+                total_count,
+                done_count,
+            }
+        })
+        .collect()
 }
 
 fn append_new_commits(
@@ -534,6 +726,7 @@ fn assign_entities(
 
     let mut out_live = Vec::with_capacity(new_nodes.len());
     let mut used_pool_indices: HashSet<usize> = HashSet::new();
+    let mut current_top_level_id: Option<String> = None;
     for (idx, node) in new_nodes.iter().enumerate() {
         let entity_id = assignments
             .get(&idx)
@@ -553,7 +746,23 @@ fn assign_entities(
         } else {
             None
         };
-        upsert_entity(entities, &entity_id, node, commit_sha, date, new_rank);
+        let top_level_entity_id = if node.depth == 1 {
+            None
+        } else {
+            current_top_level_id.clone()
+        };
+        upsert_entity(
+            entities,
+            &entity_id,
+            node,
+            commit_sha,
+            date,
+            new_rank,
+            top_level_entity_id,
+        );
+        if node.depth == 1 {
+            current_top_level_id = Some(entity_id.clone());
+        }
         out_live.push(FileEntityNode {
             entity_id,
             key: KeyRepr {
@@ -602,6 +811,7 @@ fn upsert_entity(
     commit_sha: &str,
     date: &str,
     new_rank: Option<usize>,
+    top_level_entity_id: Option<String>,
 ) {
     let new_status = cached_status_from(&node.status);
     let fingerprint = Fingerprint {
@@ -641,6 +851,7 @@ fn upsert_entity(
             }
             entity.last_seen_commit = commit_sha.to_string();
             entity.fingerprint = fingerprint;
+            entity.top_level_entity_id = top_level_entity_id;
         }
         None => {
             entities.insert(
@@ -651,6 +862,7 @@ fn upsert_entity(
                     fingerprint,
                     last_known_status: new_status,
                     last_known_rank: new_rank,
+                    top_level_entity_id,
                     transitions: Vec::new(),
                 },
             );

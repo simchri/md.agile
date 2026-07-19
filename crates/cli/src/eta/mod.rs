@@ -2,6 +2,7 @@
 
 use crate::cli::common::find_task_files;
 use crate::git;
+use crate::lifecycle_cache;
 use crate::parser::{self, FileItem, Status};
 use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
@@ -115,9 +116,130 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
     }
     let milestone_name = milestone_name_for_rank(root, milestone_rank)
         .ok_or_else(|| format!("milestone rank {milestone_rank} does not exist"))?;
-    Err(format!(
-        "plotting for milestone '{milestone_name}' is temporarily unavailable during lifecycle cache overhaul"
-    ))
+
+    let cache = lifecycle_cache::update(root)
+        .ok_or_else(|| "no commit history available to build a plot".to_string())?;
+
+    // The milestone's rank (position of the top-level task just before it)
+    // is treated as fixed for the whole plot — we use its current, cached
+    // rank rather than replaying the milestone's own rank history.
+    let target_rank = cache
+        .milestones
+        .values()
+        .find(|m| m.name == milestone_name)
+        .map(|m| m.last_known_rank)
+        .ok_or_else(|| {
+            format!(
+                "milestone '{milestone_name}' has not been committed yet; commit it before plotting"
+            )
+        })?;
+
+    let mut commits = git::commits(root);
+    commits.reverse(); // oldest -> newest, matching cache.commit_chain
+
+    let mut points = lifecycle_cache::todo_done_timeline(&cache, &commits, target_rank);
+    points.push(worktree_plot_point(root, target_rank));
+
+    Ok(TodoDonePlot {
+        milestone_name,
+        points,
+    })
+}
+
+/// Computes the "right now" plot point directly from the on-disk worktree
+/// (which may include uncommitted edits), using the same fixed milestone
+/// rank as the rest of the timeline.
+fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotPoint {
+    let today = format_yyyy_mm_dd_from_unix_days(
+        unix_days_from_unix_seconds(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .ok()
+                .map(|d| d.as_secs() as i64),
+        )
+        .unwrap_or(0),
+    );
+
+    let Some(target_rank) = target_rank else {
+        // Milestone precedes every task: nothing is ever in scope.
+        return TodoDonePlotPoint {
+            date: today,
+            total_weight: 0.0,
+            done_weight: 0.0,
+            total_count: 0,
+            done_count: 0,
+        };
+    };
+
+    let mut total_weight = 0.0;
+    let mut done_weight = 0.0;
+    let mut total_count = 0usize;
+    let mut done_count = 0usize;
+    let mut rank = 0usize;
+    for path in find_task_files(root) {
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let items = parser::parse(&content, path);
+        for item in items {
+            let FileItem::Task(task) = item else {
+                continue;
+            };
+            rank += 1;
+            if rank > target_rank {
+                continue;
+            }
+            total_weight += 1.0;
+            total_count += 1;
+            if matches!(task.status, Status::Done | Status::Cancelled) {
+                done_weight += 1.0;
+                done_count += 1;
+            }
+            accumulate_subtasks(
+                &task.children,
+                2,
+                &mut total_weight,
+                &mut total_count,
+                &mut done_weight,
+                &mut done_count,
+            );
+        }
+    }
+
+    TodoDonePlotPoint {
+        date: today,
+        total_weight,
+        done_weight,
+        total_count,
+        done_count,
+    }
+}
+
+fn accumulate_subtasks(
+    children: &[parser::Subtask],
+    depth: usize,
+    total_weight: &mut f64,
+    total_count: &mut usize,
+    done_weight: &mut f64,
+    done_count: &mut usize,
+) {
+    for child in children {
+        let w = weight_for_depth(depth);
+        *total_weight += w;
+        *total_count += 1;
+        if matches!(child.status, Status::Done | Status::Cancelled) {
+            *done_weight += w;
+            *done_count += 1;
+        }
+        accumulate_subtasks(
+            &child.children,
+            depth + 1,
+            total_weight,
+            total_count,
+            done_weight,
+            done_count,
+        );
+    }
 }
 
 pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
@@ -575,8 +697,7 @@ fn flatten_subtasks(
     }
 }
 
-#[allow(dead_code)]
-fn weight_for_depth(depth: usize) -> f64 {
+pub(crate) fn weight_for_depth(depth: usize) -> f64 {
     1.0 / (depth as f64)
 }
 
