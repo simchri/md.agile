@@ -530,6 +530,8 @@
   - [ ] display uncertainty
   - [ ] refuse to display ETA if uncertainty to high
 
+- [ ] uncertainty via roll forward
+
 - [ ] non-terminal plots 
   - [ ] SVG
   - [ ] html
