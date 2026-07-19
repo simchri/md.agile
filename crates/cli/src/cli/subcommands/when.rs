@@ -7,17 +7,19 @@ use std::path::Path;
 /// `agile when` entry point.
 ///
 /// Supports `--velocity` and terminal plotting via `--plot [--next <rank>]`
-/// (defaults to `--next 1`, i.e. the next milestone).
+/// (defaults to `--next 1`, i.e. the next milestone), plus `--data` to show
+/// the same underlying data as a raw table of task counts.
 pub fn run(
     root: &Path,
     _config: &Config,
     next: Option<usize>,
     velocity: bool,
     plot: bool,
+    data: bool,
     fit: bool,
     last_days: Option<u32>,
 ) {
-    if plot {
+    if plot || data {
         let rank = next.unwrap_or(1);
         let plot = match eta::build_todo_done_plot(root, rank) {
             Ok(plot) => plot,
@@ -26,7 +28,11 @@ pub fn run(
                 std::process::exit(1);
             }
         };
-        print!("{}", eta::render_todo_done_plot(&plot, fit));
+        if data {
+            print!("{}", eta::render_todo_done_data(&plot));
+        } else {
+            print!("{}", eta::render_todo_done_plot(&plot, fit));
+        }
         return;
     }
 

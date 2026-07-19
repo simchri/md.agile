@@ -513,6 +513,8 @@
 
 - [x] `agile when --plot` defaults `--next` to `1` (the next milestone) when not provided, instead of requiring the flag
 
+- [x] `agile when --data` mode: outputs the raw plot data as a table (task counts only, no weights or trend line data)
+
 - [ ] ctd
   - [ ] output ETA
 

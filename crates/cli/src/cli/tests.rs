@@ -25,3 +25,12 @@ fn when_plot_ascii_flag_is_not_supported() {
         "`agile when --plot --next 1 --ascii` should be rejected"
     );
 }
+
+#[test]
+fn when_data_fit_is_rejected_by_clap_parsing() {
+    let result = Cli::try_parse_from(["agile", "when", "--data", "--fit"]);
+    assert!(
+        result.is_err(),
+        "`agile when --data --fit` should be rejected since --fit requires --plot"
+    );
+}

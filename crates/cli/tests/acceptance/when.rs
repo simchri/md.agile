@@ -501,6 +501,81 @@ fn when_plot_shows_total_and_done_scoped_to_milestone() {
 }
 
 #[test]
+fn when_plot_requires_data_and_plot_to_be_mutually_exclusive() {
+    let out = run_agile(std::path::Path::new("."), &["when", "--plot", "--data"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(
+        stderr.contains("cannot be used with") || stderr.contains("conflict"),
+        "stderr: {stderr:?}"
+    );
+}
+
+#[test]
+fn when_data_rejects_fit_flag() {
+    // `--fit` only makes sense with `--plot`; it should be rejected with
+    // `--data`, not silently ignored.
+    let out = run_agile(std::path::Path::new("."), &["when", "--data", "--fit"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("--fit"), "stderr: {stderr:?}");
+}
+
+#[test]
+fn when_data_shows_table_of_task_counts_scoped_to_milestone() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+#MILESTONE: alpha
+- [ ] task c
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+#MILESTONE: alpha
+- [ ] task c
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "finish task a", "2026-07-11T12:00:00Z");
+
+    // No `--next` flag: should default to the next milestone, like `--plot`.
+    let out = run_agile(dir.path(), &["when", "--data"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("Milestone: alpha"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Date"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Total"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Done"), "stdout: {stdout:?}");
+    // task counts only: no trend line data, no weights.
+    assert!(!stdout.contains("trend"), "stdout: {stdout:?}");
+    assert!(!stdout.contains("weight"), "stdout: {stdout:?}");
+
+    let row1 = stdout
+        .lines()
+        .find(|line| line.contains("2026-07-10"))
+        .unwrap_or_else(|| panic!("missing row for 2026-07-10, stdout: {stdout:?}"));
+    assert!(row1.contains('2') && row1.contains('0'), "row1: {row1:?}");
+
+    let row2 = stdout
+        .lines()
+        .find(|line| line.contains("2026-07-11"))
+        .unwrap_or_else(|| panic!("missing row for 2026-07-11, stdout: {stdout:?}"));
+    assert!(row2.contains('2') && row2.contains('1'), "row2: {row2:?}");
+}
+
+#[test]
 fn when_plot_defaults_to_next_1() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

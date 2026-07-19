@@ -90,9 +90,16 @@ pub enum Command {
 
         /// Show a terminal plot of total vs done weighted work over time.
         ///
-        /// Requires `--next <rank>` to select the milestone boundary.
-        #[arg(long, conflicts_with = "velocity")]
+        /// Defaults to `--next 1` (the next milestone) when `--next` is not given.
+        #[arg(long, conflicts_with_all = ["velocity", "data"])]
         plot: bool,
+
+        /// Show the raw plot data (task counts only, no weights or trend
+        /// line data) as a table, one row per historical data point.
+        ///
+        /// Defaults to `--next 1` (the next milestone) when `--next` is not given.
+        #[arg(long, conflicts_with_all = ["velocity", "plot"])]
+        data: bool,
 
         /// Restrict velocity history to the last N days.
         ///
@@ -108,12 +115,12 @@ pub enum Command {
         /// Fit the vertical axis to the data range (default starts at zero).
         ///
         /// Only valid with `--plot`.
-        #[arg(long, requires = "plot")]
+        #[arg(long, requires = "plot", conflicts_with = "data")]
         fit: bool,
 
         /// Select the Nth milestone rank.
         ///
-        /// Currently used by `--plot` to choose the milestone boundary.
+        /// Used by `--plot` and `--data` to choose the milestone boundary.
         #[arg(long, value_name = "RANK", conflicts_with = "velocity")]
         next: Option<usize>,
     },
@@ -297,11 +304,12 @@ pub fn run() {
         Some(Command::When {
             velocity,
             plot,
+            data,
             fit,
             last,
             next,
         }) => {
-            subcommands::when::run(root, &config, next, velocity, plot, fit, last);
+            subcommands::when::run(root, &config, next, velocity, plot, data, fit, last);
         }
         Some(Command::History) => {
             subcommands::history::run(root);
