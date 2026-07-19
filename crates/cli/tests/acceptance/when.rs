@@ -501,12 +501,47 @@ fn when_plot_shows_total_and_done_scoped_to_milestone() {
 }
 
 #[test]
-fn when_plot_requires_next_flag() {
+fn when_plot_defaults_to_next_1() {
     let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+#MILESTONE: alpha
+- [ ] task c
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+#MILESTONE: alpha
+- [ ] task c
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "finish task a", "2026-07-11T12:00:00Z");
+
+    // No `--next` flag: should behave exactly like `--next 1`.
     let out = run_agile(dir.path(), &["when", "--plot"]);
-    assert!(!out.status.success());
-    let stderr = String::from_utf8(out.stderr).unwrap();
-    assert!(stderr.contains("--next"), "stderr: {stderr:?}");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("Milestone: alpha"), "stdout: {stdout:?}");
+    assert!(
+        stdout.contains("total:  2 tasks  (weight 2.00)"),
+        "stdout: {stdout:?}"
+    );
+    assert!(
+        stdout.contains("done:   1 tasks  (weight 1.00)"),
+        "stdout: {stdout:?}"
+    );
 }
 
 #[test]

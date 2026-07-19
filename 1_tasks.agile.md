@@ -511,6 +511,8 @@
   - open question: cost — this replays full history on every plot request; may need to memoize per-commit scope/status snapshots in the cache instead of recomputing each time
   - no separate plot-points cache for now; recompute from the state (lifecycle) cache each time
 
+- [x] `agile when --plot` defaults `--next` to `1` (the next milestone) when not provided, instead of requiring the flag
+
 - [ ] ctd
   - [ ] output ETA
 
