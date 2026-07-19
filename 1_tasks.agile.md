@@ -489,6 +489,7 @@
     - .. commit hash 
     - .. date
     - transitions are any movements to the following states:
+    - .. (re-) open
     - .. done
     - .. cancelled
     - .. deleted (task removed from list)
