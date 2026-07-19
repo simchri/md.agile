@@ -29,60 +29,16 @@ create_sample_repo() {
 warn_when_not_a_git_repo = true
 EOF
 
-    task_name() {
-        local idx="$1"
-        local names=(
-            "Stabilize parser edge-cases"
-            "Improve command help text"
-            "Refine ETA baseline"
-            "Harden config loading"
-            "Optimize task discovery"
-            "Polish history output"
-            "Tune velocity windowing"
-            "Add milestone summaries"
-            "Reduce startup overhead"
-            "Improve marker diagnostics"
-            "Refactor task traversal"
-            "Document CLI examples"
-            "Improve cache invalidation notes"
-            "Polish release checklist"
-        )
-        local array_idx=$((idx - 1))
-        if [[ "$array_idx" -lt "${#names[@]}" ]]; then
-            echo "${names[$array_idx]}"
-        else
-            echo "Generated sample task $idx"
-        fi
-    }
-
-    write_snapshot() {
-        local total="$1"
-        local done="$2"
-        : > tasks.agile.md
-        for i in $(seq 1 "$total"); do
-            local box="[ ]"
-            if [[ "$i" -le "$done" ]]; then
-                box="[x]"
-            fi
-            printf -- "- %s %s\n" "$box" "$(task_name "$i")" >> tasks.agile.md
-        done
-        printf "\n#MILESTONE: Demo milestone\n\n" >> tasks.agile.md
-        printf -- "- [ ] Post-milestone follow-up\n" >> tasks.agile.md
-    }
-
+    # Commits a snapshot: dumps the given tasks.agile.md content to disk
+    # verbatim, then creates a commit timed at the given date.
     commit_snapshot() {
         local index="$1"
-        local total="$2"
-        local done="$3"
-        local date="$4"
-        write_snapshot "$total" "$done"
+        local date="$2"
         git add -A
         GIT_AUTHOR_DATE="$date" GIT_COMMITTER_DATE="$date" \
-            git commit -q -m "snapshot $index: total=$total done=$done"
+            git commit -q -m "snapshot $index"
     }
 
-    messy_both_totals=(12 15 11 14 13 16 14 17 15 18)
-    messy_both_dones=(1 3 2 6 4 8 7 10 9 12)
     dates=()
     for i in $(seq 0 9); do
         days_ago=$(((9 - i) * 7))
@@ -90,23 +46,248 @@ EOF
         dates+=("$iso_date")
     done
 
-    totals=()
-    dones=()
     case "$mode" in
-        messy-both)
-            totals=("${messy_both_totals[@]}")
-            dones=("${messy_both_dones[@]}")
-            ;;
+        messy-both) ;;
         *)
             echo "error: unsupported mode: $mode" >&2
             exit 1
             ;;
     esac
 
-    for i in "${!totals[@]}"; do
-        step=$((i + 1))
-        commit_snapshot "$step" "${totals[$i]}" "${dones[$i]}" "${dates[$i]}"
-    done
+    # --- snapshot 1: total=12 done=1 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [ ] Improve command help text
+- [ ] Refine ETA baseline
+- [ ] Harden config loading
+- [ ] Optimize task discovery
+- [ ] Polish history output
+- [ ] Tune velocity windowing
+- [ ] Add milestone summaries
+- [ ] Reduce startup overhead
+- [ ] Improve marker diagnostics
+- [ ] Refactor task traversal
+- [ ] Document CLI examples
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 1 "${dates[0]}"
+
+    # --- snapshot 2: total=15 done=3 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [x] Refine ETA baseline
+- [ ] Harden config loading
+- [ ] Optimize task discovery
+- [ ] Polish history output
+- [ ] Tune velocity windowing
+- [ ] Add milestone summaries
+- [ ] Reduce startup overhead
+- [ ] Improve marker diagnostics
+- [ ] Refactor task traversal
+- [ ] Document CLI examples
+- [ ] Improve cache invalidation notes
+- [ ] Polish release checklist
+- [ ] Generated sample task 15
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 2 "${dates[1]}"
+
+    # --- snapshot 3: total=11 done=2 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [ ] Refine ETA baseline
+- [ ] Harden config loading
+- [ ] Optimize task discovery
+- [ ] Polish history output
+- [ ] Tune velocity windowing
+- [ ] Add milestone summaries
+- [ ] Reduce startup overhead
+- [ ] Improve marker diagnostics
+- [ ] Refactor task traversal
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 3 "${dates[2]}"
+
+    # --- snapshot 4: total=14 done=6 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [x] Refine ETA baseline
+- [x] Harden config loading
+- [x] Optimize task discovery
+- [x] Polish history output
+- [ ] Tune velocity windowing
+- [ ] Add milestone summaries
+- [ ] Reduce startup overhead
+- [ ] Improve marker diagnostics
+- [ ] Refactor task traversal
+- [ ] Document CLI examples
+- [ ] Improve cache invalidation notes
+- [ ] Polish release checklist
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 4 "${dates[3]}"
+
+    # --- snapshot 5: total=13 done=4 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [x] Refine ETA baseline
+- [x] Harden config loading
+- [ ] Optimize task discovery
+- [ ] Polish history output
+- [ ] Tune velocity windowing
+- [ ] Add milestone summaries
+- [ ] Reduce startup overhead
+- [ ] Improve marker diagnostics
+- [ ] Refactor task traversal
+- [ ] Document CLI examples
+- [ ] Improve cache invalidation notes
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 5 "${dates[4]}"
+
+    # --- snapshot 6: total=16 done=8 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [x] Refine ETA baseline
+- [x] Harden config loading
+- [x] Optimize task discovery
+- [x] Polish history output
+- [x] Tune velocity windowing
+- [x] Add milestone summaries
+- [ ] Reduce startup overhead
+- [ ] Improve marker diagnostics
+- [ ] Refactor task traversal
+- [ ] Document CLI examples
+- [ ] Improve cache invalidation notes
+- [ ] Polish release checklist
+- [ ] Generated sample task 15
+- [ ] Generated sample task 16
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 6 "${dates[5]}"
+
+    # --- snapshot 7: total=14 done=7 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [x] Refine ETA baseline
+- [x] Harden config loading
+- [x] Optimize task discovery
+- [x] Polish history output
+- [x] Tune velocity windowing
+- [ ] Add milestone summaries
+- [ ] Reduce startup overhead
+- [ ] Improve marker diagnostics
+- [ ] Refactor task traversal
+- [ ] Document CLI examples
+- [ ] Improve cache invalidation notes
+- [ ] Polish release checklist
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 7 "${dates[6]}"
+
+    # --- snapshot 8: total=17 done=10 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [x] Refine ETA baseline
+- [x] Harden config loading
+- [x] Optimize task discovery
+- [x] Polish history output
+- [x] Tune velocity windowing
+- [x] Add milestone summaries
+- [x] Reduce startup overhead
+- [x] Improve marker diagnostics
+- [ ] Refactor task traversal
+- [ ] Document CLI examples
+- [ ] Improve cache invalidation notes
+- [ ] Polish release checklist
+- [ ] Generated sample task 15
+- [ ] Generated sample task 16
+- [ ] Generated sample task 17
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 8 "${dates[7]}"
+
+    # --- snapshot 9: total=15 done=9 ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [x] Refine ETA baseline
+- [x] Harden config loading
+- [x] Optimize task discovery
+- [x] Polish history output
+- [x] Tune velocity windowing
+- [x] Add milestone summaries
+- [x] Reduce startup overhead
+- [ ] Improve marker diagnostics
+- [ ] Refactor task traversal
+- [ ] Document CLI examples
+- [ ] Improve cache invalidation notes
+- [ ] Polish release checklist
+- [ ] Generated sample task 15
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 9 "${dates[8]}"
+
+    # --- snapshot 10: total=18 done=12 (last commit: today) ---
+    cat > tasks.agile.md <<'EOF'
+- [x] Stabilize parser edge-cases
+- [x] Improve command help text
+- [x] Refine ETA baseline
+- [x] Harden config loading
+- [x] Optimize task discovery
+- [x] Polish history output
+- [x] Tune velocity windowing
+- [x] Add milestone summaries
+- [x] Reduce startup overhead
+- [x] Improve marker diagnostics
+- [x] Refactor task traversal
+- [x] Document CLI examples
+- [ ] Improve cache invalidation notes
+- [ ] Polish release checklist
+- [ ] Generated sample task 15
+- [ ] Generated sample task 16
+- [ ] Generated sample task 17
+- [ ] Generated sample task 18
+
+#MILESTONE: Demo milestone
+
+- [ ] Post-milestone follow-up
+EOF
+    commit_snapshot 10 "${dates[9]}"
 
     cd "$REPO_ROOT"
 }
