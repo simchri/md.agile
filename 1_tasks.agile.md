@@ -492,6 +492,10 @@
     - .. done
     - .. cancelled
     - .. deleted (task removed from list)
+    - .. change of rank (of parent task) (store previous and new rank)
+  - [ ] in lifecycle cache also store milestones:
+    - stores all transitions of that milestone: 
+    - .. change of rank (the rank of a milestone is the rank of the task just before the milestone)
 
 - [ ] ctd
   - [ ] output ETA
