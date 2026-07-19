@@ -425,89 +425,9 @@ fn milestone_name_for_rank(root: &Path, milestone_rank: usize) -> Option<String>
     milestones.get(milestone_rank - 1).cloned()
 }
 
-fn weights_until_milestone_at_ref(
-    root: &Path,
-    git_ref: &str,
-    target_milestone: &str,
-) -> (f64, f64, usize, usize, bool) {
-    let mut paths = git::task_files_at_ref(root, git_ref);
-    paths.sort();
-
-    let mut total_weight = 0.0;
-    let mut done_weight = 0.0;
-    let mut total_count = 0usize;
-    let mut done_count = 0usize;
-    for path in paths {
-        let Some(content) = git::file_content_at_ref(root, git_ref, &path) else {
-            continue;
-        };
-        let items = parser::parse(&content, path);
-        for item in items {
-            match item {
-                FileItem::Task(task) => {
-                    let weight = task_total_weight(&task);
-                    let count = task_total_count(&task);
-                    total_weight += weight;
-                    total_count += count;
-                    match task.status {
-                        Status::Done | Status::Cancelled => {
-                            done_weight += weight;
-                            done_count += task_done_count(&task);
-                        }
-                        Status::Todo => {
-                            done_count += task_done_count(&task);
-                        }
-                    }
-                }
-                FileItem::Milestone(m) => {
-                    if m.name == target_milestone {
-                        return (total_weight, done_weight, total_count, done_count, true);
-                    }
-                }
-            }
-        }
-    }
-
-    (0.0, 0.0, 0, 0, false)
-}
-
-fn task_total_weight(task: &parser::Task) -> f64 {
-    1.0 + subtasks_total_weight(&task.children, 2)
-}
-
-fn subtasks_total_weight(children: &[parser::Subtask], depth: usize) -> f64 {
-    children
-        .iter()
-        .map(|c| (1.0 / depth as f64) + subtasks_total_weight(&c.children, depth + 1))
-        .sum()
-}
-
-fn task_total_count(task: &parser::Task) -> usize {
-    1 + subtasks_total_count(&task.children)
-}
-
-fn subtasks_total_count(children: &[parser::Subtask]) -> usize {
-    children
-        .iter()
-        .map(|c| 1 + subtasks_total_count(&c.children))
-        .sum()
-}
-
-fn task_done_count(task: &parser::Task) -> usize {
-    let self_done = matches!(task.status, Status::Done | Status::Cancelled) as usize;
-    self_done + subtasks_done_count(&task.children)
-}
-
-fn subtasks_done_count(children: &[parser::Subtask]) -> usize {
-    children
-        .iter()
-        .map(|c| {
-            let self_done = matches!(c.status, Status::Done | Status::Cancelled) as usize;
-            self_done + subtasks_done_count(&c.children)
-        })
-        .sum()
-}
-
+// Currently unused now that velocity estimation is disabled (history cache removal),
+// but retained for reuse once velocity is rebuilt on top of the lifecycle cache.
+#[allow(dead_code)]
 pub(crate) fn completion_weight_delta(
     old_items: &[FileItem],
     new_items: &[FileItem],
@@ -655,6 +575,7 @@ fn flatten_subtasks(
     }
 }
 
+#[allow(dead_code)]
 fn weight_for_depth(depth: usize) -> f64 {
     1.0 / (depth as f64)
 }

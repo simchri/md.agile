@@ -1,4 +1,11 @@
 //! Per-entity lifecycle cache used by `agile history`.
+//!
+//! Tracks every task/subtask and every milestone across commit history under a
+//! stable synthetic ID, recording an append-only list of transitions per
+//! entity: status changes (done/cancelled/reopened), deletions, and — for
+//! top-level tasks and milestones — rank changes. There is no separate
+//! per-commit aggregate cache; anything else needed (e.g. velocity, plots)
+//! must be recomputed from this transition log.
 
 use crate::eta::TransitionKey;
 use crate::git;
@@ -9,13 +16,15 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-const CACHE_VERSION: u32 = 1;
+const CACHE_VERSION: u32 = 2;
 const MATCH_THRESHOLD: f64 = 0.70;
 const MATCH_TIE_DELTA: f64 = 0.05;
 const TITLE_WEIGHT: f64 = 0.50;
 const PARENT_WEIGHT: f64 = 0.25;
 const DEPTH_WEIGHT: f64 = 0.15;
 const POSITION_WEIGHT: f64 = 0.10;
+const MILESTONE_NAME_WEIGHT: f64 = 0.85;
+const MILESTONE_POSITION_WEIGHT: f64 = 0.15;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LifecycleCache {
@@ -23,18 +32,45 @@ pub struct LifecycleCache {
     pub head_commit: String,
     pub commit_chain: Vec<String>, // oldest -> newest
     pub entities: HashMap<String, CachedEntity>,
+    pub milestones: HashMap<String, CachedMilestone>,
     pub files: HashMap<String, FileHeadState>,
-    pub spans: Vec<CommitSpan>,
+    pub milestone_files: HashMap<String, MilestoneHeadState>,
     pub next_entity_id: u64,
+    pub next_milestone_id: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CachedEntity {
     pub first_seen_commit: String,
     pub last_seen_commit: String,
-    pub latest_status: CachedStatus,
-    pub latest_close_date: Option<String>,
     pub fingerprint: Fingerprint,
+    pub last_known_status: CachedStatus,
+    /// Position among top-level tasks in the global (cross-file) priority
+    /// order, 1-based. `None` for subtasks, which have no independent rank.
+    pub last_known_rank: Option<usize>,
+    pub transitions: Vec<Transition>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Transition {
+    pub commit_hash: String,
+    pub date: String,
+    pub kind: TransitionKind,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum TransitionKind {
+    Done,
+    Cancelled,
+    /// A closed (done/cancelled) task moved back to todo.
+    Reopened,
+    /// The task disappeared from its file entirely.
+    Deleted,
+    /// Only ever recorded for top-level tasks.
+    RankChanged {
+        old_rank: usize,
+        new_rank: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -44,9 +80,22 @@ pub struct Fingerprint {
     pub parent_title: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum CachedStatus {
+    Todo,
+    Done,
+    Cancelled,
+}
+
+/// Per-file matching/bookkeeping state for tasks — not the source of truth
+/// for entity data (that lives in `entities`), just what's needed to match
+/// live nodes across commits, plus a graveyard of deleted-but-reusable nodes.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FileHeadState {
+    #[serde(default)]
     pub entities: Vec<FileEntityNode>,
+    #[serde(default)]
+    pub graveyard: Vec<FileEntityNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -54,7 +103,6 @@ pub struct FileEntityNode {
     pub entity_id: String,
     pub key: KeyRepr,
     pub title: String,
-    pub status: CachedStatus,
     pub depth: usize,
     pub parent_title: Option<String>,
     pub position: usize,
@@ -67,25 +115,52 @@ pub struct KeyRepr {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct CommitSpan {
-    pub old_commit: String,
-    pub new_commit: String,
-    pub new_commit_date: String,
-    pub transitions: Vec<EntityTransition>,
+pub struct CachedMilestone {
+    pub first_seen_commit: String,
+    pub last_seen_commit: String,
+    pub name: String,
+    /// The rank of the task immediately preceding this milestone in the
+    /// global priority order. `None` if no task precedes it.
+    pub last_known_rank: Option<usize>,
+    pub transitions: Vec<MilestoneTransition>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct EntityTransition {
-    pub entity_id: String,
-    pub old_status: Option<CachedStatus>,
-    pub new_status: CachedStatus,
+pub struct MilestoneTransition {
+    pub commit_hash: String,
+    pub date: String,
+    pub kind: MilestoneTransitionKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum CachedStatus {
-    Todo,
-    Done,
-    Cancelled,
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum MilestoneTransitionKind {
+    RankChanged {
+        old_rank: Option<usize>,
+        new_rank: Option<usize>,
+    },
+    Deleted,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MilestoneHeadState {
+    #[serde(default)]
+    pub milestones: Vec<FileMilestoneNode>,
+    #[serde(default)]
+    pub graveyard: Vec<FileMilestoneNode>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct FileMilestoneNode {
+    pub milestone_id: String,
+    pub key: MilestoneKeyRepr,
+    pub name: String,
+    pub position: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct MilestoneKeyRepr {
+    pub name: String,
+    pub occurrence: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +170,13 @@ struct FlatNode {
     title: String,
     depth: usize,
     parent_title: Option<String>,
+    position: usize,
+}
+
+#[derive(Debug, Clone)]
+struct FlatMilestone {
+    key: MilestoneKeyRepr,
+    name: String,
     position: usize,
 }
 
@@ -131,6 +213,9 @@ pub fn update(root: &Path) -> Option<LifecycleCache> {
     Some(rebuilt)
 }
 
+/// Returns, for every currently-closed node in `current_items`, the date of
+/// its most recent close (done/cancelled) transition — or omits it if that
+/// can't be determined from committed history (e.g. the close is uncommitted).
 pub fn completion_dates_for_current_file(
     root: &Path,
     relative_path: &Path,
@@ -148,6 +233,7 @@ pub fn completion_dates_for_current_file(
     let head_nodes = file_state
         .entities
         .iter()
+        .chain(file_state.graveyard.iter())
         .enumerate()
         .map(|(idx, n)| HeadNodeView {
             index: idx,
@@ -168,15 +254,23 @@ pub fn completion_dates_for_current_file(
         let Some(entity) = cache.entities.get(entity_id) else {
             continue;
         };
-        if !is_cached_closed(entity.latest_status) {
-            continue;
-        }
-        let Some(date) = &entity.latest_close_date else {
+        let Some(date) = latest_close_date(entity) else {
             continue;
         };
-        out.insert(current.key.clone(), date.clone());
+        out.insert(current.key.clone(), date.to_string());
     }
     out
+}
+
+fn latest_close_date(entity: &CachedEntity) -> Option<&str> {
+    for t in entity.transitions.iter().rev() {
+        match &t.kind {
+            TransitionKind::Done | TransitionKind::Cancelled => return Some(t.date.as_str()),
+            TransitionKind::Reopened => return None,
+            TransitionKind::Deleted | TransitionKind::RankChanged { .. } => continue,
+        }
+    }
+    None
 }
 
 fn append_new_commits(
@@ -185,31 +279,32 @@ fn append_new_commits(
     commits: &[git::CommitRef],
 ) -> Option<LifecycleCache> {
     let mut prev_files = cache.files.clone();
+    let mut prev_milestone_files = cache.milestone_files.clone();
     let mut prev_commit = cache.head_commit.clone();
     for commit in commits.iter().skip(cache.commit_chain.len()) {
-        let (new_files, transitions, next_id) = advance_commit(
+        let date = unix_to_yyyy_mm_dd(commit.timestamp);
+        let (new_files, new_milestone_files, next_entity_id, next_milestone_id) = advance_commit(
             root,
             &prev_files,
+            &prev_milestone_files,
             &prev_commit,
             &commit.sha,
+            &date,
             cache.next_entity_id,
+            cache.next_milestone_id,
             &mut cache.entities,
+            &mut cache.milestones,
         )?;
-        cache.next_entity_id = next_id;
-        let date = unix_to_yyyy_mm_dd(commit.timestamp);
-        apply_transitions(&mut cache.entities, &commit.sha, &date, &transitions);
-        cache.spans.push(CommitSpan {
-            old_commit: prev_commit.clone(),
-            new_commit: commit.sha.clone(),
-            new_commit_date: date,
-            transitions,
-        });
+        cache.next_entity_id = next_entity_id;
+        cache.next_milestone_id = next_milestone_id;
         cache.commit_chain.push(commit.sha.clone());
         cache.head_commit = commit.sha.clone();
         prev_commit = commit.sha.clone();
         prev_files = new_files;
+        prev_milestone_files = new_milestone_files;
     }
     cache.files = prev_files;
+    cache.milestone_files = prev_milestone_files;
     Some(cache)
 }
 
@@ -219,129 +314,140 @@ fn rebuild_from_scratch(
     head_commit: &str,
 ) -> Option<LifecycleCache> {
     let mut entities: HashMap<String, CachedEntity> = HashMap::new();
+    let mut milestones: HashMap<String, CachedMilestone> = HashMap::new();
     let mut next_entity_id = 1u64;
-    let first_commit = commits.first()?;
-    let mut files = files_for_commit(
-        root,
-        &first_commit.sha,
-        &HashMap::new(),
-        &mut next_entity_id,
-        &mut entities,
-    );
+    let mut next_milestone_id = 1u64;
 
+    let first_commit = commits.first()?;
+    let first_date = unix_to_yyyy_mm_dd(first_commit.timestamp);
+    // Advancing from the first commit to itself with empty previous state
+    // naturally produces the initial snapshot: every node mints a fresh ID
+    // with no transitions (there's nothing to diff against yet).
+    let (mut files, mut milestone_files, next_e, next_m) = advance_commit(
+        root,
+        &HashMap::new(),
+        &HashMap::new(),
+        &first_commit.sha,
+        &first_commit.sha,
+        &first_date,
+        next_entity_id,
+        next_milestone_id,
+        &mut entities,
+        &mut milestones,
+    )?;
+    next_entity_id = next_e;
+    next_milestone_id = next_m;
+
+    let mut prev_commit = first_commit.sha.clone();
     for commit in commits.iter().skip(1) {
-        let prev_commit =
-            &commits[commits.iter().position(|c| c.sha == commit.sha).unwrap() - 1].sha;
-        let (new_files, transitions, new_next_id) = advance_commit(
+        let date = unix_to_yyyy_mm_dd(commit.timestamp);
+        let (new_files, new_milestone_files, next_e, next_m) = advance_commit(
             root,
             &files,
-            prev_commit,
+            &milestone_files,
+            &prev_commit,
             &commit.sha,
+            &date,
             next_entity_id,
+            next_milestone_id,
             &mut entities,
+            &mut milestones,
         )?;
-        let date = unix_to_yyyy_mm_dd(commit.timestamp);
-        apply_transitions(&mut entities, &commit.sha, &date, &transitions);
-        next_entity_id = new_next_id;
+        next_entity_id = next_e;
+        next_milestone_id = next_m;
         files = new_files;
+        milestone_files = new_milestone_files;
+        prev_commit = commit.sha.clone();
     }
-
-    let spans = build_spans(root, commits, &mut entities)?;
 
     Some(LifecycleCache {
         version: CACHE_VERSION,
         head_commit: head_commit.to_string(),
         commit_chain: commits.iter().map(|c| c.sha.clone()).collect(),
         entities,
+        milestones,
         files,
-        spans,
+        milestone_files,
         next_entity_id,
+        next_milestone_id,
     })
 }
 
-fn build_spans(
-    root: &Path,
-    commits: &[git::CommitRef],
-    entities: &mut HashMap<String, CachedEntity>,
-) -> Option<Vec<CommitSpan>> {
-    if commits.len() < 2 {
-        return Some(Vec::new());
-    }
-    let mut spans = Vec::new();
-    let mut next_entity_id = entities
-        .keys()
-        .filter_map(|k| k.strip_prefix('e'))
-        .filter_map(|n| n.parse::<u64>().ok())
-        .max()
-        .unwrap_or(0)
-        + 1;
-    let mut files = files_for_commit(
-        root,
-        &commits[0].sha,
-        &HashMap::new(),
-        &mut next_entity_id,
-        entities,
-    );
-    for pair in commits.windows(2) {
-        let old_commit = &pair[0].sha;
-        let new_commit = &pair[1].sha;
-        let (new_files, transitions, new_next_id) = advance_commit(
-            root,
-            &files,
-            old_commit,
-            new_commit,
-            next_entity_id,
-            entities,
-        )?;
-        let date = unix_to_yyyy_mm_dd(pair[1].timestamp);
-        apply_transitions(entities, new_commit, &date, &transitions);
-        spans.push(CommitSpan {
-            old_commit: old_commit.clone(),
-            new_commit: new_commit.clone(),
-            new_commit_date: date,
-            transitions,
-        });
-        files = new_files;
-        next_entity_id = new_next_id;
-    }
-    Some(spans)
+struct GlobalLayout {
+    // Rank (1-based, among top-level tasks) keyed by (file path, task key).
+    task_ranks: HashMap<(String, TransitionKey), usize>,
+    // Rank of the nearest preceding top-level task, keyed by (file path,
+    // milestone key). `None` if no task precedes the milestone.
+    milestone_ranks: HashMap<(String, MilestoneKeyRepr), Option<usize>>,
 }
 
-fn files_for_commit(
-    root: &Path,
-    commit_sha: &str,
-    previous: &HashMap<String, FileHeadState>,
-    next_entity_id: &mut u64,
-    entities: &mut HashMap<String, CachedEntity>,
-) -> HashMap<String, FileHeadState> {
-    let mut out = HashMap::new();
-    for path in git::task_files_at_ref(root, commit_sha) {
-        let path_s = path_key(&path);
+/// Computes the global (cross-file) priority-order rank of every top-level
+/// task at `commit_sha`, plus — for every milestone — the rank of the
+/// nearest preceding top-level task in that same global order.
+fn compute_global_layout(root: &Path, commit_sha: &str) -> GlobalLayout {
+    let mut paths = git::task_files_at_ref(root, commit_sha);
+    paths.sort();
+
+    let mut task_ranks = HashMap::new();
+    let mut milestone_ranks = HashMap::new();
+    let mut current_rank = 0usize;
+    let mut last_rank: Option<usize> = None;
+
+    for path in paths {
         let Some(content) = git::file_content_at_ref(root, commit_sha, &path) else {
             continue;
         };
-        let items = parser::parse(&content, path);
-        let nodes = flatten_nodes(&items);
-        let prev = previous
-            .get(&path_s)
-            .cloned()
-            .unwrap_or(FileHeadState { entities: vec![] });
-        out.insert(
-            path_s,
-            assign_entities(&prev.entities, &nodes, commit_sha, next_entity_id, entities),
-        );
+        let items = parser::parse(&content, path.clone());
+        let path_s = path_key(&path);
+        let mut top_level_nodes = flatten_nodes(&items).into_iter().filter(|n| n.depth == 1);
+        let mut milestone_occurrence: HashMap<String, usize> = HashMap::new();
+
+        for item in &items {
+            match item {
+                FileItem::Task(_) => {
+                    if let Some(node) = top_level_nodes.next() {
+                        current_rank += 1;
+                        task_ranks.insert((path_s.clone(), node.key.clone()), current_rank);
+                        last_rank = Some(current_rank);
+                    }
+                }
+                FileItem::Milestone(m) => {
+                    let occ = milestone_occurrence.entry(m.name.clone()).or_insert(0);
+                    let mkey = MilestoneKeyRepr {
+                        name: m.name.clone(),
+                        occurrence: *occ,
+                    };
+                    *occ += 1;
+                    milestone_ranks.insert((path_s.clone(), mkey), last_rank);
+                }
+            }
+        }
     }
-    out
+
+    GlobalLayout {
+        task_ranks,
+        milestone_ranks,
+    }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn advance_commit(
     root: &Path,
     previous_files: &HashMap<String, FileHeadState>,
+    previous_milestone_files: &HashMap<String, MilestoneHeadState>,
     old_commit: &str,
     new_commit: &str,
+    date: &str,
     mut next_entity_id: u64,
+    mut next_milestone_id: u64,
     entities: &mut HashMap<String, CachedEntity>,
-) -> Option<(HashMap<String, FileHeadState>, Vec<EntityTransition>, u64)> {
+    milestones: &mut HashMap<String, CachedMilestone>,
+) -> Option<(
+    HashMap<String, FileHeadState>,
+    HashMap<String, MilestoneHeadState>,
+    u64,
+    u64,
+)> {
     let old_paths: HashSet<String> = git::task_files_at_ref(root, old_commit)
         .into_iter()
         .map(|p| path_key(&p))
@@ -352,110 +458,322 @@ fn advance_commit(
         .collect();
     let all_paths: HashSet<String> = old_paths.union(&new_paths).cloned().collect();
 
+    let layout = compute_global_layout(root, new_commit);
+
     let mut new_files = HashMap::new();
-    let mut transitions = Vec::new();
+    let mut new_milestone_files = HashMap::new();
     for path in all_paths {
-        let prev_state = previous_files
+        let prev_state = previous_files.get(&path).cloned().unwrap_or_default();
+        let prev_milestone_state = previous_milestone_files
             .get(&path)
             .cloned()
-            .unwrap_or(FileHeadState { entities: vec![] });
+            .unwrap_or_default();
         let new_items = load_items_at_ref(root, new_commit, &path);
-        let nodes = flatten_nodes(&new_items);
+        let flat_nodes = flatten_nodes(&new_items);
+        let flat_milestones = flatten_milestones(&new_items);
+
         let state = assign_entities(
-            &prev_state.entities,
-            &nodes,
+            &prev_state,
+            &flat_nodes,
             new_commit,
+            date,
+            &path,
+            &layout.task_ranks,
             &mut next_entity_id,
             entities,
         );
-        transitions.extend(file_transitions(&prev_state.entities, &state.entities));
-        if !state.entities.is_empty() {
-            new_files.insert(path, state);
+        let milestone_state = assign_milestones(
+            &prev_milestone_state,
+            &flat_milestones,
+            new_commit,
+            date,
+            &path,
+            &layout.milestone_ranks,
+            &mut next_milestone_id,
+            milestones,
+        );
+
+        if !state.entities.is_empty() || !state.graveyard.is_empty() {
+            new_files.insert(path.clone(), state);
+        }
+        if !milestone_state.milestones.is_empty() || !milestone_state.graveyard.is_empty() {
+            new_milestone_files.insert(path, milestone_state);
         }
     }
-    Some((new_files, transitions, next_entity_id))
+    Some((
+        new_files,
+        new_milestone_files,
+        next_entity_id,
+        next_milestone_id,
+    ))
 }
 
-fn file_transitions(
-    old_nodes: &[FileEntityNode],
-    new_nodes: &[FileEntityNode],
-) -> Vec<EntityTransition> {
-    let old_status: HashMap<String, CachedStatus> = old_nodes
-        .iter()
-        .map(|n| (n.entity_id.clone(), n.status))
-        .collect();
-    new_nodes
-        .iter()
-        .map(|n| EntityTransition {
-            entity_id: n.entity_id.clone(),
-            old_status: old_status.get(&n.entity_id).copied(),
-            new_status: n.status,
-        })
-        .collect()
-}
-
+#[allow(clippy::too_many_arguments)]
 fn assign_entities(
-    old_nodes: &[FileEntityNode],
+    prev_state: &FileHeadState,
     new_nodes: &[FlatNode],
     commit_sha: &str,
+    date: &str,
+    path: &str,
+    task_ranks: &HashMap<(String, TransitionKey), usize>,
     next_entity_id: &mut u64,
     entities: &mut HashMap<String, CachedEntity>,
 ) -> FileHeadState {
-    let assignments = assign_current_to_head(
-        &old_nodes
-            .iter()
-            .enumerate()
-            .map(|(idx, node)| HeadNodeView {
-                index: idx,
-                node,
-                used: false,
-            })
-            .collect::<Vec<_>>(),
-        new_nodes,
-    );
-    let mut out = Vec::with_capacity(new_nodes.len());
+    let pool: Vec<HeadNodeView<'_>> = prev_state
+        .entities
+        .iter()
+        .chain(prev_state.graveyard.iter())
+        .enumerate()
+        .map(|(index, node)| HeadNodeView {
+            index,
+            node,
+            used: false,
+        })
+        .collect();
+    let assignments = assign_current_to_head(&pool, new_nodes);
+
+    let mut out_live = Vec::with_capacity(new_nodes.len());
+    let mut used_pool_indices: HashSet<usize> = HashSet::new();
     for (idx, node) in new_nodes.iter().enumerate() {
         let entity_id = assignments
             .get(&idx)
             .cloned()
             .unwrap_or_else(|| new_entity_id(next_entity_id));
-        let status = cached_status_from(&node.status);
-        out.push(FileEntityNode {
-            entity_id: entity_id.clone(),
+        if let Some(pool_idx) = pool
+            .iter()
+            .find(|v| v.node.entity_id == entity_id)
+            .map(|v| v.index)
+        {
+            used_pool_indices.insert(pool_idx);
+        }
+        let new_rank = if node.depth == 1 {
+            task_ranks
+                .get(&(path.to_string(), node.key.clone()))
+                .copied()
+        } else {
+            None
+        };
+        upsert_entity(entities, &entity_id, node, commit_sha, date, new_rank);
+        out_live.push(FileEntityNode {
+            entity_id,
             key: KeyRepr {
                 path: node.key.path.clone(),
                 occurrence: node.key.occurrence,
             },
             title: node.title.clone(),
-            status,
             depth: node.depth,
             parent_title: node.parent_title.clone(),
             position: node.position,
         });
-        entities
-            .entry(entity_id.clone())
-            .and_modify(|e| {
-                e.last_seen_commit = commit_sha.to_string();
-                e.latest_status = status;
-                e.fingerprint = Fingerprint {
-                    title: node.title.clone(),
-                    depth: node.depth,
-                    parent_title: node.parent_title.clone(),
-                };
-            })
-            .or_insert(CachedEntity {
-                first_seen_commit: commit_sha.to_string(),
-                last_seen_commit: commit_sha.to_string(),
-                latest_status: status,
-                latest_close_date: None,
-                fingerprint: Fingerprint {
-                    title: node.title.clone(),
-                    depth: node.depth,
-                    parent_title: node.parent_title.clone(),
-                },
-            });
     }
-    FileHeadState { entities: out }
+
+    let mut out_graveyard = Vec::new();
+    for view in &pool {
+        if used_pool_indices.contains(&view.index) {
+            continue;
+        }
+        let was_already_dead = prev_state
+            .graveyard
+            .iter()
+            .any(|g| g.entity_id == view.node.entity_id);
+        if !was_already_dead {
+            if let Some(entity) = entities.get_mut(&view.node.entity_id) {
+                entity.last_seen_commit = commit_sha.to_string();
+                entity.transitions.push(Transition {
+                    commit_hash: commit_sha.to_string(),
+                    date: date.to_string(),
+                    kind: TransitionKind::Deleted,
+                });
+            }
+        }
+        out_graveyard.push(view.node.clone());
+    }
+
+    FileHeadState {
+        entities: out_live,
+        graveyard: out_graveyard,
+    }
+}
+
+fn upsert_entity(
+    entities: &mut HashMap<String, CachedEntity>,
+    entity_id: &str,
+    node: &FlatNode,
+    commit_sha: &str,
+    date: &str,
+    new_rank: Option<usize>,
+) {
+    let new_status = cached_status_from(&node.status);
+    let fingerprint = Fingerprint {
+        title: node.title.clone(),
+        depth: node.depth,
+        parent_title: node.parent_title.clone(),
+    };
+    match entities.get_mut(entity_id) {
+        Some(entity) => {
+            if entity.last_known_status != new_status {
+                let kind = match new_status {
+                    CachedStatus::Done => TransitionKind::Done,
+                    CachedStatus::Cancelled => TransitionKind::Cancelled,
+                    CachedStatus::Todo => TransitionKind::Reopened,
+                };
+                entity.transitions.push(Transition {
+                    commit_hash: commit_sha.to_string(),
+                    date: date.to_string(),
+                    kind,
+                });
+                entity.last_known_status = new_status;
+            }
+            if let Some(new_r) = new_rank {
+                if let Some(old_r) = entity.last_known_rank {
+                    if old_r != new_r {
+                        entity.transitions.push(Transition {
+                            commit_hash: commit_sha.to_string(),
+                            date: date.to_string(),
+                            kind: TransitionKind::RankChanged {
+                                old_rank: old_r,
+                                new_rank: new_r,
+                            },
+                        });
+                    }
+                }
+                entity.last_known_rank = Some(new_r);
+            }
+            entity.last_seen_commit = commit_sha.to_string();
+            entity.fingerprint = fingerprint;
+        }
+        None => {
+            entities.insert(
+                entity_id.to_string(),
+                CachedEntity {
+                    first_seen_commit: commit_sha.to_string(),
+                    last_seen_commit: commit_sha.to_string(),
+                    fingerprint,
+                    last_known_status: new_status,
+                    last_known_rank: new_rank,
+                    transitions: Vec::new(),
+                },
+            );
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn assign_milestones(
+    prev_state: &MilestoneHeadState,
+    new_milestones: &[FlatMilestone],
+    commit_sha: &str,
+    date: &str,
+    path: &str,
+    milestone_ranks: &HashMap<(String, MilestoneKeyRepr), Option<usize>>,
+    next_milestone_id: &mut u64,
+    milestones: &mut HashMap<String, CachedMilestone>,
+) -> MilestoneHeadState {
+    let pool: Vec<MilestoneHeadView<'_>> = prev_state
+        .milestones
+        .iter()
+        .chain(prev_state.graveyard.iter())
+        .enumerate()
+        .map(|(index, node)| MilestoneHeadView {
+            index,
+            node,
+            used: false,
+        })
+        .collect();
+    let assignments = assign_milestones_to_new(&pool, new_milestones);
+
+    let mut out_live = Vec::with_capacity(new_milestones.len());
+    let mut used_pool_indices: HashSet<usize> = HashSet::new();
+    for (idx, fm) in new_milestones.iter().enumerate() {
+        let milestone_id = assignments
+            .get(&idx)
+            .cloned()
+            .unwrap_or_else(|| new_milestone_id_str(next_milestone_id));
+        if let Some(pool_idx) = pool
+            .iter()
+            .find(|v| v.node.milestone_id == milestone_id)
+            .map(|v| v.index)
+        {
+            used_pool_indices.insert(pool_idx);
+        }
+        let new_rank = milestone_ranks
+            .get(&(path.to_string(), fm.key.clone()))
+            .cloned()
+            .flatten();
+        upsert_milestone(milestones, &milestone_id, fm, commit_sha, date, new_rank);
+        out_live.push(FileMilestoneNode {
+            milestone_id,
+            key: fm.key.clone(),
+            name: fm.name.clone(),
+            position: fm.position,
+        });
+    }
+
+    let mut out_graveyard = Vec::new();
+    for view in &pool {
+        if used_pool_indices.contains(&view.index) {
+            continue;
+        }
+        let was_already_dead = prev_state
+            .graveyard
+            .iter()
+            .any(|g| g.milestone_id == view.node.milestone_id);
+        if !was_already_dead {
+            if let Some(m) = milestones.get_mut(&view.node.milestone_id) {
+                m.last_seen_commit = commit_sha.to_string();
+                m.transitions.push(MilestoneTransition {
+                    commit_hash: commit_sha.to_string(),
+                    date: date.to_string(),
+                    kind: MilestoneTransitionKind::Deleted,
+                });
+            }
+        }
+        out_graveyard.push(view.node.clone());
+    }
+
+    MilestoneHeadState {
+        milestones: out_live,
+        graveyard: out_graveyard,
+    }
+}
+
+fn upsert_milestone(
+    milestones: &mut HashMap<String, CachedMilestone>,
+    milestone_id: &str,
+    fm: &FlatMilestone,
+    commit_sha: &str,
+    date: &str,
+    new_rank: Option<usize>,
+) {
+    match milestones.get_mut(milestone_id) {
+        Some(m) => {
+            if m.last_known_rank != new_rank {
+                m.transitions.push(MilestoneTransition {
+                    commit_hash: commit_sha.to_string(),
+                    date: date.to_string(),
+                    kind: MilestoneTransitionKind::RankChanged {
+                        old_rank: m.last_known_rank,
+                        new_rank,
+                    },
+                });
+                m.last_known_rank = new_rank;
+            }
+            m.last_seen_commit = commit_sha.to_string();
+            m.name = fm.name.clone();
+        }
+        None => {
+            milestones.insert(
+                milestone_id.to_string(),
+                CachedMilestone {
+                    first_seen_commit: commit_sha.to_string(),
+                    last_seen_commit: commit_sha.to_string(),
+                    name: fm.name.clone(),
+                    last_known_rank: new_rank,
+                    transitions: Vec::new(),
+                },
+            );
+        }
+    }
 }
 
 struct HeadNodeView<'a> {
@@ -530,6 +848,74 @@ fn match_score(old: &FileEntityNode, new: &FlatNode) -> f64 {
         + PARENT_WEIGHT * similarity_opt(old.parent_title.as_deref(), new.parent_title.as_deref())
         + DEPTH_WEIGHT * depth_similarity(old.depth, new.depth)
         + POSITION_WEIGHT * position_similarity(old.position, new.position)
+}
+
+struct MilestoneHeadView<'a> {
+    index: usize,
+    node: &'a FileMilestoneNode,
+    used: bool,
+}
+
+fn assign_milestones_to_new(
+    old_nodes: &[MilestoneHeadView<'_>],
+    new_nodes: &[FlatMilestone],
+) -> HashMap<usize, String> {
+    let mut assignments = HashMap::new();
+    let mut used_old = HashSet::<usize>::new();
+
+    let old_by_key: HashMap<MilestoneKeyRepr, &FileMilestoneNode> = old_nodes
+        .iter()
+        .map(|v| (v.node.key.clone(), v.node))
+        .collect();
+    for (idx, current) in new_nodes.iter().enumerate() {
+        if let Some(node) = old_by_key.get(&current.key) {
+            assignments.insert(idx, node.milestone_id.clone());
+            if let Some(v) = old_nodes
+                .iter()
+                .find(|v| v.node.milestone_id == node.milestone_id)
+            {
+                used_old.insert(v.index);
+            }
+        }
+    }
+
+    for (idx, current) in new_nodes.iter().enumerate() {
+        if assignments.contains_key(&idx) {
+            continue;
+        }
+        let mut candidates: Vec<(usize, f64, String)> = old_nodes
+            .iter()
+            .filter(|o| !used_old.contains(&o.index) && !o.used)
+            .map(|o| {
+                (
+                    o.index,
+                    milestone_match_score(o.node, current),
+                    o.node.milestone_id.clone(),
+                )
+            })
+            .collect();
+        candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+        let Some((best_idx, best_score, best_id)) = candidates.first().cloned() else {
+            continue;
+        };
+        if best_score < MATCH_THRESHOLD {
+            continue;
+        }
+        if let Some((_, second_score, _)) = candidates.get(1) {
+            if (best_score - second_score) < MATCH_TIE_DELTA {
+                continue;
+            }
+        }
+        assignments.insert(idx, best_id);
+        used_old.insert(best_idx);
+    }
+
+    assignments
+}
+
+fn milestone_match_score(old: &FileMilestoneNode, new: &FlatMilestone) -> f64 {
+    MILESTONE_NAME_WEIGHT * similarity(&old.name, &new.name)
+        + MILESTONE_POSITION_WEIGHT * position_similarity(old.position, new.position)
 }
 
 fn depth_similarity(a: usize, b: usize) -> f64 {
@@ -657,32 +1043,32 @@ fn flatten_subtasks(
     }
 }
 
-fn apply_transitions(
-    entities: &mut HashMap<String, CachedEntity>,
-    commit_sha: &str,
-    commit_date: &str,
-    transitions: &[EntityTransition],
-) {
-    for t in transitions {
-        let Some(entity) = entities.get_mut(&t.entity_id) else {
+fn flatten_milestones(items: &[FileItem]) -> Vec<FlatMilestone> {
+    let mut occurrence_index: HashMap<String, usize> = HashMap::new();
+    let mut out = Vec::new();
+    let mut position = 0usize;
+    for item in items {
+        let FileItem::Milestone(m) = item else {
             continue;
         };
-        entity.last_seen_commit = commit_sha.to_string();
-        entity.latest_status = t.new_status;
-        if let Some(old) = t.old_status {
-            if !is_cached_closed(old) && is_cached_closed(t.new_status) {
-                entity.latest_close_date = Some(commit_date.to_string());
-            }
-        }
+        let occurrence = occurrence_index.entry(m.name.clone()).or_insert(0);
+        let key = MilestoneKeyRepr {
+            name: m.name.clone(),
+            occurrence: *occurrence,
+        };
+        *occurrence += 1;
+        out.push(FlatMilestone {
+            key,
+            name: m.name.clone(),
+            position,
+        });
+        position += 1;
     }
+    out
 }
 
 fn is_closed(status: &Status) -> bool {
     matches!(status, Status::Done | Status::Cancelled)
-}
-
-fn is_cached_closed(status: CachedStatus) -> bool {
-    matches!(status, CachedStatus::Done | CachedStatus::Cancelled)
 }
 
 fn cached_status_from(status: &Status) -> CachedStatus {
@@ -695,6 +1081,12 @@ fn cached_status_from(status: &Status) -> CachedStatus {
 
 fn new_entity_id(next: &mut u64) -> String {
     let out = format!("e{:08}", *next);
+    *next += 1;
+    out
+}
+
+fn new_milestone_id_str(next: &mut u64) -> String {
+    let out = format!("m{:08}", *next);
     *next += 1;
     out
 }

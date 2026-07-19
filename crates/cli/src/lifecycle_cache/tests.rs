@@ -32,6 +32,22 @@ fn setup_repo() -> tempfile::TempDir {
     dir
 }
 
+fn entity_for_title<'a>(cache: &'a LifecycleCache, title: &str) -> &'a CachedEntity {
+    cache
+        .entities
+        .values()
+        .find(|e| e.fingerprint.title == title)
+        .unwrap_or_else(|| panic!("no cached entity found with title {title:?}"))
+}
+
+fn milestone_for_name<'a>(cache: &'a LifecycleCache, name: &str) -> &'a CachedMilestone {
+    cache
+        .milestones
+        .values()
+        .find(|m| m.name == name)
+        .unwrap_or_else(|| panic!("no cached milestone found with name {name:?}"))
+}
+
 #[test]
 fn completion_dates_for_uncommitted_close_is_unknown() {
     let dir = setup_repo();
@@ -53,4 +69,287 @@ fn completion_dates_for_uncommitted_close_is_unknown() {
     let dates =
         completion_dates_for_current_file(dir.path(), Path::new("tasks.agile.md"), &current_items);
     assert!(dates.is_empty(), "dates: {dates:?}");
+}
+
+#[test]
+fn records_done_transition_with_commit_hash_and_date() {
+    let dir = setup_repo();
+    let file_content = "\
+- [ ] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "close", "2026-07-11T12:00:00Z");
+
+    let cache = update(dir.path()).expect("cache");
+    let entity = entity_for_title(&cache, "task a");
+    assert_eq!(entity.last_known_status, CachedStatus::Done);
+    let done = entity
+        .transitions
+        .iter()
+        .find(|t| matches!(t.kind, TransitionKind::Done))
+        .expect("expected a Done transition");
+    assert_eq!(done.date, "2026-07-11");
+    assert_eq!(done.commit_hash, cache.head_commit);
+}
+
+#[test]
+fn records_cancelled_transition() {
+    let dir = setup_repo();
+    let file_content = "\
+- [ ] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [-] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "cancel", "2026-07-11T12:00:00Z");
+
+    let cache = update(dir.path()).expect("cache");
+    let entity = entity_for_title(&cache, "task a");
+    assert_eq!(entity.last_known_status, CachedStatus::Cancelled);
+    assert!(
+        entity
+            .transitions
+            .iter()
+            .any(|t| matches!(t.kind, TransitionKind::Cancelled)),
+        "transitions: {:?}",
+        entity.transitions
+    );
+}
+
+#[test]
+fn records_reopened_transition_when_done_task_goes_back_to_todo() {
+    let dir = setup_repo();
+    let file_content = "\
+- [ ] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "close", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [ ] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "reopen", "2026-07-12T12:00:00Z");
+
+    let cache = update(dir.path()).expect("cache");
+    let entity = entity_for_title(&cache, "task a");
+    assert_eq!(entity.last_known_status, CachedStatus::Todo);
+    let reopened = entity
+        .transitions
+        .iter()
+        .find(|t| matches!(t.kind, TransitionKind::Reopened))
+        .expect("expected a Reopened transition");
+    assert_eq!(reopened.date, "2026-07-12");
+}
+
+#[test]
+fn records_deleted_transition_when_task_removed_from_list() {
+    let dir = setup_repo();
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [ ] task b
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "delete a", "2026-07-11T12:00:00Z");
+
+    let cache = update(dir.path()).expect("cache");
+    let entity = entity_for_title(&cache, "task a");
+    assert!(
+        entity
+            .transitions
+            .iter()
+            .any(|t| matches!(t.kind, TransitionKind::Deleted)),
+        "transitions: {:?}",
+        entity.transitions
+    );
+    // The deleted task no longer appears among live entities for the file.
+    let file_state = cache.files.get("tasks.agile.md").expect("file state");
+    assert!(
+        !file_state.entities.iter().any(|n| n.title == "task a"),
+        "deleted task should not be live: {:?}",
+        file_state.entities
+    );
+    assert!(
+        file_state.graveyard.iter().any(|n| n.title == "task a"),
+        "deleted task should be kept in the graveyard: {:?}",
+        file_state.graveyard
+    );
+}
+
+#[test]
+fn deleted_then_recreated_task_reuses_the_same_entity_id() {
+    let dir = setup_repo();
+    let file_content = "\
+- [ ] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "delete", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [ ] task a
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "recreate", "2026-07-12T12:00:00Z");
+
+    let cache = update(dir.path()).expect("cache");
+    let matches: Vec<&CachedEntity> = cache
+        .entities
+        .values()
+        .filter(|e| e.fingerprint.title == "task a")
+        .collect();
+    assert_eq!(
+        matches.len(),
+        1,
+        "expected exactly one cached entity for the recreated task, found {}",
+        matches.len()
+    );
+    let entity = matches[0];
+    assert!(
+        entity
+            .transitions
+            .iter()
+            .any(|t| matches!(t.kind, TransitionKind::Deleted)),
+        "transitions: {:?}",
+        entity.transitions
+    );
+}
+
+#[test]
+fn records_rank_change_for_top_level_task_only() {
+    let dir = setup_repo();
+    let file_content = "\
+- [ ] task a
+  - [ ] child
+- [ ] task b
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [ ] task b
+- [ ] task a
+  - [ ] child
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "reorder", "2026-07-11T12:00:00Z");
+
+    let cache = update(dir.path()).expect("cache");
+
+    let task_a = entity_for_title(&cache, "task a");
+    assert_eq!(task_a.last_known_rank, Some(2));
+    assert!(
+        task_a.transitions.iter().any(|t| matches!(
+            t.kind,
+            TransitionKind::RankChanged {
+                old_rank: 1,
+                new_rank: 2
+            }
+        )),
+        "transitions: {:?}",
+        task_a.transitions
+    );
+
+    let child = entity_for_title(&cache, "child");
+    assert_eq!(child.last_known_rank, None, "subtasks should have no rank");
+    assert!(
+        !child
+            .transitions
+            .iter()
+            .any(|t| matches!(t.kind, TransitionKind::RankChanged { .. })),
+        "subtasks should never record rank changes: {:?}",
+        child.transitions
+    );
+}
+
+#[test]
+fn records_milestone_rank_change_when_preceding_task_rank_shifts() {
+    let dir = setup_repo();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+- [ ] task b
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [ ] task zero
+- [ ] task a
+#MILESTONE: alpha
+- [ ] task b
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "insert task before", "2026-07-11T12:00:00Z");
+
+    let cache = update(dir.path()).expect("cache");
+    let milestone = milestone_for_name(&cache, "alpha");
+    assert_eq!(milestone.last_known_rank, Some(2));
+    assert!(
+        milestone.transitions.iter().any(|t| matches!(
+            t.kind,
+            MilestoneTransitionKind::RankChanged {
+                old_rank: Some(1),
+                new_rank: Some(2)
+            }
+        )),
+        "transitions: {:?}",
+        milestone.transitions
+    );
+}
+
+#[test]
+fn records_milestone_deleted_transition() {
+    let dir = setup_repo();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+- [ ] task b
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+";
+    std::fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "remove milestone", "2026-07-11T12:00:00Z");
+
+    let cache = update(dir.path()).expect("cache");
+    let milestone = milestone_for_name(&cache, "alpha");
+    assert!(
+        milestone
+            .transitions
+            .iter()
+            .any(|t| matches!(t.kind, MilestoneTransitionKind::Deleted)),
+        "transitions: {:?}",
+        milestone.transitions
+    );
 }

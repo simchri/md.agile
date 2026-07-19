@@ -480,8 +480,8 @@
   - [x] testing script
   - [x] proper date legend
 
-- [ ] perf / cache overhaul
-  - [ ] retain only lifecycle cache
+- [x] perf / cache overhaul
+  - [x] retain only lifecycle cache
     stores: 
     - Each task and subtask with a unique ID
     - parent if applicable (sub tasks only)
@@ -494,7 +494,7 @@
     - .. cancelled
     - .. deleted (task removed from list)
     - .. change of rank (of parent task) (store previous and new rank)
-  - [ ] in lifecycle cache also store milestones:
+  - [x] in lifecycle cache also store milestones:
     - stores all transitions of that milestone: 
     - .. change of rank (the rank of a milestone is the rank of the task just before the milestone)
 
