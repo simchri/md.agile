@@ -50,10 +50,6 @@ EOF
 - [x] Task 6
 - [ ] Task 7
 - [ ] Task 8
-- [ ] Task 9
-- [ ] Task 10
-- [ ] Task 11
-- [ ] Task 12
 - [ ] Task 13
 - [ ] Task 14
 
@@ -74,7 +70,7 @@ EOF
 - [x] Task 7
 - [x] Task 8
 - [ ] Task 9
-- [ ] Task 10
+- [x] Task 10
 - [ ] Task 11
 - [ ] Task 12
 - [ ] Task 13
@@ -101,12 +97,18 @@ EOF
 - [x] Task 9
 - [x] Task 10
 - [ ] Task 11
-- [ ] Task 12
-- [ ] Task 13
-- [ ] Task 14
+- [x] Task 12
+- [x] Task 13
+- [x] Task 14
 - [ ] Task 15
 - [ ] Task 16
 - [ ] Task 17
+- [x] Task 18
+- [x] Task 19
+- [ ] Task 21
+- [ ] Task 22
+- [ ] Task 23
+- [ ] Task 24
 
 #MILESTONE: Demo milestone
 
@@ -129,15 +131,25 @@ EOF
 - [x] Task 11
 - [x] Task 12
 - [ ] Task 13
-- [ ] Task 14
-- [ ] Task 15
-- [ ] Task 16
+- [x] Task 14
+- [x] Task 15
+- [x] Task 16
 - [ ] Task 17
 - [ ] Task 18
+- [x] Task 19
+- [x] Task 21
+- [x] Task 22
+- [ ] Task 23
+- [ ] Task 24
 
 #MILESTONE: Demo milestone
 
-- [ ] Task 19
+- [ ] Task 25
+- [ ] Task 26
+- [ ] Task 27
+- [ ] Task 28
+- [ ] Task 29
+- [ ] Task 30
 EOF
     commit_snapshot 5 "${dates[4]}"
 
