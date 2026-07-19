@@ -498,6 +498,21 @@
     - stores all transitions of that milestone: 
     - .. change of rank (the rank of a milestone is the rank of the task just before the milestone)
 
+- [ ] rebuild "to-do vs total" plot on top of the lifecycle cache
+  rough algorithm (to review before implementing):
+  - for the target milestone, find its current rank R (position of the task just before it)
+  - build the list of commits from the lifecycle cache's commit_chain (oldest -> newest)
+  - for each entity (task/subtask), replay its transitions in commit order to build status-at-commit (todo / done / cancelled, updated by Done / Cancelled / Reopened) and, for top-level tasks, rank-at-commit (updated by RankChanged; subtasks inherit their top-level ancestor's rank)
+  - do the same replay for the target milestone to get its rank-at-commit (it may itself have moved; use rank at each point in time, not just its current rank)
+  - for each commit in the chain, in order, determine in-scope entities: top-level tasks whose rank-at-this-commit is less than the milestone's rank-at-this-commit (plus their subtasks); skip entities not yet seen or already deleted at this commit
+  - sum weight_for_depth(depth) over in-scope entities for total_weight / total_count
+  - sum the same over in-scope entities whose status-at-this-commit is done/cancelled for done_weight / done_count
+  - emit a TodoDonePlotPoint with the commit date and those four numbers
+  - append one final point for the uncommitted worktree state, reusing the existing "includes uncommitted worktree state as latest" behavior
+  - open question: cost — this replays full history on every plot request; may need to memoize per-commit scope/status snapshots in the cache instead of recomputing each time
+  - open question: deleted entities — once deleted, should an entity stop contributing to total/done from that commit onward, even if it was done right before deletion?
+  - open question: commits where the milestone doesn't exist yet (or was deleted) — omit from the plot, rather than showing zero/zero?
+
 - [ ] ctd
   - [ ] output ETA
 
