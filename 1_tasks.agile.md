@@ -474,12 +474,26 @@
 - [x] sample script mode for dir with messy "done" tasks 
 - [x] sample script mode for dir with messy "done" + "total" tasks 
 
-- [ ] trendlines in plot - basic linear
+- [x] trendlines in plot - basic linear
   - [x] basics 
   - [x] improved legend
   - [x] testing script
   - [x] proper date legend
-  - [ ] perf / cache
+
+- [ ] perf / cache overhaul
+  - [ ] retain only lifecycle cache
+    stores: 
+    - Each task and subtask with a unique ID
+    - parent if applicable (sub tasks only)
+    - all transitions of that task with 
+    - .. commit hash 
+    - .. date
+    - transitions are any movements to the following states:
+    - .. done
+    - .. cancelled
+    - .. deleted (task removed from list)
+
+- [ ] ctd
   - [ ] output ETA
 
 - [ ] extensions to testing script
