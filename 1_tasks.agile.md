@@ -547,6 +547,7 @@
   - [ ] Update CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
 
 
+#MILESTONE: Milestones & ETA
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
