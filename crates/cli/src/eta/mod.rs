@@ -2,16 +2,14 @@
 
 use crate::cli::common::find_task_files;
 use crate::git;
-use crate::history_cache;
 use crate::parser::{self, FileItem, Status};
 use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Shape};
 
 pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
-const SECONDS_PER_DAY: f64 = 24.0 * 60.0 * 60.0;
 
 #[derive(Debug, Clone, PartialEq)]
 struct FlatNode {
@@ -105,52 +103,7 @@ pub fn estimate_velocity_details_with_window(
     if window_days == 0 {
         return None;
     }
-
-    let now_secs = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs() as i64;
-    let window_secs = Duration::from_secs(u64::from(window_days) * 24 * 60 * 60).as_secs() as i64;
-    let since_secs = now_secs - window_secs;
-
-    let cache = history_cache::update(root)?;
-    let mut done_points = completion_trend_points_for_velocity(&cache.entries, since_secs);
-
-    let mut completed_weight = 0.0;
-    let mut comparable_pairs = 0usize;
-    let mut completion_events = 0usize;
-    for (_old, new) in cache.entries.iter().zip(cache.entries.iter().skip(1)) {
-        if new.commit_timestamp < since_secs {
-            continue;
-        }
-        comparable_pairs += 1;
-        completed_weight += new.completed_weight_from_previous;
-        completion_events += new.completion_events_from_previous;
-    }
-    if let Some((worktree_completion_delta, worktree_events, latest_commit_ts)) =
-        worktree_completion_delta(root, &cache.entries)
-    {
-        if done_points.is_empty() {
-            done_points.push((latest_commit_ts.max(since_secs), 0.0));
-        }
-        let cumulative =
-            done_points.last().map(|(_, y)| *y).unwrap_or(0.0) + worktree_completion_delta;
-        done_points.push((now_secs, cumulative));
-        comparable_pairs += 1;
-        completed_weight += worktree_completion_delta;
-        completion_events += worktree_events;
-    }
-
-    let trend = linear_trend_by_timestamp(&done_points)?;
-    let span_days = (done_points.last()?.0 - done_points.first()?.0) as f64 / SECONDS_PER_DAY;
-    if span_days <= 0.0 {
-        return None;
-    }
-
-    Some(VelocityEstimate {
-        weight_per_day: trend.slope * SECONDS_PER_DAY,
-        completed_weight,
-        span_days,
-        comparable_pairs,
-        completion_events,
-    })
+    None
 }
 
 pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDonePlot, String> {
@@ -160,39 +113,11 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
     if milestone_rank == 0 {
         return Err("milestone rank must be >= 1".to_string());
     }
-
     let milestone_name = milestone_name_for_rank(root, milestone_rank)
         .ok_or_else(|| format!("milestone rank {milestone_rank} does not exist"))?;
-    let cache = history_cache::update(root)
-        .ok_or_else(|| "could not read or build history cache for plotting".to_string())?;
-
-    let mut points = Vec::new();
-    for entry in &cache.entries {
-        let (total_weight, done_weight, total_count, done_count, found_milestone) =
-            weights_until_milestone_at_ref(root, &entry.commit_hash, &milestone_name);
-        if !found_milestone {
-            continue;
-        }
-        points.push(TodoDonePlotPoint {
-            date: entry.commit_date.clone(),
-            total_weight,
-            done_weight,
-            total_count,
-            done_count,
-        });
-    }
-
-    if points.is_empty() {
-        return Err(format!(
-            "milestone '{}' is not present in comparable history entries",
-            milestone_name
-        ));
-    }
-
-    Ok(TodoDonePlot {
-        milestone_name,
-        points,
-    })
+    Err(format!(
+        "plotting for milestone '{milestone_name}' is temporarily unavailable during lifecycle cache overhaul"
+    ))
 }
 
 pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
@@ -460,78 +385,6 @@ fn downsample_plot_points(
         out.push(points[idx].clone());
     }
     out
-}
-
-fn completion_trend_points_for_velocity(
-    entries: &[history_cache::HistoryCacheEntry],
-    since_secs: i64,
-) -> Vec<(i64, f64)> {
-    let mut points = Vec::new();
-    let mut cumulative = 0.0;
-    for (old, new) in entries.iter().zip(entries.iter().skip(1)) {
-        if new.commit_timestamp < since_secs {
-            continue;
-        }
-        if points.is_empty() {
-            points.push((old.commit_timestamp.max(since_secs), cumulative));
-        }
-        cumulative += new.completed_weight_from_previous;
-        points.push((new.commit_timestamp, cumulative));
-    }
-    points
-}
-
-fn worktree_completion_delta(
-    root: &Path,
-    entries: &[history_cache::HistoryCacheEntry],
-) -> Option<(f64, usize, i64)> {
-    let latest_entry = entries.last()?;
-    let latest_commit_sha = &latest_entry.commit_hash;
-
-    let mut worktree_changed = false;
-    let mut completion_delta = 0.0;
-    let mut completion_events = 0usize;
-
-    for path in find_task_files(root) {
-        let Some(latest_content) = git::file_content_at_ref(root, latest_commit_sha, &path) else {
-            continue;
-        };
-        let worktree_path = root.join(&path);
-        let worktree_content = match std::fs::read_to_string(&worktree_path) {
-            Ok(content) => content,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-            Err(_) => continue,
-        };
-        if worktree_content == latest_content {
-            continue;
-        }
-        worktree_changed = true;
-
-        let old_items = parser::parse(&latest_content, path.clone());
-        let new_items = parser::parse(&worktree_content, path.clone());
-        let (delta_weight, delta_events) = completion_weight_delta(&old_items, &new_items);
-        completion_delta += delta_weight;
-        completion_events += delta_events;
-    }
-
-    if !worktree_changed {
-        return None;
-    }
-
-    Some((
-        completion_delta,
-        completion_events,
-        latest_entry.commit_timestamp,
-    ))
-}
-
-fn linear_trend_by_timestamp(points: &[(i64, f64)]) -> Option<LinearTrend> {
-    if points.len() < 2 {
-        return None;
-    }
-    let x0 = points[0].0 as f64;
-    let normalized: Vec<(f64, f64)> = points.iter().map(|(ts, y)| (*ts as f64 - x0, *y)).collect();
-    linear_trend(&normalized)
 }
 
 fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {
