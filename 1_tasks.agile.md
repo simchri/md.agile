@@ -478,7 +478,8 @@
   - [x] basics 
   - [x] improved legend
   - [x] testing script
-  - [ ] proper date legend
+  - [x] proper date legend
+  - [ ] perf / cache
   - [ ] output ETA
 
 - [ ] extensions to testing script
