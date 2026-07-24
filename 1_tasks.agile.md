@@ -531,6 +531,11 @@
   - [ ] refuse to display ETA if uncertainty to high
 
 - [ ] uncertainty via roll forward
+- [ ] animate roll forward - illustrate uncertainty 
+  - [ ] params
+    - [ ] window  - time in pct backwards from current that is animated
+    - [ ] steps - number of steps in that window
+    - [ ] time per step
 
 - [ ] non-terminal plots 
   - [ ] SVG
