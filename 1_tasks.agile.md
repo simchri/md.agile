@@ -570,7 +570,13 @@
 - [ ] menu
   - [ ] switch / select projects
 
-- [x] improved installation & launch procedure for GUI
+- [ ] improved installation & launch procedure for GUI
+  - [x] installation script 
+  - [ ] run gui as systemd service
+  - [ ] stable ip, so users can favourite the site
+  - [ ] desktop shortcut to gui site
+  - [ ] in GUI selectable directory to observe (not just env variable)
+  - [ ] history of projects (config file for the server)
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
