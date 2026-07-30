@@ -21,9 +21,22 @@ tokio = { version = "1.52.1", features = ["sync"] }
 wasmtimer = "0.4.3"
 rand = { version = "0.10.1" }
 getrandom = { version = "0.4", features = ["wasm_js"] }
+# Only pulled in for the `embed-assets` feature, which bakes a `dx bundle`
+# output into the server binary so it can run standalone without a sibling
+# `public/` directory. See `scripts/install-gui.sh` and `src/embedded_assets.rs`.
+rust-embed = { version = "8", optional = true, features = ["interpolate-folder-path"] }
+mime_guess = { version = "2", optional = true }
+axum = { version = "0.8", optional = true, default-features = false }
 
 [features]
 default = ["dioxus/web"]
 web = ["dioxus/web"]
 server = ["dioxus/server", "dep:mdagile", "dep:dioxus-cli-config"]
 desktop = ["dioxus/desktop"]
+# Bakes the `dx bundle` web assets (produced ahead of time by
+# `scripts/install-gui.sh`) into the server binary, so the built binary is
+# fully self-contained and does not need a sibling `public/` directory to
+# find its wasm/js/css assets at runtime. Requires the `server` feature.
+# Never enable this for normal development (`dx serve`, `cargo test`) —
+# it requires `.bundled-assets/public` to already exist (see build.rs).
+embed-assets = ["dep:rust-embed", "dep:mime_guess", "dep:axum"]

@@ -2,6 +2,8 @@ use dioxus::prelude::*;
 use log::info;
 
 mod card_positioning;
+#[cfg(feature = "embed-assets")]
+mod embedded_assets;
 mod physics;
 mod server;
 mod slots;
@@ -60,6 +62,20 @@ fn main() {
         }
     }
 
+    #[cfg(feature = "embed-assets")]
+    {
+        // Bypass `dioxus::launch`'s default asset serving (which looks for a
+        // `public/` directory next to the running executable) and instead
+        // build our own router that serves the `dx bundle` output baked into
+        // this binary at compile time — see `embedded_assets.rs`.
+        dioxus::prelude::serve(|| async {
+            let router =
+                axum::Router::new().serve_api_application(dioxus::prelude::ServeConfig::new(), app);
+            Ok(embedded_assets::merge_embedded_assets(router))
+        });
+    }
+
+    #[cfg(not(feature = "embed-assets"))]
     dioxus::launch(app);
 }
 

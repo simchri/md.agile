@@ -1,5 +1,6 @@
 /target
 /buckett
+/crates/gui/.bundled-assets
 agilegui
 /public
 agilels

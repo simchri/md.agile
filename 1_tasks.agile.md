@@ -570,7 +570,7 @@
 - [ ] menu
   - [ ] switch / select projects
 
-- [ ] improved installation & launch procedure for GUI
+- [x] improved installation & launch procedure for GUI
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.

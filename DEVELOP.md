@@ -38,13 +38,37 @@ Test scripts, to simulate card movement, using a temporary directory with fake t
 ./scripts/demo.sh many
 ```
 
-Hacky install for gui:
+### From-source install (recommended)
+
+Unlike the rest of the dev workflow, this runs directly **on the host**, not
+via `devenv`/Docker — it needs the real Rust + `dx` toolchain to perform the
+wasm web bundling step.
+
+Prerequisites (host):
+- Rust + `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
+- the `dx` CLI (`cargo install dioxus-cli --locked`)
+
+```sh
+./scripts/install-gui.sh
+```
+
+This bundles the web assets (`dx bundle --release`), bakes them into a
+single self-contained server binary (via the crate's `embed-assets`
+feature — no separate `public/` folder to keep track of), and installs it
+to `~/.local/bin/agilegui`. Run it with:
+```sh
+MDAGILE_WORKDIR=/path/to/your/project agilegui
+```
+
+### Hacky install for gui (old, manual, two artifacts)
+
 ```
 devenv . -a -c "cd crates/gui && dx bundle" && cp target/dx/mdagile-gui/debug/web/server mdagile-gui && cp -r target/dx/mdagile-gui/debug/web/public/ .
 ```
 (alt: use --release flag and take binary from dir "..release..") 
 
-The server is then callable like so (on the host)
+The server is then callable like so (on the host), with the `public/`
+directory kept alongside the binary:
 ```
 MDAGILE_WORKDIR=.. ./mdagile-gui
 ```
