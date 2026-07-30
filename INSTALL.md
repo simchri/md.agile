@@ -12,8 +12,33 @@ Install the cli and language server with cargo - from project dir:
 cargo install --path crates/cli
 ```
 
-board viewer:
-Currently not easily installable. Use development workflow for testing.
+## Board viewer (GUI)
+
+The GUI additionally needs the `dx` CLI (Dioxus CLI) and the
+`wasm32-unknown-unknown` Rust target, since it bundles a small web frontend
+alongside its server:
+
+```
+rustup target add wasm32-unknown-unknown
+cargo install dioxus-cli --locked
+```
+
+Then, from the project dir (this runs directly on your machine — no Docker
+involved):
+
+```
+./scripts/install-gui.sh
+```
+
+This bundles the web assets, bakes them into a single self-contained
+`agilegui` binary (no separate `public/` folder to manage), and installs it
+to `~/.local/bin/agilegui`. Run it with:
+
+```
+MDAGILE_WORKDIR=/path/to/your/project agilegui
+```
+
+Then open the printed URL (usually `http://127.0.0.1:8080/`) in your browser.
 
 
 ## Language Server
