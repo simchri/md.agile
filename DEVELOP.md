@@ -45,15 +45,22 @@ via `devenv`/Docker — it needs the real Rust + `dx` toolchain to perform the
 wasm web bundling step.
 
 Prerequisites (host):
-- Rust + `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
-- the `dx` CLI (`cargo install dioxus-cli --locked`)
+- Rust + `wasm32-unknown-unknown` target
+- the `dx` CLI (Dioxus CLI)
+
+`./scripts/install.sh` has three independent, individually selectable
+modes — `--toolchain` (installs the wasm32 target + `dioxus-cli`),
+`--cli` (builds/installs `agile`/`agilels`), and `--gui` (bundles the web
+assets and installs `agilegui`). With no flags, all three run:
 
 ```sh
-./scripts/install-gui.sh
+./scripts/install.sh
+# or just refresh the GUI:
+./scripts/install.sh --gui
 ```
 
-This bundles the web assets (`dx bundle --release`), bakes them into a
-single self-contained server binary (via the crate's `embed-assets`
+The `--gui` mode bundles the web assets (`dx bundle --release`), bakes them
+into a single self-contained server binary (via the crate's `embed-assets`
 feature — no separate `public/` folder to keep track of), and installs it
 to `~/.local/bin/agilegui`. Run it with:
 ```sh

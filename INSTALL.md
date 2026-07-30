@@ -12,27 +12,39 @@ Install the cli and language server with cargo - from project dir:
 cargo install --path crates/cli
 ```
 
+Alternatively, `./scripts/install.sh` (see below) builds and installs the
+cli too, alongside the GUI.
+
 ## Board viewer (GUI)
 
 The GUI additionally needs the `dx` CLI (Dioxus CLI) and the
 `wasm32-unknown-unknown` Rust target, since it bundles a small web frontend
-alongside its server:
+alongside its server. `./scripts/install.sh` (this runs directly on your
+machine — no Docker involved) has three independent, individually
+selectable modes:
+
+- `--toolchain` — installs the `wasm32-unknown-unknown` target and
+  `dioxus-cli` (assumes Rust/cargo itself is already installed).
+- `--cli` — builds and installs the `agile` and `agilels` binaries.
+- `--gui` — bundles the web assets and installs the `agilegui` binary.
+
+Run with no flags to do all three:
 
 ```
-rustup target add wasm32-unknown-unknown
-cargo install dioxus-cli --locked
+./scripts/install.sh
 ```
 
-Then, from the project dir (this runs directly on your machine — no Docker
-involved):
+Or run just one mode, e.g. to (re-)install prerequisites, or refresh the
+GUI after pulling new changes:
 
 ```
-./scripts/install-gui.sh
+./scripts/install.sh --toolchain
+./scripts/install.sh --gui
 ```
 
-This bundles the web assets, bakes them into a single self-contained
-`agilegui` binary (no separate `public/` folder to manage), and installs it
-to `~/.local/bin/agilegui`. Run it with:
+The `--gui` mode bundles the web assets, bakes them into a single
+self-contained `agilegui` binary (no separate `public/` folder to manage),
+and installs it to `~/.local/bin/agilegui`. Run it with:
 
 ```
 MDAGILE_WORKDIR=/path/to/your/project agilegui
