@@ -2,6 +2,7 @@
 /buckett
 agilegui
 /public
+crates/gui/.bundled-assets/
 agilels
 agile
 mdagile-gui
