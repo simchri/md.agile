@@ -82,10 +82,17 @@ install: package detect-packaging-system
 	@system="$$(cat $(PACKAGING_SYSTEM_FILE))"; \
 	case "$$system" in \
 		debian) \
-			echo "Installing packages via apt-get..."; \
-			sudo apt-get install -y ./dist/mdagile-cli_$(VERSION)_$(ARCH).deb \
-				./dist/mdagile-lsp_$(VERSION)_$(ARCH).deb \
-				./dist/mdagile-gui_$(VERSION)_$(ARCH).deb \
+			cmd="sudo apt-get install -y ./dist/mdagile-cli_$(VERSION)_$(ARCH).deb ./dist/mdagile-lsp_$(VERSION)_$(ARCH).deb ./dist/mdagile-gui_$(VERSION)_$(ARCH).deb"; \
+			echo "-----------------------------------------------------------------"; \
+			echo "About to install mdagile-cli, mdagile-lsp and mdagile-gui system-wide."; \
+			echo "This requires root privileges (to write into /usr/bin, /usr/lib), so"; \
+			echo "sudo will prompt you for your password. The exact command about to"; \
+			echo "be run is:"; \
+			echo ""; \
+			echo "  $$cmd"; \
+			echo ""; \
+			echo "-----------------------------------------------------------------"; \
+			$$cmd \
 			;; \
 		*) \
 			echo "error: unsupported packaging system '$$system'" >&2; \
