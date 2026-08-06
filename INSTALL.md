@@ -13,16 +13,17 @@ Supported:
 Prerequisites: 
 - Project sources available (e.g. project cloned)
 - [Docker](https://docs.docker.com/engine/install/) 
+- [Docker Compose](https://docs.docker.com/compose/install/) (the `docker compose` plugin, v2)
 - [Make](https://www.gnu.org/software/make/) (Preinstalled on must linux systems)
 
 Just run
 ```
 make install
 ```
-The `install` target will create packages (e.g. *.deb files) for your OS and install all components (cli, gui, lsp). If you want to install only some components, instead run `make package`, then manually install only the wanted packages. Package files are in `./target`.  
+The `install` target will create packages (e.g. *.deb files) for your OS and install all components (cli, gui, lsp). If you want to install only some components, instead run `make package`, then manually install only the wanted packages. Package files are in `./dist`. Run `make help` to see all available targets.
 
 Uninstall:
-- Remove executables via your package manger, e.g. debian based distro: `sudo apt remove "mdagile*"`
+- Remove executables via your package manager, e.g. debian based distro: `sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui`
 - Optionally; Clean docker images & containers (c.f. Docker documentation)
 - Optionally; remove this project directory
 
@@ -39,6 +40,8 @@ Installation of cli and language server:
 ```
 cargo install --path crates/cli
 ```
+This installs the `agile` and `agilels` binaries into `~/.cargo/bin` (the default `cargo install` location). Make sure that directory is on your `PATH` — the [rustup](https://rust-lang.org/tools/install/) installer adds it automatically for interactive installs, but double-check (e.g. `which agile`) if you used a non-interactive/custom Rust setup.
+
 Installation of board viewer:
 Currently not easily installable. Use development workflow for testing.
 
