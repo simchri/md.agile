@@ -33,7 +33,14 @@ COMPOSE_RUN := docker compose run --rm -T $(COMPOSE_SERVICE) -c
 VERSION := $(shell sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)
 ARCH    := amd64
 
-.PHONY: toolchain build-release package clean-package
+.PHONY: help toolchain build-release package clean-package
+
+.DEFAULT_GOAL := help
+
+## Show this help message (default target).
+help:
+	@echo "Available targets:"
+	@awk 'BEGIN {FS = ":.*"} /^## / {desc = substr($$0, 4)} /^[a-zA-Z_-]+:/ && desc {printf "  %-16s %s\n", $$1, desc; desc = ""}' $(MAKEFILE_LIST)
 
 ## Install the toolchain: build the docker dev image (rust nightly, dioxus-cli, etc.).
 toolchain:
