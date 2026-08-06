@@ -26,8 +26,13 @@ for f in "$CLI_BIN" "$LSP_BIN" "$GUI_WEB_DIR/server" "$GUI_WEB_DIR/public"; do
   fi
 done
 
-rm -rf "$STAGE_DIR"
 mkdir -p "$DIST_DIR"
+
+# Remove any stale packages from previous runs (regardless of their name,
+# version or arch) so `dist/` never mixes old and freshly-built .debs, which
+# would otherwise confuse subsequent `make install` steps.
+rm -rf "$STAGE_DIR"
+find "$DIST_DIR" -maxdepth 1 -name '*.deb' -delete
 
 write_control() {
   local dir="$1" pkg="$2" desc="$3"
