@@ -21,13 +21,16 @@ detect() {
     . /etc/os-release
     case " ${ID:-} ${ID_LIKE:-} " in
       *" debian "*) echo "debian"; return 0 ;;
+      # Fedora/RHEL family (Fedora, RHEL, CentOS, Rocky, AlmaLinux, ...), all
+      # using dnf (or, on older releases, yum) and .rpm packages.
+      *" fedora "*|*" rhel "*) echo "rpm"; return 0 ;;
     esac
   fi
   return 1
 }
 
 if ! system="$(detect)"; then
-  echo "error: unsupported host packaging system (only Debian/Ubuntu-family hosts, i.e. apt/dpkg, are currently supported)" >&2
+  echo "error: unsupported host packaging system (only Debian/Ubuntu-family hosts (apt/dpkg) and Fedora/RHEL-family hosts (dnf/rpm) are currently supported)" >&2
   exit 1
 fi
 

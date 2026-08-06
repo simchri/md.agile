@@ -7,7 +7,7 @@
 # Targets:
 #   make toolchain      - build (or rebuild) the docker dev image
 #   make build-release  - release-build the cli+lsp (cargo) and the gui (dx bundle)
-#   make package        - assemble mdagile-cli, mdagile-lsp, mdagile-gui .deb packages into dist/
+#   make package        - assemble mdagile-cli, mdagile-lsp, mdagile-gui .deb and .rpm packages into dist/
 
 SHELL := bash
 
@@ -52,9 +52,11 @@ build-release: toolchain
 		cargo build --release -p mdagile && \
 		cd crates/gui && dx bundle --release --platform web"
 
-## Assemble mdagile-cli, mdagile-lsp and mdagile-gui .deb packages into dist/.
+## Assemble mdagile-cli, mdagile-lsp and mdagile-gui .deb and .rpm packages into dist/.
 package: build-release
-	$(COMPOSE_RUN) "set -euo pipefail && scripts/package-deb.sh $(VERSION) $(ARCH)"
+	$(COMPOSE_RUN) "set -euo pipefail && \
+		scripts/package-deb.sh $(VERSION) $(ARCH) && \
+		scripts/package-rpm.sh $(VERSION)"
 
 ## Remove packaging output.
 clean-package:
@@ -64,6 +66,6 @@ clean-package:
 detect-packaging-system:
 	@scripts/detect-packaging-system.sh check
 
-## Install the built .deb packages (mdagile-cli, mdagile-lsp, mdagile-gui) onto the host.
+## Install the built packages (mdagile-cli, mdagile-lsp, mdagile-gui) onto the host.
 install: package detect-packaging-system
 	@scripts/install.sh $(VERSION) $(ARCH)

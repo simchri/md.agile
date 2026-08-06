@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install --yes \
       libxdo-dev \
       libssl-dev \
       make \
+      rpm \
       sudo \
       vim \
       wget

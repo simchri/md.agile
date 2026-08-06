@@ -17,15 +17,35 @@ cd "$ROOT"
 PACKAGING_SYSTEM="$(scripts/detect-packaging-system.sh value)"
 
 DIST_DIR="dist"
-PACKAGES=(
-  "$DIST_DIR/mdagile-cli_${VERSION}_${ARCH}.deb"
-  "$DIST_DIR/mdagile-lsp_${VERSION}_${ARCH}.deb"
-  "$DIST_DIR/mdagile-gui_${VERSION}_${ARCH}.deb"
-)
 
 case "$PACKAGING_SYSTEM" in
   debian)
+    PACKAGES=(
+      "$DIST_DIR/mdagile-cli_${VERSION}_${ARCH}.deb"
+      "$DIST_DIR/mdagile-lsp_${VERSION}_${ARCH}.deb"
+      "$DIST_DIR/mdagile-gui_${VERSION}_${ARCH}.deb"
+    )
     cmd=(sudo apt-get install -y "${PACKAGES[@]}")
+    uninstall_cmd="sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui"
+    ;;
+  rpm)
+    RPM_ARCH="$(uname -m)"
+    RELEASE="1"
+    PACKAGES=(
+      "$DIST_DIR/mdagile-cli-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
+      "$DIST_DIR/mdagile-lsp-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
+      "$DIST_DIR/mdagile-gui-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
+    )
+    if command -v dnf >/dev/null 2>&1; then
+      cmd=(sudo dnf install -y "${PACKAGES[@]}")
+      uninstall_cmd="sudo dnf remove -y mdagile-cli mdagile-lsp mdagile-gui"
+    elif command -v yum >/dev/null 2>&1; then
+      cmd=(sudo yum install -y "${PACKAGES[@]}")
+      uninstall_cmd="sudo yum remove -y mdagile-cli mdagile-lsp mdagile-gui"
+    else
+      echo "error: neither dnf nor yum found on this host" >&2
+      exit 1
+    fi
     ;;
   *)
     echo "error: unsupported packaging system '$PACKAGING_SYSTEM'" >&2
@@ -50,6 +70,6 @@ echo "-----------------------------------------------------------------"
 echo "Installed mdagile-cli, mdagile-lsp and mdagile-gui successfully."
 echo "You can uninstall md.agile as follows:"
 echo ""
-echo "  sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui"
+echo "  $uninstall_cmd"
 echo ""
 echo "-----------------------------------------------------------------"

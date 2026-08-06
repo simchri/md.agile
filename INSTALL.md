@@ -8,7 +8,8 @@ Project is not yet configured for easy convenient installation on all platforms.
 Preferred installation method for developers, experienced linux users
 
 Supported:
-- Debian based Linux distros (Debian, Ubuntu etc.) 
+- Debian based Linux distros (Debian, Ubuntu etc.), via apt/dpkg
+- Fedora/RHEL based Linux distros (Fedora, RHEL, CentOS, Rocky, AlmaLinux etc.), via dnf/yum
 
 Prerequisites: 
 - Project sources available (e.g. project cloned)

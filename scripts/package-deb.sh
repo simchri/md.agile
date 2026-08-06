@@ -72,14 +72,7 @@ GUI_DIR="$STAGE_DIR/mdagile-gui"
 mkdir -p "$GUI_DIR/usr/lib/mdagile-gui" "$GUI_DIR/usr/bin"
 install -m 755 "$GUI_WEB_DIR/server" "$GUI_DIR/usr/lib/mdagile-gui/server"
 cp -r "$GUI_WEB_DIR/public" "$GUI_DIR/usr/lib/mdagile-gui/public"
-cat > "$GUI_DIR/usr/bin/agilegui" <<'WRAPPER'
-#!/bin/sh
-# The bundled server resolves its static assets (public/) relative to its
-# working directory, so cd into the install dir before exec-ing it.
-cd /usr/lib/mdagile-gui || exit 1
-exec ./server "$@"
-WRAPPER
-chmod 755 "$GUI_DIR/usr/bin/agilegui"
+install -m 755 "$ROOT/scripts/assets/agilegui-wrapper.sh" "$GUI_DIR/usr/bin/agilegui"
 write_control "$GUI_DIR" "mdagile-gui" "mdagile board viewer (web GUI server) for .agile.md task files"
 build_deb "mdagile-gui"
 
