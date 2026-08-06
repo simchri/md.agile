@@ -9,6 +9,7 @@
 #   make build-release  - release-build the cli+lsp (cargo) and the gui (dx bundle)
 #   make package        - assemble mdagile-cli, mdagile-lsp, mdagile-gui .deb and .rpm packages into dist/
 #   make smoketest-install - install the built packages into disposable containers and sanity-check them
+#   make test           - run the full cargo test suite
 
 SHELL := bash
 
@@ -33,7 +34,7 @@ COMPOSE_RUN := docker compose run --rm -T $(COMPOSE_SERVICE) -c
 
 VERSION := $(shell sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)
 
-.PHONY: help toolchain build-release package clean-package detect-packaging-system install smoketest-install
+.PHONY: help toolchain build-release test package clean-package detect-packaging-system install smoketest-install
 
 .DEFAULT_GOAL := help
 
@@ -51,6 +52,10 @@ build-release: toolchain
 	$(COMPOSE_RUN) "set -euo pipefail && \
 		cargo build --release -p mdagile && \
 		cd crates/gui && dx bundle --release --platform web"
+
+## Run the full cargo test suite.
+test: toolchain
+	$(COMPOSE_RUN) "cargo test"
 
 ## Assemble mdagile-cli, mdagile-lsp and mdagile-gui .deb and .rpm packages into dist/.
 package: build-release
