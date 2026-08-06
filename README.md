@@ -1,7 +1,6 @@
 # Md.Agile
 
-Plain-text, version-controlled task management for developers.
-Your tasks live forever in a simple text file, version-controlled directly alongside your code (ideally in the same repository) – not a web app!
+Plain-text, version-controlled task management for developers. Your tasks live in a simple text file, not some web app.
 
 > This project is >> under construction <<  - more features to come. (c.f. [README.vision.md](README.vision.md))
 
@@ -16,7 +15,7 @@ Your tasks live forever in a simple text file, version-controlled directly along
   - [x] this subtask is done
 ```
 
-Tasks follow a specific syntax. You will receive immediate feedback in your text editor if you make a mistake (via Language Server). Use the language server's auto-fix feature for an ergonomic experience. Use the CLI tool to add strict checks as pre-commit hooks or in your pipeline – your task list is always consistent. Everything is designed with a "command line first" approach: text files and CLI tools are the primary interface. Graphical client for convenient "board view" (Currently only limited edits possible).
+Tasks follow a specific syntax. You will receive immediate feedback and quick fix options in your text editor via the language server. Use the CLI tool to add strict checks as pre-commit hooks or in your pipeline – your task list is always consistent. Everything is designed with a "command line first" approach: text files and CLI tools are the primary interface. A graphical client provides a convenient "board view" for your team meetings and some limited editing options.
 
 Simple animated board
 
