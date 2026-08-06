@@ -33,11 +33,6 @@ COMPOSE_RUN := docker compose run --rm -T $(COMPOSE_SERVICE) -c
 VERSION := $(shell sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)
 ARCH    := amd64
 
-# Where detect-packaging-system records the host's packaging system, and
-# where install reads it back from. Lives under dist/ (gitignored) since it's
-# only meaningful alongside a fresh `package` build.
-PACKAGING_SYSTEM_FILE := dist/.packaging-system
-
 .PHONY: help toolchain build-release package clean-package detect-packaging-system install
 
 .DEFAULT_GOAL := help
@@ -67,16 +62,8 @@ clean-package:
 
 ## Detect the host's (not the container's) packaging system; errors out if unsupported.
 detect-packaging-system:
-	@mkdir -p dist
-	@if [ -r /etc/os-release ] && ( . /etc/os-release; \
-			case " $$ID $$ID_LIKE " in *" debian "*) exit 0 ;; *) exit 1 ;; esac ); then \
-		echo "debian" > $(PACKAGING_SYSTEM_FILE); \
-		echo "Detected host packaging system: debian"; \
-	else \
-		echo "error: unsupported host packaging system (only Debian/Ubuntu-family hosts, i.e. apt/dpkg, are currently supported)" >&2; \
-		exit 1; \
-	fi
+	@scripts/detect-packaging-system.sh check
 
 ## Install the built .deb packages (mdagile-cli, mdagile-lsp, mdagile-gui) onto the host.
 install: package detect-packaging-system
-	@scripts/install.sh "$$(cat $(PACKAGING_SYSTEM_FILE))" $(VERSION) $(ARCH)
+	@scripts/install.sh $(VERSION) $(ARCH)

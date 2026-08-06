@@ -5,12 +5,16 @@
 # to modify the host's package database.
 set -euo pipefail
 
-PACKAGING_SYSTEM="${1:?usage: install.sh <packaging-system> <version> <arch>}"
-VERSION="${2:?usage: install.sh <packaging-system> <version> <arch>}"
-ARCH="${3:-amd64}"
+VERSION="${1:?usage: install.sh <version> <arch>}"
+ARCH="${2:-amd64}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+
+# Re-run host packaging-system detection (rather than trusting a value/file
+# handed down from `make`) so this script stays self-contained and correct
+# even when invoked directly, outside of `make install`.
+PACKAGING_SYSTEM="$(scripts/detect-packaging-system.sh value)"
 
 DIST_DIR="dist"
 PACKAGES=(
