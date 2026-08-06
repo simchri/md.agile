@@ -4,6 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## General Interaction Rules for AI Agents:
 - Never make any file changes unprompted. When the user asks a question, investigate and answer the question. Do not automatically assume the user wants you to change any code. 
 - Before making any implementation changes, review the implementation plan: What are potentially important code design decisions, implicit in the plan? Spell them out explicitly to the user. If any significant design decisions are being made, first ask the user for explicit confirmation.
+- Never shadow, wrap, or replace a tool/command on `PATH` (e.g. placing a fake `sudo`, `dnf`, `apt-get`, etc. earlier on `PATH`) to intercept or stub its behavior during testing, without the user's explicit, prior permission. This applies even for read-only/dry-run test purposes. If a command needs to be exercised without side effects, ask the user how they'd like to validate it (e.g. `--dry-run` flags, a sandboxed/container environment, or the user testing it themselves).
 
 
 ## Project 
