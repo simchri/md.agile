@@ -515,6 +515,14 @@
 
 - [x] `agile when --data` mode: outputs the raw plot data as a table (task counts only, no weights or trend line data)
 
+- [ ] installation improvements:
+  - [x] packaging for deb
+  - [ ] testing of DEB packaging setup (smoke tests to ensure packages are always correct)
+  - [ ] packaging for rpm
+  - [ ] testing of RPM packaging setup (smoke tests to ensure packages are always correct)
+
+- [ ] improved installation & launch procedure for GUI
+
 - [ ] ctd
   - [ ] output ETA
 
@@ -570,7 +578,6 @@
 - [ ] menu
   - [ ] switch / select projects
 
-- [ ] improved installation & launch procedure for GUI
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
