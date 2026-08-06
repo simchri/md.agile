@@ -3,23 +3,57 @@
 
 Project is not yet configured for easy convenient installation on all platforms. If you are a developer, go for it! (Non-technical users, expect some difficulties!)
 
-Prereqs: 
-- Rust toolchain installed
-- Project sources available (e.g. project cloned)
+## Option 1 - Build from Source - Docker
 
-Install the cli and language server with cargo - from project dir:
+Preferred installation method for developers, experienced linux users
+
+Supported:
+- Debian based Linux distros (Debian, Ubuntu etc.) 
+
+Prerequisites: 
+- Project sources available (e.g. project cloned)
+- [Docker](https://docs.docker.com/engine/install/) 
+- [Make](https://www.gnu.org/software/make/) (Preinstalled on must linux systems)
+
+Just run
+```
+make install
+```
+The `install` target will create packages (e.g. *.deb files) for your OS and install all components (cli, gui, lsp). If you want to install only some components, instead run `make package`, then manually install only the wanted packages. Package files are in `./target`.  
+
+Uninstall:
+- Remove executables via your package manger, e.g. debian based distro: `sudo apt remove "mdagile*"`
+- Optionally; Clean docker images & containers (c.f. Docker documentation)
+- Optionally; remove this project directory
+
+## Option 2 - Build from Source - On host
+
+Supported:
+- Any Linux distro supported by the rust toolchain
+
+Prerequisites: 
+- Project sources available (e.g. project cloned)
+- [Rust](https://rust-lang.org/tools/install/)
+
+Installation of cli and language server:
 ```
 cargo install --path crates/cli
 ```
-
-board viewer:
+Installation of board viewer:
 Currently not easily installable. Use development workflow for testing.
 
+Uninstall:
+- Remove executables via cargo `cargo uninstall mdagile`
+- Optionally; remove this project directory
+- Optionally; Clean rust toolchain cache / remove rust toolchain
 
-## Language Server
+## Language Server Integration
+
+The steps above only make the executable files available on the host system. If you want to use the language server (the "IDE integration") for mdagile, you have to configure your IDE/editor accordingly. 
+
 ### Nvim
 
-After installation, ensure the `agilels` binary is on your path. Then add the config below.
+Perform installation as described above (any option) and check that `agilels` binary is on your path (`whereis agilels`). Then add the config below.
 
 Nvim config example with lazy pkg manager (if you use a different package manager, adjust as needed):
 
