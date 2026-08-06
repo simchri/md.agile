@@ -15,7 +15,10 @@ cd "$ROOT"
 # even when invoked directly, outside of `make install`.
 PACKAGING_SYSTEM="$(scripts/detect-packaging-system.sh value)"
 
-DIST_DIR="dist"
+# Must be an absolute path: a bare "dist/pkg.deb" (no leading "./" or "/") is
+# ambiguous with apt-get's "package/release" target-release syntax, which
+# makes apt-get misinterpret "dist" as a release name instead of a directory.
+DIST_DIR="$ROOT/dist"
 
 case "$PACKAGING_SYSTEM" in
   debian)
