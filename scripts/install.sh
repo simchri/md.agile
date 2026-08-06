@@ -72,7 +72,7 @@ echo "-----------------------------------------------------------------"
 
 echo ""
 echo "-----------------------------------------------------------------"
-echo "Installed mdagile-cli, mdagile-lsp and mdagile-gui successfully."
+echo "Installed successfully."
 echo "You can uninstall md.agile as follows:"
 echo ""
 echo "  $uninstall_cmd"
