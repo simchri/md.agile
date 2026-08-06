@@ -515,11 +515,11 @@
 
 - [x] `agile when --data` mode: outputs the raw plot data as a table (task counts only, no weights or trend line data)
 
-- [ ] installation improvements:
+- [x] installation improvements:
   - [x] packaging for deb
-  - [ ] testing of DEB packaging setup (smoke tests to ensure packages are always correct)
-  - [ ] packaging for rpm
-  - [ ] testing of RPM packaging setup (smoke tests to ensure packages are always correct)
+  - [x] testing of DEB packaging setup (smoke tests to ensure packages are always correct)
+  - [x] packaging for rpm
+  - [x] testing of RPM packaging setup (smoke tests to ensure packages are always correct)
 
 - [ ] improved installation & launch procedure for GUI
 
