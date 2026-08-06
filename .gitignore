@@ -10,3 +10,4 @@ mdagile
 *.tmp.md
 sample-plot-repo/
 sample_dir_*/
+/dist

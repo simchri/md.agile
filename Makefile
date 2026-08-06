@@ -21,7 +21,14 @@ USER      := $(shell whoami)
 DISPLAY   ?= :0
 export UID USER DISPLAY
 
-COMPOSE_RUN := docker compose run --rm -T $(COMPOSE_SERVICE) bash -lc
+# NOTE: the dev image's ENTRYPOINT is already ["/bin/bash"], so the command
+# passed to `docker compose run` becomes *arguments* to that bash, not a
+# separate invocation. Passing "-c <cmd>" (without repeating "bash") makes
+# bash run <cmd> directly; repeating "bash" here would make bash treat the
+# literal word "bash" as a script filename to execute, which fails. Using
+# "-c" rather than "-lc" avoids a login shell re-sourcing /etc/profile,
+# which resets PATH and drops the image's /usr/local/cargo/bin entry.
+COMPOSE_RUN := docker compose run --rm -T $(COMPOSE_SERVICE) -c
 
 VERSION := $(shell sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)
 ARCH    := amd64
