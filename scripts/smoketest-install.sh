@@ -19,7 +19,6 @@ PACKAGING_SYSTEM="${1:?usage: smoketest-install.sh <packaging-system> <version>}
 VERSION="${2:?usage: smoketest-install.sh <packaging-system> <version>}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIST_DIR="$ROOT/dist"
 
 case "$PACKAGING_SYSTEM" in
   debian)
@@ -28,7 +27,6 @@ case "$PACKAGING_SYSTEM" in
     # bookworm (Debian 12) has an older glibc than the binaries were linked
     # against, and fails with "GLIBC_2.39' not found".
     IMAGE="debian:trixie-slim"
-    GLOB="mdagile-*.deb"
     # install.sh shells out to the real `sudo`, so it needs to exist in the
     # container; running it as root is passwordless (no PAM prompt), so this
     # stays fully non-interactive.
@@ -36,7 +34,6 @@ case "$PACKAGING_SYSTEM" in
     ;;
   rpm)
     IMAGE="fedora:latest"
-    GLOB="mdagile-*.rpm"
     PREP_CMD="dnf install -y -q sudo"
     ;;
   *)
@@ -44,15 +41,6 @@ case "$PACKAGING_SYSTEM" in
     exit 1
     ;;
 esac
-
-# Don't bother re-deriving install.sh's exact filename convention (version,
-# arch, release, ...) here — just check dist/ has *some* matching packages.
-# If the specific ones install.sh needs are missing, it will fail with its
-# own clear error when it runs inside the container below.
-if ! compgen -G "$DIST_DIR/$GLOB" >/dev/null; then
-  echo "error: no packages matching $DIST_DIR/$GLOB found (run 'make package' first)" >&2
-  exit 1
-fi
 
 echo "=== smoketest-install: $PACKAGING_SYSTEM ($IMAGE) ==="
 
@@ -69,14 +57,16 @@ echo "--- running the real install.sh ---"
 install_output="$(/repo/scripts/install.sh "$MDAGILE_VERSION" 2>&1)"
 echo "$install_output"
 
-echo "--- checking agile (cli) ---"
+echo "--- checking agile (cli) is on PATH and runs ---"
+command -v agile >/dev/null
 agile --help >/dev/null
 
-echo "--- checking agilels (lsp) ---"
-agilels --help >/dev/null || true # LSP binaries often don't support --help; presence + exec is enough
+echo "--- checking agilels (lsp) is on PATH and runs ---"
 command -v agilels >/dev/null
+agilels --help >/dev/null || true # LSP binaries often don't support --help; presence + exec is enough
 
-echo "--- checking agilegui (gui) doesn't immediately exit ---"
+echo "--- checking agilegui (gui) is on PATH and doesn't immediately exit ---"
+command -v agilegui >/dev/null
 workdir="$(mktemp -d)"
 cat > "$workdir/mdagile.toml" <<'EOF'
 [Properties]
