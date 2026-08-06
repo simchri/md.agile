@@ -5,8 +5,10 @@
 # Debian/Ubuntu host with dpkg-deb available.
 set -euo pipefail
 
-VERSION="${1:?usage: package-deb.sh <version> <arch>}"
-ARCH="${2:-amd64}"
+VERSION="${1:?usage: package-deb.sh <version>}"
+# Detect the *build* platform's Debian architecture name (e.g. amd64, arm64)
+# directly from dpkg, rather than having the caller pass it in.
+ARCH="$(dpkg --print-architecture)"
 MAINTAINER="mdagile maintainers <noreply@example.invalid>"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -5,8 +5,7 @@
 # to modify the host's package database.
 set -euo pipefail
 
-VERSION="${1:?usage: install.sh <version> <arch>}"
-ARCH="${2:-amd64}"
+VERSION="${1:?usage: install.sh <version>}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -20,6 +19,9 @@ DIST_DIR="dist"
 
 case "$PACKAGING_SYSTEM" in
   debian)
+    # Detect the host's Debian architecture name (e.g. amd64, arm64) directly
+    # from dpkg, so it always matches whatever package-deb.sh produced.
+    ARCH="$(dpkg --print-architecture)"
     PACKAGES=(
       "$DIST_DIR/mdagile-cli_${VERSION}_${ARCH}.deb"
       "$DIST_DIR/mdagile-lsp_${VERSION}_${ARCH}.deb"

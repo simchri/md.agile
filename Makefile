@@ -31,7 +31,6 @@ export UID USER DISPLAY
 COMPOSE_RUN := docker compose run --rm -T $(COMPOSE_SERVICE) -c
 
 VERSION := $(shell sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)
-ARCH    := amd64
 
 .PHONY: help toolchain build-release package clean-package detect-packaging-system install
 
@@ -55,7 +54,7 @@ build-release: toolchain
 ## Assemble mdagile-cli, mdagile-lsp and mdagile-gui .deb and .rpm packages into dist/.
 package: build-release
 	$(COMPOSE_RUN) "set -euo pipefail && \
-		scripts/package-deb.sh $(VERSION) $(ARCH) && \
+		scripts/package-deb.sh $(VERSION) && \
 		scripts/package-rpm.sh $(VERSION)"
 
 ## Remove packaging output.
@@ -68,4 +67,4 @@ detect-packaging-system:
 
 ## Install the built packages (mdagile-cli, mdagile-lsp, mdagile-gui) onto the host.
 install: package detect-packaging-system
-	@scripts/install.sh $(VERSION) $(ARCH)
+	@scripts/install.sh $(VERSION)
