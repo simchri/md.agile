@@ -8,6 +8,7 @@
 #   make toolchain      - build (or rebuild) the docker dev image
 #   make build-release  - release-build the cli+lsp (cargo) and the gui (dx bundle)
 #   make package        - assemble mdagile-cli, mdagile-lsp, mdagile-gui .deb and .rpm packages into dist/
+#   make smoketest-install - install the built packages into disposable containers and sanity-check them
 
 SHELL := bash
 
@@ -32,7 +33,7 @@ COMPOSE_RUN := docker compose run --rm -T $(COMPOSE_SERVICE) -c
 
 VERSION := $(shell sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)
 
-.PHONY: help toolchain build-release package clean-package detect-packaging-system install
+.PHONY: help toolchain build-release package clean-package detect-packaging-system install smoketest-install
 
 .DEFAULT_GOAL := help
 
@@ -68,3 +69,8 @@ detect-packaging-system:
 ## Install the built packages (mdagile-cli, mdagile-lsp, mdagile-gui) onto the host.
 install: package detect-packaging-system
 	@scripts/install.sh $(VERSION)
+
+## Smoke-test both .deb and .rpm packages in disposable containers (real installs, no host changes; sanity-checks the binaries).
+smoketest-install: package
+	scripts/smoketest-install.sh debian $(VERSION)
+	scripts/smoketest-install.sh rpm $(VERSION)
