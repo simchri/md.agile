@@ -28,12 +28,7 @@ case "$PACKAGING_SYSTEM" in
     # bookworm (Debian 12) has an older glibc than the binaries were linked
     # against, and fails with "GLIBC_2.39' not found".
     IMAGE="debian:trixie-slim"
-    ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
-    PACKAGE_FILES=(
-      "mdagile-cli_${VERSION}_${ARCH}.deb"
-      "mdagile-lsp_${VERSION}_${ARCH}.deb"
-      "mdagile-gui_${VERSION}_${ARCH}.deb"
-    )
+    GLOB="mdagile-*.deb"
     # install.sh shells out to the real `sudo`, so it needs to exist in the
     # container; running it as root is passwordless (no PAM prompt), so this
     # stays fully non-interactive.
@@ -41,13 +36,7 @@ case "$PACKAGING_SYSTEM" in
     ;;
   rpm)
     IMAGE="fedora:latest"
-    RPM_ARCH="$(uname -m)"
-    RELEASE="1"
-    PACKAGE_FILES=(
-      "mdagile-cli-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
-      "mdagile-lsp-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
-      "mdagile-gui-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
-    )
+    GLOB="mdagile-*.rpm"
     PREP_CMD="dnf install -y -q sudo"
     ;;
   *)
@@ -56,12 +45,14 @@ case "$PACKAGING_SYSTEM" in
     ;;
 esac
 
-for f in "${PACKAGE_FILES[@]}"; do
-  if [ ! -e "$DIST_DIR/$f" ]; then
-    echo "error: expected package missing: $DIST_DIR/$f (run 'make package' first)" >&2
-    exit 1
-  fi
-done
+# Don't bother re-deriving install.sh's exact filename convention (version,
+# arch, release, ...) here — just check dist/ has *some* matching packages.
+# If the specific ones install.sh needs are missing, it will fail with its
+# own clear error when it runs inside the container below.
+if ! compgen -G "$DIST_DIR/$GLOB" >/dev/null; then
+  echo "error: no packages matching $DIST_DIR/$GLOB found (run 'make package' first)" >&2
+  exit 1
+fi
 
 echo "=== smoketest-install: $PACKAGING_SYSTEM ($IMAGE) ==="
 
