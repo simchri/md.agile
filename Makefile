@@ -92,7 +92,15 @@ install: package detect-packaging-system
 			echo "  $$cmd"; \
 			echo ""; \
 			echo "-----------------------------------------------------------------"; \
-			$$cmd \
+			$$cmd || exit 1; \
+			echo ""; \
+			echo "-----------------------------------------------------------------"; \
+			echo "Installed mdagile-cli, mdagile-lsp and mdagile-gui successfully."; \
+			echo "To uninstall them again later, run:"; \
+			echo ""; \
+			echo "  sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui"; \
+			echo ""; \
+			echo "-----------------------------------------------------------------" \
 			;; \
 		*) \
 			echo "error: unsupported packaging system '$$system'" >&2; \
