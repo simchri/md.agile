@@ -79,31 +79,4 @@ detect-packaging-system:
 
 ## Install the built .deb packages (mdagile-cli, mdagile-lsp, mdagile-gui) onto the host.
 install: package detect-packaging-system
-	@system="$$(cat $(PACKAGING_SYSTEM_FILE))"; \
-	case "$$system" in \
-		debian) \
-			cmd="sudo apt-get install -y ./dist/mdagile-cli_$(VERSION)_$(ARCH).deb ./dist/mdagile-lsp_$(VERSION)_$(ARCH).deb ./dist/mdagile-gui_$(VERSION)_$(ARCH).deb"; \
-			echo "-----------------------------------------------------------------"; \
-			echo "About to install mdagile-cli, mdagile-lsp and mdagile-gui system-wide."; \
-			echo "This requires root privileges (to write into /usr/bin, /usr/lib), so"; \
-			echo "sudo will prompt you for your password. The exact command about to"; \
-			echo "be run is:"; \
-			echo ""; \
-			echo "  $$cmd"; \
-			echo ""; \
-			echo "-----------------------------------------------------------------"; \
-			$$cmd || exit 1; \
-			echo ""; \
-			echo "-----------------------------------------------------------------"; \
-			echo "Installed mdagile-cli, mdagile-lsp and mdagile-gui successfully."; \
-			echo "To uninstall them again later, run:"; \
-			echo ""; \
-			echo "  sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui"; \
-			echo ""; \
-			echo "-----------------------------------------------------------------" \
-			;; \
-		*) \
-			echo "error: unsupported packaging system '$$system'" >&2; \
-			exit 1 \
-			;; \
-	esac
+	@scripts/install.sh "$$(cat $(PACKAGING_SYSTEM_FILE))" $(VERSION) $(ARCH)
