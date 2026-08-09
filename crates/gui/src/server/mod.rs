@@ -217,43 +217,35 @@ fn format_marker(marker: &mdagile::parser::Marker) -> String {
 
 #[cfg(feature = "server")]
 fn get_or_init_working_dir() -> Result<PathBuf, ServerFnError> {
-    fn is_file_or_symlink(path: &PathBuf) -> bool {
-        use std::fs;
-        match fs::symlink_metadata(path) {
-            Ok(metadata) => {
-                if metadata.is_file() {
-                    true
-                } else if metadata.file_type().is_symlink() {
-                    true
-                } else {
-                    false
-                }
-            }
-            Err(_) => false,
-        }
-    }
-
     let mut cached = WORKING_DIR.lock().unwrap();
 
     if let Some(dir) = cached.as_ref() {
         return Ok(dir.clone());
     }
 
-    let working_dir_res = std::env::var("MDAGILE_WORKDIR")
-        .map(PathBuf::from)
-        .or_else(|_| {
-            let mut args = std::env::args().skip(1);
-            if let Some(arg) = args.next() {
-                Ok(PathBuf::from(arg))
-            } else {
-                std::env::current_dir()
-            }
+    // Startup resolution order: an already-remembered project from a
+    // previous run (`~/.config/mdagile-gui/settings.toml`), then the legacy
+    // `MDAGILE_WORKDIR` env var / positional CLI arg (still supported for
+    // scripted/kiosk launches), then finally the current directory.
+    let working_dir_res = crate::settings::read_settings(&crate::settings::settings_file_path())
+        .current
+        .map(Ok)
+        .unwrap_or_else(|| {
+            std::env::var("MDAGILE_WORKDIR")
+                .map(PathBuf::from)
+                .or_else(|_| {
+                    let mut args = std::env::args().skip(1);
+                    if let Some(arg) = args.next() {
+                        Ok(PathBuf::from(arg))
+                    } else {
+                        std::env::current_dir()
+                    }
+                })
         });
 
     let dir = match working_dir_res {
         Ok(dir) => {
-            let toml_path = dir.join("mdagile.toml");
-            if is_file_or_symlink(&toml_path) {
+            if crate::settings::is_project_dir(&dir) {
                 info!("found project root at {}", dir.display());
                 dir
             } else {
@@ -272,6 +264,92 @@ fn get_or_init_working_dir() -> Result<PathBuf, ServerFnError> {
 
     *cached = Some(dir.clone());
     Ok(dir)
+}
+
+/// Switches the GUI's active project to `path` at runtime — the core of the
+/// "≡ menu → Switch project" action. Refuses to switch:
+/// - in kiosk mode (kiosk locks the GUI to whatever project it was launched
+///   with, same as it locks out write actions), and
+/// - to a directory that doesn't look like an mdagile project (no
+///   `mdagile.toml`), so a typo'd path can't silently blank the board.
+///
+/// On success, updates the in-memory working directory used by
+/// [`get_or_init_working_dir`] (so subsequent [`get_tasks`] calls see the
+/// new project immediately, no restart needed) and persists the choice to
+/// `~/.config/mdagile-gui/settings.toml` — both as the new `current` project
+/// and at the front of `recent`.
+#[cfg(feature = "server")]
+fn switch_working_dir(path: PathBuf) -> Result<PathBuf, ServerFnError> {
+    if is_kiosk_mode() {
+        return Err(ServerFnError::new(
+            "kiosk mode: switching projects is disabled",
+        ));
+    }
+
+    if !crate::settings::is_project_dir(&path) {
+        return Err(ServerFnError::new(format!(
+            "not an mdagile project (no mdagile.toml found in {})",
+            path.display()
+        )));
+    }
+
+    let settings_path = crate::settings::settings_file_path();
+    let updated =
+        crate::settings::record_project(&crate::settings::read_settings(&settings_path), &path);
+    if let Err(e) = crate::settings::write_settings(&settings_path, &updated) {
+        // Not fatal — the switch still takes effect for this running
+        // server, it just won't be remembered across a restart.
+        error!(
+            "could not persist settings to {}: {e}",
+            settings_path.display()
+        );
+    }
+
+    *WORKING_DIR.lock().unwrap() = Some(path.clone());
+    info!("switched active project to {}", path.display());
+    Ok(path)
+}
+
+/// A project the GUI can currently switch to, for the "≡ menu → Switch
+/// project" UI's recent-projects list.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ProjectInfo {
+    pub path: String,
+    pub is_current: bool,
+}
+
+/// Lists the currently active project and previously used ones, for
+/// populating the "≡ menu → Switch project" panel. Returns an empty list in
+/// kiosk mode, where project switching is disabled entirely (see
+/// [`switch_working_dir`]) — the frontend can use an empty list as its
+/// signal to hide the "Switch project" UI altogether.
+#[server]
+pub async fn list_projects() -> Result<Vec<ProjectInfo>, ServerFnError> {
+    if is_kiosk_mode() {
+        return Ok(Vec::new());
+    }
+
+    let current = get_or_init_working_dir().ok();
+    let settings = crate::settings::read_settings(&crate::settings::settings_file_path());
+
+    Ok(settings
+        .recent
+        .into_iter()
+        .map(|path| ProjectInfo {
+            is_current: Some(&path) == current.as_ref(),
+            path: path.display().to_string(),
+        })
+        .collect())
+}
+
+/// Switches the GUI's active project — see [`switch_working_dir`], which
+/// contains all the actual logic (kept separate and non-`#[server]` so it
+/// stays a plain, directly-unit-testable function; this wrapper is just the
+/// RPC boundary).
+#[server]
+pub async fn switch_project(path: String) -> Result<(), ServerFnError> {
+    switch_working_dir(PathBuf::from(path))?;
+    Ok(())
 }
 
 /// Resolves and caches whether the GUI is running in kiosk mode (write

@@ -24,6 +24,7 @@ tokio = { version = "1.52.1", features = ["sync"] }
 wasmtimer = "0.4.3"
 rand = { version = "0.10.1" }
 getrandom = { version = "0.4", features = ["wasm_js"] }
+toml = "0.8"
 
 # Only needed by the native launcher/single-instance logic (`src/lock.rs`),
 # which is itself excluded from the wasm32 web build (see the

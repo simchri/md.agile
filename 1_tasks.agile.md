@@ -545,9 +545,9 @@
         - [x] add a "≡ menu → Close" option inside the GUI itself that calls the same shutdown endpoint
         - [x] note: browsers only allow scripted `window.close()` on tabs opened via `window.open()`, so a normally-navigated tab likely can't be force-closed by JS — after shutdown, show a "server stopped, you can close this tab" message instead of assuming the tab closes itself
   - [ ] Get rid of MDAGILE_WORKDIR requirement, e.g. via settings file:
-    - [ ] allow selecting work dir in the GUI
-    - [ ] remember selection and previous selections
-    - [ ] reopen project by default
+    - [x] allow selecting work dir in the GUI
+    - [x] remember selection and previous selections
+    - [x] reopen project by default
 
 
 - [ ] ctd

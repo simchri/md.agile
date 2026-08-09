@@ -3805,6 +3805,7 @@ dependencies = [
  "serde",
  "tempfile",
  "tokio",
+ "toml",
  "tracing",
  "wasmtimer",
 ]

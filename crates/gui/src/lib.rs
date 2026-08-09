@@ -5,4 +5,6 @@ pub mod card_positioning;
 pub mod lock;
 pub mod physics;
 pub mod server;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod settings;
 pub mod slots;

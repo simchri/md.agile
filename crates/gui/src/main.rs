@@ -12,6 +12,8 @@ mod card_positioning;
 mod lock;
 mod physics;
 mod server;
+#[cfg(not(target_arch = "wasm32"))]
+mod settings;
 mod slots;
 
 use card_positioning::{
@@ -904,13 +906,15 @@ fn TaskModal(
 const SNACKBAR_DISPLAY_MS: u32 = 3500;
 
 /// The "≡" menu button in the corner of the board, offering server-lifecycle
-/// actions independent of task data — currently just "Close" (shut the
-/// server down; see [`server::shutdown_server`]). Deliberately shown
-/// regardless of kiosk mode: kiosk mode restricts task-data write actions,
-/// not overall server control.
+/// actions independent of task data — "Close" (shut the server down; see
+/// [`server::shutdown_server`]) and, unless kiosk mode disables it,
+/// "Switch project" (see [`SwitchProjectPanel`]). Deliberately shown
+/// regardless of kiosk mode: kiosk mode restricts task-data write actions
+/// and project switching specifically, not overall server control.
 #[component]
 fn AppMenu(on_close: EventHandler<()>) -> Element {
     let mut open = use_signal(|| false);
+    let mut switching = use_signal(|| false);
 
     rsx! {
         div { class: "app-menu",
@@ -925,11 +929,113 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
                         class: "app-menu-item",
                         onclick: move |_| {
                             open.set(false);
+                            switching.set(true);
+                        },
+                        "Switch project…"
+                    }
+                    button {
+                        class: "app-menu-item",
+                        onclick: move |_| {
+                            open.set(false);
                             on_close.call(());
                         },
                         "Close"
                     }
                 }
+            }
+        }
+        if switching() {
+            SwitchProjectPanel { on_close: move |_| switching.set(false) }
+        }
+    }
+}
+
+/// The "Switch project" panel: a path text input plus a clickable list of
+/// recently used projects, backed by [`server::list_projects`] /
+/// [`server::switch_project`]. Fetching an empty project list (which
+/// [`server::list_projects`] returns in kiosk mode) is treated the same as
+/// "switching is unavailable" — the panel still opens (so a click on the
+/// menu item isn't a silent no-op) but shows an explanatory message instead
+/// of the input/list, rather than the frontend needing its own separate
+/// kiosk-mode check.
+#[component]
+fn SwitchProjectPanel(on_close: EventHandler<()>) -> Element {
+    let projects_resource = use_resource(|| async { server::list_projects().await });
+    let mut path_input = use_signal(String::new);
+    let mut error_text: Signal<String> = use_signal(String::new);
+
+    let do_switch = move |path: String| {
+        dioxus::prelude::spawn(async move {
+            match server::switch_project(path).await {
+                Ok(()) => {
+                    // The active project changed server-side — reload so
+                    // every piece of state (task list, kiosk flag, the
+                    // project list itself) is re-fetched fresh rather than
+                    // trying to patch each signal individually.
+                    let _ = dioxus::document::eval("window.location.reload();").await;
+                }
+                Err(e) => error_text.set(e.to_string()),
+            }
+        });
+    };
+
+    rsx! {
+        div { class: "switch-project-overlay", onclick: move |_| on_close.call(()),
+            div {
+                class: "switch-project-panel",
+                onclick: move |evt| evt.stop_propagation(),
+                h3 { "Switch project" }
+                match &*projects_resource.read() {
+                    Some(Ok(projects)) if projects.is_empty() && !error_text().is_empty() => rsx! {
+                        p { class: "switch-project-error", "{error_text}" }
+                    },
+                    Some(Ok(projects)) => rsx! {
+                        div { class: "switch-project-input-row",
+                            input {
+                                class: "switch-project-input",
+                                r#type: "text",
+                                placeholder: "/path/to/project",
+                                value: "{path_input}",
+                                oninput: move |evt| path_input.set(evt.value()),
+                            }
+                            button {
+                                class: "switch-project-go",
+                                onclick: move |_| do_switch(path_input()),
+                                "Open"
+                            }
+                        }
+                        if !error_text().is_empty() {
+                            p { class: "switch-project-error", "{error_text}" }
+                        }
+                        if !projects.is_empty() {
+                            ul { class: "switch-project-recent",
+                                for project in projects.iter() {
+                                    li {
+                                        key: "{project.path}",
+                                        class: if project.is_current { "switch-project-current" } else { "" },
+                                        button {
+                                            class: "switch-project-recent-item",
+                                            disabled: project.is_current,
+                                            onclick: {
+                                                let path = project.path.clone();
+                                                move |_| do_switch(path.clone())
+                                            },
+                                            "{project.path}"
+                                            if project.is_current { " (current)" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    Some(Err(_)) => rsx! {
+                        p { class: "switch-project-error", "Could not load project list." }
+                    },
+                    None => rsx! {
+                        p { "Loading…" }
+                    },
+                }
+                button { class: "switch-project-close", onclick: move |_| on_close.call(()), "Close" }
             }
         }
     }
