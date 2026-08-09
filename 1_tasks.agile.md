@@ -522,6 +522,16 @@
   - [x] testing of RPM packaging setup (smoke tests to ensure packages are always correct)
 
 - [ ] improved installation & launch procedure for GUI
+  - [x] normally installed with packages like other bins
+  - [ ] one click launch to view
+    Options: 
+    - [ ] #OPT: native build
+    - [ ] #OPT: keep browser architecture, but add some form of launcher script
+  - [ ] Get rid of MDAGILE_WORKDIR requirement, e.g. via settings file:
+    - [ ] allow selecting work dir in the GUI
+    - [ ] remember selection and previous selections
+    - [ ] reopen project by default
+
 
 - [ ] ctd
   - [ ] output ETA
