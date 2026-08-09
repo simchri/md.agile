@@ -90,12 +90,16 @@ build_rpm "mdagile-lsp"
 # --- mdagile-gui: the dioxus fullstack web server + static assets ---
 write_spec "mdagile-gui" \
   "mdagile board viewer (web GUI server) for .agile.md task files" \
-  "mkdir -p %{buildroot}/usr/lib/mdagile-gui %{buildroot}/usr/bin
+  "mkdir -p %{buildroot}/usr/lib/mdagile-gui %{buildroot}/usr/bin %{buildroot}/usr/share/applications
 install -m 755 $ROOT/$GUI_WEB_DIR/server %{buildroot}/usr/lib/mdagile-gui/server
 cp -r $ROOT/$GUI_WEB_DIR/public %{buildroot}/usr/lib/mdagile-gui/public
-install -m 755 $ROOT/scripts/assets/agilegui-wrapper.sh %{buildroot}/usr/bin/agilegui" \
+install -m 755 $ROOT/scripts/assets/agilegui-wrapper.sh %{buildroot}/usr/bin/agilegui
+install -m 644 $ROOT/scripts/assets/mdagile-gui.desktop %{buildroot}/usr/share/applications/mdagile-gui.desktop
+install -m 644 $ROOT/scripts/assets/mdagile-gui-stop.desktop %{buildroot}/usr/share/applications/mdagile-gui-stop.desktop" \
   "/usr/lib/mdagile-gui
-/usr/bin/agilegui"
+/usr/bin/agilegui
+/usr/share/applications/mdagile-gui.desktop
+/usr/share/applications/mdagile-gui-stop.desktop"
 build_rpm "mdagile-gui"
 
 rm -rf "$TOPDIR"

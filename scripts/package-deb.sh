@@ -71,10 +71,15 @@ build_deb "mdagile-lsp"
 
 # --- mdagile-gui: the dioxus fullstack web server + static assets ---
 GUI_DIR="$STAGE_DIR/mdagile-gui"
-mkdir -p "$GUI_DIR/usr/lib/mdagile-gui" "$GUI_DIR/usr/bin"
+mkdir -p "$GUI_DIR/usr/lib/mdagile-gui" "$GUI_DIR/usr/bin" "$GUI_DIR/usr/share/applications"
 install -m 755 "$GUI_WEB_DIR/server" "$GUI_DIR/usr/lib/mdagile-gui/server"
 cp -r "$GUI_WEB_DIR/public" "$GUI_DIR/usr/lib/mdagile-gui/public"
 install -m 755 "$ROOT/scripts/assets/agilegui-wrapper.sh" "$GUI_DIR/usr/bin/agilegui"
+# App-menu entries: one to launch the GUI (one-click), one to stop it —
+# both just invoke `agilegui`/`agilegui stop` so users don't need a
+# terminal for the common cases.
+install -m 644 "$ROOT/scripts/assets/mdagile-gui.desktop" "$GUI_DIR/usr/share/applications/mdagile-gui.desktop"
+install -m 644 "$ROOT/scripts/assets/mdagile-gui-stop.desktop" "$GUI_DIR/usr/share/applications/mdagile-gui-stop.desktop"
 write_control "$GUI_DIR" "mdagile-gui" "mdagile board viewer (web GUI server) for .agile.md task files"
 build_deb "mdagile-gui"
 

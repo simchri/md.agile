@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Stop mdagile Board
+Comment=Stop a running mdagile GUI server
+Exec=agilegui stop
+Icon=process-stop
+Terminal=true
+Categories=Development;ProjectManagement;

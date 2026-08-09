@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=mdagile Board
+Comment=Launch the mdagile GUI (task board viewer for .agile.md files)
+Exec=agilegui
+Icon=view-list
+Terminal=false
+Categories=Development;ProjectManagement;

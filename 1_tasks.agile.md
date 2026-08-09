@@ -537,9 +537,9 @@
         - [x] maintain a lock file (e.g. `$XDG_RUNTIME_DIR/mdagile-gui.lock`, falling back to `/tmp/mdagile-gui-$UID.lock`) storing the server's PID and actual bound port
         - [x] on launch, if the lock file points to a live, healthy instance, just open the browser at its recorded URL instead of starting a second server
         - [x] on stale lock (dead PID, or failed health check), remove it and start normally
-      - [ ] desktop icon shipped
-        - [ ] add `mdagile-gui.desktop` (`Exec=agilegui`) to the deb/rpm packages so it shows up in the app menu/launcher
-        - [ ] add a second `mdagile-gui-stop.desktop` (`Exec=agilegui stop`) entry so the server can also be stopped from the app menu, not just the terminal
+      - [x] desktop icon shipped
+        - [x] add `mdagile-gui.desktop` (`Exec=agilegui`) to the deb/rpm packages so it shows up in the app menu/launcher
+        - [x] add a second `mdagile-gui-stop.desktop` (`Exec=agilegui stop`) entry so the server can also be stopped from the app menu, not just the terminal
       - [x] server can be closed by user
         - [x] add `agilegui stop` CLI subcommand: reads the lock file, requests shutdown (e.g. `POST /shutdown`), falling back to a process signal if unresponsive, then removes the lock file
         - [x] add a "≡ menu → Close" option inside the GUI itself that calls the same shutdown endpoint
