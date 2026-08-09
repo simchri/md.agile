@@ -12,6 +12,7 @@
 //! project's business logic; only its *callers* in `main.rs` are gated to
 //! the native, server-enabled build.
 
+use log::{debug, info, warn};
 use std::fs;
 use std::net::TcpListener;
 use std::path::PathBuf;
@@ -30,13 +31,20 @@ pub struct LockInfo {
 pub fn lock_file_path() -> PathBuf {
     if let Ok(dir) = std::env::var("XDG_RUNTIME_DIR") {
         if !dir.is_empty() {
-            return PathBuf::from(dir).join("mdagile-gui.lock");
+            let path = PathBuf::from(dir).join("mdagile-gui.lock");
+            debug!("using lock file {} (from XDG_RUNTIME_DIR)", path.display());
+            return path;
         }
     }
     let user = std::env::var("USER")
         .or_else(|_| std::env::var("LOGNAME"))
         .unwrap_or_else(|_| "unknown".to_string());
-    PathBuf::from("/tmp").join(format!("mdagile-gui-{user}.lock"))
+    let path = PathBuf::from("/tmp").join(format!("mdagile-gui-{user}.lock"));
+    debug!(
+        "using lock file {} (XDG_RUNTIME_DIR unset, falling back to /tmp)",
+        path.display()
+    );
+    path
 }
 
 /// Serializes a [`LockInfo`] into the lock file's on-disk text format.
@@ -62,12 +70,19 @@ pub fn read_lock(path: &std::path::Path) -> Option<LockInfo> {
 
 /// Writes `info` to the lock file at `path`, creating or truncating it.
 pub fn write_lock(path: &std::path::Path, info: &LockInfo) -> std::io::Result<()> {
+    debug!(
+        "writing lock file {} (pid {}, port {})",
+        path.display(),
+        info.pid,
+        info.port
+    );
     fs::write(path, format_lock(info))
 }
 
 /// Removes the lock file at `path`. Treats "already gone" as success, since
 /// the desired end state (no lock file) is already reached.
 pub fn remove_lock(path: &std::path::Path) -> std::io::Result<()> {
+    debug!("removing lock file {}", path.display());
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -127,12 +142,20 @@ pub fn is_lock_live(info: &LockInfo) -> bool {
 /// port-selection strategy.
 pub fn find_free_port(preferred: u16) -> u16 {
     if TcpListener::bind(("127.0.0.1", preferred)).is_ok() {
+        debug!("preferred port {preferred} is free");
         return preferred;
     }
-    TcpListener::bind(("127.0.0.1", 0))
+    warn!("preferred port {preferred} is in use; falling back to an OS-assigned free port");
+    let fallback = TcpListener::bind(("127.0.0.1", 0))
         .and_then(|l| l.local_addr())
         .map(|addr| addr.port())
-        .unwrap_or(preferred)
+        .unwrap_or(preferred);
+    if fallback == preferred {
+        warn!("could not determine a free fallback port; retrying preferred port {preferred}");
+    } else {
+        info!("falling back to port {fallback}");
+    }
+    fallback
 }
 
 /// Sends `SIGTERM` to `pid` via a direct `kill(2)` syscall.
@@ -159,14 +182,23 @@ const STOP_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis
 pub fn stop_running_instance(lock_path: &std::path::Path) -> Result<String, String> {
     let info = match read_lock(lock_path) {
         Some(info) => info,
-        None => return Err("no running instance found (no lock file)".to_string()),
+        None => {
+            info!("stop requested but no lock file at {}", lock_path.display());
+            return Err("no running instance found (no lock file)".to_string());
+        }
     };
 
     if !is_lock_live(&info) {
+        warn!(
+            "lock file at {} points to pid {} which is not a live mdagile-gui instance; removing stale lock",
+            lock_path.display(),
+            info.pid
+        );
         let _ = remove_lock(lock_path);
         return Err("no running instance found (stale lock file removed)".to_string());
     }
 
+    info!("sending SIGTERM to pid {} (port {})", info.pid, info.port);
     send_sigterm(info.pid).map_err(|e| format!("failed to signal pid {}: {e}", info.pid))?;
 
     let deadline = std::time::Instant::now() + STOP_WAIT_TIMEOUT;
@@ -177,12 +209,18 @@ pub fn stop_running_instance(lock_path: &std::path::Path) -> Result<String, Stri
     let _ = remove_lock(lock_path);
 
     if is_pid_alive(info.pid) {
+        warn!(
+            "pid {} still running {}s after SIGTERM",
+            info.pid,
+            STOP_WAIT_TIMEOUT.as_secs()
+        );
         Err(format!(
             "sent stop signal to pid {}, but it is still running after {}s",
             info.pid,
             STOP_WAIT_TIMEOUT.as_secs()
         ))
     } else {
+        info!("pid {} stopped", info.pid);
         Ok(format!("stopped mdagile-gui (pid {})", info.pid))
     }
 }
@@ -205,7 +243,22 @@ pub fn is_stop_command(args: &[String]) -> bool {
 /// a browser at, instead of starting a second server.
 pub fn reuse_existing_instance(lock_path: &std::path::Path) -> Option<String> {
     let info = read_lock(lock_path)?;
-    is_lock_live(&info).then(|| format!("http://127.0.0.1:{}", info.port))
+    if is_lock_live(&info) {
+        debug!(
+            "found live instance at pid {} (port {}) via lock file {}",
+            info.pid,
+            info.port,
+            lock_path.display()
+        );
+        Some(format!("http://127.0.0.1:{}", info.port))
+    } else {
+        debug!(
+            "lock file {} points to pid {} which is not live; ignoring",
+            lock_path.display(),
+            info.pid
+        );
+        None
+    }
 }
 
 #[cfg(test)]

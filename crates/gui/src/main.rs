@@ -29,12 +29,15 @@ fn main() {
     {
         let args: Vec<String> = std::env::args().collect();
         if lock::is_stop_command(&args) {
+            info!("`agilegui stop` invoked; attempting to stop any running instance");
             match lock::stop_running_instance(&lock::lock_file_path()) {
                 Ok(msg) => {
+                    info!("{msg}");
                     println!("{msg}");
                     return;
                 }
                 Err(msg) => {
+                    log::warn!("{msg}");
                     eprintln!("{msg}");
                     std::process::exit(1);
                 }
