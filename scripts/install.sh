@@ -30,7 +30,13 @@ case "$PACKAGING_SYSTEM" in
       "$DIST_DIR/mdagile-lsp_${VERSION}_${ARCH}.deb"
       "$DIST_DIR/mdagile-gui_${VERSION}_${ARCH}.deb"
     )
-    cmd=(sudo apt-get install -y "${PACKAGES[@]}")
+    # `--reinstall` so re-running `make install` after rebuilding a package
+    # with the *same* version number (e.g. local dev iteration, no version
+    # bump) actually reinstalls the files instead of apt-get silently
+    # no-op'ing because it thinks the "already installed" version satisfies
+    # the request — otherwise `make install` doesn't behave like an "update"
+    # command, which is surprising.
+    cmd=(sudo apt-get install --reinstall -y "${PACKAGES[@]}")
     uninstall_cmd="sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui"
     ;;
   rpm)
@@ -42,10 +48,23 @@ case "$PACKAGING_SYSTEM" in
       "$DIST_DIR/mdagile-gui-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
     )
     if command -v dnf >/dev/null 2>&1; then
-      cmd=(sudo dnf install -y "${PACKAGES[@]}")
+      # `dnf reinstall` (unlike apt's `--reinstall`) errors out if the
+      # package isn't already installed at all, so first-time installs still
+      # need plain `install`. Pick the right one up front (rather than
+      # printing one command below and silently running another) based on
+      # whether any of the three packages are already present.
+      if rpm -q mdagile-cli mdagile-lsp mdagile-gui >/dev/null 2>&1; then
+        cmd=(sudo dnf reinstall -y "${PACKAGES[@]}")
+      else
+        cmd=(sudo dnf install -y "${PACKAGES[@]}")
+      fi
       uninstall_cmd="sudo dnf remove -y mdagile-cli mdagile-lsp mdagile-gui"
     elif command -v yum >/dev/null 2>&1; then
-      cmd=(sudo yum install -y "${PACKAGES[@]}")
+      if rpm -q mdagile-cli mdagile-lsp mdagile-gui >/dev/null 2>&1; then
+        cmd=(sudo yum reinstall -y "${PACKAGES[@]}")
+      else
+        cmd=(sudo yum install -y "${PACKAGES[@]}")
+      fi
       uninstall_cmd="sudo yum remove -y mdagile-cli mdagile-lsp mdagile-gui"
     else
       echo "error: neither dnf nor yum found on this host" >&2
