@@ -527,23 +527,23 @@
     Options: 
     - [-] #OPT: native build
     - [ ] #OPT: keep browser architecture, but add some form of launcher script
-      - [ ] launcher script
-        - [ ] move launch/stop logic into Rust (not the bash wrapper) so it's unit-testable per project TDD rules
-        - [ ] on launch, open the system default browser at the server's URL automatically
+      - [x] launcher script
+        - [x] move launch/stop logic into Rust (not the bash wrapper) so it's unit-testable per project TDD rules
+        - [x] on launch, open the system default browser at the server's URL automatically
       - [ ] handles port in use
         - [ ] add a `GET /healthz` endpoint on the GUI server, used to distinguish "our instance already running on this port" from "some unrelated process squatting the port"
-        - [ ] if the preferred port is taken by an unrelated process (health check fails), fall back to binding an OS-assigned ephemeral port (bind to `:0`) instead of erroring out
-      - [ ] handles server already running
-        - [ ] maintain a lock file (e.g. `$XDG_RUNTIME_DIR/mdagile-gui.lock`, falling back to `/tmp/mdagile-gui-$UID.lock`) storing the server's PID and actual bound port
-        - [ ] on launch, if the lock file points to a live, healthy instance, just open the browser at its recorded URL instead of starting a second server
-        - [ ] on stale lock (dead PID, or failed health check), remove it and start normally
+        - [x] if the preferred port is taken by an unrelated process (health check fails), fall back to binding an OS-assigned ephemeral port (bind to `:0`) instead of erroring out
+      - [x] handles server already running
+        - [x] maintain a lock file (e.g. `$XDG_RUNTIME_DIR/mdagile-gui.lock`, falling back to `/tmp/mdagile-gui-$UID.lock`) storing the server's PID and actual bound port
+        - [x] on launch, if the lock file points to a live, healthy instance, just open the browser at its recorded URL instead of starting a second server
+        - [x] on stale lock (dead PID, or failed health check), remove it and start normally
       - [ ] desktop icon shipped
         - [ ] add `mdagile-gui.desktop` (`Exec=agilegui`) to the deb/rpm packages so it shows up in the app menu/launcher
         - [ ] add a second `mdagile-gui-stop.desktop` (`Exec=agilegui stop`) entry so the server can also be stopped from the app menu, not just the terminal
-      - [ ] server can be closed by user
-        - [ ] add `agilegui stop` CLI subcommand: reads the lock file, requests shutdown (e.g. `POST /shutdown`), falling back to a process signal if unresponsive, then removes the lock file
-        - [ ] add a "≡ menu → Close" option inside the GUI itself that calls the same shutdown endpoint
-        - [ ] note: browsers only allow scripted `window.close()` on tabs opened via `window.open()`, so a normally-navigated tab likely can't be force-closed by JS — after shutdown, show a "server stopped, you can close this tab" message instead of assuming the tab closes itself
+      - [x] server can be closed by user
+        - [x] add `agilegui stop` CLI subcommand: reads the lock file, requests shutdown (e.g. `POST /shutdown`), falling back to a process signal if unresponsive, then removes the lock file
+        - [x] add a "≡ menu → Close" option inside the GUI itself that calls the same shutdown endpoint
+        - [x] note: browsers only allow scripted `window.close()` on tabs opened via `window.open()`, so a normally-navigated tab likely can't be force-closed by JS — after shutdown, show a "server stopped, you can close this tab" message instead of assuming the tab closes itself
   - [ ] Get rid of MDAGILE_WORKDIR requirement, e.g. via settings file:
     - [ ] allow selecting work dir in the GUI
     - [ ] remember selection and previous selections

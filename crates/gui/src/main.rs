@@ -2,6 +2,14 @@ use dioxus::prelude::*;
 use log::info;
 
 mod card_positioning;
+// Only meaningful (and only compiles cleanly) for a native, server-capable
+// build — process signalling (`libc::kill`) and opening the user's browser
+// aren't available on the wasm32 web target the frontend itself is compiled
+// to. Excluding it there also means its tests run under a plain
+// `cargo test` (native host, default features) without needing
+// `--features server`.
+#[cfg(not(target_arch = "wasm32"))]
+mod lock;
 mod physics;
 mod server;
 mod slots;
@@ -19,6 +27,20 @@ fn main() {
 
     #[cfg(feature = "server")]
     {
+        let args: Vec<String> = std::env::args().collect();
+        if lock::is_stop_command(&args) {
+            match lock::stop_running_instance(&lock::lock_file_path()) {
+                Ok(msg) => {
+                    println!("{msg}");
+                    return;
+                }
+                Err(msg) => {
+                    eprintln!("{msg}");
+                    std::process::exit(1);
+                }
+            }
+        }
+
         // `fullstack_address_or_localhost` is where *this* process's own axum
         // server actually binds (via `dioxus::launch` below) — driven by the
         // `PORT`/`IP` env vars, defaulting to 127.0.0.1:8080 if unset.
@@ -30,8 +52,8 @@ fn main() {
         // is bound to a separate, often OS-assigned ephemeral port that only
         // the devserver talks to directly. So we log both, labelled, so it's
         // unambiguous which one to actually open in a browser.
-        let backend_addr = dioxus_cli_config::fullstack_address_or_localhost();
         if dioxus_cli_config::is_cli_enabled() {
+            let backend_addr = dioxus_cli_config::fullstack_address_or_localhost();
             match dioxus_cli_config::devserver_raw_addr() {
                 Some(devserver_addr) => {
                     info!(
@@ -52,11 +74,72 @@ fn main() {
                 }
             }
         } else {
-            // Not running under the `dx` CLI (e.g. `cargo run`, or a shipped
-            // binary) — there is no separate devserver/proxy, so this really
-            // is the address a client should connect to.
-            info!("server starting on http://{backend_addr}");
-            println!("Server running on http://{backend_addr}");
+            // Not running under the `dx` CLI (e.g. `cargo run`, or a shipped,
+            // packaged binary launched via a desktop icon / `agilegui`) —
+            // there is no separate devserver/proxy in front of us, so this is
+            // the genuine one-click launch path: reuse an already-running
+            // instance if there is one, otherwise pick a free port (falling
+            // back automatically if our preferred one is taken), record
+            // ourselves in the lock file, and open the browser once we're up.
+            let lock_path = lock::lock_file_path();
+
+            if let Some(url) = lock::reuse_existing_instance(&lock_path) {
+                info!("an mdagile-gui instance is already running at {url} — reusing it");
+                println!("mdagile GUI is already running — opening {url}");
+                if let Err(e) = open::that(&url) {
+                    eprintln!(
+                        "could not open browser automatically: {e}\nOpen this URL manually: {url}"
+                    );
+                }
+                return;
+            }
+
+            // Respect an explicitly user-set `PORT` as-is (no fallback — if
+            // the user pinned a port, a bind failure is their call to debug);
+            // only auto-pick/fall-back when they left it up to us.
+            let port = match std::env::var("PORT") {
+                Ok(explicit) => explicit.parse().unwrap_or(8080),
+                Err(_) => {
+                    let chosen = lock::find_free_port(8080);
+                    // SAFETY: this runs once, single-threaded, at the very
+                    // start of `main`, before any other thread (or the
+                    // `dioxus::launch` runtime) reads the environment.
+                    unsafe { std::env::set_var("PORT", chosen.to_string()) };
+                    chosen
+                }
+            };
+
+            let backend_addr = dioxus_cli_config::fullstack_address_or_localhost();
+            let url = format!("http://{backend_addr}");
+
+            if let Err(e) = lock::write_lock(
+                &lock_path,
+                &lock::LockInfo {
+                    pid: std::process::id(),
+                    port,
+                },
+            ) {
+                // Not fatal — worst case, a second launch won't detect us as
+                // already running and will (harmlessly) try its own port
+                // fallback instead of reusing this instance.
+                info!("could not write lock file {}: {e}", lock_path.display());
+            }
+
+            info!("server starting on {url}");
+            println!("Server running on {url}");
+
+            // Give the server a brief moment to actually start listening
+            // (the real bind happens inside `dioxus::launch` below) before
+            // trying to open a browser at it — best-effort, not a hard
+            // guarantee.
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(400));
+                if let Err(e) = open::that(&url) {
+                    eprintln!(
+                        "could not open browser automatically: {e}\nOpen this URL manually: {url}"
+                    );
+                }
+            });
         }
     }
 
@@ -113,6 +196,11 @@ fn app() -> Element {
         let tasks = server::get_tasks().await;
         tasks
     });
+
+    // Set to `true` once the "≡ menu → Close" action has told the server to
+    // shut down, so the whole board is replaced with a static "stopped"
+    // message instead of continuing to poll a server that's gone away.
+    let mut server_stopped: Signal<bool> = use_signal(|| false);
 
     // Fetched once and effectively static for the lifetime of the running
     // server — kiosk mode is a startup-time configuration, not something
@@ -358,6 +446,14 @@ fn app() -> Element {
 
     let dragging_slot = dragging().map(|d| d.slot_index);
 
+    if server_stopped() {
+        return rsx! {
+            div { class: "server-stopped",
+                "Server stopped. You can close this tab now."
+            }
+        };
+    }
+
     rsx! {
         div {
             class: "layout",
@@ -399,6 +495,15 @@ fn app() -> Element {
             },
             div { class: "separator1" }
             div { class: "separator2" }
+
+            AppMenu {
+                on_close: move |_| {
+                    dioxus::prelude::spawn(async move {
+                        let _ = server::shutdown_server().await;
+                        server_stopped.set(true);
+                    });
+                },
+            }
 
             for (i, task_slot) in task_slots.iter().enumerate() {
                 if let Some(task) = task_slot() {
@@ -794,6 +899,38 @@ fn TaskModal(
 /// Duration a [`Snackbar`] stays visible after `show` is set to `true`,
 /// in milliseconds.
 const SNACKBAR_DISPLAY_MS: u32 = 3500;
+
+/// The "≡" menu button in the corner of the board, offering server-lifecycle
+/// actions independent of task data — currently just "Close" (shut the
+/// server down; see [`server::shutdown_server`]). Deliberately shown
+/// regardless of kiosk mode: kiosk mode restricts task-data write actions,
+/// not overall server control.
+#[component]
+fn AppMenu(on_close: EventHandler<()>) -> Element {
+    let mut open = use_signal(|| false);
+
+    rsx! {
+        div { class: "app-menu",
+            button {
+                class: "app-menu-button",
+                onclick: move |_| open.set(!open()),
+                "≡"
+            }
+            if open() {
+                div { class: "app-menu-dropdown",
+                    button {
+                        class: "app-menu-item",
+                        onclick: move |_| {
+                            open.set(false);
+                            on_close.call(());
+                        },
+                        "Close"
+                    }
+                }
+            }
+        }
+    }
+}
 
 /// A transient, auto-dismissing notification banner — used to surface
 /// errors (e.g. a rejected mark-done/undone request) without a modal

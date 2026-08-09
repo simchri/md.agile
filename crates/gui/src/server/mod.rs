@@ -303,6 +303,27 @@ pub async fn get_kiosk_mode() -> Result<bool, ServerFnError> {
     Ok(is_kiosk_mode())
 }
 
+/// Shuts the server process down, for the in-app "≡ menu → Close" action
+/// (see `main.rs`'s `app()`). Removes the single-instance lock file first
+/// (so a subsequent launch doesn't think a — now dead — instance is still
+/// live), then exits the process shortly after replying, giving the HTTP
+/// response a moment to actually flush back to the client before the
+/// process disappears out from under the connection.
+///
+/// Unlike [`mark_task_done`]/[`mark_task_undone`], this is available even in
+/// kiosk mode — kiosk mode restricts *task data* write actions, not overall
+/// server lifecycle control.
+#[server]
+pub async fn shutdown_server() -> Result<(), ServerFnError> {
+    info!("shutdown requested from the GUI");
+    let _ = crate::lock::remove_lock(&crate::lock::lock_file_path());
+    tokio::spawn(async {
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        std::process::exit(0);
+    });
+    Ok(())
+}
+
 /// Marks the task or subtask identified by `path` (relative to the project
 /// root, as returned in a [`TaskView`]) and `line` done.
 ///
