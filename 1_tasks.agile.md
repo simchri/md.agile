@@ -521,17 +521,17 @@
   - [x] packaging for rpm
   - [x] testing of RPM packaging setup (smoke tests to ensure packages are always correct)
 
-- [ ] improved installation & launch procedure for GUI
+- [x] improved installation & launch procedure for GUI
   - [x] normally installed with packages like other bins
-  - [ ] one click launch to view
+  - [x] one click launch to view
     Options: 
     - [-] #OPT: native build
     - [ ] #OPT: keep browser architecture, but add some form of launcher script
       - [x] launcher script
         - [x] move launch/stop logic into Rust (not the bash wrapper) so it's unit-testable per project TDD rules
         - [x] on launch, open the system default browser at the server's URL automatically
-      - [ ] handles port in use
-        - [ ] add a `GET /healthz` endpoint on the GUI server, used to distinguish "our instance already running on this port" from "some unrelated process squatting the port"
+      - [x] handles port in use
+        - [-] add a `GET /healthz` endpoint on the GUI server, used to distinguish "our instance already running on this port" from "some unrelated process squatting the port"
         - [x] if the preferred port is taken by an unrelated process (health check fails), fall back to binding an OS-assigned ephemeral port (bind to `:0`) instead of erroring out
       - [x] handles server already running
         - [x] maintain a lock file (e.g. `$XDG_RUNTIME_DIR/mdagile-gui.lock`, falling back to `/tmp/mdagile-gui-$UID.lock`) storing the server's PID and actual bound port
@@ -544,7 +544,7 @@
         - [x] add `agilegui stop` CLI subcommand: reads the lock file, requests shutdown (e.g. `POST /shutdown`), falling back to a process signal if unresponsive, then removes the lock file
         - [x] add a "≡ menu → Close" option inside the GUI itself that calls the same shutdown endpoint
         - [x] note: browsers only allow scripted `window.close()` on tabs opened via `window.open()`, so a normally-navigated tab likely can't be force-closed by JS — after shutdown, show a "server stopped, you can close this tab" message instead of assuming the tab closes itself
-  - [ ] Get rid of MDAGILE_WORKDIR requirement, e.g. via settings file:
+  - [x] Get rid of MDAGILE_WORKDIR requirement, e.g. via settings file:
     - [x] allow selecting work dir in the GUI
     - [x] remember selection and previous selections
     - [x] reopen project by default
