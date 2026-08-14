@@ -178,3 +178,106 @@ fn render_todo_done_data_outputs_table_of_counts_only() {
         .unwrap_or_else(|| panic!("missing row for 2026-07-11, out: {out:?}"));
     assert!(row2.contains('2') && row2.contains('1'), "row2: {row2:?}");
 }
+
+#[test]
+fn format_days_as_span_uses_days_below_one_week() {
+    assert_eq!(format_days_as_span(1), "1 day");
+    assert_eq!(format_days_as_span(6), "6 days");
+}
+
+#[test]
+fn format_days_as_span_uses_weeks_below_eight_weeks() {
+    assert_eq!(format_days_as_span(7), "1 week");
+    assert_eq!(format_days_as_span(21), "3 weeks");
+    assert_eq!(format_days_as_span(55), "8 weeks");
+}
+
+#[test]
+fn format_days_as_span_uses_months_below_three_years() {
+    assert_eq!(format_days_as_span(56), "2 months");
+    assert_eq!(format_days_as_span(120), "4 months");
+}
+
+#[test]
+fn format_days_as_span_uses_years_from_three_years() {
+    assert_eq!(format_days_as_span(365 * 3), "3 years");
+    assert_eq!(format_days_as_span(365 * 6), "6 years");
+}
+
+#[test]
+fn compute_eta_intersects_trend_lines_in_the_future() {
+    // total: flat at 10 (never grows); done: starts at 0, +1/day.
+    let total_trend = LinearTrend {
+        slope: 0.0,
+        intercept: 10.0,
+    };
+    let done_trend = LinearTrend {
+        slope: 1.0,
+        intercept: 0.0,
+    };
+    // Anchor is day 0; "today" is day 0 too. Lines cross at x = 10.
+    let eta = compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(0))
+        .expect("expected an ETA");
+    assert_eq!(eta.date, "1970-01-11");
+    assert_eq!(eta.span, "1 week");
+}
+
+#[test]
+fn compute_eta_is_none_when_trend_lines_are_parallel() {
+    let total_trend = LinearTrend {
+        slope: 1.0,
+        intercept: 10.0,
+    };
+    let done_trend = LinearTrend {
+        slope: 1.0,
+        intercept: 0.0,
+    };
+    assert!(compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(0)).is_none());
+}
+
+#[test]
+fn compute_eta_is_none_when_intersection_is_in_the_past() {
+    let total_trend = LinearTrend {
+        slope: 0.0,
+        intercept: 10.0,
+    };
+    let done_trend = LinearTrend {
+        slope: 1.0,
+        intercept: 0.0,
+    };
+    // Intersection is at x = 10 (relative to anchor), but "today" is day 20,
+    // i.e. the crossing already happened in the past.
+    assert!(compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(20)).is_none());
+}
+
+#[test]
+fn compute_eta_is_none_without_both_trends_or_anchor() {
+    let total_trend = LinearTrend {
+        slope: 0.0,
+        intercept: 10.0,
+    };
+    assert!(compute_eta(Some(total_trend), None, Some(0), Some(0)).is_none());
+    let done_trend = LinearTrend {
+        slope: 1.0,
+        intercept: 0.0,
+    };
+    assert!(compute_eta(Some(total_trend), Some(done_trend), None, Some(0)).is_none());
+}
+
+#[test]
+fn render_eta_text_shows_span_and_date_when_available() {
+    let eta = EtaEstimate {
+        date: "2026-05-04".to_string(),
+        span: "3 weeks".to_string(),
+    };
+    let out = render_eta_text(Some(&eta));
+    assert!(out.contains("ETA: 3 weeks"), "out: {out:?}");
+    assert!(out.contains("ETA date: 2026-05-04"), "out: {out:?}");
+}
+
+#[test]
+fn render_eta_text_shows_unknown_when_no_eta() {
+    let out = render_eta_text(None);
+    assert!(out.contains("ETA: unknown"), "out: {out:?}");
+    assert!(!out.contains("ETA date"), "out: {out:?}");
+}

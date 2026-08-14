@@ -562,7 +562,7 @@
 - [x] #bug agile when --plot --next 1 should show next *incomplete* milestone, not first milestone. Seems to do the latter
 
 - [ ] ctd
-  - [ ] output ETA
+  - [x] output ETA
 
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 

@@ -74,6 +74,14 @@ struct LinearTrend {
     intercept: f64,
 }
 
+/// The estimated time of arrival at a milestone: the point where the total
+/// and done trend lines intersect.
+#[derive(Debug, Clone, PartialEq)]
+struct EtaEstimate {
+    date: String,
+    span: String,
+}
+
 /// Estimates current project velocity as weighted completions per day over the
 /// last 90 days.
 ///
@@ -285,6 +293,13 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
         out.push_str(&render_plot_stats(latest));
     }
     out.push_str("\n");
+    let eta = compute_eta(
+        total_trend,
+        done_trend,
+        geometry.anchor_unix_days,
+        today_unix_days,
+    );
+    out.push_str(&render_eta_text(eta.as_ref()));
     out
 }
 
@@ -454,6 +469,10 @@ struct PlotGeometry {
     trend_end_x: f64,
     today_x: f64,
     chart_x_max: f64,
+    // Real calendar date (as unix days) that x = 0 maps to. `None` when the
+    // points don't carry parseable dates (e.g. in tests), in which case x
+    // values are plain indices and can't be converted back to a calendar ETA.
+    anchor_unix_days: Option<i64>,
 }
 
 fn compute_plot_geometry(
@@ -473,6 +492,7 @@ fn compute_plot_geometry(
             trend_end_x,
             today_x,
             chart_x_max,
+            anchor_unix_days: None,
         }
     };
     let Some(first_date_days) = points
@@ -503,6 +523,7 @@ fn compute_plot_geometry(
         trend_end_x,
         today_x,
         chart_x_max,
+        anchor_unix_days: Some(first_date_days),
     }
 }
 
@@ -543,6 +564,78 @@ fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {
     let slope = cov / var;
     let intercept = mean_y - slope * mean_x;
     Some(LinearTrend { slope, intercept })
+}
+
+/// Computes the ETA to a milestone as the intersection of the total and done
+/// trend lines, expressed relative to `anchor_unix_days` (the calendar date
+/// that trend-line x = 0 maps to). Returns `None` when either trend line is
+/// missing, the lines are parallel (no single intersection), the anchor date
+/// couldn't be determined (e.g. no real dates available), or the
+/// intersection falls on or before today (already reached, or unknowable).
+fn compute_eta(
+    total_trend: Option<LinearTrend>,
+    done_trend: Option<LinearTrend>,
+    anchor_unix_days: Option<i64>,
+    today_unix_days: Option<i64>,
+) -> Option<EtaEstimate> {
+    let total = total_trend?;
+    let done = done_trend?;
+    let anchor = anchor_unix_days?;
+    let today = today_unix_days?;
+
+    let slope_diff = total.slope - done.slope;
+    if slope_diff.abs() <= f64::EPSILON {
+        return None;
+    }
+    let x_intersect = (done.intercept - total.intercept) / slope_diff;
+    let intersection_unix_days = anchor + x_intersect.round() as i64;
+
+    if intersection_unix_days <= today {
+        return None;
+    }
+
+    let days_from_today = intersection_unix_days - today;
+    Some(EtaEstimate {
+        date: format_yyyy_mm_dd_from_unix_days(intersection_unix_days),
+        span: format_days_as_span(days_from_today),
+    })
+}
+
+/// Formats a day count as a human-friendly time span. Per README.vision.md:
+/// days below a week, weeks below 8 weeks, years from 3 years and higher,
+/// months otherwise.
+fn format_days_as_span(days: i64) -> String {
+    const DAYS_PER_WEEK: i64 = 7;
+    const DAYS_PER_MONTH: f64 = 30.44;
+    const DAYS_PER_YEAR: f64 = 365.25;
+    const YEAR_THRESHOLD_DAYS: i64 = 3 * 365;
+
+    if days < DAYS_PER_WEEK {
+        return pluralize(days, "day");
+    }
+    if days < 8 * DAYS_PER_WEEK {
+        return pluralize((days as f64 / DAYS_PER_WEEK as f64).round() as i64, "week");
+    }
+    if days < YEAR_THRESHOLD_DAYS {
+        return pluralize((days as f64 / DAYS_PER_MONTH).round() as i64, "month");
+    }
+    pluralize((days as f64 / DAYS_PER_YEAR).round() as i64, "year")
+}
+
+fn pluralize(n: i64, unit: &str) -> String {
+    if n == 1 {
+        format!("1 {unit}")
+    } else {
+        format!("{n} {unit}s")
+    }
+}
+
+/// Renders the "ETA: ..." / "ETA date: ..." text block shown after the plot.
+fn render_eta_text(eta: Option<&EtaEstimate>) -> String {
+    match eta {
+        Some(eta) => format!("ETA: {}\nETA date: {}\n", eta.span, eta.date),
+        None => "ETA: unknown\n".to_string(),
+    }
 }
 
 /// Returns the name of the `milestone_rank`-th *future* milestone, i.e. the

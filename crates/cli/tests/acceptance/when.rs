@@ -498,6 +498,63 @@ fn when_plot_shows_total_and_done_scoped_to_milestone() {
         stdout.contains("done:   1 tasks  (weight 1.00)"),
         "stdout: {stdout:?}"
     );
+    // ETA is always printed, whether resolved (span + date) or "unknown".
+    assert!(stdout.contains("ETA:"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn when_plot_shows_eta_span_and_date_when_trend_lines_intersect_in_the_future() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    // Total stays flat at 4 tasks (in scope of milestone "alpha"); one task
+    // finishes per day, so the done trend rises steadily toward the total
+    // and the two trend lines intersect a couple of days in the future.
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 0", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 1", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [x] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 2", "2026-07-12T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--plot", "--next", "1"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("Milestone: alpha"), "stdout: {stdout:?}");
+    assert!(stdout.contains("ETA date: "), "stdout: {stdout:?}");
+    assert!(
+        stdout.contains("ETA: ") && !stdout.contains("ETA: unknown"),
+        "stdout: {stdout:?}"
+    );
 }
 
 #[test]
