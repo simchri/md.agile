@@ -633,11 +633,11 @@ fn pluralize(n: i64, unit: &str) -> String {
 /// conversion) lives here; [`compute_eta`] only ever deals in dates.
 fn render_eta_text(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> String {
     let (Some(eta), Some(today)) = (eta, today_unix_days) else {
-        return "ETA: unknown\n".to_string();
+        return format!("{:<10}unknown\n", "ETA:");
     };
     let span = format_days_as_span(eta.unix_days - today);
     let date = format_yyyy_mm_dd_from_unix_days(eta.unix_days);
-    format!("ETA: {span}\nETA date: {date}\n")
+    format!("{:<10}{span}\n{:<10}{date}\n", "ETA:", "ETA date:")
 }
 
 /// Returns the name of the `milestone_rank`-th *future* milestone, i.e. the
