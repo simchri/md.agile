@@ -86,7 +86,7 @@ If you have multiple truly independent teams, each doing their own prioritizatio
 
 **No "High Priority" Markers**
 
-There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading.
+There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading. [Caveats ;)](doc/prioritization_with_properties.md)
 
 
 ## CLI Tool: `agile`
