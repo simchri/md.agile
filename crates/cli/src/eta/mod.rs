@@ -114,10 +114,17 @@ pub fn estimate_velocity_details_with_window(
     None
 }
 
-pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDonePlot, String> {
+/// Ensures `root` is a git repository, returning a consistent error message
+/// (shared by every `agile when` entry point that needs commit history).
+fn require_git_repo(root: &Path) -> Result<(), String> {
     if !git::is_git_repo(root) {
-        return Err("`agile when --plot` requires a git repository".to_string());
+        return Err("`agile when` requires a git repository".to_string());
     }
+    Ok(())
+}
+
+pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDonePlot, String> {
+    require_git_repo(root)?;
     if milestone_rank == 0 {
         return Err("milestone rank must be >= 1".to_string());
     }
@@ -159,9 +166,7 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
 /// ETA can't be computed (e.g. not committed yet, or no convergent trend)
 /// shows "unknown" instead of a span.
 pub fn build_when_report(root: &Path) -> Result<String, String> {
-    if !git::is_git_repo(root) {
-        return Err("`agile when` requires a git repository".to_string());
-    }
+    require_git_repo(root)?;
     let today = today_unix_days();
     let mut out = String::new();
     for (index, name) in future_milestone_names(root).into_iter().enumerate() {
@@ -178,15 +183,7 @@ pub fn build_when_report(root: &Path) -> Result<String, String> {
 /// (which may include uncommitted edits), using the same fixed milestone
 /// rank as the rest of the timeline.
 fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotPoint {
-    let today = format_yyyy_mm_dd_from_unix_days(
-        unix_days_from_unix_seconds(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .ok()
-                .map(|d| d.as_secs() as i64),
-        )
-        .unwrap_or(0),
-    );
+    let today = format_yyyy_mm_dd_from_unix_days(today_unix_days().unwrap_or(0));
 
     let Some(target_rank) = target_rank else {
         // Milestone precedes every task: nothing is ever in scope.
@@ -686,15 +683,21 @@ fn pluralize(n: i64, unit: &str) -> String {
     }
 }
 
+/// Resolves an ETA (and "today") down to its human-readable span, or `None`
+/// if either half is missing (meaning "unknown" to callers).
+fn eta_span(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> Option<String> {
+    let (eta, today) = (eta?, today_unix_days?);
+    Some(format_days_as_span(eta.unix_days - today))
+}
+
 /// Renders the "ETA: ..." / "ETA date: ..." text block shown after the plot.
 /// All string formatting (date formatting and the day-count-to-span
 /// conversion) lives here; [`compute_eta`] only ever deals in dates.
 fn render_eta_text(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> String {
-    let (Some(eta), Some(today)) = (eta, today_unix_days) else {
+    let Some(span) = eta_span(eta, today_unix_days) else {
         return format!("{:<10}unknown\n", "ETA:");
     };
-    let span = format_days_as_span(eta.unix_days - today);
-    let date = format_yyyy_mm_dd_from_unix_days(eta.unix_days);
+    let date = format_yyyy_mm_dd_from_unix_days(eta.unwrap().unix_days);
     format!("{:<10}{span}\n{:<10}{date}\n", "ETA:", "ETA date:")
 }
 
@@ -702,10 +705,7 @@ fn render_eta_text(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> St
 /// left-padded to line up with the milestone name, matching the column
 /// width used by [`render_eta_text`].
 fn render_when_line(name: &str, eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> String {
-    let span = match (eta, today_unix_days) {
-        (Some(eta), Some(today)) => format_days_as_span(eta.unix_days - today),
-        _ => "unknown".to_string(),
-    };
+    let span = eta_span(eta, today_unix_days).unwrap_or_else(|| "unknown".to_string());
     format!("{span:<10}{name}\n")
 }
 

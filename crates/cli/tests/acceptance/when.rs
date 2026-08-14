@@ -553,6 +553,149 @@ fn when_bare_requires_a_git_repository() {
 }
 
 #[test]
+fn when_bare_lists_multiple_future_milestones_in_backlog_order() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    // Neither "gamma" nor "delta" is ever fully reached (task c/d and
+    // g/h stay open), but both accumulate enough converging history for a
+    // resolvable ETA, matching the shape of
+    // `when_plot_shows_eta_span_and_date_when_trend_lines_intersect_in_the_future`.
+    // "gamma" (rank 1) must come before "delta" (rank 2) in the report,
+    // matching backlog order.
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: gamma
+- [ ] task e
+- [ ] task f
+- [ ] task g
+- [ ] task h
+#MILESTONE: delta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 0", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: gamma
+- [x] task e
+- [ ] task f
+- [ ] task g
+- [ ] task h
+#MILESTONE: delta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 1", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [x] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: gamma
+- [x] task e
+- [x] task f
+- [ ] task g
+- [ ] task h
+#MILESTONE: delta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 2", "2026-07-12T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let gamma_pos = stdout
+        .find("gamma")
+        .unwrap_or_else(|| panic!("missing gamma line, stdout: {stdout:?}"));
+    let delta_pos = stdout
+        .find("delta")
+        .unwrap_or_else(|| panic!("missing delta line, stdout: {stdout:?}"));
+    assert!(
+        gamma_pos < delta_pos,
+        "expected gamma before delta, stdout: {stdout:?}"
+    );
+}
+
+#[test]
+fn when_bare_shows_unknown_for_a_milestone_with_no_resolvable_trend() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    // "gamma" has converging history and a resolvable ETA (same shape as
+    // the `--plot` intersection test). "epsilon" is added only in the
+    // worktree (never committed), so it has a single data point and no
+    // convergent trend -> "unknown", while still being listed.
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: gamma
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 0", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: gamma
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 1", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [x] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: gamma
+- [ ] task i
+#MILESTONE: epsilon
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    // Left uncommitted on purpose: "epsilon" only ever shows up in the
+    // worktree, so its plot has a single data point.
+
+    let out = run_agile(dir.path(), &["when"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let gamma_line = stdout
+        .lines()
+        .find(|line| line.contains("gamma"))
+        .unwrap_or_else(|| panic!("missing gamma line, stdout: {stdout:?}"));
+    assert!(!gamma_line.contains("unknown"), "line: {gamma_line:?}");
+    let epsilon_line = stdout
+        .lines()
+        .find(|line| line.contains("epsilon"))
+        .unwrap_or_else(|| panic!("missing epsilon line, stdout: {stdout:?}"));
+    assert!(
+        epsilon_line.starts_with("unknown"),
+        "line: {epsilon_line:?}"
+    );
+}
+
+#[test]
 fn when_plot_shows_total_and_done_scoped_to_milestone() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

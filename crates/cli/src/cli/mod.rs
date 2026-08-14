@@ -123,7 +123,10 @@ pub enum Command {
 
         /// Select the Nth milestone rank.
         ///
-        /// Used by `--plot` and `--data` to choose the milestone boundary.
+        /// With `--plot`/`--data`, selects which milestone boundary to
+        /// scope the plot/table to. Alone (detail mode, not yet
+        /// implemented), it will select which milestone to report on in
+        /// detail — see README.vision.md.
         #[arg(long, value_name = "RANK", conflicts_with = "velocity")]
         next: Option<usize>,
     },

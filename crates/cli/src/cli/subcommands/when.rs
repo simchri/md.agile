@@ -38,7 +38,9 @@ pub fn run(
     }
 
     if next.is_some() {
-        log::error!("`agile when --next <rank>` is not implemented yet");
+        log::error!(
+            "`agile when --next <rank>` (detail mode, without --plot/--data) is not implemented yet"
+        );
         std::process::exit(1);
     }
 
