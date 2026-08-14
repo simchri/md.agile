@@ -1,26 +1,27 @@
 
 # Installation
 
-Project is not yet configured for easy convenient installation on all platforms. If you are a developer, go for it! (Non-technical users, expect some difficulties!)
+Project is not yet configured for easy convenient installation on all platforms. You can currently only install this project "from sources". Non-technical users may encounter some difficulties.
+
+1. To install the binaries (executables) pick **one** of the "Options" below.
+2. Then, optionally to use the language server, configure your text editor accordingly. In general, refer to your editor / IDEs documentation for instructions. An example is provided below for NeoVim.
 
 ## Option 1 - Build from Source - Docker
 
-Preferred installation method for developers, experienced linux users
+Currently the recommended installation method.
 
 Supported:
 - Debian based Linux distros (Debian, Ubuntu etc.), via apt/dpkg
 - Fedora/RHEL based Linux distros (Fedora, RHEL, CentOS, Rocky, AlmaLinux etc.), via dnf/yum
 
-Prerequisites: 
+Prerequisites:
 - Project sources available (e.g. project cloned)
-- [Docker](https://docs.docker.com/engine/install/) 
+- [Docker](https://docs.docker.com/engine/install/)
 - [Docker Compose](https://docs.docker.com/compose/install/) (the `docker compose` plugin, v2)
 - [Make](https://www.gnu.org/software/make/) (Preinstalled on must linux systems)
 
-Just run
-```
-make install
-```
+Installation:
+From the project root directory, run: `make install`
 The `install` target will create packages (e.g. *.deb files) for your OS and install all components (cli, gui, lsp). If you want to install only some components, instead run `make package`, then manually install only the wanted packages. Package files are in `./dist`. Run `make help` to see all available targets.
 
 Uninstall:
@@ -33,7 +34,7 @@ Uninstall:
 Supported:
 - Any Linux distro supported by the rust toolchain
 
-Prerequisites: 
+Prerequisites:
 - Project sources available (e.g. project cloned)
 - [Rust](https://rust-lang.org/tools/install/)
 
@@ -53,7 +54,7 @@ Uninstall:
 
 ## Language Server Integration
 
-The steps above only make the executable files available on the host system. If you want to use the language server (the "IDE integration") for mdagile, you have to configure your IDE/editor accordingly. 
+The steps above only make the executable files available on the host system. If you want to use the language server (the "IDE integration") for mdagile, you have to configure your IDE/editor accordingly.
 
 ### Nvim
 
