@@ -554,6 +554,7 @@
     --> works wonderfully. Order can be assembled from subtasks of multiple properties!
   - [x] incompatible (prop a "1 impl", "2 test" --  prop b: "2 review")
     --> case is well defined: Duplicate order number error
+    OK no further actions
 
 - [ ] investigate: Placement of properties, e.g. in body of task - recognized or not?
 
