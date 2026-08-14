@@ -549,6 +549,9 @@
     - [x] remember selection and previous selections
     - [x] reopen project by default
 
+- [ ] investigate edge case: Two properties define subtasks with order!
+  - [ ] compatible (prop a "1 impl", "3 test" --  prop b: "2 review")
+  - [ ] incompatible (prop a "1 impl", "2 test" --  prop b: "2 review")
 
 - [ ] ctd
   - [ ] output ETA
