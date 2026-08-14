@@ -27,7 +27,7 @@ Formatting rules enforced via language server with quick fixes!
 
 ## Installation
 
-See [INSTALL.md](INSTALL.md) for building/installing the CLI, language server, and editor setup (currently source-only via `cargo install`).
+See [INSTALL.md](INSTALL.md)
 
 ## Basic Syntax
 
