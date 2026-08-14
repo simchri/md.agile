@@ -315,3 +315,71 @@ fn future_milestone_names_skips_already_reached_milestones() {
 
     assert_eq!(names, vec!["beta".to_string()]);
 }
+
+#[test]
+fn render_velocity_text_shows_both_metrics_right_aligned() {
+    let estimate = VelocityEstimate {
+        velocity_per_week: Some(1.0),
+        creep_per_week: Some(0.5),
+    };
+    let out = render_velocity_text(estimate);
+    assert_eq!(
+        out,
+        "velocity: weight/week   1.00\ncreep:    weight/week   0.50\n"
+    );
+}
+
+#[test]
+fn render_velocity_text_shows_unknown_per_metric_independently() {
+    let estimate = VelocityEstimate {
+        velocity_per_week: None,
+        creep_per_week: Some(2.0),
+    };
+    let out = render_velocity_text(estimate);
+    assert_eq!(out, "velocity: unknown\ncreep:    weight/week   2.00\n");
+}
+
+#[test]
+fn render_velocity_text_shows_unknown_for_both_when_neither_resolves() {
+    let estimate = VelocityEstimate {
+        velocity_per_week: None,
+        creep_per_week: None,
+    };
+    let out = render_velocity_text(estimate);
+    assert_eq!(out, "velocity: unknown\ncreep:    unknown\n");
+}
+
+#[test]
+fn estimate_velocity_with_window_errors_when_not_a_git_repository() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let err = estimate_velocity_with_window(dir.path(), 90).unwrap_err();
+    assert!(err.contains("requires a git repository"));
+}
+
+#[test]
+fn estimate_velocity_with_window_reports_unresolved_metrics_for_zero_window() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(dir.path())
+        .status()
+        .unwrap();
+
+    let estimate = estimate_velocity_with_window(dir.path(), 0).unwrap();
+    assert_eq!(
+        estimate,
+        VelocityEstimate {
+            velocity_per_week: None,
+            creep_per_week: None,
+        }
+    );
+}

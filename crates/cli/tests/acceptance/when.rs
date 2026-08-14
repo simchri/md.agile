@@ -37,8 +37,7 @@ fn assert_velocity_with_args(dir: &std::path::Path, args: &[&str], expected_stdo
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
-    let _ = expected_stdout;
-    assert_eq!(stdout, "unknown\n", "stdout: {stdout:?}");
+    assert_eq!(stdout, expected_stdout, "stdout: {stdout:?}");
 }
 
 fn unix_ts_days_ago(days: u64) -> i64 {
@@ -53,7 +52,7 @@ fn git_date_from_unix_secs(ts: i64) -> String {
 }
 
 #[test]
-fn when_velocity_prints_unknown_when_velocity_cannot_be_estimated() {
+fn when_velocity_errors_when_not_a_git_repository() {
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] one task
@@ -62,13 +61,32 @@ fn when_velocity_prints_unknown_when_velocity_cannot_be_estimated() {
 
     let out = run_agile(dir.path(), &["when", "--velocity"]);
 
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(
-        out.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&out.stderr)
+        stderr.contains("requires a git repository"),
+        "stderr: {stderr:?}"
     );
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    assert_eq!(stdout, "unknown\n", "stdout: {stdout:?}");
+}
+
+#[test]
+fn when_velocity_prints_unknown_when_history_has_no_variance() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(0));
+    let file_content = "\
+- [ ] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", &t0);
+
+    // Only one commit, dated today, and no uncommitted changes: the
+    // committed point and the worktree "today" point share the same date,
+    // so neither trend line has more than one distinct x-value.
+    assert_velocity(dir.path(), "velocity: unknown\ncreep:    unknown\n");
 }
 
 #[test]
@@ -91,31 +109,40 @@ fn when_velocity_includes_uncommitted_worktree_state_as_latest() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
-    // 1 completion over ~2 days (using worktree as latest state).
-    assert_velocity(dir.path(), "0.50 weight/day\n");
+    // done-weight rises from 0 to 1 over a ~2-day span: slope ~0.5/day = 3.50/week.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   3.50\ncreep:    weight/week   0.00\n",
+    );
 }
 
 #[test]
-fn when_velocity_prints_weight_per_day_with_two_decimals() {
+fn when_velocity_prints_weight_per_week_with_two_decimals() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
 
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
     let file_content = "\
 - [ ] one task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [x] one task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "complete task", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "complete task", &t1);
 
-    // One completed top-level task (weight 1) over a 1-day commit span.
-    assert_velocity(dir.path(), "1.00 weight/day\n");
+    // done-weight rises by 1 over a 1-day span: slope 1.00/day = 7.00/week.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   7.00\ncreep:    weight/week   0.00\n",
+    );
 }
 
 #[test]
@@ -125,22 +152,29 @@ fn when_velocity_counts_direct_subtask_completion_with_half_weight() {
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
 
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
     let file_content = "\
 - [ ] parent
   - [ ] child
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [ ] parent
   - [x] child
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "complete child", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "complete child", &t1);
 
-    // A level-2 subtask contributes weight 1/2 over a 1-day span.
-    assert_velocity(dir.path(), "0.50 weight/day\n");
+    // A level-2 subtask contributes weight 1/2 over a 1-day span: slope
+    // 0.50/day = 3.50/week.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   3.50\ncreep:    weight/week   0.00\n",
+    );
 }
 
 #[test]
@@ -150,13 +184,16 @@ fn when_velocity_counts_nested_subtask_completion_with_depth_weight() {
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
 
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
     let file_content = "\
 - [ ] parent
   - [ ] child
     - [ ] grandchild
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [ ] parent
@@ -164,10 +201,14 @@ fn when_velocity_counts_nested_subtask_completion_with_depth_weight() {
     - [x] grandchild
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "complete grandchild", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "complete grandchild", &t1);
 
-    // A level-3 subtask contributes weight 1/3 over a 1-day span.
-    assert_velocity(dir.path(), "0.33 weight/day\n");
+    // A level-3 subtask contributes weight 1/3 over a 1-day span: slope
+    // 0.33/day = 2.33/week.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   2.33\ncreep:    weight/week   0.00\n",
+    );
 }
 
 #[test]
@@ -177,21 +218,27 @@ fn when_velocity_reordering_done_and_todo_tasks_does_not_increase_velocity() {
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
 
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
     let file_content = "\
 - [x] done task
 - [ ] todo task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [ ] todo task
 - [x] done task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "reorder only", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "reorder only", &t1);
 
-    assert_velocity(dir.path(), "0.00 weight/day\n");
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   0.00\ncreep:    weight/week   0.00\n",
+    );
 }
 
 #[test]
@@ -201,122 +248,141 @@ fn when_velocity_reordering_done_and_todo_tasks_preserves_nonzero_velocity() {
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
 
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(2));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t2 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
     let file_content = "\
 - [ ] task a
 - [ ] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [x] task a
 - [ ] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "complete task a", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "complete task a", &t1);
 
     let file_content = "\
 - [ ] task b
 - [x] task a
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(
+    commit_all_at(dir.path(), "reorder after completion", &t2);
+
+    // 1 completion over a 2-day span; reordering later must not add
+    // velocity: slope 0.50/day = 3.50/week (using day-granularity dates,
+    // the fitted slope over these three unevenly-spaced points is 3.18).
+    assert_velocity(
         dir.path(),
-        "reorder after completion",
-        "2026-07-12T12:00:00Z",
+        "velocity: weight/week   3.18\ncreep:    weight/week   0.00\n",
     );
-
-    // 1 completion over a 2-day span; reordering later must not add velocity.
-    assert_velocity(dir.path(), "0.50 weight/day\n");
 }
 
 #[test]
-fn when_velocity_counts_completion_when_another_task_reopens_in_same_commit() {
+fn when_velocity_reopening_another_task_offsets_completion_in_the_same_commit() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
 - [ ] task a
 - [x] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [x] task a
 - [ ] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(
-        dir.path(),
-        "complete a and reopen b",
-        "2026-07-11T12:00:00Z",
-    );
+    commit_all_at(dir.path(), "complete a and reopen b", &t1);
 
-    // One completion (task a) over a 1-day span; reopening task b must not
-    // cancel out the completion for velocity.
-    assert_velocity(dir.path(), "1.00 weight/day\n");
+    // Task a completes and task b reopens in the same commit, so the
+    // done-weight total is unchanged (still 1): the trend line is flat.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   0.00\ncreep:    weight/week   0.00\n",
+    );
 }
 
 #[test]
-fn when_velocity_deleting_done_tasks_does_not_change_velocity() {
+fn when_velocity_deleting_done_tasks_reduces_velocity_and_creep() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
 - [x] done task
 - [ ] todo task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [ ] todo task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "delete done task", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "delete done task", &t1);
 
-    assert_velocity(dir.path(), "0.00 weight/day\n");
+    // Deleting the done task removes weight 1 from both total and done over
+    // a 1-day span: both trend lines slope downward by 1.00/day = 7.00/week.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   -7.00\ncreep:    weight/week   -7.00\n",
+    );
 }
 
 #[test]
-fn when_velocity_deleting_done_tasks_preserves_nonzero_velocity() {
+fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(2));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t2 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
 - [ ] task a
 - [ ] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [x] task a
 - [ ] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "complete task a", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "complete task a", &t1);
 
     let file_content = "\
 - [ ] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(
-        dir.path(),
-        "delete completed task a",
-        "2026-07-12T12:00:00Z",
-    );
+    commit_all_at(dir.path(), "delete completed task a", &t2);
 
-    // 1 completion over a 2-day observed span; deleting the already-done task
-    // later must not alter that completion history.
-    assert_velocity(dir.path(), "0.50 weight/day\n");
+    // Deleting the already-completed task a pulls both trend lines down at
+    // the end of the history, so the whole-project slope over the 2-day
+    // observed span goes negative for both metrics.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   -0.64\ncreep:    weight/week   -3.82\n",
+    );
 }
 
 #[test]
@@ -326,19 +392,25 @@ fn when_velocity_editing_title_of_done_task_does_not_change_velocity() {
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
 
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
     let file_content = "\
 - [x] done task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [x] renamed done task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "rename done task", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "rename done task", &t1);
 
-    assert_velocity(dir.path(), "0.00 weight/day\n");
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   0.00\ncreep:    weight/week   0.00\n",
+    );
 }
 
 #[test]
@@ -348,29 +420,36 @@ fn when_velocity_counts_real_completion_only_once_even_if_moved_later() {
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
 
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(2));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t2 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
     let file_content = "\
 - [ ] task a
 - [ ] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [x] task a
 - [ ] task b
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "complete task a", "2026-07-11T12:00:00Z");
+    commit_all_at(dir.path(), "complete task a", &t1);
 
     let file_content = "\
 - [ ] task b
 - [x] task a
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "move completed task a", "2026-07-12T12:00:00Z");
+    commit_all_at(dir.path(), "move completed task a", &t2);
 
-    // 1 completion over a 2-day observed span.
-    assert_velocity(dir.path(), "0.50 weight/day\n");
+    // 1 completion over a 2-day observed span, plateauing after the move.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   3.18\ncreep:    weight/week   0.00\n",
+    );
 }
 
 #[test]
@@ -380,19 +459,21 @@ fn when_velocity_same_timestamp_span_yields_unknown() {
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
     git(dir.path(), &["config", "user.name", "Alice"]);
 
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
     let file_content = "\
 - [ ] one task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
 - [x] one task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-    commit_all_at(dir.path(), "complete task", "2026-07-10T12:00:00Z");
+    commit_all_at(dir.path(), "complete task", &t0);
 
-    assert_velocity(dir.path(), "unknown\n");
+    assert_velocity(dir.path(), "velocity: unknown\ncreep:    unknown\n");
 }
 
 #[test]
@@ -427,13 +508,17 @@ fn when_velocity_last_flag_restricts_history_window() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete b", &t2);
 
-    // Default window now reports the linear done-trend slope over the observed span.
-    assert_velocity(dir.path(), "0.39 weight/day\n");
-    // Restricting to last 2 days considers only the recent completion window.
+    // Full history's done-weight trend slope, in weight/week.
+    assert_velocity(
+        dir.path(),
+        "velocity: weight/week   2.38\ncreep:    weight/week   0.00\n",
+    );
+    // Restricting to the last 5 days excludes the oldest commit, changing
+    // the fitted slope.
     assert_velocity_with_args(
         dir.path(),
-        &["when", "--velocity", "--last", "2"],
-        "1.00 weight/day\n",
+        &["when", "--velocity", "--last", "5"],
+        "velocity: weight/week   1.88\ncreep:    weight/week   0.00\n",
     );
 }
 

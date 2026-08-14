@@ -44,13 +44,14 @@ struct FallbackSignature {
     parent_title: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct VelocityEstimate {
-    pub weight_per_day: f64,
-    pub completed_weight: f64,
-    pub span_days: f64,
-    pub comparable_pairs: usize,
-    pub completion_events: usize,
+    /// Slope of the whole-project done-weight trend line, in weight/week:
+    /// how fast completed weight is accumulating.
+    pub velocity_per_week: Option<f64>,
+    /// Slope of the whole-project total-weight trend line, in weight/week:
+    /// how fast the backlog itself is growing (new/expanded work).
+    pub creep_per_week: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -81,37 +82,81 @@ struct EtaEstimate {
     unix_days: i64,
 }
 
-/// Estimates current project velocity as weighted completions per day over the
-/// last 90 days.
+/// Estimates current project velocity and creep (see [`VelocityEstimate`])
+/// over the last 90 days.
 ///
-/// Returns `None` when there isn't enough git data to produce an estimate.
-pub fn estimate_velocity(root: &Path) -> Option<f64> {
+/// Returns an error when `root` isn't a git repository.
+pub fn estimate_velocity(root: &Path) -> Result<VelocityEstimate, String> {
     estimate_velocity_with_window(root, DEFAULT_VELOCITY_WINDOW_DAYS)
 }
 
-/// Estimates velocity over a caller-provided trailing window (in days).
-pub fn estimate_velocity_with_window(root: &Path, window_days: u32) -> Option<f64> {
-    estimate_velocity_details_with_window(root, window_days).map(|v| v.weight_per_day)
-}
-
-/// Like [`estimate_velocity`], but returns additional metadata useful for
-/// diagnostics and future confidence/error-margin reporting.
-pub fn estimate_velocity_details(root: &Path) -> Option<VelocityEstimate> {
-    estimate_velocity_details_with_window(root, DEFAULT_VELOCITY_WINDOW_DAYS)
-}
-
-/// Like [`estimate_velocity_with_window`], but returns additional metadata.
-pub fn estimate_velocity_details_with_window(
+/// Like [`estimate_velocity`], but scoped to a caller-provided trailing
+/// window (in days) instead of the default 90 days.
+///
+/// Velocity is the slope of the whole-project done-weight trend line, and
+/// creep is the slope of the whole-project total-weight trend line (i.e.
+/// how fast the backlog itself grows) — both expressed in weight/week.
+/// Either metric independently resolves to `None` when its trend line can't
+/// be computed (fewer than two distinct points in the window).
+pub fn estimate_velocity_with_window(
     root: &Path,
     window_days: u32,
-) -> Option<VelocityEstimate> {
-    if !git::is_git_repo(root) {
-        return None;
-    }
+) -> Result<VelocityEstimate, String> {
+    require_git_repo(root)?;
     if window_days == 0 {
-        return None;
+        return Ok(VelocityEstimate {
+            velocity_per_week: None,
+            creep_per_week: None,
+        });
     }
-    None
+
+    let cache = match lifecycle_cache::update(root) {
+        Some(cache) => cache,
+        None => {
+            return Ok(VelocityEstimate {
+                velocity_per_week: None,
+                creep_per_week: None,
+            });
+        }
+    };
+
+    let mut commits = git::commits(root);
+    commits.reverse(); // oldest -> newest, matching cache.commit_chain
+
+    // `usize::MAX` scopes the timeline to the whole project: every rank is
+    // "at or before" it, unlike a milestone-scoped rank cutoff.
+    let mut points = lifecycle_cache::todo_done_timeline(&cache, &commits, Some(usize::MAX));
+    points.push(worktree_plot_point(root, Some(usize::MAX)));
+
+    let today = today_unix_days();
+    let cutoff = today.map(|t| t - i64::from(window_days));
+    if let Some(cutoff) = cutoff {
+        points.retain(|p| parse_yyyy_mm_dd_to_unix_days(&p.date).is_none_or(|d| d >= cutoff));
+    }
+
+    let geometry = compute_plot_geometry(&points, today);
+    let total_trend = linear_trend(
+        &geometry
+            .x_values
+            .iter()
+            .zip(points.iter())
+            .map(|(x, p)| (*x, p.total_weight))
+            .collect::<Vec<_>>(),
+    );
+    let done_trend = linear_trend(
+        &geometry
+            .x_values
+            .iter()
+            .zip(points.iter())
+            .map(|(x, p)| (*x, p.done_weight))
+            .collect::<Vec<_>>(),
+    );
+
+    const DAYS_PER_WEEK: f64 = 7.0;
+    Ok(VelocityEstimate {
+        velocity_per_week: done_trend.map(|t| t.slope * DAYS_PER_WEEK),
+        creep_per_week: total_trend.map(|t| t.slope * DAYS_PER_WEEK),
+    })
 }
 
 /// Ensures `root` is a git repository, returning a consistent error message
@@ -699,6 +744,26 @@ fn render_eta_text(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> St
     };
     let date = format_yyyy_mm_dd_from_unix_days(eta.unwrap().unix_days);
     format!("{:<10}{span}\n{:<10}{date}\n", "ETA:", "ETA date:")
+}
+
+/// Renders the "velocity: ..." / "creep: ..." text block shown for
+/// `agile when --velocity`. Labels are left-padded and units/numbers are
+/// aligned so the numeric value is always the last column on each line;
+/// either line shows "unknown" in place of the number when its trend can't
+/// be computed.
+pub fn render_velocity_text(estimate: VelocityEstimate) -> String {
+    format!(
+        "{}\n{}\n",
+        render_velocity_line("velocity:", estimate.velocity_per_week),
+        render_velocity_line("creep:", estimate.creep_per_week),
+    )
+}
+
+fn render_velocity_line(label: &str, weight_per_week: Option<f64>) -> String {
+    match weight_per_week {
+        Some(value) => format!("{label:<9} weight/week   {value:.2}"),
+        None => format!("{label:<9} unknown"),
+    }
 }
 
 /// Renders one line of the bare `agile when` report: the ETA span

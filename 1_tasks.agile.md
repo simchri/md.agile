@@ -587,7 +587,7 @@
   - [ ] SVG
   - [ ] html
 
-- [ ] "velocity" is the slope of the (weighted) linear trend 
+- [x] "velocity" is the slope of the (weighted) linear trend 
 
 - [ ] parameters for agile.md.toml to override defaults ETA algorithm parameters. NO COMMAND LINE OPTIONS TO DO THE SAME - THIS CAN ONLY BE DONE THROUGH A VERSIONED CHANGE
 

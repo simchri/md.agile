@@ -47,8 +47,11 @@ pub fn run(
     if velocity {
         let window_days = last_days.unwrap_or(eta::DEFAULT_VELOCITY_WINDOW_DAYS);
         match eta::estimate_velocity_with_window(root, window_days) {
-            Some(value) => println!("{value:.2} weight/day"),
-            None => println!("unknown"),
+            Ok(estimate) => print!("{}", eta::render_velocity_text(estimate)),
+            Err(msg) => {
+                log::error!("{msg}");
+                std::process::exit(1);
+            }
         }
         return;
     }
