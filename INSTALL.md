@@ -4,7 +4,7 @@
 Project is not yet configured for easy convenient installation on all platforms. You can currently only install this project "from sources". Non-technical users may encounter some difficulties.
 
 1. To install the binaries (executables) pick **one** of the "Options" below.
-2. Then, optionally to use the language server, configure your text editor accordingly. In general, refer to your editor / IDEs documentation for instructions. An example is provided below for NeoVim.
+2. Then optionally, to use the language server, configure your text editor accordingly. In general, refer to your editor / IDEs documentation for instructions. An example is provided below for NeoVim.
 
 ## Option 1 - Build from Source - Docker
 
