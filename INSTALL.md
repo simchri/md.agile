@@ -21,7 +21,10 @@ Prerequisites:
 - [Make](https://www.gnu.org/software/make/) (Preinstalled on must linux systems)
 
 Installation:
-From the project root directory, run: `make install`
+From the project root directory, run: 
+```
+make install
+```
 The `install` target will create packages (e.g. *.deb files) for your OS and install all components (cli, gui, lsp). If you want to install only some components, instead run `make package`, then manually install only the wanted packages. Package files are in `./dist`. Run `make help` to see all available targets.
 
 Uninstall:
