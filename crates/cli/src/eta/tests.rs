@@ -218,8 +218,7 @@ fn compute_eta_intersects_trend_lines_in_the_future() {
     // Anchor is day 0; "today" is day 0 too. Lines cross at x = 10.
     let eta = compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(0))
         .expect("expected an ETA");
-    assert_eq!(eta.date, "1970-01-11");
-    assert_eq!(eta.span, "1 week");
+    assert_eq!(eta.unix_days, 10);
 }
 
 #[test]
@@ -266,18 +265,24 @@ fn compute_eta_is_none_without_both_trends_or_anchor() {
 
 #[test]
 fn render_eta_text_shows_span_and_date_when_available() {
-    let eta = EtaEstimate {
-        date: "2026-05-04".to_string(),
-        span: "3 weeks".to_string(),
-    };
-    let out = render_eta_text(Some(&eta));
-    assert!(out.contains("ETA: 3 weeks"), "out: {out:?}");
-    assert!(out.contains("ETA date: 2026-05-04"), "out: {out:?}");
+    // unix_days = 10; "today" = 3, so 7 days remain -> "1 week".
+    let eta = EtaEstimate { unix_days: 10 };
+    let out = render_eta_text(Some(eta), Some(3));
+    assert!(out.contains("ETA: 1 week"), "out: {out:?}");
+    assert!(out.contains("ETA date: 1970-01-11"), "out: {out:?}");
 }
 
 #[test]
 fn render_eta_text_shows_unknown_when_no_eta() {
-    let out = render_eta_text(None);
+    let out = render_eta_text(None, Some(0));
+    assert!(out.contains("ETA: unknown"), "out: {out:?}");
+    assert!(!out.contains("ETA date"), "out: {out:?}");
+}
+
+#[test]
+fn render_eta_text_shows_unknown_when_today_is_unknown() {
+    let eta = EtaEstimate { unix_days: 10 };
+    let out = render_eta_text(Some(eta), None);
     assert!(out.contains("ETA: unknown"), "out: {out:?}");
     assert!(!out.contains("ETA date"), "out: {out:?}");
 }

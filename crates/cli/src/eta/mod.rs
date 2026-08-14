@@ -74,12 +74,11 @@ struct LinearTrend {
     intercept: f64,
 }
 
-/// The estimated time of arrival at a milestone: the point where the total
-/// and done trend lines intersect.
-#[derive(Debug, Clone, PartialEq)]
+/// The estimated time of arrival at a milestone: the calendar date (as unix
+/// days) where the total and done trend lines intersect.
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct EtaEstimate {
-    date: String,
-    span: String,
+    unix_days: i64,
 }
 
 /// Estimates current project velocity as weighted completions per day over the
@@ -299,7 +298,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
         geometry.anchor_unix_days,
         today_unix_days,
     );
-    out.push_str(&render_eta_text(eta.as_ref()));
+    out.push_str(&render_eta_text(eta, today_unix_days));
     out
 }
 
@@ -572,6 +571,9 @@ fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {
 /// missing, the lines are parallel (no single intersection), the anchor date
 /// couldn't be determined (e.g. no real dates available), or the
 /// intersection falls on or before today (already reached, or unknowable).
+///
+/// This function is purely date/time math — it performs no string
+/// formatting; see [`render_eta_text`] for that.
 fn compute_eta(
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
@@ -588,17 +590,13 @@ fn compute_eta(
         return None;
     }
     let x_intersect = (done.intercept - total.intercept) / slope_diff;
-    let intersection_unix_days = anchor + x_intersect.round() as i64;
+    let unix_days = anchor + x_intersect.round() as i64;
 
-    if intersection_unix_days <= today {
+    if unix_days <= today {
         return None;
     }
 
-    let days_from_today = intersection_unix_days - today;
-    Some(EtaEstimate {
-        date: format_yyyy_mm_dd_from_unix_days(intersection_unix_days),
-        span: format_days_as_span(days_from_today),
-    })
+    Some(EtaEstimate { unix_days })
 }
 
 /// Formats a day count as a human-friendly time span. Per README.vision.md:
@@ -631,11 +629,15 @@ fn pluralize(n: i64, unit: &str) -> String {
 }
 
 /// Renders the "ETA: ..." / "ETA date: ..." text block shown after the plot.
-fn render_eta_text(eta: Option<&EtaEstimate>) -> String {
-    match eta {
-        Some(eta) => format!("ETA: {}\nETA date: {}\n", eta.span, eta.date),
-        None => "ETA: unknown\n".to_string(),
-    }
+/// All string formatting (date formatting and the day-count-to-span
+/// conversion) lives here; [`compute_eta`] only ever deals in dates.
+fn render_eta_text(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> String {
+    let (Some(eta), Some(today)) = (eta, today_unix_days) else {
+        return "ETA: unknown\n".to_string();
+    };
+    let span = format_days_as_span(eta.unix_days - today);
+    let date = format_yyyy_mm_dd_from_unix_days(eta.unix_days);
+    format!("ETA: {span}\nETA date: {date}\n")
 }
 
 /// Returns the name of the `milestone_rank`-th *future* milestone, i.e. the
