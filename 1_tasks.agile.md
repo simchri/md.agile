@@ -549,9 +549,11 @@
     - [x] remember selection and previous selections
     - [x] reopen project by default
 
-- [ ] investigate edge case: Two properties define subtasks with order!
-  - [ ] compatible (prop a "1 impl", "3 test" --  prop b: "2 review")
-  - [ ] incompatible (prop a "1 impl", "2 test" --  prop b: "2 review")
+- [x] investigate edge case: Two properties define subtasks with order!
+  - [x] compatible (prop a "1 impl", "3 test" --  prop b: "2 review")
+    --> works wonderfully. Order can be assembled from subtasks of multiple properties!
+  - [x] incompatible (prop a "1 impl", "2 test" --  prop b: "2 review")
+    --> case is well defined: Duplicate order number error
 
 - [ ] investigate: Placement of properties, e.g. in body of task - recognized or not?
 
