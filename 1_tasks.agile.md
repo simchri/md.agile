@@ -525,8 +525,8 @@
   - [x] normally installed with packages like other bins
   - [x] one click launch to view
     Options: 
-    - [-] #OPT: native build
-    - [ ] #OPT: keep browser architecture, but add some form of launcher script
+    - [-] #OPT native build
+    - [x] #OPT keep browser architecture, but add some form of launcher script
       - [x] launcher script
         - [x] move launch/stop logic into Rust (not the bash wrapper) so it's unit-testable per project TDD rules
         - [x] on launch, open the system default browser at the server's URL automatically
