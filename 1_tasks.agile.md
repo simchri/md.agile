@@ -555,6 +555,8 @@
 
 - [ ] investigate: Placement of properties, e.g. in body of task - recognized or not?
 
+- [ ] #bug agile when --plot --next 1 should show next *incomplete* milestone, not first milestone. Seems to do the latter
+
 - [ ] ctd
   - [ ] output ETA
 
