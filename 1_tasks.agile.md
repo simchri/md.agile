@@ -556,9 +556,10 @@
     --> case is well defined: Duplicate order number error
     OK no further actions
 
-- [ ] investigate: Placement of properties, e.g. in body of task - recognized or not?
+- [x] investigate: Placement of properties, e.g. in body of task - recognized or not?
+  no, currently not recognized
 
-- [ ] #bug agile when --plot --next 1 should show next *incomplete* milestone, not first milestone. Seems to do the latter
+- [x] #bug agile when --plot --next 1 should show next *incomplete* milestone, not first milestone. Seems to do the latter
 
 - [ ] ctd
   - [ ] output ETA

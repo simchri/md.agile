@@ -620,6 +620,49 @@ fn when_plot_defaults_to_next_1() {
 }
 
 #[test]
+fn when_plot_next_1_skips_already_reached_milestones() {
+    // Regression test: `--next 1` must show the next *incomplete* milestone,
+    // not simply the first milestone in the backlog. Milestone "alpha" is
+    // already reached (all tasks above it are done), so `--next 1` should
+    // scope to "beta" instead.
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [x] task a
+#MILESTONE: alpha
+- [ ] task b
+- [ ] task c
+#MILESTONE: beta
+- [ ] task d
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+#MILESTONE: alpha
+- [x] task b
+- [ ] task c
+#MILESTONE: beta
+- [ ] task d
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "finish task b", "2026-07-11T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--plot", "--next", "1"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("Milestone: beta"), "stdout: {stdout:?}");
+}
+
+#[test]
 fn when_plot_errors_for_milestone_never_committed() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

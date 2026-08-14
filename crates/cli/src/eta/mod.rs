@@ -545,21 +545,47 @@ fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {
     Some(LinearTrend { slope, intercept })
 }
 
+/// Returns the name of the `milestone_rank`-th *future* milestone, i.e. the
+/// `milestone_rank`-th milestone that appears after the first incomplete
+/// task in the backlog (matching `agile milestones --list --next`'s
+/// semantics). Milestones that only have completed tasks above them have
+/// already been reached and are skipped.
 fn milestone_name_for_rank(root: &Path, milestone_rank: usize) -> Option<String> {
     let mut milestones = Vec::new();
+    let mut seen_incomplete_task = false;
     for path in find_task_files(root) {
         let Ok(content) = std::fs::read_to_string(&path) else {
             continue;
         };
         let items = parser::parse(&content, path);
         for item in items {
-            let FileItem::Milestone(m) = item else {
-                continue;
-            };
-            milestones.push(m.name);
+            match item {
+                FileItem::Task(task) => {
+                    if !seen_incomplete_task && !task_subtree_complete(&task) {
+                        seen_incomplete_task = true;
+                    }
+                }
+                FileItem::Milestone(m) => {
+                    if seen_incomplete_task {
+                        milestones.push(m.name);
+                    }
+                }
+            }
         }
     }
     milestones.get(milestone_rank - 1).cloned()
+}
+
+fn is_closed_status(status: &Status) -> bool {
+    matches!(status, Status::Done | Status::Cancelled)
+}
+
+fn task_subtree_complete(task: &parser::Task) -> bool {
+    is_closed_status(&task.status) && task.children.iter().all(subtask_subtree_complete)
+}
+
+fn subtask_subtree_complete(subtask: &parser::Subtask) -> bool {
+    is_closed_status(&subtask.status) && subtask.children.iter().all(subtask_subtree_complete)
 }
 
 // Currently unused now that velocity estimation is disabled (history cache removal),
