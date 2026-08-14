@@ -128,13 +128,9 @@ A minimal LSP server that offers real-time diagnostics as you edit, and offers q
 
 ## GUI
 
-After installation launch in the directory with the md.agile.tasks and toml file: 
-```
-mdagile-gui
-```
-Then connect to localhost 8080 in a browser (in browser search bar type `http://127.0.0.1:8080/`).
+Use the installed shortcuts - just search "agile". This opens a browser view to your tasks - Don't be confused: Your browser is connecting to a program running fully locally on your machine. We simply use the browser as a powerful "UI framework" so to say. 
 
---- 
+Alternatively, launch via terminal command `agilegui` then connect to the shown ip in a browser (in browser search bar type e.g. `http://127.0.0.1:8080/`).
 
 ## Syntax & Features
 
