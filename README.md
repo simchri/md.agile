@@ -205,7 +205,7 @@ Properties are added to tasks with a `#` followed by the property name. This mak
   - [ ] "test"
   - [ ] another custom task that is not part of the '#feature' property
 ```
-As you type out a property marker, the language server will give you a hint - use the autofix feature of your text editor to quickly add the required subtasks.
+If you have added a property, but not the required subtasks, the language server will give you a hint - use the autofix feature of your text editor to quickly complement the missing subtasks.
 
 Subtasks that are required by a property are quoted `""`.
 

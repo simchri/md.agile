@@ -553,6 +553,8 @@
   - [ ] compatible (prop a "1 impl", "3 test" --  prop b: "2 review")
   - [ ] incompatible (prop a "1 impl", "2 test" --  prop b: "2 review")
 
+- [ ] investigate: Placement of properties, e.g. in body of task - recognized or not?
+
 - [ ] ctd
   - [ ] output ETA
 
