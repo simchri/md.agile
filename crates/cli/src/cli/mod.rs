@@ -82,7 +82,10 @@ pub enum Command {
         base: Option<String>,
     },
 
-    /// ETA and velocity reporting
+    /// ETA and velocity reporting.
+    ///
+    /// With no flags, lists the ETA time span for every future milestone (in
+    /// backlog order), one per line: `<span>   <milestone name>`.
     When {
         /// Show the current velocity estimate (done-trend slope, weighted/day)
         #[arg(long)]

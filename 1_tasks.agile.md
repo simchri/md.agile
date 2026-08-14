@@ -561,7 +561,7 @@
 
 - [x] #bug agile when --plot --next 1 should show next *incomplete* milestone, not first milestone. Seems to do the latter
 
-- [ ] ctd
+- [x] ctd
   - [x] output ETA
 
 - [ ] extensions to testing script
@@ -593,7 +593,7 @@
 
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
-  - [ ] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
+  - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
   - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
   - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
   - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)

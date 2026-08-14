@@ -8,7 +8,8 @@ use std::path::Path;
 ///
 /// Supports `--velocity` and terminal plotting via `--plot [--next <rank>]`
 /// (defaults to `--next 1`, i.e. the next milestone), plus `--data` to show
-/// the same underlying data as a raw table of task counts.
+/// the same underlying data as a raw table of task counts. With no flags,
+/// lists the ETA time span for every future milestone, in backlog order.
 pub fn run(
     root: &Path,
     _config: &Config,
@@ -41,14 +42,20 @@ pub fn run(
         std::process::exit(1);
     }
 
-    if !velocity {
-        log::error!("`agile when` is not implemented yet; use `agile when --velocity`");
-        std::process::exit(1);
+    if velocity {
+        let window_days = last_days.unwrap_or(eta::DEFAULT_VELOCITY_WINDOW_DAYS);
+        match eta::estimate_velocity_with_window(root, window_days) {
+            Some(value) => println!("{value:.2} weight/day"),
+            None => println!("unknown"),
+        }
+        return;
     }
 
-    let window_days = last_days.unwrap_or(eta::DEFAULT_VELOCITY_WINDOW_DAYS);
-    match eta::estimate_velocity_with_window(root, window_days) {
-        Some(value) => println!("{value:.2} weight/day"),
-        None => println!("unknown"),
+    match eta::build_when_report(root) {
+        Ok(report) => print!("{report}"),
+        Err(msg) => {
+            log::error!("{msg}");
+            std::process::exit(1);
+        }
     }
 }

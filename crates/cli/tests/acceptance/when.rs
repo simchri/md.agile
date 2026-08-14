@@ -456,6 +456,103 @@ fn when_last_requires_velocity() {
 }
 
 #[test]
+fn when_bare_lists_eta_for_future_milestones_skipping_reached_ones() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    // "alpha" is reached from the very first commit (task a is already
+    // done), so it must not appear in the bare report. "beta" only becomes
+    // reached once task d is done, which never happens here.
+    let file_content = "\
+- [x] task a
+#MILESTONE: alpha
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: beta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 0", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+#MILESTONE: alpha
+- [x] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: beta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 1", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+#MILESTONE: alpha
+- [x] task b
+- [x] task c
+- [ ] task d
+#MILESTONE: beta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 2", "2026-07-12T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!stdout.contains("alpha"), "stdout: {stdout:?}");
+    let line = stdout
+        .lines()
+        .find(|line| line.contains("beta"))
+        .unwrap_or_else(|| panic!("missing beta line, stdout: {stdout:?}"));
+    assert!(!line.contains("unknown"), "line: {line:?}");
+}
+
+#[test]
+fn when_bare_prints_nothing_when_there_are_no_future_milestones() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert_eq!(stdout, "", "stdout: {stdout:?}");
+}
+
+#[test]
+fn when_bare_requires_a_git_repository() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["when"]);
+
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("git repository"), "stderr: {stderr:?}");
+}
+
+#[test]
 fn when_plot_shows_total_and_done_scoped_to_milestone() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

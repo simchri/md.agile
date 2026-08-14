@@ -153,6 +153,27 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
     })
 }
 
+/// Builds the bare `agile when` report: the ETA time span for every future
+/// milestone (see [`future_milestone_names`]), one per line, in backlog
+/// order — matching README.vision.md's list-mode output. A milestone whose
+/// ETA can't be computed (e.g. not committed yet, or no convergent trend)
+/// shows "unknown" instead of a span.
+pub fn build_when_report(root: &Path) -> Result<String, String> {
+    if !git::is_git_repo(root) {
+        return Err("`agile when` requires a git repository".to_string());
+    }
+    let today = today_unix_days();
+    let mut out = String::new();
+    for (index, name) in future_milestone_names(root).into_iter().enumerate() {
+        let rank = index + 1;
+        let eta = build_todo_done_plot(root, rank)
+            .ok()
+            .and_then(|plot| eta_for_plot(&plot, today));
+        out.push_str(&render_when_line(&name, eta, today));
+    }
+    Ok(out)
+}
+
 /// Computes the "right now" plot point directly from the on-disk worktree
 /// (which may include uncommitted edits), using the same fixed milestone
 /// rank as the rest of the timeline.
@@ -249,14 +270,28 @@ fn accumulate_subtasks(
     }
 }
 
-pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
-    let sampled = downsample_plot_points(&plot.points, 96);
-    let today_unix_days = unix_days_from_unix_seconds(
+/// Returns today's date as unix days (days since the unix epoch), or `None`
+/// if the system clock is unavailable/invalid.
+fn today_unix_days() -> Option<i64> {
+    unix_days_from_unix_seconds(
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .ok()
             .map(|d| d.as_secs() as i64),
-    );
+    )
+}
+
+/// The trend lines and supporting geometry/sampling used both to render the
+/// terminal chart and to compute the milestone's ETA.
+struct PlotTrends {
+    sampled: Vec<TodoDonePlotPoint>,
+    geometry: PlotGeometry,
+    total_trend: Option<LinearTrend>,
+    done_trend: Option<LinearTrend>,
+}
+
+fn compute_plot_trends(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> PlotTrends {
+    let sampled = downsample_plot_points(&plot.points, 96);
     let geometry = compute_plot_geometry(&sampled, today_unix_days);
     let total_trend = linear_trend(
         &geometry
@@ -274,16 +309,39 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
             .map(|(x, p)| (*x, p.done_weight))
             .collect::<Vec<_>>(),
     );
+    PlotTrends {
+        sampled,
+        geometry,
+        total_trend,
+        done_trend,
+    }
+}
+
+/// Computes a milestone's ETA (see [`compute_eta`]) directly from its plot
+/// data, deriving the trend lines the same way the chart does.
+fn eta_for_plot(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> Option<EtaEstimate> {
+    let trends = compute_plot_trends(plot, today_unix_days);
+    compute_eta(
+        trends.total_trend,
+        trends.done_trend,
+        trends.geometry.anchor_unix_days,
+        today_unix_days,
+    )
+}
+
+pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
+    let today_unix_days = today_unix_days();
+    let trends = compute_plot_trends(plot, today_unix_days);
 
     let mut out = String::new();
     out.push_str("\n");
     out.push_str(&format!("Milestone: {}\n", plot.milestone_name));
     out.push_str("\n");
     out.push_str(&render_textplots_chart(
-        &sampled,
-        &geometry,
-        total_trend,
-        done_trend,
+        &trends.sampled,
+        &trends.geometry,
+        trends.total_trend,
+        trends.done_trend,
         fit,
     ));
     out.push_str(&render_plot_legend());
@@ -293,9 +351,9 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
     }
     out.push_str("\n");
     let eta = compute_eta(
-        total_trend,
-        done_trend,
-        geometry.anchor_unix_days,
+        trends.total_trend,
+        trends.done_trend,
+        trends.geometry.anchor_unix_days,
         today_unix_days,
     );
     out.push_str(&render_eta_text(eta, today_unix_days));
@@ -640,12 +698,23 @@ fn render_eta_text(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> St
     format!("{:<10}{span}\n{:<10}{date}\n", "ETA:", "ETA date:")
 }
 
-/// Returns the name of the `milestone_rank`-th *future* milestone, i.e. the
-/// `milestone_rank`-th milestone that appears after the first incomplete
-/// task in the backlog (matching `agile milestones --list --next`'s
-/// semantics). Milestones that only have completed tasks above them have
-/// already been reached and are skipped.
-fn milestone_name_for_rank(root: &Path, milestone_rank: usize) -> Option<String> {
+/// Renders one line of the bare `agile when` report: the ETA span
+/// left-padded to line up with the milestone name, matching the column
+/// width used by [`render_eta_text`].
+fn render_when_line(name: &str, eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> String {
+    let span = match (eta, today_unix_days) {
+        (Some(eta), Some(today)) => format_days_as_span(eta.unix_days - today),
+        _ => "unknown".to_string(),
+    };
+    format!("{span:<10}{name}\n")
+}
+
+/// Returns the names of all *future* milestones, in backlog order, i.e. the
+/// milestones that appear after the first incomplete task in the backlog
+/// (matching `agile milestones --list --next`'s semantics). Milestones that
+/// only have completed tasks above them have already been reached and are
+/// skipped.
+fn future_milestone_names(root: &Path) -> Vec<String> {
     let mut milestones = Vec::new();
     let mut seen_incomplete_task = false;
     for path in find_task_files(root) {
@@ -668,7 +737,15 @@ fn milestone_name_for_rank(root: &Path, milestone_rank: usize) -> Option<String>
             }
         }
     }
-    milestones.get(milestone_rank - 1).cloned()
+    milestones
+}
+
+/// Returns the name of the `milestone_rank`-th *future* milestone (1-based).
+/// See [`future_milestone_names`] for what counts as "future".
+fn milestone_name_for_rank(root: &Path, milestone_rank: usize) -> Option<String> {
+    future_milestone_names(root)
+        .into_iter()
+        .nth(milestone_rank - 1)
 }
 
 fn is_closed_status(status: &Status) -> bool {
