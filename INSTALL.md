@@ -66,7 +66,7 @@ Perform installation as described above (any option) and check that `agilels` bi
 Nvim config example with lazy pkg manager (if you use a different package manager, adjust as needed):
 
 ```lua
-#~/.config/nvim/lua/plugins/lang-mdagile.lua
+-- ~/.config/nvim/lua/plugins/lang-mdagile.lua
 
 -- register the file extension ".agile.md" as both "markdown" and "agile" file type
 -- this ensures both your usual markdown features and the ls are active
