@@ -10,6 +10,10 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Shape};
 
+/// Number of days in a week, used to convert day-based rates (`_wtpd`) to
+/// week-based rates (`_wtpw`) for display purposes.
+const DAYS_PER_WEEK: f64 = 7.0;
+
 #[derive(Debug, Clone, PartialEq)]
 struct FlatNode {
     key: TransitionKey,
@@ -125,7 +129,6 @@ pub fn estimate_velocity_with_window(
 
     let trends = compute_plot_trends(&plot, today);
 
-    const DAYS_PER_WEEK: f64 = 7.0;
     Ok(VelocityEstimate {
         velocity_wtpw: trends.done_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),
         creep_wtpw: trends.total_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),
@@ -422,7 +425,11 @@ fn render_trend_equations(
 /// weight/week here purely for display, to match `--velocity`'s unit.
 fn render_trend_equation(trend: Option<LinearTrend>) -> String {
     match trend {
-        Some(t) => format!("{:.2} + {:.2}/week * x", t.intercept_wt, t.slope_wtpd * 7.0),
+        Some(t) => format!(
+            "{:.2} + {:.2}/week * x",
+            t.intercept_wt,
+            t.slope_wtpd * DAYS_PER_WEEK
+        ),
         None => "unknown".to_string(),
     }
 }

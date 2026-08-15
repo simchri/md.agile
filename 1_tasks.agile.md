@@ -436,6 +436,8 @@
 - [x] GUI: show ordered-subtask numbers in the task card and modal subtask lists, and enforce completion order (block marking an ordered subtask done while a lower-ordered sibling is still incomplete) from both `agile task done` and the GUI, reusing the same rule-violation error handling as other completion checks (e.g. incomplete children).
 
 ## ETA
+- [x] Replace magic `7.0` day→week conversion literal in `render_trend_equation` with the shared `DAYS_PER_WEEK` constant (also used by `estimate_velocity_with_window`), for consistency after a unit-suffix audit of the plot code.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
