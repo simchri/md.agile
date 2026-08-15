@@ -572,6 +572,8 @@
 
 - [x] `agile when --data` now shows both task counts and task weights (Total/Done + Total Wt/Done Wt columns) for each historical data point, instead of counts only.
 
+- [x] renamed quantity-bearing variables in `eta/mod.rs` (task weights, counts, velocity/creep, slope/intercept) to carry their unit as a suffix (`_t`, `_wt`, `_wtpd`, `_wtpw`); documented the convention in doc/architecture.md.
+
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
     - [ ] e.g. no convergence

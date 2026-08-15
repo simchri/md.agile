@@ -389,15 +389,15 @@ fn todo_done_timeline_tracks_completion_over_commits_scoped_to_milestone() {
     assert_eq!(points.len(), 2, "expected one point per commit: {points:?}");
     // task c is after the milestone, so only task a (+ its subtask) and task b
     // are ever in scope: total weight = 1.0 (task a) + 0.5 (sub a1) + 1.0 (task b) = 2.5.
-    assert_eq!(points[0].total_weight, 2.5);
-    assert_eq!(points[0].total_count, 3);
-    assert_eq!(points[0].done_weight, 0.0);
-    assert_eq!(points[0].done_count, 0);
+    assert_eq!(points[0].total_weight_wt, 2.5);
+    assert_eq!(points[0].total_count_t, 3);
+    assert_eq!(points[0].done_weight_wt, 0.0);
+    assert_eq!(points[0].done_count_t, 0);
 
-    assert_eq!(points[1].total_weight, 2.5);
-    assert_eq!(points[1].total_count, 3);
-    assert_eq!(points[1].done_weight, 1.5, "task a + sub a1 now done");
-    assert_eq!(points[1].done_count, 2);
+    assert_eq!(points[1].total_weight_wt, 2.5);
+    assert_eq!(points[1].total_count_t, 3);
+    assert_eq!(points[1].done_weight_wt, 1.5, "task a + sub a1 now done");
+    assert_eq!(points[1].done_count_t, 2);
 }
 
 #[test]
@@ -422,9 +422,9 @@ fn todo_done_timeline_excludes_deleted_entities_from_that_commit_onward() {
     // Rank 2 so both task a and task b would be in scope if not deleted.
     let points = todo_done_timeline(&cache, &commits, Some(2));
 
-    assert_eq!(points[0].total_count, 2, "both tasks present initially");
+    assert_eq!(points[0].total_count_t, 2, "both tasks present initially");
     assert_eq!(
-        points[1].total_count, 1,
+        points[1].total_count_t, 1,
         "deleted task should no longer count"
     );
 }

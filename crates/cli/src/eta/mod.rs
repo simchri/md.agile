@@ -46,19 +46,19 @@ struct FallbackSignature {
 pub struct VelocityEstimate {
     /// Slope of the whole-project done-weight trend line, in weight/week:
     /// how fast completed weight is accumulating.
-    pub velocity_per_week: Option<f64>,
+    pub velocity_wtpw: Option<f64>,
     /// Slope of the whole-project total-weight trend line, in weight/week:
     /// how fast the backlog itself is growing (new/expanded work).
-    pub creep_per_week: Option<f64>,
+    pub creep_wtpw: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TodoDonePlotPoint {
     pub date: String,
-    pub total_weight: f64,
-    pub done_weight: f64,
-    pub total_count: usize,
-    pub done_count: usize,
+    pub total_weight_wt: f64,
+    pub done_weight_wt: f64,
+    pub total_count_t: usize,
+    pub done_count_t: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -69,8 +69,8 @@ pub struct TodoDonePlot {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct LinearTrend {
-    slope: f64,
-    intercept: f64,
+    slope_wtpd: f64,
+    intercept_wt: f64,
 }
 
 /// The estimated time of arrival at a milestone: the calendar date (as unix
@@ -110,8 +110,8 @@ pub fn estimate_velocity_with_window(
     require_git_repo(root)?;
     if window_days == Some(0) {
         return Ok(VelocityEstimate {
-            velocity_per_week: None,
-            creep_per_week: None,
+            velocity_wtpw: None,
+            creep_wtpw: None,
         });
     }
 
@@ -127,8 +127,8 @@ pub fn estimate_velocity_with_window(
 
     const DAYS_PER_WEEK: f64 = 7.0;
     Ok(VelocityEstimate {
-        velocity_per_week: trends.done_trend.map(|t| t.slope * DAYS_PER_WEEK),
-        creep_per_week: trends.total_trend.map(|t| t.slope * DAYS_PER_WEEK),
+        velocity_wtpw: trends.done_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),
+        creep_wtpw: trends.total_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),
     })
 }
 
@@ -207,17 +207,17 @@ fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotP
         // Milestone precedes every task: nothing is ever in scope.
         return TodoDonePlotPoint {
             date: today,
-            total_weight: 0.0,
-            done_weight: 0.0,
-            total_count: 0,
-            done_count: 0,
+            total_weight_wt: 0.0,
+            done_weight_wt: 0.0,
+            total_count_t: 0,
+            done_count_t: 0,
         };
     };
 
-    let mut total_weight = 0.0;
-    let mut done_weight = 0.0;
-    let mut total_count = 0usize;
-    let mut done_count = 0usize;
+    let mut total_weight_wt = 0.0;
+    let mut done_weight_wt = 0.0;
+    let mut total_count_t = 0usize;
+    let mut done_count_t = 0usize;
     let mut rank = 0usize;
     for path in find_task_files(root) {
         let Ok(content) = std::fs::read_to_string(&path) else {
@@ -232,55 +232,55 @@ fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotP
             if rank > target_rank {
                 continue;
             }
-            total_weight += 1.0;
-            total_count += 1;
+            total_weight_wt += 1.0;
+            total_count_t += 1;
             if matches!(task.status, Status::Done | Status::Cancelled) {
-                done_weight += 1.0;
-                done_count += 1;
+                done_weight_wt += 1.0;
+                done_count_t += 1;
             }
             accumulate_subtasks(
                 &task.children,
                 2,
-                &mut total_weight,
-                &mut total_count,
-                &mut done_weight,
-                &mut done_count,
+                &mut total_weight_wt,
+                &mut total_count_t,
+                &mut done_weight_wt,
+                &mut done_count_t,
             );
         }
     }
 
     TodoDonePlotPoint {
         date: today,
-        total_weight,
-        done_weight,
-        total_count,
-        done_count,
+        total_weight_wt,
+        done_weight_wt,
+        total_count_t,
+        done_count_t,
     }
 }
 
 fn accumulate_subtasks(
     children: &[parser::Subtask],
     depth: usize,
-    total_weight: &mut f64,
-    total_count: &mut usize,
-    done_weight: &mut f64,
-    done_count: &mut usize,
+    total_weight_wt: &mut f64,
+    total_count_t: &mut usize,
+    done_weight_wt: &mut f64,
+    done_count_t: &mut usize,
 ) {
     for child in children {
         let w = weight_for_depth(depth);
-        *total_weight += w;
-        *total_count += 1;
+        *total_weight_wt += w;
+        *total_count_t += 1;
         if matches!(child.status, Status::Done | Status::Cancelled) {
-            *done_weight += w;
-            *done_count += 1;
+            *done_weight_wt += w;
+            *done_count_t += 1;
         }
         accumulate_subtasks(
             &child.children,
             depth + 1,
-            total_weight,
-            total_count,
-            done_weight,
-            done_count,
+            total_weight_wt,
+            total_count_t,
+            done_weight_wt,
+            done_count_t,
         );
     }
 }
@@ -313,7 +313,7 @@ fn compute_plot_trends(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> Plo
             .x_values
             .iter()
             .zip(sampled.iter())
-            .map(|(x, p)| (*x, p.total_weight))
+            .map(|(x, p)| (*x, p.total_weight_wt))
             .collect::<Vec<_>>(),
     );
     let done_trend = linear_trend(
@@ -321,7 +321,7 @@ fn compute_plot_trends(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> Plo
             .x_values
             .iter()
             .zip(sampled.iter())
-            .map(|(x, p)| (*x, p.done_weight))
+            .map(|(x, p)| (*x, p.done_weight_wt))
             .collect::<Vec<_>>(),
     );
     PlotTrends {
@@ -422,7 +422,7 @@ fn render_trend_equations(
 /// weight/week here purely for display, to match `--velocity`'s unit.
 fn render_trend_equation(trend: Option<LinearTrend>) -> String {
     match trend {
-        Some(t) => format!("{:.2} + {:.2}/week * x", t.intercept, t.slope * 7.0),
+        Some(t) => format!("{:.2} + {:.2}/week * x", t.intercept_wt, t.slope_wtpd * 7.0),
         None => "unknown".to_string(),
     }
 }
@@ -430,7 +430,7 @@ fn render_trend_equation(trend: Option<LinearTrend>) -> String {
 fn render_plot_stats(latest: &TodoDonePlotPoint) -> String {
     format!(
         "total:  {} tasks  (weight {:.2})\ndone:   {} tasks  (weight {:.2})\n",
-        latest.total_count, latest.total_weight, latest.done_count, latest.done_weight,
+        latest.total_count_t, latest.total_weight_wt, latest.done_count_t, latest.done_weight_wt,
     )
 }
 
@@ -446,7 +446,11 @@ pub fn render_todo_done_data(plot: &TodoDonePlot) -> String {
     for point in &plot.points {
         out.push_str(&format!(
             "{:<12}{:>7}{:>7}{:>10.2}{:>9.2}\n",
-            point.date, point.total_count, point.done_count, point.total_weight, point.done_weight
+            point.date,
+            point.total_count_t,
+            point.done_count_t,
+            point.total_weight_wt,
+            point.done_weight_wt
         ));
     }
     out
@@ -472,20 +476,20 @@ fn render_textplots_chart(
     let total_series: Vec<(f32, f32)> = points
         .iter()
         .zip(geometry.x_values.iter())
-        .map(|(p, x)| (*x as f32, p.total_weight as f32))
+        .map(|(p, x)| (*x as f32, p.total_weight_wt as f32))
         .collect();
     let done_series: Vec<(f32, f32)> = points
         .iter()
         .zip(geometry.x_values.iter())
-        .map(|(p, x)| (*x as f32, p.done_weight as f32))
+        .map(|(p, x)| (*x as f32, p.done_weight_wt as f32))
         .collect();
     let total_trend_series = total_trend
         .map(|t| {
             vec![
-                (0.0_f32, t.intercept as f32),
+                (0.0_f32, t.intercept_wt as f32),
                 (
                     geometry.trend_end_x as f32,
-                    (t.slope * geometry.trend_end_x + t.intercept) as f32,
+                    (t.slope_wtpd * geometry.trend_end_x + t.intercept_wt) as f32,
                 ),
             ]
         })
@@ -493,10 +497,10 @@ fn render_textplots_chart(
     let done_trend_series = done_trend
         .map(|t| {
             vec![
-                (0.0_f32, t.intercept as f32),
+                (0.0_f32, t.intercept_wt as f32),
                 (
                     geometry.trend_end_x as f32,
-                    (t.slope * geometry.trend_end_x + t.intercept) as f32,
+                    (t.slope_wtpd * geometry.trend_end_x + t.intercept_wt) as f32,
                 ),
             ]
         })
@@ -504,7 +508,7 @@ fn render_textplots_chart(
     let xmax = geometry.chart_x_max as f32;
     let data_ymin: f64 = points
         .iter()
-        .map(|p| p.done_weight.min(p.total_weight))
+        .map(|p| p.done_weight_wt.min(p.total_weight_wt))
         .fold(f64::INFINITY, f64::min);
     let data_ymin = if data_ymin.is_infinite() {
         0.0
@@ -513,18 +517,18 @@ fn render_textplots_chart(
     };
     let data_ymax: f64 = points
         .iter()
-        .map(|p| p.total_weight.max(p.done_weight))
+        .map(|p| p.total_weight_wt.max(p.done_weight_wt))
         .fold(0.0, f64::max);
     let mut full_ymax = data_ymax;
     if let Some(t) = total_trend {
         full_ymax = full_ymax
-            .max(t.intercept)
-            .max(t.slope * geometry.trend_end_x + t.intercept);
+            .max(t.intercept_wt)
+            .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
     }
     if let Some(t) = done_trend {
         full_ymax = full_ymax
-            .max(t.intercept)
-            .max(t.slope * geometry.trend_end_x + t.intercept);
+            .max(t.intercept_wt)
+            .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
     }
     let (ymin, ymax) = if fit {
         (data_ymin as f32, full_ymax.max(data_ymin + 1.0) as f32)
@@ -683,9 +687,12 @@ fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {
     if var <= f64::EPSILON {
         return None;
     }
-    let slope = cov / var;
-    let intercept = mean_y - slope * mean_x;
-    Some(LinearTrend { slope, intercept })
+    let slope_wtpd = cov / var;
+    let intercept_wt = mean_y - slope_wtpd * mean_x;
+    Some(LinearTrend {
+        slope_wtpd,
+        intercept_wt,
+    })
 }
 
 /// Computes the ETA to a milestone as the intersection of the total and done
@@ -708,11 +715,11 @@ fn compute_eta(
     let anchor = anchor_unix_days?;
     let today = today_unix_days?;
 
-    let slope_diff = total.slope - done.slope;
+    let slope_diff = total.slope_wtpd - done.slope_wtpd;
     if slope_diff.abs() <= f64::EPSILON {
         return None;
     }
-    let x_intersect = (done.intercept - total.intercept) / slope_diff;
+    let x_intersect = (done.intercept_wt - total.intercept_wt) / slope_diff;
     let unix_days = anchor + x_intersect.round() as i64;
 
     if unix_days <= today {
@@ -777,8 +784,8 @@ fn render_eta_text(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> St
 pub fn render_velocity_text(estimate: VelocityEstimate) -> String {
     format!(
         "{}\n{}\n",
-        render_velocity_line("velocity:", estimate.velocity_per_week),
-        render_velocity_line("creep:", estimate.creep_per_week),
+        render_velocity_line("velocity:", estimate.velocity_wtpw),
+        render_velocity_line("creep:", estimate.creep_wtpw),
     )
 }
 

@@ -143,17 +143,17 @@ fn render_todo_done_data_outputs_table_of_counts_and_weights() {
         points: vec![
             TodoDonePlotPoint {
                 date: "2026-07-10".to_string(),
-                total_weight: 2.0,
-                done_weight: 0.0,
-                total_count: 2,
-                done_count: 0,
+                total_weight_wt: 2.0,
+                done_weight_wt: 0.0,
+                total_count_t: 2,
+                done_count_t: 0,
             },
             TodoDonePlotPoint {
                 date: "2026-07-11".to_string(),
-                total_weight: 2.0,
-                done_weight: 1.0,
-                total_count: 2,
-                done_count: 1,
+                total_weight_wt: 2.0,
+                done_weight_wt: 1.0,
+                total_count_t: 2,
+                done_count_t: 1,
             },
         ],
     };
@@ -219,12 +219,12 @@ fn format_days_as_span_uses_years_from_three_years() {
 fn compute_eta_intersects_trend_lines_in_the_future() {
     // total: flat at 10 (never grows); done: starts at 0, +1/day.
     let total_trend = LinearTrend {
-        slope: 0.0,
-        intercept: 10.0,
+        slope_wtpd: 0.0,
+        intercept_wt: 10.0,
     };
     let done_trend = LinearTrend {
-        slope: 1.0,
-        intercept: 0.0,
+        slope_wtpd: 1.0,
+        intercept_wt: 0.0,
     };
     // Anchor is day 0; "today" is day 0 too. Lines cross at x = 10.
     let eta = compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(0))
@@ -235,12 +235,12 @@ fn compute_eta_intersects_trend_lines_in_the_future() {
 #[test]
 fn compute_eta_is_none_when_trend_lines_are_parallel() {
     let total_trend = LinearTrend {
-        slope: 1.0,
-        intercept: 10.0,
+        slope_wtpd: 1.0,
+        intercept_wt: 10.0,
     };
     let done_trend = LinearTrend {
-        slope: 1.0,
-        intercept: 0.0,
+        slope_wtpd: 1.0,
+        intercept_wt: 0.0,
     };
     assert!(compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(0)).is_none());
 }
@@ -248,12 +248,12 @@ fn compute_eta_is_none_when_trend_lines_are_parallel() {
 #[test]
 fn compute_eta_is_none_when_intersection_is_in_the_past() {
     let total_trend = LinearTrend {
-        slope: 0.0,
-        intercept: 10.0,
+        slope_wtpd: 0.0,
+        intercept_wt: 10.0,
     };
     let done_trend = LinearTrend {
-        slope: 1.0,
-        intercept: 0.0,
+        slope_wtpd: 1.0,
+        intercept_wt: 0.0,
     };
     // Intersection is at x = 10 (relative to anchor), but "today" is day 20,
     // i.e. the crossing already happened in the past.
@@ -263,13 +263,13 @@ fn compute_eta_is_none_when_intersection_is_in_the_past() {
 #[test]
 fn compute_eta_is_none_without_both_trends_or_anchor() {
     let total_trend = LinearTrend {
-        slope: 0.0,
-        intercept: 10.0,
+        slope_wtpd: 0.0,
+        intercept_wt: 10.0,
     };
     assert!(compute_eta(Some(total_trend), None, Some(0), Some(0)).is_none());
     let done_trend = LinearTrend {
-        slope: 1.0,
-        intercept: 0.0,
+        slope_wtpd: 1.0,
+        intercept_wt: 0.0,
     };
     assert!(compute_eta(Some(total_trend), Some(done_trend), None, Some(0)).is_none());
 }
@@ -277,12 +277,12 @@ fn compute_eta_is_none_without_both_trends_or_anchor() {
 #[test]
 fn render_trend_equations_shows_intercept_and_slope_relative_to_the_anchor_date() {
     let total_trend = LinearTrend {
-        slope: 1.95,
-        intercept: 29.85,
+        slope_wtpd: 1.95,
+        intercept_wt: 29.85,
     };
     let done_trend = LinearTrend {
-        slope: 1.84,
-        intercept: 11.24,
+        slope_wtpd: 1.84,
+        intercept_wt: 11.24,
     };
     let text = render_trend_equations(Some(total_trend), Some(done_trend), Some(20_000));
     assert!(
@@ -291,11 +291,11 @@ fn render_trend_equations_shows_intercept_and_slope_relative_to_the_anchor_date(
     );
     assert!(
         text.contains("29.85 + 13.65/week * x"),
-        "text should show the total trend's equation, slope in weight/week: {text:?}"
+        "text should show the total trend's equation, slope_wtpd in weight/week: {text:?}"
     );
     assert!(
         text.contains("11.24 + 12.88/week * x"),
-        "text should show the done trend's equation, slope in weight/week: {text:?}"
+        "text should show the done trend's equation, slope_wtpd in weight/week: {text:?}"
     );
 }
 
@@ -372,8 +372,8 @@ fn future_milestone_names_skips_already_reached_milestones() {
 #[test]
 fn render_velocity_text_shows_both_metrics_right_aligned() {
     let estimate = VelocityEstimate {
-        velocity_per_week: Some(1.0),
-        creep_per_week: Some(0.5),
+        velocity_wtpw: Some(1.0),
+        creep_wtpw: Some(0.5),
     };
     let out = render_velocity_text(estimate);
     assert_eq!(
@@ -385,8 +385,8 @@ fn render_velocity_text_shows_both_metrics_right_aligned() {
 #[test]
 fn render_velocity_text_shows_unknown_per_metric_independently() {
     let estimate = VelocityEstimate {
-        velocity_per_week: None,
-        creep_per_week: Some(2.0),
+        velocity_wtpw: None,
+        creep_wtpw: Some(2.0),
     };
     let out = render_velocity_text(estimate);
     assert_eq!(out, "velocity: unknown\ncreep:    weight/week   2.00\n");
@@ -395,8 +395,8 @@ fn render_velocity_text_shows_unknown_per_metric_independently() {
 #[test]
 fn render_velocity_text_shows_unknown_for_both_when_neither_resolves() {
     let estimate = VelocityEstimate {
-        velocity_per_week: None,
-        creep_per_week: None,
+        velocity_wtpw: None,
+        creep_wtpw: None,
     };
     let out = render_velocity_text(estimate);
     assert_eq!(out, "velocity: unknown\ncreep:    unknown\n");
@@ -431,8 +431,8 @@ fn estimate_velocity_with_window_reports_unresolved_metrics_for_zero_window() {
     assert_eq!(
         estimate,
         VelocityEstimate {
-            velocity_per_week: None,
-            creep_per_week: None,
+            velocity_wtpw: None,
+            creep_wtpw: None,
         }
     );
 }

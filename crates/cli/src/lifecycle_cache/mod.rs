@@ -421,10 +421,10 @@ pub fn todo_done_timeline(
 
     (0..cache.commit_chain.len())
         .map(|i| {
-            let mut total_weight = 0.0;
-            let mut done_weight = 0.0;
-            let mut total_count = 0;
-            let mut done_count = 0;
+            let mut total_weight_wt = 0.0;
+            let mut done_weight_wt = 0.0;
+            let mut total_count_t = 0;
+            let mut done_count_t = 0;
             for timeline in timelines.values() {
                 if !is_alive_at(timeline, i) {
                     continue;
@@ -447,19 +447,19 @@ pub fn todo_done_timeline(
                 if !in_scope {
                     continue;
                 }
-                total_weight += timeline.weight;
-                total_count += 1;
+                total_weight_wt += timeline.weight;
+                total_count_t += 1;
                 if step_value(&timeline.closed_breaks, i).unwrap_or(false) {
-                    done_weight += timeline.weight;
-                    done_count += 1;
+                    done_weight_wt += timeline.weight;
+                    done_count_t += 1;
                 }
             }
             TodoDonePlotPoint {
                 date: commit_dates[i].clone(),
-                total_weight,
-                done_weight,
-                total_count,
-                done_count,
+                total_weight_wt,
+                done_weight_wt,
+                total_count_t,
+                done_count_t,
             }
         })
         .collect()

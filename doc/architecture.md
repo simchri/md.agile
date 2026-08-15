@@ -142,6 +142,23 @@ where a `.git` directory is present.
 
 Task weight: a task itself is weight 1; a subtask at nesting level `n` has weight `1/n`.
 
+### Variable naming: units as a suffix
+
+In `eta/mod.rs` (and its tests), variables/fields that carry a mathematical
+quantity with a unit are suffixed with that unit, so the unit is visible at
+every call site without chasing a type or doc comment:
+
+| Suffix | Unit | Example |
+|---|---|---|
+| `_t`    | tasks (a plain count)        | `total_count_t`, `done_count_t` |
+| `_wt`   | weight (unitless task-weight sum) | `total_weight_wt`, `intercept_wt` |
+| `_wtpd` | weight per day                | `slope_wtpd` |
+| `_wtpw` | weight per week                | `velocity_wtpw`, `creep_wtpw` |
+
+This mirrors general conventions like `duration_s` (seconds) or `velocity_mps`
+(m/s): the base unit is abbreviated and appended after an underscore. Plain
+booleans, strings, and other non-quantity values are unaffected.
+
 ---
 
 ## Identity Resolution
