@@ -442,6 +442,8 @@
 
 - [x] `--ascii` chart: switch to large, round-looking glyphs (lowercase o for total, lowercase at-sign for done, uppercase O for total trend, zero for done trend, uppercase Q for today) instead of the initial hash/star/equals/tilde/colon set.
 
+- [x] `agile when --plot`: add a `--no-color` flag disabling ANSI color escapes in the chart, legend, and trend-line equations, for both the default and ascii chart backends. Best paired with `--ascii`, since the default Braille chart otherwise can't tell overlapping lines apart without color.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.

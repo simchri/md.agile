@@ -1101,6 +1101,77 @@ fn when_data_rejects_ascii_flag() {
 }
 
 #[test]
+fn when_data_rejects_no_color_flag() {
+    // `--no-color` only makes sense with `--plot`; it should be rejected
+    // with `--data`, not silently ignored.
+    let out = run_agile(std::path::Path::new("."), &["when", "--data", "--no-color"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("--no-color"), "stderr: {stderr:?}");
+}
+
+#[test]
+fn when_plot_no_color_omits_ansi_escape_sequences_in_default_and_ascii_modes() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 0", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 1", "2026-07-11T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--plot", "--next", "1", "--no-color"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(
+        !stdout.contains('\x1b'),
+        "--no-color should omit ANSI escape sequences from the default chart: stdout: {stdout:?}"
+    );
+
+    let out = run_agile(
+        dir.path(),
+        &["when", "--plot", "--next", "1", "--ascii", "--no-color"],
+    );
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(
+        !stdout.contains('\x1b'),
+        "--no-color should omit ANSI escape sequences from the ascii chart too: stdout: {stdout:?}"
+    );
+    // Symbols alone should still distinguish the four data lines.
+    assert!(stdout.contains("o total"), "stdout: {stdout:?}");
+    assert!(stdout.contains("@ done"), "stdout: {stdout:?}");
+    assert!(stdout.contains("O total trend"), "stdout: {stdout:?}");
+    assert!(stdout.contains("0 done trend"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Q today"), "stdout: {stdout:?}");
+}
+
+#[test]
 fn when_plot_ascii_uses_only_7_bit_ascii_characters_and_shows_the_ascii_legend() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

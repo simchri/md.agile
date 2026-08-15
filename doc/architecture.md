@@ -178,6 +178,13 @@ Both backends share the same axis/geometry computation (`compute_plot_geometry`,
 `compute_plot_y_range`) and plot the same underlying trend lines, so switching
 `--ascii` on or off never changes what's being reported — only how it's drawn.
 
+`--no-color` disables the ANSI color escapes in both backends' chart, legend,
+and trend-line equations, for terminals that don't support ANSI color at all.
+With the default (Braille) chart, color is the only way to tell the four data
+lines apart — without it, overlapping lines become indistinguishable — so
+`--no-color` is best paired with `--ascii`, whose symbols still differentiate
+the lines without color.
+
 ---
 
 ## Identity Resolution

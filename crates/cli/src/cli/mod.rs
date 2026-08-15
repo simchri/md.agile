@@ -132,6 +132,15 @@ pub enum Command {
         #[arg(long, requires = "plot", conflicts_with = "data")]
         ascii: bool,
 
+        /// Disable ANSI color in the plot's chart, legend, and trend-line
+        /// equations. With the default (Braille) chart, colors are the
+        /// only way to tell the four data lines apart, so pair this with
+        /// `--ascii` to keep them distinguishable by symbol instead.
+        ///
+        /// Only valid with `--plot`.
+        #[arg(long, requires = "plot", conflicts_with = "data")]
+        no_color: bool,
+
         /// Select the Nth milestone rank.
         ///
         /// With `--plot`/`--data`/`--velocity`, selects which milestone
@@ -325,10 +334,13 @@ pub fn run() {
             data,
             fit,
             ascii,
+            no_color,
             last,
             next,
         }) => {
-            subcommands::when::run(root, &config, next, velocity, plot, data, fit, ascii, last);
+            subcommands::when::run(
+                root, &config, next, velocity, plot, data, fit, ascii, no_color, last,
+            );
         }
         Some(Command::History) => {
             subcommands::history::run(root);

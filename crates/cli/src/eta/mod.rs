@@ -8,7 +8,7 @@ use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Shape};
+use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Plot, Shape};
 
 /// Number of days in a week, used to convert day-based rates (`_wtpd`) to
 /// week-based rates (`_wtpw`) for display purposes.
@@ -347,7 +347,7 @@ fn eta_for_plot(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> Option<Eta
     )
 }
 
-pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool) -> String {
+pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color: bool) -> String {
     let today_unix_days = today_unix_days();
     let trends = compute_plot_trends(plot, today_unix_days);
 
@@ -362,6 +362,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool) -> Str
             trends.total_trend,
             trends.done_trend,
             fit,
+            color,
         ));
     } else {
         out.push_str(&render_textplots_chart(
@@ -370,13 +371,15 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool) -> Str
             trends.total_trend,
             trends.done_trend,
             fit,
+            color,
         ));
     }
-    out.push_str(&render_plot_legend(ascii));
+    out.push_str(&render_plot_legend(ascii, color));
     out.push_str(&render_trend_equations(
         trends.total_trend,
         trends.done_trend,
         trends.geometry.anchor_unix_days,
+        color,
     ));
     if let Some(latest) = plot.points.last() {
         out.push_str("\n");
@@ -397,13 +400,36 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool) -> Str
 /// symbols used by [`render_ascii_chart`] (`o`/`@`/`O`/`0`/`Q`) are shown
 /// alongside their colors, since not every ASCII-only terminal renders
 /// ANSI color; in the default mode (Braille chart), color is the only
-/// differentiator, matching [`render_textplots_chart`]'s palette.
-fn render_plot_legend(ascii: bool) -> String {
-    let red = ansi_rgb_sample(255, 0, 0);
-    let green = ansi_rgb_sample(0, 255, 0);
-    let yellow = ansi_rgb_sample(255, 255, 0);
-    let cyan = ansi_rgb_sample(0, 255, 255);
-    let white = ansi_rgb_sample(255, 255, 255);
+/// differentiator, matching [`render_textplots_chart`]'s palette. When
+/// `color` is false (`--no-color`), the color swatches are omitted
+/// entirely — in `ascii` mode the symbols alone stay meaningful, but in
+/// the default mode the legend degrades to a plain, uncolored list.
+fn render_plot_legend(ascii: bool, color: bool) -> String {
+    let red = if color {
+        ansi_rgb_sample(255, 0, 0)
+    } else {
+        String::new()
+    };
+    let green = if color {
+        ansi_rgb_sample(0, 255, 0)
+    } else {
+        String::new()
+    };
+    let yellow = if color {
+        ansi_rgb_sample(255, 255, 0)
+    } else {
+        String::new()
+    };
+    let cyan = if color {
+        ansi_rgb_sample(0, 255, 255)
+    } else {
+        String::new()
+    };
+    let white = if color {
+        ansi_rgb_sample(255, 255, 255)
+    } else {
+        String::new()
+    };
     if ascii {
         format!(
             "{red} o total          {green} @ done\n{yellow} O total trend    {cyan} 0 done trend\n{white} Q today\n"
@@ -426,13 +452,22 @@ fn render_trend_equations(
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
     anchor_unix_days: Option<i64>,
+    color: bool,
 ) -> String {
     let x_desc = match anchor_unix_days {
         Some(anchor) => format!("weeks since {}", format_yyyy_mm_dd_from_unix_days(anchor)),
         None => "point index".to_string(),
     };
-    let yellow = ansi_rgb_text(255, 255, 0, "total");
-    let cyan = ansi_rgb_text(0, 255, 255, "done");
+    let yellow = if color {
+        ansi_rgb_text(255, 255, 0, "total")
+    } else {
+        "total".to_string()
+    };
+    let cyan = if color {
+        ansi_rgb_text(0, 255, 255, "done")
+    } else {
+        "done".to_string()
+    };
     format!(
         "Trend lines (x = {x_desc}):\n  {yellow} = {}\n  {cyan}  = {}\n",
         render_trend_equation(total_trend),
@@ -543,6 +578,7 @@ fn render_textplots_chart(
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
     fit: bool,
+    color: bool,
 ) -> String {
     let total_series: Vec<(f32, f32)> = points
         .iter()
@@ -605,18 +641,37 @@ fn render_textplots_chart(
             }
         })));
     }
-    if !total_trend_series.is_empty() {
-        chart_ref = chart_ref.linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0));
+    if color {
+        if !total_trend_series.is_empty() {
+            chart_ref = chart_ref.linecolorplot(&total_trend_shape, RGB8::new(255, 255, 0));
+        }
+        if !done_trend_series.is_empty() {
+            chart_ref = chart_ref.linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255));
+        }
+        chart_ref = chart_ref.linecolorplot(&today_shape, RGB8::new(255, 255, 255));
+        chart_ref = chart_ref
+            .linecolorplot(&total_line_shape, RGB8::new(255, 0, 0))
+            .linecolorplot(&done_line_shape, RGB8::new(0, 255, 0))
+            .linecolorplot(&total_point_shape, RGB8::new(255, 0, 0))
+            .linecolorplot(&done_point_shape, RGB8::new(0, 255, 0));
+    } else {
+        // `textplots` only tells lines apart by color; without it every
+        // series draws as the same plain Braille dot, so lines that
+        // overlap become indistinguishable. `--ascii` is the recommended
+        // way to keep the four lines distinguishable without color.
+        if !total_trend_series.is_empty() {
+            chart_ref = chart_ref.lineplot(&total_trend_shape);
+        }
+        if !done_trend_series.is_empty() {
+            chart_ref = chart_ref.lineplot(&done_trend_shape);
+        }
+        chart_ref = chart_ref.lineplot(&today_shape);
+        chart_ref = chart_ref
+            .lineplot(&total_line_shape)
+            .lineplot(&done_line_shape)
+            .lineplot(&total_point_shape)
+            .lineplot(&done_point_shape);
     }
-    if !done_trend_series.is_empty() {
-        chart_ref = chart_ref.linecolorplot(&done_trend_shape, RGB8::new(0, 255, 255));
-    }
-    chart_ref = chart_ref.linecolorplot(&today_shape, RGB8::new(255, 255, 255));
-    chart_ref = chart_ref
-        .linecolorplot(&total_line_shape, RGB8::new(255, 0, 0))
-        .linecolorplot(&done_line_shape, RGB8::new(0, 255, 0))
-        .linecolorplot(&total_point_shape, RGB8::new(255, 0, 0))
-        .linecolorplot(&done_point_shape, RGB8::new(0, 255, 0));
     chart_ref.axis();
     chart_ref.figures();
     format!("{chart_ref}\n")
@@ -738,6 +793,7 @@ fn render_ascii_chart(
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
     fit: bool,
+    color: bool,
 ) -> String {
     let width = ASCII_CHART_WIDTH;
     let height = ASCII_CHART_HEIGHT;
@@ -791,7 +847,7 @@ fn render_ascii_chart(
     for row in &canvas.grid {
         for cell in row {
             match cell {
-                Some(glyph) => match glyph.color {
+                Some(glyph) => match glyph.color.filter(|_| color) {
                     Some((r, g, b)) => out.push_str(&ansi_rgb_text(r, g, b, &glyph.ch.to_string())),
                     None => out.push(glyph.ch),
                 },
