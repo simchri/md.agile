@@ -406,7 +406,7 @@ fn render_plot_legend(ascii: bool) -> String {
     let white = ansi_rgb_sample(255, 255, 255);
     if ascii {
         format!(
-            "{red} # total          {green} * done\n{yellow} = total trend    {cyan} ~ done trend\n{white} : today\n"
+            "{red} o total          {green} @ done\n{yellow} . total trend    {cyan} ~ done trend\n{white} : today\n"
         )
     } else {
         format!(
@@ -725,7 +725,7 @@ impl AsciiCanvas {
 
 /// Renders the same total/done/trend/today lines [`render_textplots_chart`]
 /// draws, but onto a plain fixed-size character grid using only 7-bit ASCII
-/// symbols (`#`, `*`, `=`, `~`, `:`) — one distinct symbol per data
+/// symbols (`o`, `@`, `.`, `~`, `:`) — one distinct symbol per data
 /// series, so the chart stays readable even without ANSI color support.
 /// Color is still applied (matching [`render_plot_legend`]'s palette) for
 /// terminals that do support it; symbols alone carry the same information
@@ -764,7 +764,7 @@ fn render_ascii_chart(
             t.intercept_wt,
             geometry.trend_end_x,
             t.slope_wtpd * geometry.trend_end_x + t.intercept_wt,
-            '=',
+            '.',
             (255, 255, 0),
         );
     }
@@ -780,10 +780,10 @@ fn render_ascii_chart(
     }
 
     // Raw data series (drawn last so they stay on top of trend/today lines).
-    canvas.draw_series(points, &geometry.x_values, '#', (255, 0, 0), |p| {
+    canvas.draw_series(points, &geometry.x_values, 'o', (255, 0, 0), |p| {
         p.total_weight_wt
     });
-    canvas.draw_series(points, &geometry.x_values, '*', (0, 255, 0), |p| {
+    canvas.draw_series(points, &geometry.x_values, '@', (0, 255, 0), |p| {
         p.done_weight_wt
     });
 

@@ -167,8 +167,8 @@ booleans, strings, and other non-quantity values are unaffected.
   a 2x4 Braille sub-pixel grid into every terminal cell for higher resolution.
   Requires a Unicode-capable terminal.
 - **`--ascii`** (`render_ascii_chart`) — a small custom renderer using only
-  7-bit ASCII characters (one glyph per terminal cell: `#` total, `*` done,
-  `=` total trend, `~` done trend, `:` today), for terminals without
+  7-bit ASCII characters (one glyph per terminal cell: `o` total, `@` done,
+  `.` total trend, `~` done trend, `:` today), for terminals without
   Unicode/Braille support. Resolution is intentionally much lower. Color is
   still applied via ANSI escapes where supported; the ASCII symbols
   themselves are the fallback differentiator between the four data lines

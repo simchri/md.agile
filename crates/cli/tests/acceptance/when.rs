@@ -1136,9 +1136,9 @@ fn when_plot_ascii_uses_only_7_bit_ascii_characters_and_shows_the_ascii_legend()
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("Milestone: alpha"), "stdout: {stdout:?}");
     // The ascii legend uses distinct symbols for the four data lines.
-    assert!(stdout.contains("# total"), "stdout: {stdout:?}");
-    assert!(stdout.contains("* done"), "stdout: {stdout:?}");
-    assert!(stdout.contains("= total trend"), "stdout: {stdout:?}");
+    assert!(stdout.contains("o total"), "stdout: {stdout:?}");
+    assert!(stdout.contains("@ done"), "stdout: {stdout:?}");
+    assert!(stdout.contains(". total trend"), "stdout: {stdout:?}");
     assert!(stdout.contains("~ done trend"), "stdout: {stdout:?}");
     assert!(stdout.contains(": today"), "stdout: {stdout:?}");
     // Aside from the ANSI color escape sequences, the chart itself must be
