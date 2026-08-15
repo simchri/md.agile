@@ -568,7 +568,7 @@
 
 - [x] `agile when --velocity` now scopes to the next milestone (or `--next N`) exactly like `--plot`, deriving velocity/creep as the slope of the very same trend lines instead of a separate whole-project regression; errors clearly when there's no future milestone to scope to.
 
-- [x] `agile when --plot` now prints the fitted total/done trend-line equations (`<intercept> + <slope>/day * x`, with `x` defined as days since the plot's anchor date), so the cut-off and slope values behind the chart and ETA are transparent instead of only implied by the drawn lines.
+- [x] `agile when --plot` now prints the fitted total/done trend-line equations (`<intercept> + <slope>/week * x`, with `x` defined as weeks since the plot's anchor date, matching `--velocity`'s weight/week unit), so the cut-off and slope values behind the chart and ETA are transparent instead of only implied by the drawn lines.
 
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 

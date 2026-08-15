@@ -277,16 +277,16 @@ fn render_trend_equations_shows_intercept_and_slope_relative_to_the_anchor_date(
     };
     let text = render_trend_equations(Some(total_trend), Some(done_trend), Some(20_000));
     assert!(
-        text.contains("x = days since"),
+        text.contains("x = weeks since"),
         "text should explain what x means: {text:?}"
     );
     assert!(
-        text.contains("29.85 + 1.95/day * x"),
-        "text should show the total trend's equation: {text:?}"
+        text.contains("29.85 + 13.65/week * x"),
+        "text should show the total trend's equation, slope in weight/week: {text:?}"
     );
     assert!(
-        text.contains("11.24 + 1.84/day * x"),
-        "text should show the done trend's equation: {text:?}"
+        text.contains("11.24 + 12.88/week * x"),
+        "text should show the done trend's equation, slope in weight/week: {text:?}"
     );
 }
 

@@ -1053,18 +1053,18 @@ fn when_plot_prints_the_total_and_done_trend_equations() {
     // The equations should make the slope/intercept behind the chart
     // transparent, anchored to the plot's first date.
     assert!(
-        stdout.contains("x = days since 2026-07-10"),
+        stdout.contains("x = weeks since 2026-07-10"),
         "stdout: {stdout:?}"
     );
     assert!(
-        stdout.contains("4.00 + 0.00/day * x"),
+        stdout.contains("4.00 + 0.00/week * x"),
         "total trend should be flat at 4: stdout: {stdout:?}"
     );
     // The done trend's exact numbers depend on "today" (the worktree point
     // extends the timeline to the real current date), so only check that a
     // well-formed, non-"unknown" equation is shown.
     assert!(
-        stdout.contains("done") && stdout.matches("/day * x").count() == 2,
+        stdout.contains("done") && stdout.matches("/week * x").count() == 2,
         "both trend equations should be shown: stdout: {stdout:?}"
     );
 }

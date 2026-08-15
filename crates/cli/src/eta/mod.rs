@@ -392,9 +392,10 @@ fn render_plot_legend() -> String {
 }
 
 /// Renders the fitted total/done trend lines as explicit `y = a + b*x`
-/// equations, so the slope (creep/velocity, per day) and intercept (cutoff:
-/// the trend's weight at `x = 0`) that drive the chart and the ETA are
-/// visible, not just implied by the drawn lines. `x` is calendar days since
+/// equations, so the slope (creep/velocity) and intercept (cutoff: the
+/// trend's weight at `x = 0`) that drive the chart and the ETA are visible,
+/// not just implied by the drawn lines. The slope is shown in weight/week
+/// — matching the unit `--velocity` reports — with `x` in weeks since
 /// `anchor_unix_days` (or a plain point index when no real dates are
 /// available — see [`PlotGeometry::anchor_unix_days`]).
 fn render_trend_equations(
@@ -403,7 +404,7 @@ fn render_trend_equations(
     anchor_unix_days: Option<i64>,
 ) -> String {
     let x_desc = match anchor_unix_days {
-        Some(anchor) => format!("days since {}", format_yyyy_mm_dd_from_unix_days(anchor)),
+        Some(anchor) => format!("weeks since {}", format_yyyy_mm_dd_from_unix_days(anchor)),
         None => "point index".to_string(),
     };
     let yellow = ansi_rgb_text(255, 255, 0, "total");
@@ -415,11 +416,13 @@ fn render_trend_equations(
     )
 }
 
-/// Renders a single trend line as `<intercept> + <slope>/day * x`, or
-/// "unknown" when the trend couldn't be fit (see [`linear_trend`]).
+/// Renders a single trend line as `<intercept> + <slope>/week * x`, or
+/// "unknown" when the trend couldn't be fit (see [`linear_trend`]). The
+/// fitted slope is per day (see [`LinearTrend`]); it's converted to
+/// weight/week here purely for display, to match `--velocity`'s unit.
 fn render_trend_equation(trend: Option<LinearTrend>) -> String {
     match trend {
-        Some(t) => format!("{:.2} + {:.2}/day * x", t.intercept, t.slope),
+        Some(t) => format!("{:.2} + {:.2}/week * x", t.intercept, t.slope * 7.0),
         None => "unknown".to_string(),
     }
 }
