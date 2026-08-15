@@ -159,6 +159,25 @@ This mirrors general conventions like `duration_s` (seconds) or `velocity_mps`
 (m/s): the base unit is abbreviated and appended after an underscore. Plain
 booleans, strings, and other non-quantity values are unaffected.
 
+### Terminal chart backends
+
+`agile when --plot` supports two chart renderers, chosen by the `--ascii` flag:
+
+- **Default** (`render_textplots_chart`) — uses the `textplots` crate, which packs
+  a 2x4 Braille sub-pixel grid into every terminal cell for higher resolution.
+  Requires a Unicode-capable terminal.
+- **`--ascii`** (`render_ascii_chart`) — a small custom renderer using only
+  7-bit ASCII characters (one glyph per terminal cell: `#` total, `*` done,
+  `=` total trend, `~` done trend, `:` today), for terminals without
+  Unicode/Braille support. Resolution is intentionally much lower. Color is
+  still applied via ANSI escapes where supported; the ASCII symbols
+  themselves are the fallback differentiator between the four data lines
+  when color isn't available.
+
+Both backends share the same axis/geometry computation (`compute_plot_geometry`,
+`compute_plot_y_range`) and plot the same underlying trend lines, so switching
+`--ascii` on or off never changes what's being reported — only how it's drawn.
+
 ---
 
 ## Identity Resolution

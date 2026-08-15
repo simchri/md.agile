@@ -438,6 +438,8 @@
 ## ETA
 - [x] Replace magic `7.0` day→week conversion literal in `render_trend_equation` with the shared `DAYS_PER_WEEK` constant (also used by `estimate_velocity_with_window`), for consistency after a unit-suffix audit of the plot code.
 
+- [x] `agile when --plot --ascii`: add a second, pure-7-bit-ASCII chart renderer (custom fixed-size character grid, one glyph per cell: hash for total, star for done, equals for total trend, tilde for done trend, colon for today) as an alternative to the default Braille-based `textplots` chart, for terminals without Unicode support. Color is still used where supported; ASCII symbols are the fallback differentiator between the four data lines.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.

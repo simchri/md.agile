@@ -19,6 +19,7 @@ pub fn run(
     plot: bool,
     data: bool,
     fit: bool,
+    ascii: bool,
     last_days: Option<u32>,
 ) {
     if plot || data {
@@ -33,7 +34,7 @@ pub fn run(
         if data {
             print!("{}", eta::render_todo_done_data(&plot));
         } else {
-            print!("{}", eta::render_todo_done_plot(&plot, fit));
+            print!("{}", eta::render_todo_done_plot(&plot, fit, ascii));
         }
         return;
     }

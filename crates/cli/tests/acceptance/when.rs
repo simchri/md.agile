@@ -1091,6 +1091,73 @@ fn when_data_rejects_fit_flag() {
 }
 
 #[test]
+fn when_data_rejects_ascii_flag() {
+    // `--ascii` only makes sense with `--plot`; it should be rejected with
+    // `--data`, not silently ignored.
+    let out = run_agile(std::path::Path::new("."), &["when", "--data", "--ascii"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("--ascii"), "stderr: {stderr:?}");
+}
+
+#[test]
+fn when_plot_ascii_uses_only_7_bit_ascii_characters_and_shows_the_ascii_legend() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 0", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 1", "2026-07-11T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--plot", "--next", "1", "--ascii"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("Milestone: alpha"), "stdout: {stdout:?}");
+    // The ascii legend uses distinct symbols for the four data lines.
+    assert!(stdout.contains("# total"), "stdout: {stdout:?}");
+    assert!(stdout.contains("* done"), "stdout: {stdout:?}");
+    assert!(stdout.contains("= total trend"), "stdout: {stdout:?}");
+    assert!(stdout.contains("~ done trend"), "stdout: {stdout:?}");
+    assert!(stdout.contains(": today"), "stdout: {stdout:?}");
+    // Aside from the ANSI color escape sequences, the chart itself must be
+    // pure 7-bit ASCII (no Braille/Unicode block characters).
+    let visible: String = stdout
+        .chars()
+        .filter(|c| *c != '\x1b')
+        .collect::<String>()
+        .lines()
+        .filter(|line| !line.contains('['))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        visible.is_ascii(),
+        "expected pure ASCII chart output, got: {visible:?}"
+    );
+}
+
+#[test]
 fn when_data_shows_table_of_task_counts_scoped_to_milestone() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

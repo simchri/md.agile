@@ -18,11 +18,21 @@ fn tasks_is_alias_for_task_subcommand() {
 }
 
 #[test]
-fn when_plot_ascii_flag_is_not_supported() {
+fn when_plot_ascii_flag_is_supported() {
     let result = Cli::try_parse_from(["agile", "when", "--plot", "--next", "1", "--ascii"]);
     assert!(
+        result.is_ok(),
+        "`agile when --plot --next 1 --ascii` should be accepted: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn when_data_ascii_is_rejected_by_clap_parsing() {
+    let result = Cli::try_parse_from(["agile", "when", "--data", "--ascii"]);
+    assert!(
         result.is_err(),
-        "`agile when --plot --next 1 --ascii` should be rejected"
+        "`agile when --data --ascii` should be rejected since --ascii requires --plot"
     );
 }
 

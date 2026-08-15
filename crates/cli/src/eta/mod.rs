@@ -347,7 +347,7 @@ fn eta_for_plot(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> Option<Eta
     )
 }
 
-pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
+pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool) -> String {
     let today_unix_days = today_unix_days();
     let trends = compute_plot_trends(plot, today_unix_days);
 
@@ -355,14 +355,24 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
     out.push_str("\n");
     out.push_str(&format!("Milestone: {}\n", plot.milestone_name));
     out.push_str("\n");
-    out.push_str(&render_textplots_chart(
-        &trends.sampled,
-        &trends.geometry,
-        trends.total_trend,
-        trends.done_trend,
-        fit,
-    ));
-    out.push_str(&render_plot_legend());
+    if ascii {
+        out.push_str(&render_ascii_chart(
+            &trends.sampled,
+            &trends.geometry,
+            trends.total_trend,
+            trends.done_trend,
+            fit,
+        ));
+    } else {
+        out.push_str(&render_textplots_chart(
+            &trends.sampled,
+            &trends.geometry,
+            trends.total_trend,
+            trends.done_trend,
+            fit,
+        ));
+    }
+    out.push_str(&render_plot_legend(ascii));
     out.push_str(&render_trend_equations(
         trends.total_trend,
         trends.done_trend,
@@ -383,15 +393,26 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
     out
 }
 
-fn render_plot_legend() -> String {
+/// Legend for the plot's four data lines. In `ascii` mode, the fixed
+/// symbols used by [`render_ascii_chart`] (`#`/`*`/`=`/`~`/`:`) are shown
+/// alongside their colors, since not every ASCII-only terminal renders
+/// ANSI color; in the default mode (Braille chart), color is the only
+/// differentiator, matching [`render_textplots_chart`]'s palette.
+fn render_plot_legend(ascii: bool) -> String {
     let red = ansi_rgb_sample(255, 0, 0);
     let green = ansi_rgb_sample(0, 255, 0);
     let yellow = ansi_rgb_sample(255, 255, 0);
     let cyan = ansi_rgb_sample(0, 255, 255);
     let white = ansi_rgb_sample(255, 255, 255);
-    format!(
-        "{red} total          {green} done\n{yellow} total trend    {cyan} done trend\n{white} today\n"
-    )
+    if ascii {
+        format!(
+            "{red} # total          {green} * done\n{yellow} = total trend    {cyan} ~ done trend\n{white} : today\n"
+        )
+    } else {
+        format!(
+            "{red} total          {green} done\n{yellow} total trend    {cyan} done trend\n{white} today\n"
+        )
+    }
 }
 
 /// Renders the fitted total/done trend lines as explicit `y = a + b*x`
@@ -473,6 +494,49 @@ fn ansi_rgb_text(r: u8, g: u8, b: u8, text: &str) -> String {
     format!("\x1b[38;2;{r};{g};{b}m{text}\x1b[0m")
 }
 
+/// Computes the y-axis range (raw weight, `_wt`) shared by every chart
+/// renderer: tight to the data (and both trend lines) when `fit` is set,
+/// or starting at zero otherwise. Kept as one function so the different
+/// chart backends (see [`render_textplots_chart`], [`render_ascii_chart`])
+/// can't drift apart on how they pick axis bounds.
+fn compute_plot_y_range(
+    points: &[TodoDonePlotPoint],
+    geometry: &PlotGeometry,
+    total_trend: Option<LinearTrend>,
+    done_trend: Option<LinearTrend>,
+    fit: bool,
+) -> (f64, f64) {
+    let data_ymin: f64 = points
+        .iter()
+        .map(|p| p.done_weight_wt.min(p.total_weight_wt))
+        .fold(f64::INFINITY, f64::min);
+    let data_ymin = if data_ymin.is_infinite() {
+        0.0
+    } else {
+        data_ymin
+    };
+    let data_ymax: f64 = points
+        .iter()
+        .map(|p| p.total_weight_wt.max(p.done_weight_wt))
+        .fold(0.0, f64::max);
+    let mut full_ymax = data_ymax;
+    if let Some(t) = total_trend {
+        full_ymax = full_ymax
+            .max(t.intercept_wt)
+            .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
+    }
+    if let Some(t) = done_trend {
+        full_ymax = full_ymax
+            .max(t.intercept_wt)
+            .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
+    }
+    if fit {
+        (data_ymin, full_ymax.max(data_ymin + 1.0))
+    } else {
+        (0.0, data_ymax.max(1.0))
+    }
+}
+
 fn render_textplots_chart(
     points: &[TodoDonePlotPoint],
     geometry: &PlotGeometry,
@@ -513,35 +577,8 @@ fn render_textplots_chart(
         })
         .unwrap_or_default();
     let xmax = geometry.chart_x_max as f32;
-    let data_ymin: f64 = points
-        .iter()
-        .map(|p| p.done_weight_wt.min(p.total_weight_wt))
-        .fold(f64::INFINITY, f64::min);
-    let data_ymin = if data_ymin.is_infinite() {
-        0.0
-    } else {
-        data_ymin
-    };
-    let data_ymax: f64 = points
-        .iter()
-        .map(|p| p.total_weight_wt.max(p.done_weight_wt))
-        .fold(0.0, f64::max);
-    let mut full_ymax = data_ymax;
-    if let Some(t) = total_trend {
-        full_ymax = full_ymax
-            .max(t.intercept_wt)
-            .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
-    }
-    if let Some(t) = done_trend {
-        full_ymax = full_ymax
-            .max(t.intercept_wt)
-            .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
-    }
-    let (ymin, ymax) = if fit {
-        (data_ymin as f32, full_ymax.max(data_ymin + 1.0) as f32)
-    } else {
-        (0.0_f32, data_ymax.max(1.0) as f32)
-    };
+    let (ymin, ymax) = compute_plot_y_range(points, geometry, total_trend, done_trend, fit);
+    let (ymin, ymax) = (ymin as f32, ymax as f32);
     let today_series = vec![
         (geometry.today_x as f32, ymin),
         (geometry.today_x as f32, ymax),
@@ -594,6 +631,183 @@ fn x_axis_date_labels(
     let chart_end_days = first_unix_days + geometry.chart_x_max.ceil() as i64;
     let end_date = format_yyyy_mm_dd_from_unix_days(chart_end_days);
     Some((first_point.date.clone(), end_date))
+}
+
+/// Fixed pixel-grid size for [`render_ascii_chart`]. Deliberately much
+/// coarser than [`render_textplots_chart`]'s Braille-based canvas (which
+/// packs a 2x4 sub-pixel grid into every terminal cell) — a plain grid of
+/// one character per cell can't reach the same resolution, but works on
+/// any 7-bit-ASCII terminal with no Unicode/Braille/ANSI-color support.
+const ASCII_CHART_WIDTH: usize = 80;
+const ASCII_CHART_HEIGHT: usize = 24;
+
+/// One glyph (plus optional RGB color for terminals that support it) drawn
+/// onto the ASCII chart's character grid, in growing draw-order priority:
+/// later draws win ties on the same cell.
+#[derive(Debug, Clone, Copy)]
+struct AsciiGlyph {
+    ch: char,
+    color: Option<(u8, u8, u8)>,
+}
+
+/// A fixed-size character grid with (x in days, y in weight) axis mapping,
+/// used to build up [`render_ascii_chart`]'s output one series at a time.
+struct AsciiCanvas {
+    grid: Vec<Vec<Option<AsciiGlyph>>>,
+    width: usize,
+    height: usize,
+    xmax: f64,
+    ymin: f64,
+    yspan: f64,
+}
+
+impl AsciiCanvas {
+    fn new(width: usize, height: usize, xmax: f64, ymin: f64, yspan: f64) -> Self {
+        Self {
+            grid: vec![vec![None; width]; height],
+            width,
+            height,
+            xmax,
+            ymin,
+            yspan,
+        }
+    }
+
+    fn to_col(&self, x: f64) -> usize {
+        let frac = (x / self.xmax).clamp(0.0, 1.0);
+        ((frac * (self.width - 1) as f64).round() as usize).min(self.width - 1)
+    }
+
+    fn to_row(&self, y: f64) -> usize {
+        let frac = ((y - self.ymin) / self.yspan).clamp(0.0, 1.0);
+        // Row 0 is the top of the grid, so higher y values get lower rows.
+        (((1.0 - frac) * (self.height - 1) as f64).round() as usize).min(self.height - 1)
+    }
+
+    fn set(&mut self, col: usize, row: usize, ch: char, color: (u8, u8, u8)) {
+        self.grid[row][col] = Some(AsciiGlyph {
+            ch,
+            color: Some(color),
+        });
+    }
+
+    fn draw_line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, ch: char, color: (u8, u8, u8)) {
+        let (col0, row0) = (self.to_col(x0), self.to_row(y0));
+        let (col1, row1) = (self.to_col(x1), self.to_row(y1));
+        let steps = col0.abs_diff(col1).max(row0.abs_diff(row1)).max(1);
+        for step in 0..=steps {
+            let t = step as f64 / steps as f64;
+            let col = (col0 as f64 + (col1 as f64 - col0 as f64) * t).round() as usize;
+            let row = (row0 as f64 + (row1 as f64 - row0 as f64) * t).round() as usize;
+            self.set(col.min(self.width - 1), row.min(self.height - 1), ch, color);
+        }
+    }
+
+    fn draw_series(
+        &mut self,
+        points: &[TodoDonePlotPoint],
+        x_values: &[f64],
+        ch: char,
+        color: (u8, u8, u8),
+        value_of: impl Fn(&TodoDonePlotPoint) -> f64,
+    ) {
+        let mut prev: Option<(f64, f64)> = None;
+        for (p, x) in points.iter().zip(x_values.iter()) {
+            let y = value_of(p);
+            if let Some((px, py)) = prev {
+                self.draw_line(px, py, *x, y, ch, color);
+            }
+            self.set(self.to_col(*x), self.to_row(y), ch, color);
+            prev = Some((*x, y));
+        }
+    }
+}
+
+/// Renders the same total/done/trend/today lines [`render_textplots_chart`]
+/// draws, but onto a plain fixed-size character grid using only 7-bit ASCII
+/// symbols (`#`, `*`, `=`, `~`, `:`) — one distinct symbol per data
+/// series, so the chart stays readable even without ANSI color support.
+/// Color is still applied (matching [`render_plot_legend`]'s palette) for
+/// terminals that do support it; symbols alone carry the same information
+/// otherwise. Resolution is intentionally much lower than the default
+/// Braille-based chart: one glyph per terminal cell instead of a packed
+/// sub-pixel grid.
+fn render_ascii_chart(
+    points: &[TodoDonePlotPoint],
+    geometry: &PlotGeometry,
+    total_trend: Option<LinearTrend>,
+    done_trend: Option<LinearTrend>,
+    fit: bool,
+) -> String {
+    let width = ASCII_CHART_WIDTH;
+    let height = ASCII_CHART_HEIGHT;
+    let xmax = geometry.chart_x_max.max(1.0);
+    let (ymin, ymax) = compute_plot_y_range(points, geometry, total_trend, done_trend, fit);
+    let yspan = (ymax - ymin).max(1e-9);
+
+    let mut canvas = AsciiCanvas::new(width, height, xmax, ymin, yspan);
+
+    // Today marker (drawn first so data/trend lines stay visible on top of
+    // it where they cross).
+    let today_col = canvas.to_col(geometry.today_x);
+    for row in 0..height {
+        canvas.grid[row][today_col].get_or_insert(AsciiGlyph {
+            ch: ':',
+            color: Some((255, 255, 255)),
+        });
+    }
+
+    // Trend lines (straight two-point lines over the full trend window).
+    if let Some(t) = total_trend {
+        canvas.draw_line(
+            0.0,
+            t.intercept_wt,
+            geometry.trend_end_x,
+            t.slope_wtpd * geometry.trend_end_x + t.intercept_wt,
+            '=',
+            (255, 255, 0),
+        );
+    }
+    if let Some(t) = done_trend {
+        canvas.draw_line(
+            0.0,
+            t.intercept_wt,
+            geometry.trend_end_x,
+            t.slope_wtpd * geometry.trend_end_x + t.intercept_wt,
+            '~',
+            (0, 255, 255),
+        );
+    }
+
+    // Raw data series (drawn last so they stay on top of trend/today lines).
+    canvas.draw_series(points, &geometry.x_values, '#', (255, 0, 0), |p| {
+        p.total_weight_wt
+    });
+    canvas.draw_series(points, &geometry.x_values, '*', (0, 255, 0), |p| {
+        p.done_weight_wt
+    });
+
+    let mut out = String::new();
+    for row in &canvas.grid {
+        for cell in row {
+            match cell {
+                Some(glyph) => match glyph.color {
+                    Some((r, g, b)) => out.push_str(&ansi_rgb_text(r, g, b, &glyph.ch.to_string())),
+                    None => out.push(glyph.ch),
+                },
+                None => out.push(' '),
+            }
+        }
+        out.push('\n');
+    }
+    if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {
+        let pad = width.saturating_sub(start_label.len() + end_label.len());
+        out.push_str(&start_label);
+        out.push_str(&" ".repeat(pad));
+        out.push_str(&end_label);
+        out.push('\n');
+    }
+    out
 }
 
 #[derive(Debug, Clone, PartialEq)]
