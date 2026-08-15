@@ -45,8 +45,7 @@ pub fn run(
     }
 
     if velocity {
-        let window_days = last_days.unwrap_or(eta::DEFAULT_VELOCITY_WINDOW_DAYS);
-        match eta::estimate_velocity_with_window(root, window_days) {
+        match eta::estimate_velocity_with_window(root, last_days) {
             Ok(estimate) => print!("{}", eta::render_velocity_text(estimate)),
             Err(msg) => {
                 log::error!("{msg}");

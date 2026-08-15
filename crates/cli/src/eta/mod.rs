@@ -10,8 +10,6 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Shape};
 
-pub const DEFAULT_VELOCITY_WINDOW_DAYS: u32 = 90;
-
 #[derive(Debug, Clone, PartialEq)]
 struct FlatNode {
     key: TransitionKey,
@@ -83,15 +81,17 @@ struct EtaEstimate {
 }
 
 /// Estimates current project velocity and creep (see [`VelocityEstimate`])
-/// over the last 90 days.
+/// over the whole project history.
 ///
 /// Returns an error when `root` isn't a git repository.
 pub fn estimate_velocity(root: &Path) -> Result<VelocityEstimate, String> {
-    estimate_velocity_with_window(root, DEFAULT_VELOCITY_WINDOW_DAYS)
+    estimate_velocity_with_window(root, None)
 }
 
 /// Like [`estimate_velocity`], but scoped to a caller-provided trailing
-/// window (in days) instead of the default 90 days.
+/// window (in days) instead of the whole project history. `None` uses the
+/// whole history (matching how [`build_todo_done_plot`]'s trend lines, and
+/// thus the ETA, are computed) — the same behavior as [`estimate_velocity`].
 ///
 /// Velocity is the slope of the whole-project done-weight trend line, and
 /// creep is the slope of the whole-project total-weight trend line (i.e.
@@ -100,10 +100,10 @@ pub fn estimate_velocity(root: &Path) -> Result<VelocityEstimate, String> {
 /// be computed (fewer than two distinct points in the window).
 pub fn estimate_velocity_with_window(
     root: &Path,
-    window_days: u32,
+    window_days: Option<u32>,
 ) -> Result<VelocityEstimate, String> {
     require_git_repo(root)?;
-    if window_days == 0 {
+    if window_days == Some(0) {
         return Ok(VelocityEstimate {
             velocity_per_week: None,
             creep_per_week: None,
@@ -129,7 +129,7 @@ pub fn estimate_velocity_with_window(
     points.push(worktree_plot_point(root, Some(usize::MAX)));
 
     let today = today_unix_days();
-    let cutoff = today.map(|t| t - i64::from(window_days));
+    let cutoff = window_days.and_then(|days| today.map(|t| t - i64::from(days)));
     if let Some(cutoff) = cutoff {
         points.retain(|p| parse_yyyy_mm_dd_to_unix_days(&p.date).is_none_or(|d| d >= cutoff));
     }

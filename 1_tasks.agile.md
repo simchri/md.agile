@@ -564,6 +564,8 @@
 - [x] ctd
   - [x] output ETA
 
+- [x] #bug `agile when --velocity` defaulted to a 90-day trailing window while `agile when --plot`/bare `agile when` (ETA) always fit trend lines over the whole project history, so the two features silently disagreed on "current" velocity/creep. Dropped the default 90-day window: `--velocity` now uses full history unless `--last N` is given explicitly.
+
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
     - [ ] e.g. no convergence

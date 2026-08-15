@@ -104,7 +104,8 @@ pub enum Command {
         #[arg(long, conflicts_with_all = ["velocity", "plot"])]
         data: bool,
 
-        /// Restrict velocity history to the last N days.
+        /// Restrict velocity history to the last N days (defaults to the
+        /// whole project history when omitted).
         ///
         /// Only valid with `--velocity`.
         #[arg(
