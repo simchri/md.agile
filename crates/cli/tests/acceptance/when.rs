@@ -1138,9 +1138,9 @@ fn when_plot_ascii_uses_only_7_bit_ascii_characters_and_shows_the_ascii_legend()
     // The ascii legend uses distinct symbols for the four data lines.
     assert!(stdout.contains("o total"), "stdout: {stdout:?}");
     assert!(stdout.contains("@ done"), "stdout: {stdout:?}");
-    assert!(stdout.contains(". total trend"), "stdout: {stdout:?}");
-    assert!(stdout.contains("~ done trend"), "stdout: {stdout:?}");
-    assert!(stdout.contains(": today"), "stdout: {stdout:?}");
+    assert!(stdout.contains("O total trend"), "stdout: {stdout:?}");
+    assert!(stdout.contains("0 done trend"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Q today"), "stdout: {stdout:?}");
     // Aside from the ANSI color escape sequences, the chart itself must be
     // pure 7-bit ASCII (no Braille/Unicode block characters).
     let visible: String = stdout

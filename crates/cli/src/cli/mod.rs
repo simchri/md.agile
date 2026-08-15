@@ -123,7 +123,7 @@ pub enum Command {
         fit: bool,
 
         /// Render the plot using only 7-bit ASCII characters (`o`, `@`,
-        /// `.`, `~`, `:`), for terminals without Unicode/Braille support.
+        /// `O`, `0`, `Q`), for terminals without Unicode/Braille support.
         /// Resolution is significantly lower than the default chart; color
         /// is still used where supported, with the ASCII symbols as a
         /// fallback differentiator between the four data lines.

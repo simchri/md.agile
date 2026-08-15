@@ -440,6 +440,8 @@
 
 - [x] `agile when --plot --ascii`: add a second, pure-7-bit-ASCII chart renderer (custom fixed-size character grid, one glyph per cell: hash for total, star for done, equals for total trend, tilde for done trend, colon for today) as an alternative to the default Braille-based `textplots` chart, for terminals without Unicode support. Color is still used where supported; ASCII symbols are the fallback differentiator between the four data lines.
 
+- [x] `--ascii` chart: switch to large, round-looking glyphs (lowercase o for total, lowercase at-sign for done, uppercase O for total trend, zero for done trend, uppercase Q for today) instead of the initial hash/star/equals/tilde/colon set.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.

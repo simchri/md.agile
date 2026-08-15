@@ -394,7 +394,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool) -> Str
 }
 
 /// Legend for the plot's four data lines. In `ascii` mode, the fixed
-/// symbols used by [`render_ascii_chart`] (`#`/`*`/`=`/`~`/`:`) are shown
+/// symbols used by [`render_ascii_chart`] (`o`/`@`/`O`/`0`/`Q`) are shown
 /// alongside their colors, since not every ASCII-only terminal renders
 /// ANSI color; in the default mode (Braille chart), color is the only
 /// differentiator, matching [`render_textplots_chart`]'s palette.
@@ -406,7 +406,7 @@ fn render_plot_legend(ascii: bool) -> String {
     let white = ansi_rgb_sample(255, 255, 255);
     if ascii {
         format!(
-            "{red} o total          {green} @ done\n{yellow} . total trend    {cyan} ~ done trend\n{white} : today\n"
+            "{red} o total          {green} @ done\n{yellow} O total trend    {cyan} 0 done trend\n{white} Q today\n"
         )
     } else {
         format!(
@@ -725,7 +725,7 @@ impl AsciiCanvas {
 
 /// Renders the same total/done/trend/today lines [`render_textplots_chart`]
 /// draws, but onto a plain fixed-size character grid using only 7-bit ASCII
-/// symbols (`o`, `@`, `.`, `~`, `:`) — one distinct symbol per data
+/// symbols (`o`, `@`, `O`, `0`, `Q`) — one distinct, large/round symbol per
 /// series, so the chart stays readable even without ANSI color support.
 /// Color is still applied (matching [`render_plot_legend`]'s palette) for
 /// terminals that do support it; symbols alone carry the same information
@@ -752,7 +752,7 @@ fn render_ascii_chart(
     let today_col = canvas.to_col(geometry.today_x);
     for row in 0..height {
         canvas.grid[row][today_col].get_or_insert(AsciiGlyph {
-            ch: ':',
+            ch: 'Q',
             color: Some((255, 255, 255)),
         });
     }
@@ -764,7 +764,7 @@ fn render_ascii_chart(
             t.intercept_wt,
             geometry.trend_end_x,
             t.slope_wtpd * geometry.trend_end_x + t.intercept_wt,
-            '.',
+            'O',
             (255, 255, 0),
         );
     }
@@ -774,7 +774,7 @@ fn render_ascii_chart(
             t.intercept_wt,
             geometry.trend_end_x,
             t.slope_wtpd * geometry.trend_end_x + t.intercept_wt,
-            '~',
+            '0',
             (0, 255, 255),
         );
     }
