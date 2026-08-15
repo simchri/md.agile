@@ -1016,6 +1016,60 @@ fn when_plot_shows_eta_span_and_date_when_trend_lines_intersect_in_the_future() 
 }
 
 #[test]
+fn when_plot_prints_the_total_and_done_trend_equations() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    // Total stays flat at 4 tasks; one task finishes per day.
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 0", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 1", "2026-07-11T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--plot", "--next", "1"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    // The equations should make the slope/intercept behind the chart
+    // transparent, anchored to the plot's first date.
+    assert!(
+        stdout.contains("x = days since 2026-07-10"),
+        "stdout: {stdout:?}"
+    );
+    assert!(
+        stdout.contains("4.00 + 0.00/day * x"),
+        "total trend should be flat at 4: stdout: {stdout:?}"
+    );
+    // The done trend's exact numbers depend on "today" (the worktree point
+    // extends the timeline to the real current date), so only check that a
+    // well-formed, non-"unknown" equation is shown.
+    assert!(
+        stdout.contains("done") && stdout.matches("/day * x").count() == 2,
+        "both trend equations should be shown: stdout: {stdout:?}"
+    );
+}
+
+#[test]
 fn when_plot_requires_data_and_plot_to_be_mutually_exclusive() {
     let out = run_agile(std::path::Path::new("."), &["when", "--plot", "--data"]);
     assert!(!out.status.success());

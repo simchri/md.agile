@@ -360,6 +360,11 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool) -> String {
         fit,
     ));
     out.push_str(&render_plot_legend());
+    out.push_str(&render_trend_equations(
+        trends.total_trend,
+        trends.done_trend,
+        trends.geometry.anchor_unix_days,
+    ));
     if let Some(latest) = plot.points.last() {
         out.push_str("\n");
         out.push_str(&render_plot_stats(latest));
@@ -386,6 +391,39 @@ fn render_plot_legend() -> String {
     )
 }
 
+/// Renders the fitted total/done trend lines as explicit `y = a + b*x`
+/// equations, so the slope (creep/velocity, per day) and intercept (cutoff:
+/// the trend's weight at `x = 0`) that drive the chart and the ETA are
+/// visible, not just implied by the drawn lines. `x` is calendar days since
+/// `anchor_unix_days` (or a plain point index when no real dates are
+/// available — see [`PlotGeometry::anchor_unix_days`]).
+fn render_trend_equations(
+    total_trend: Option<LinearTrend>,
+    done_trend: Option<LinearTrend>,
+    anchor_unix_days: Option<i64>,
+) -> String {
+    let x_desc = match anchor_unix_days {
+        Some(anchor) => format!("days since {}", format_yyyy_mm_dd_from_unix_days(anchor)),
+        None => "point index".to_string(),
+    };
+    let yellow = ansi_rgb_text(255, 255, 0, "total");
+    let cyan = ansi_rgb_text(0, 255, 255, "done");
+    format!(
+        "Trend lines (x = {x_desc}):\n  {yellow} = {}\n  {cyan}  = {}\n",
+        render_trend_equation(total_trend),
+        render_trend_equation(done_trend),
+    )
+}
+
+/// Renders a single trend line as `<intercept> + <slope>/day * x`, or
+/// "unknown" when the trend couldn't be fit (see [`linear_trend`]).
+fn render_trend_equation(trend: Option<LinearTrend>) -> String {
+    match trend {
+        Some(t) => format!("{:.2} + {:.2}/day * x", t.intercept, t.slope),
+        None => "unknown".to_string(),
+    }
+}
+
 fn render_plot_stats(latest: &TodoDonePlotPoint) -> String {
     format!(
         "total:  {} tasks  (weight {:.2})\ndone:   {} tasks  (weight {:.2})\n",
@@ -410,6 +448,12 @@ pub fn render_todo_done_data(plot: &TodoDonePlot) -> String {
 
 fn ansi_rgb_sample(r: u8, g: u8, b: u8) -> String {
     format!("\x1b[38;2;{r};{g};{b}m....\x1b[0m")
+}
+
+/// Colors `text` itself (as opposed to [`ansi_rgb_sample`]'s fixed "...."
+/// swatch), for labels that need to stay readable (e.g. trend equations).
+fn ansi_rgb_text(r: u8, g: u8, b: u8, text: &str) -> String {
+    format!("\x1b[38;2;{r};{g};{b}m{text}\x1b[0m")
 }
 
 fn render_textplots_chart(

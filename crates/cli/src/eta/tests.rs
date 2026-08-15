@@ -266,6 +266,50 @@ fn compute_eta_is_none_without_both_trends_or_anchor() {
 }
 
 #[test]
+fn render_trend_equations_shows_intercept_and_slope_relative_to_the_anchor_date() {
+    let total_trend = LinearTrend {
+        slope: 1.95,
+        intercept: 29.85,
+    };
+    let done_trend = LinearTrend {
+        slope: 1.84,
+        intercept: 11.24,
+    };
+    let text = render_trend_equations(Some(total_trend), Some(done_trend), Some(20_000));
+    assert!(
+        text.contains("x = days since"),
+        "text should explain what x means: {text:?}"
+    );
+    assert!(
+        text.contains("29.85 + 1.95/day * x"),
+        "text should show the total trend's equation: {text:?}"
+    );
+    assert!(
+        text.contains("11.24 + 1.84/day * x"),
+        "text should show the done trend's equation: {text:?}"
+    );
+}
+
+#[test]
+fn render_trend_equations_falls_back_to_point_index_without_an_anchor_date() {
+    let text = render_trend_equations(None, None, None);
+    assert!(
+        text.contains("x = point index"),
+        "text should fall back to point-index wording without real dates: {text:?}"
+    );
+}
+
+#[test]
+fn render_trend_equations_shows_unknown_for_unfittable_trends() {
+    let text = render_trend_equations(None, None, Some(20_000));
+    let occurrences = text.matches("unknown").count();
+    assert_eq!(
+        occurrences, 2,
+        "both trend lines should render as 'unknown': {text:?}"
+    );
+}
+
+#[test]
 fn render_eta_text_shows_span_and_date_when_available() {
     // unix_days = 10; "today" = 3, so 7 days remain -> "1 week".
     let eta = EtaEstimate { unix_days: 10 };
