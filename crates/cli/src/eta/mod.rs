@@ -80,26 +80,31 @@ struct EtaEstimate {
     unix_days: i64,
 }
 
-/// Estimates current project velocity and creep (see [`VelocityEstimate`])
-/// over the whole project history.
+/// Estimates current velocity and creep (see [`VelocityEstimate`]), scoped
+/// to the next milestone (rank 1) — exactly the same trend lines
+/// [`build_todo_done_plot`]/`agile when --plot` would fit and show for that
+/// milestone.
 ///
-/// Returns an error when `root` isn't a git repository.
+/// Returns an error when `root` isn't a git repository, or when there's no
+/// future milestone to scope to (see [`build_todo_done_plot`]).
 pub fn estimate_velocity(root: &Path) -> Result<VelocityEstimate, String> {
-    estimate_velocity_with_window(root, None)
+    estimate_velocity_with_window(root, 1, None)
 }
 
-/// Like [`estimate_velocity`], but scoped to a caller-provided trailing
-/// window (in days) instead of the whole project history. `None` uses the
-/// whole history (matching how [`build_todo_done_plot`]'s trend lines, and
-/// thus the ETA, are computed) — the same behavior as [`estimate_velocity`].
+/// Like [`estimate_velocity`], but scoped to a caller-provided milestone
+/// rank (see [`build_todo_done_plot`]) and, optionally, further restricted
+/// to a caller-provided trailing window (in days) — matching the
+/// `--next`/`--last` flags on `agile when --velocity`. `window_days: None`
+/// applies no day-based restriction, using the milestone's whole history.
 ///
-/// Velocity is the slope of the whole-project done-weight trend line, and
-/// creep is the slope of the whole-project total-weight trend line (i.e.
-/// how fast the backlog itself grows) — both expressed in weight/week.
+/// Velocity and creep are the slopes of the exact same done-weight/
+/// total-weight trend lines `agile when --plot` fits and draws for the same
+/// milestone (see [`compute_plot_trends`]) — both expressed in weight/week.
 /// Either metric independently resolves to `None` when its trend line can't
 /// be computed (fewer than two distinct points in the window).
 pub fn estimate_velocity_with_window(
     root: &Path,
+    milestone_rank: usize,
     window_days: Option<u32>,
 ) -> Result<VelocityEstimate, String> {
     require_git_repo(root)?;
@@ -110,52 +115,20 @@ pub fn estimate_velocity_with_window(
         });
     }
 
-    let cache = match lifecycle_cache::update(root) {
-        Some(cache) => cache,
-        None => {
-            return Ok(VelocityEstimate {
-                velocity_per_week: None,
-                creep_per_week: None,
-            });
-        }
-    };
-
-    let mut commits = git::commits(root);
-    commits.reverse(); // oldest -> newest, matching cache.commit_chain
-
-    // `usize::MAX` scopes the timeline to the whole project: every rank is
-    // "at or before" it, unlike a milestone-scoped rank cutoff.
-    let mut points = lifecycle_cache::todo_done_timeline(&cache, &commits, Some(usize::MAX));
-    points.push(worktree_plot_point(root, Some(usize::MAX)));
+    let mut plot = build_todo_done_plot(root, milestone_rank)?;
 
     let today = today_unix_days();
-    let cutoff = window_days.and_then(|days| today.map(|t| t - i64::from(days)));
-    if let Some(cutoff) = cutoff {
-        points.retain(|p| parse_yyyy_mm_dd_to_unix_days(&p.date).is_none_or(|d| d >= cutoff));
+    if let Some(cutoff) = window_days.and_then(|days| today.map(|t| t - i64::from(days))) {
+        plot.points
+            .retain(|p| parse_yyyy_mm_dd_to_unix_days(&p.date).is_none_or(|d| d >= cutoff));
     }
 
-    let geometry = compute_plot_geometry(&points, today);
-    let total_trend = linear_trend(
-        &geometry
-            .x_values
-            .iter()
-            .zip(points.iter())
-            .map(|(x, p)| (*x, p.total_weight))
-            .collect::<Vec<_>>(),
-    );
-    let done_trend = linear_trend(
-        &geometry
-            .x_values
-            .iter()
-            .zip(points.iter())
-            .map(|(x, p)| (*x, p.done_weight))
-            .collect::<Vec<_>>(),
-    );
+    let trends = compute_plot_trends(&plot, today);
 
     const DAYS_PER_WEEK: f64 = 7.0;
     Ok(VelocityEstimate {
-        velocity_per_week: done_trend.map(|t| t.slope * DAYS_PER_WEEK),
-        creep_per_week: total_trend.map(|t| t.slope * DAYS_PER_WEEK),
+        velocity_per_week: trends.done_trend.map(|t| t.slope * DAYS_PER_WEEK),
+        creep_per_week: trends.total_trend.map(|t| t.slope * DAYS_PER_WEEK),
     })
 }
 

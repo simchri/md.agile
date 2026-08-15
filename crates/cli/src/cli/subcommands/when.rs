@@ -6,10 +6,11 @@ use std::path::Path;
 
 /// `agile when` entry point.
 ///
-/// Supports `--velocity` and terminal plotting via `--plot [--next <rank>]`
-/// (defaults to `--next 1`, i.e. the next milestone), plus `--data` to show
-/// the same underlying data as a raw table of task counts. With no flags,
-/// lists the ETA time span for every future milestone, in backlog order.
+/// Supports `--velocity [--next <rank>] [--last <days>]` (defaults to
+/// `--next 1`, i.e. the next milestone) and terminal plotting via `--plot
+/// [--next <rank>]` (same default), plus `--data` to show the same
+/// underlying data as a raw table of task counts. With no flags, lists the
+/// ETA time span for every future milestone, in backlog order.
 pub fn run(
     root: &Path,
     _config: &Config,
@@ -37,15 +38,9 @@ pub fn run(
         return;
     }
 
-    if next.is_some() {
-        log::error!(
-            "`agile when --next <rank>` (detail mode, without --plot/--data) is not implemented yet"
-        );
-        std::process::exit(1);
-    }
-
     if velocity {
-        match eta::estimate_velocity_with_window(root, last_days) {
+        let rank = next.unwrap_or(1);
+        match eta::estimate_velocity_with_window(root, rank, last_days) {
             Ok(estimate) => print!("{}", eta::render_velocity_text(estimate)),
             Err(msg) => {
                 log::error!("{msg}");
@@ -53,6 +48,13 @@ pub fn run(
             }
         }
         return;
+    }
+
+    if next.is_some() {
+        log::error!(
+            "`agile when --next <rank>` (detail mode, without --plot/--data/--velocity) is not implemented yet"
+        );
+        std::process::exit(1);
     }
 
     match eta::build_when_report(root) {

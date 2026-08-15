@@ -105,7 +105,7 @@ pub enum Command {
         data: bool,
 
         /// Restrict velocity history to the last N days (defaults to the
-        /// whole project history when omitted).
+        /// milestone's whole history when omitted).
         ///
         /// Only valid with `--velocity`.
         #[arg(
@@ -124,11 +124,12 @@ pub enum Command {
 
         /// Select the Nth milestone rank.
         ///
-        /// With `--plot`/`--data`, selects which milestone boundary to
-        /// scope the plot/table to. Alone (detail mode, not yet
-        /// implemented), it will select which milestone to report on in
+        /// With `--plot`/`--data`/`--velocity`, selects which milestone
+        /// boundary to scope the plot/table/velocity trend lines to
+        /// (defaults to `1`, the next milestone). Alone (detail mode, not
+        /// yet implemented), it will select which milestone to report on in
         /// detail — see README.vision.md.
-        #[arg(long, value_name = "RANK", conflicts_with = "velocity")]
+        #[arg(long, value_name = "RANK")]
         next: Option<usize>,
     },
 

@@ -78,7 +78,9 @@ fn when_velocity_prints_unknown_when_history_has_no_variance() {
 
     let t0 = git_date_from_unix_secs(unix_ts_days_ago(0));
     let file_content = "\
+- [ ] keep milestone future
 - [ ] one task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
@@ -98,14 +100,18 @@ fn when_velocity_includes_uncommitted_worktree_state_as_latest() {
 
     let t0 = git_date_from_unix_secs(unix_ts_days_ago(2));
     let file_content = "\
+- [ ] keep milestone future
 - [ ] one task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     // Keep this change uncommitted: velocity should still include it.
     let file_content = "\
+- [ ] keep milestone future
 - [x] one task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
@@ -127,13 +133,17 @@ fn when_velocity_prints_weight_per_week_with_two_decimals() {
     let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] one task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] one task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete task", &t1);
@@ -156,15 +166,19 @@ fn when_velocity_counts_direct_subtask_completion_with_half_weight() {
     let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] parent
   - [ ] child
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] parent
   - [x] child
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete child", &t1);
@@ -188,17 +202,21 @@ fn when_velocity_counts_nested_subtask_completion_with_depth_weight() {
     let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] parent
   - [ ] child
     - [ ] grandchild
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] parent
   - [ ] child
     - [x] grandchild
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete grandchild", &t1);
@@ -222,15 +240,19 @@ fn when_velocity_reordering_done_and_todo_tasks_does_not_increase_velocity() {
     let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] done task
 - [ ] todo task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] todo task
 - [x] done task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "reorder only", &t1);
@@ -253,22 +275,28 @@ fn when_velocity_reordering_done_and_todo_tasks_preserves_nonzero_velocity() {
     let t2 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete task a", &t1);
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] task b
 - [x] task a
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "reorder after completion", &t2);
@@ -293,15 +321,19 @@ fn when_velocity_reopening_another_task_offsets_completion_in_the_same_commit() 
     let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] task a
 - [x] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete a and reopen b", &t1);
@@ -325,23 +357,33 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_and_creep() {
     let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] done task
 - [ ] todo task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] todo task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "delete done task", &t1);
 
-    // Deleting the done task removes weight 1 from both total and done over
-    // a 1-day span: both trend lines slope downward by 1.00/day = 7.00/week.
+    // Deleting the done task removes weight 1 from the done trend over a
+    // 1-day span (-7.00/week). Creep stays flat at 0.00: milestone scoping
+    // fixes the in-scope rank cutoff at the *final* rank of the last
+    // preceding task ("todo task"), so deleting "done task" (which precedes
+    // it) shifts "todo task" into the vacated rank slot rather than
+    // shrinking total weight — this is the same rank-cutoff behavior
+    // `agile when --plot`/`--data` show for this scenario, not a velocity-
+    // specific quirk.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   -7.00\ncreep:    weight/week   -7.00\n",
+        "velocity: weight/week   -7.00\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -357,31 +399,42 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     let t2 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete task a", &t1);
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "delete completed task a", &t2);
 
-    // Deleting the already-completed task a pulls both trend lines down at
-    // the end of the history, so the whole-project slope over the 2-day
-    // observed span goes negative for both metrics.
+    // Deleting the already-completed task a pulls the done trend down at the
+    // end of the history (-0.64/week). Creep stays flat at 0.00: milestone
+    // scoping fixes the in-scope rank cutoff at the *final* rank of the last
+    // preceding task ("task b"), so deleting "task a" (which precedes it)
+    // shifts "task b" into the vacated rank slot rather than shrinking total
+    // weight — this is the same rank-cutoff behavior `agile when
+    // --plot`/`--data` show for this scenario, not a velocity-specific
+    // quirk.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   -0.64\ncreep:    weight/week   -3.82\n",
+        "velocity: weight/week   -0.64\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -396,13 +449,17 @@ fn when_velocity_editing_title_of_done_task_does_not_change_velocity() {
     let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] done task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] renamed done task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "rename done task", &t1);
@@ -425,22 +482,28 @@ fn when_velocity_counts_real_completion_only_once_even_if_moved_later() {
     let t2 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete task a", &t1);
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] task b
 - [x] task a
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "move completed task a", &t2);
@@ -462,13 +525,17 @@ fn when_velocity_same_timestamp_span_yields_unknown() {
     let t0 = git_date_from_unix_secs(unix_ts_days_ago(0));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] one task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] one task
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete task", &t0);
@@ -488,22 +555,28 @@ fn when_velocity_last_flag_restricts_history_window() {
     let t2 = git_date_from_unix_secs(unix_ts_days_ago(1));
 
     let file_content = "\
+- [ ] keep milestone future
 - [ ] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "initial", &t0);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] task a
 - [ ] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete a", &t1);
 
     let file_content = "\
+- [ ] keep milestone future
 - [x] task a
 - [x] task b
+#MILESTONE: eol
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete b", &t2);
@@ -520,6 +593,66 @@ fn when_velocity_last_flag_restricts_history_window() {
         &["when", "--velocity", "--last", "5"],
         "velocity: weight/week   1.88\ncreep:    weight/week   0.00\n",
     );
+}
+
+#[test]
+fn when_velocity_next_flag_scopes_to_a_given_milestone() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
+    // "alpha" (rank 1) never sees any completion; "beta" (rank 2) does.
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+- [ ] task b
+#MILESTONE: beta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", &t0);
+
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+- [x] task b
+#MILESTONE: beta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "complete task b", &t1);
+
+    assert_velocity_with_args(
+        dir.path(),
+        &["when", "--velocity"],
+        "velocity: weight/week   0.00\ncreep:    weight/week   0.00\n",
+    );
+    assert_velocity_with_args(
+        dir.path(),
+        &["when", "--velocity", "--next", "2"],
+        "velocity: weight/week   7.00\ncreep:    weight/week   0.00\n",
+    );
+}
+
+#[test]
+fn when_velocity_errors_when_there_is_no_future_milestone() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] one task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--velocity"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("does not exist"), "stderr: {stderr:?}");
 }
 
 #[test]
