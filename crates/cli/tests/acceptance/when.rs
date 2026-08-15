@@ -1127,21 +1127,30 @@ fn when_data_shows_table_of_task_counts_scoped_to_milestone() {
     assert!(stdout.contains("Date"), "stdout: {stdout:?}");
     assert!(stdout.contains("Total"), "stdout: {stdout:?}");
     assert!(stdout.contains("Done"), "stdout: {stdout:?}");
-    // task counts only: no trend line data, no weights.
+    assert!(stdout.contains("Total Wt"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Done Wt"), "stdout: {stdout:?}");
+    // no trend line fitting, just raw counts/weights per data point.
     assert!(!stdout.contains("trend"), "stdout: {stdout:?}");
-    assert!(!stdout.contains("weight"), "stdout: {stdout:?}");
 
     let row1 = stdout
         .lines()
         .find(|line| line.contains("2026-07-10"))
         .unwrap_or_else(|| panic!("missing row for 2026-07-10, stdout: {stdout:?}"));
     assert!(row1.contains('2') && row1.contains('0'), "row1: {row1:?}");
+    assert!(
+        row1.contains("2.00") && row1.contains("0.00"),
+        "row1: {row1:?}"
+    );
 
     let row2 = stdout
         .lines()
         .find(|line| line.contains("2026-07-11"))
         .unwrap_or_else(|| panic!("missing row for 2026-07-11, stdout: {stdout:?}"));
     assert!(row2.contains('2') && row2.contains('1'), "row2: {row2:?}");
+    assert!(
+        row2.contains("2.00") && row2.contains("1.00"),
+        "row2: {row2:?}"
+    );
 }
 
 #[test]

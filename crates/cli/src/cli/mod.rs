@@ -97,8 +97,8 @@ pub enum Command {
         #[arg(long, conflicts_with_all = ["velocity", "data"])]
         plot: bool,
 
-        /// Show the raw plot data (task counts only, no weights or trend
-        /// line data) as a table, one row per historical data point.
+        /// Show the raw plot data (task counts and weights, no trend line
+        /// fitting) as a table, one row per historical data point.
         ///
         /// Defaults to `--next 1` (the next milestone) when `--next` is not given.
         #[arg(long, conflicts_with_all = ["velocity", "plot"])]

@@ -570,6 +570,8 @@
 
 - [x] `agile when --plot` now prints the fitted total/done trend-line equations (`<intercept> + <slope>/week * x`, with `x` defined as weeks since the plot's anchor date, matching `--velocity`'s weight/week unit), so the cut-off and slope values behind the chart and ETA are transparent instead of only implied by the drawn lines.
 
+- [x] `agile when --data` now shows both task counts and task weights (Total/Done + Total Wt/Done Wt columns) for each historical data point, instead of counts only.
+
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
     - [ ] e.g. no convergence

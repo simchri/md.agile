@@ -434,16 +434,19 @@ fn render_plot_stats(latest: &TodoDonePlotPoint) -> String {
     )
 }
 
-/// Renders the raw plot data (task counts only — no weights, no trend line
-/// data) as a simple table, one row per point.
+/// Renders the raw plot data (task counts and weights, no trend line
+/// fitting) as a simple table, one row per point.
 pub fn render_todo_done_data(plot: &TodoDonePlot) -> String {
     let mut out = String::new();
     out.push_str(&format!("Milestone: {}\n\n", plot.milestone_name));
-    out.push_str(&format!("{:<12}{:>7}{:>7}\n", "Date", "Total", "Done"));
+    out.push_str(&format!(
+        "{:<12}{:>7}{:>7}{:>10}{:>9}\n",
+        "Date", "Total", "Done", "Total Wt", "Done Wt"
+    ));
     for point in &plot.points {
         out.push_str(&format!(
-            "{:<12}{:>7}{:>7}\n",
-            point.date, point.total_count, point.done_count
+            "{:<12}{:>7}{:>7}{:>10.2}{:>9.2}\n",
+            point.date, point.total_count, point.done_count, point.total_weight, point.done_weight
         ));
     }
     out
