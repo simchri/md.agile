@@ -648,7 +648,7 @@ fn render_textplots_chart(
         (geometry.today_x as f32, ymax),
     ];
     log::debug!(
-        "render_textplots_chart: total series ({} points), done series ({} points), today_x={:.3}, x range=[0, {xmax:.3}], y range=[{ymin:.3}, {ymax:.3}]",
+        "render_textplots_chart: {CHART_CHAR_WIDTH}x{CHART_CHAR_HEIGHT} char canvas ({CHART_PIXEL_WIDTH}x{CHART_PIXEL_HEIGHT} px), total series ({} points), done series ({} points), today_x={:.3}, x range=[0, {xmax:.3}], y range=[{ymin:.3}, {ymax:.3}]",
         total_series.len(),
         done_series.len(),
         geometry.today_x
@@ -661,8 +661,8 @@ fn render_textplots_chart(
     let total_trend_shape = Shape::Lines(&total_trend_series);
     let done_trend_shape = Shape::Lines(&done_trend_series);
     let today_shape = Shape::Lines(&today_series);
-    // Keep a 3:2 canvas (width:height).
-    let mut chart = Chart::new_with_y_range(120, 80, 0.0, xmax, ymin, ymax);
+    let mut chart =
+        Chart::new_with_y_range(CHART_PIXEL_WIDTH, CHART_PIXEL_HEIGHT, 0.0, xmax, ymin, ymax);
     let mut chart_ref = &mut chart;
     chart_ref = chart_ref.y_label_format(LabelFormat::None);
     if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {
@@ -722,13 +722,31 @@ fn x_axis_date_labels(
     Some((first_point.date.clone(), end_date))
 }
 
-/// Fixed pixel-grid size for [`render_ascii_chart`]. Deliberately much
-/// coarser than [`render_textplots_chart`]'s Braille-based canvas (which
-/// packs a 2x4 sub-pixel grid into every terminal cell) — a plain grid of
-/// one character per cell can't reach the same resolution, but works on
-/// any 7-bit-ASCII terminal with no Unicode/Braille/ANSI-color support.
-const ASCII_CHART_WIDTH: usize = 80;
-const ASCII_CHART_HEIGHT: usize = 24;
+/// Canvas size shared by both chart backends, expressed in terminal
+/// character cells (columns x rows). [`render_ascii_chart`] draws one
+/// glyph per cell directly at this size. [`render_textplots_chart`]'s
+/// Braille-based canvas packs a 2x4 sub-pixel grid into every terminal
+/// cell, so it multiplies this size up into pixels (see
+/// [`CHART_PIXEL_WIDTH`]/[`CHART_PIXEL_HEIGHT`]) to occupy the same
+/// on-screen footprint at higher resolution.
+const CHART_CHAR_WIDTH: usize = 60;
+const CHART_CHAR_HEIGHT: usize = 20;
+
+/// Braille sub-pixel packing factor used by the `textplots` backend: each
+/// terminal cell holds a 2 (columns) x 4 (rows) grid of sub-pixels.
+const BRAILLE_SUBPIXELS_X: usize = 2;
+const BRAILLE_SUBPIXELS_Y: usize = 4;
+
+const CHART_PIXEL_WIDTH: u32 = (CHART_CHAR_WIDTH * BRAILLE_SUBPIXELS_X) as u32;
+const CHART_PIXEL_HEIGHT: u32 = (CHART_CHAR_HEIGHT * BRAILLE_SUBPIXELS_Y) as u32;
+
+/// Fixed pixel-grid size for [`render_ascii_chart`]. A plain grid of one
+/// character per cell can't reach the Braille backend's resolution, but
+/// works on any 7-bit-ASCII terminal with no Unicode/Braille/ANSI-color
+/// support. Kept at the same [`CHART_CHAR_WIDTH`]/[`CHART_CHAR_HEIGHT`]
+/// footprint as the default chart so both backends render the same size.
+const ASCII_CHART_WIDTH: usize = CHART_CHAR_WIDTH;
+const ASCII_CHART_HEIGHT: usize = CHART_CHAR_HEIGHT;
 
 /// One glyph (plus optional RGB color for terminals that support it) drawn
 /// onto the ASCII chart's character grid, in growing draw-order priority:

@@ -446,6 +446,8 @@
 
 - [x] Add debug-level logging (via the log crate, enabled with AGILE_LOG=debug) throughout the plot/ETA pipeline for troubleshooting: trend line slope and intercept for both series, chart geometry (trend end, today marker position, chart bounds, anchor date), the y axis range computation showing both the data only max and the max including trend line projections, and the intersection math in the ETA computation showing the computed intersection day and why it was accepted or rejected. Tabular renderers log only the row count and column labels, never the individual data points.
 
+- [x] `agile when --plot`: make the ascii render mode use the same canvas size (in terminal character cells) as the default Braille chart, driven by shared width and height constants, so both backends occupy the same on-screen footprint and only differ in resolution/glyph style.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
