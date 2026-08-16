@@ -393,6 +393,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color:
         ));
     }
     out.push_str(&render_plot_legend(ascii, color));
+    out.push_str("\n");
     out.push_str(&render_trend_equations(
         trends.total_trend,
         trends.done_trend,
