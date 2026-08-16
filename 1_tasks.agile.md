@@ -448,6 +448,8 @@
 
 - [x] `agile when --plot`: make the ascii render mode use the same canvas size (in terminal character cells) as the default Braille chart, driven by shared width and height constants, so both backends occupy the same on-screen footprint and only differ in resolution/glyph style.
 
+- [x] `agile when --plot`: align the layout of the output surrounding the chart (blank lines, spacing) between the ascii and default render modes, so a blank line appears in the same places in both, e.g. between the date axis labels and the legend.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.

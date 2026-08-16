@@ -922,6 +922,8 @@ fn render_ascii_chart(
         out.push_str(&end_label);
         out.push('\n');
     }
+    // Match render_textplots_chart's trailing blank line before the legend.
+    out.push('\n');
     out
 }
 
