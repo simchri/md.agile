@@ -444,6 +444,8 @@
 
 - [x] `agile when --plot`: add a `--no-color` flag disabling ANSI color escapes in the chart, legend, and trend-line equations, for both the default and ascii chart backends. Best paired with `--ascii`, since the default Braille chart otherwise can't tell overlapping lines apart without color.
 
+- [x] Add debug-level logging (via the log crate, enabled with AGILE_LOG=debug) throughout the plot/ETA pipeline for troubleshooting: trend line slope and intercept for both series, chart geometry (trend end, today marker position, chart bounds, anchor date), the y axis range computation showing both the data only max and the max including trend line projections, and the intersection math in the ETA computation showing the computed intersection day and why it was accepted or rejected. Tabular renderers log only the row count and column labels, never the individual data points.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.

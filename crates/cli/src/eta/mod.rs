@@ -309,8 +309,24 @@ struct PlotTrends {
 }
 
 fn compute_plot_trends(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> PlotTrends {
+    log::debug!(
+        "compute_plot_trends: plot.points has {} points (milestone {:?})",
+        plot.points.len(),
+        plot.milestone_name
+    );
     let sampled = downsample_plot_points(&plot.points, 96);
+    log::debug!(
+        "compute_plot_trends: downsampled to {} points",
+        sampled.len()
+    );
     let geometry = compute_plot_geometry(&sampled, today_unix_days);
+    log::debug!(
+        "compute_plot_trends: geometry = trend_end_x={:.3} today_x={:.3} chart_x_max={:.3} anchor_unix_days={:?}",
+        geometry.trend_end_x,
+        geometry.today_x,
+        geometry.chart_x_max,
+        geometry.anchor_unix_days
+    );
     let total_trend = linear_trend(
         &geometry
             .x_values
@@ -327,6 +343,8 @@ fn compute_plot_trends(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> Plo
             .map(|(x, p)| (*x, p.done_weight_wt))
             .collect::<Vec<_>>(),
     );
+    log::debug!("compute_plot_trends: total_trend = {total_trend:?} (slope_wtpd, intercept_wt)");
+    log::debug!("compute_plot_trends: done_trend = {done_trend:?} (slope_wtpd, intercept_wt)");
     PlotTrends {
         sampled,
         geometry,
@@ -500,6 +518,11 @@ fn render_plot_stats(latest: &TodoDonePlotPoint) -> String {
 /// Renders the raw plot data (task counts and weights, no trend line
 /// fitting) as a simple table, one row per point.
 pub fn render_todo_done_data(plot: &TodoDonePlot) -> String {
+    log::debug!(
+        "render_todo_done_data: milestone={:?}, {} rows (Date, Total, Done, Total Wt, Done Wt)",
+        plot.milestone_name,
+        plot.points.len()
+    );
     let mut out = String::new();
     out.push_str(&format!("Milestone: {}\n\n", plot.milestone_name));
     out.push_str(&format!(
@@ -565,11 +588,16 @@ fn compute_plot_y_range(
             .max(t.intercept_wt)
             .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
     }
-    if fit {
+    let range = if fit {
         (data_ymin, full_ymax.max(data_ymin + 1.0))
     } else {
         (0.0, data_ymax.max(1.0))
-    }
+    };
+    log::debug!(
+        "compute_plot_y_range: {} points, data_ymin={data_ymin:.3} data_ymax={data_ymax:.3} full_ymax(incl. trend projections)={full_ymax:.3} fit={fit} -> range={range:?}",
+        points.len()
+    );
+    range
 }
 
 fn render_textplots_chart(
@@ -619,6 +647,12 @@ fn render_textplots_chart(
         (geometry.today_x as f32, ymin),
         (geometry.today_x as f32, ymax),
     ];
+    log::debug!(
+        "render_textplots_chart: total series ({} points), done series ({} points), today_x={:.3}, x range=[0, {xmax:.3}], y range=[{ymin:.3}, {ymax:.3}]",
+        total_series.len(),
+        done_series.len(),
+        geometry.today_x
+    );
 
     let total_line_shape = Shape::Lines(&total_series);
     let done_line_shape = Shape::Lines(&done_series);
@@ -800,6 +834,13 @@ fn render_ascii_chart(
     let xmax = geometry.chart_x_max.max(1.0);
     let (ymin, ymax) = compute_plot_y_range(points, geometry, total_trend, done_trend, fit);
     let yspan = (ymax - ymin).max(1e-9);
+    log::debug!(
+        "render_ascii_chart: {}x{} grid, {} raw points, today_x={:.3}, x range=[0, {xmax:.3}], y range=[{ymin:.3}, {ymax:.3}]",
+        width,
+        height,
+        points.len(),
+        geometry.today_x
+    );
 
     let mut canvas = AsciiCanvas::new(width, height, xmax, ymin, yspan);
 
@@ -987,22 +1028,46 @@ fn compute_eta(
     anchor_unix_days: Option<i64>,
     today_unix_days: Option<i64>,
 ) -> Option<EtaEstimate> {
-    let total = total_trend?;
-    let done = done_trend?;
-    let anchor = anchor_unix_days?;
-    let today = today_unix_days?;
+    let Some(total) = total_trend else {
+        log::debug!("compute_eta: no total trend available -> None");
+        return None;
+    };
+    let Some(done) = done_trend else {
+        log::debug!("compute_eta: no done trend available -> None");
+        return None;
+    };
+    let Some(anchor) = anchor_unix_days else {
+        log::debug!("compute_eta: no anchor_unix_days available -> None");
+        return None;
+    };
+    let Some(today) = today_unix_days else {
+        log::debug!("compute_eta: no today_unix_days available -> None");
+        return None;
+    };
+
+    log::debug!(
+        "compute_eta: total_trend={total:?} done_trend={done:?} anchor_unix_days={anchor} today_unix_days={today}"
+    );
 
     let slope_diff = total.slope_wtpd - done.slope_wtpd;
     if slope_diff.abs() <= f64::EPSILON {
+        log::debug!("compute_eta: slopes are equal (parallel trend lines) -> None");
         return None;
     }
     let x_intersect = (done.intercept_wt - total.intercept_wt) / slope_diff;
     let unix_days = anchor + x_intersect.round() as i64;
+    log::debug!(
+        "compute_eta: slope_diff={slope_diff:.6} x_intersect={x_intersect:.3} (days since anchor) -> unix_days={unix_days}"
+    );
 
     if unix_days <= today {
+        log::debug!(
+            "compute_eta: intersection unix_days={unix_days} <= today={today} (already reached, or in the past) -> None"
+        );
         return None;
     }
 
+    log::debug!("compute_eta: -> Some(EtaEstimate {{ unix_days: {unix_days} }})");
     Some(EtaEstimate { unix_days })
 }
 
