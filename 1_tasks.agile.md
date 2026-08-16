@@ -452,6 +452,8 @@
 
 - [x] `agile when --plot`: add a blank line before the "Trend lines" heading, so it's visually separated from the legend above it.
 
+- [x] `agile when --plot --html`: add a third render mode, alongside the default Braille chart and ascii mode, that writes a self-contained HTML file (inline SVG, no external dependencies) with the same information as the terminal plots: total/done data lines, both trend lines, today marker, legend, trend line equations, latest stats, and ETA text. Written to "<milestone>-plot.html" in the current directory, where <milestone> is the milestone name lowercased and sanitized to lowercase letters, digits, and underscores. Conflicts with ascii mode; respects --fit for the y axis range.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.

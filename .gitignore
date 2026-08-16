@@ -11,3 +11,4 @@ mdagile
 sample-plot-repo/
 sample_dir_*/
 /dist
+*-plot.html

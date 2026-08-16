@@ -63,3 +63,31 @@ fn when_data_no_color_is_rejected_by_clap_parsing() {
         "`agile when --data --no-color` should be rejected since --no-color requires --plot"
     );
 }
+
+#[test]
+fn when_plot_html_flag_is_supported() {
+    let result = Cli::try_parse_from(["agile", "when", "--plot", "--next", "1", "--html"]);
+    assert!(
+        result.is_ok(),
+        "`agile when --plot --next 1 --html` should be accepted: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn when_data_html_is_rejected_by_clap_parsing() {
+    let result = Cli::try_parse_from(["agile", "when", "--data", "--html"]);
+    assert!(
+        result.is_err(),
+        "`agile when --data --html` should be rejected since --html requires --plot"
+    );
+}
+
+#[test]
+fn when_plot_html_and_ascii_together_are_rejected_by_clap_parsing() {
+    let result = Cli::try_parse_from(["agile", "when", "--plot", "--html", "--ascii"]);
+    assert!(
+        result.is_err(),
+        "`agile when --plot --html --ascii` should be rejected since --html conflicts with --ascii"
+    );
+}

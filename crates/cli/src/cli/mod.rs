@@ -128,9 +128,19 @@ pub enum Command {
         /// is still used where supported, with the ASCII symbols as a
         /// fallback differentiator between the four data lines.
         ///
-        /// Only valid with `--plot`.
-        #[arg(long, requires = "plot", conflicts_with = "data")]
+        /// Only valid with `--plot`. Conflicts with `--html`.
+        #[arg(long, requires = "plot", conflicts_with_all = ["data", "html"])]
         ascii: bool,
+
+        /// Render the plot as a self-contained HTML file (inline SVG, no
+        /// external dependencies) instead of printing a terminal chart.
+        /// Written to "<milestone>-plot.html" in the current directory,
+        /// where <milestone> is the milestone name lowercased and
+        /// sanitized to `[a-z0-9_]`.
+        ///
+        /// Only valid with `--plot`. Conflicts with `--ascii`.
+        #[arg(long, requires = "plot", conflicts_with_all = ["data", "ascii"])]
+        html: bool,
 
         /// Disable ANSI color in the plot's chart, legend, and trend-line
         /// equations. With the default (Braille) chart, colors are the
@@ -334,12 +344,13 @@ pub fn run() {
             data,
             fit,
             ascii,
+            html,
             no_color,
             last,
             next,
         }) => {
             subcommands::when::run(
-                root, &config, next, velocity, plot, data, fit, ascii, no_color, last,
+                root, &config, next, velocity, plot, data, fit, ascii, html, no_color, last,
             );
         }
         Some(Command::History) => {

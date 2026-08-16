@@ -436,3 +436,78 @@ fn estimate_velocity_with_window_reports_unresolved_metrics_for_zero_window() {
         }
     );
 }
+
+#[test]
+fn sanitize_milestone_slug_lowercases_and_collapses_non_alphanumerics() {
+    assert_eq!(
+        sanitize_milestone_slug("Release of MVP :)"),
+        "release_of_mvp"
+    );
+}
+
+#[test]
+fn sanitize_milestone_slug_trims_leading_and_trailing_underscores() {
+    assert_eq!(sanitize_milestone_slug("  --Beta!!  "), "beta");
+}
+
+#[test]
+fn sanitize_milestone_slug_falls_back_when_nothing_alphanumeric_remains() {
+    assert_eq!(sanitize_milestone_slug("!!!"), "milestone");
+}
+
+fn sample_plot() -> TodoDonePlot {
+    TodoDonePlot {
+        milestone_name: "Beta Release".to_string(),
+        points: vec![
+            TodoDonePlotPoint {
+                date: "2026-01-01".to_string(),
+                total_weight_wt: 10.0,
+                done_weight_wt: 2.0,
+                total_count_t: 10,
+                done_count_t: 2,
+            },
+            TodoDonePlotPoint {
+                date: "2026-01-08".to_string(),
+                total_weight_wt: 12.0,
+                done_weight_wt: 6.0,
+                total_count_t: 12,
+                done_count_t: 6,
+            },
+        ],
+    }
+}
+
+#[test]
+fn write_todo_done_plot_html_writes_a_sanitized_filename() {
+    let dir = tempdir().unwrap();
+    let plot = sample_plot();
+
+    let path = write_todo_done_plot_html(dir.path(), &plot, false).unwrap();
+
+    assert_eq!(path, dir.path().join("beta_release-plot.html"));
+    assert!(path.exists(), "the html file should have been written");
+}
+
+#[test]
+fn write_todo_done_plot_html_content_includes_chart_and_report_sections() {
+    let dir = tempdir().unwrap();
+    let plot = sample_plot();
+
+    let path = write_todo_done_plot_html(dir.path(), &plot, false).unwrap();
+    let html = fs::read_to_string(path).unwrap();
+
+    assert!(html.contains("<svg"), "should embed an inline SVG chart");
+    assert!(
+        html.contains("Milestone: Beta Release"),
+        "should show the milestone name"
+    );
+    assert!(
+        html.contains("Trend lines"),
+        "should include the trend line equations"
+    );
+    assert!(
+        html.contains("total:") && html.contains("done:"),
+        "should include the latest stats"
+    );
+    assert!(html.contains("ETA:"), "should include the ETA text");
+}

@@ -9,8 +9,11 @@ use std::path::Path;
 /// Supports `--velocity [--next <rank>] [--last <days>]` (defaults to
 /// `--next 1`, i.e. the next milestone) and terminal plotting via `--plot
 /// [--next <rank>]` (same default), plus `--data` to show the same
-/// underlying data as a raw table of task counts. With no flags, lists the
-/// ETA time span for every future milestone, in backlog order.
+/// underlying data as a raw table of task counts, and `--html` to write a
+/// self-contained HTML/SVG chart file instead of printing to the terminal.
+/// With no flags, lists the ETA time span for every future milestone, in
+/// backlog order.
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     root: &Path,
     _config: &Config,
@@ -20,6 +23,7 @@ pub fn run(
     data: bool,
     fit: bool,
     ascii: bool,
+    html: bool,
     no_color: bool,
     last_days: Option<u32>,
 ) {
@@ -34,6 +38,14 @@ pub fn run(
         };
         if data {
             print!("{}", eta::render_todo_done_data(&plot));
+        } else if html {
+            match eta::write_todo_done_plot_html(root, &plot, fit) {
+                Ok(path) => println!("Wrote {}", path.display()),
+                Err(msg) => {
+                    log::error!("{msg}");
+                    std::process::exit(1);
+                }
+            }
         } else {
             print!(
                 "{}",
