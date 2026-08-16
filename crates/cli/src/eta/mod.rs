@@ -663,13 +663,12 @@ fn svg_trend_line_attrs(
     to_svg_x: &impl Fn(f64) -> f64,
     to_svg_y: &impl Fn(f64) -> f64,
 ) -> (f64, f64, f64, f64) {
-    let y0 = trend.intercept_wt;
-    let y1 = trend.slope_wtpd * trend_end_x + trend.intercept_wt;
+    let e = trend_line_endpoints(trend, trend_end_x);
     (
-        to_svg_x(0.0),
-        to_svg_y(y0),
-        to_svg_x(trend_end_x),
-        to_svg_y(y1),
+        to_svg_x(e.x0),
+        to_svg_y(e.y0),
+        to_svg_x(e.x1),
+        to_svg_y(e.y1),
     )
 }
 
@@ -844,14 +843,12 @@ fn compute_plot_y_range(
         .fold(0.0, f64::max);
     let mut full_ymax = data_ymax;
     if let Some(t) = total_trend {
-        full_ymax = full_ymax
-            .max(t.intercept_wt)
-            .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
+        let e = trend_line_endpoints(t, geometry.trend_end_x);
+        full_ymax = full_ymax.max(e.y0).max(e.y1);
     }
     if let Some(t) = done_trend {
-        full_ymax = full_ymax
-            .max(t.intercept_wt)
-            .max(t.slope_wtpd * geometry.trend_end_x + t.intercept_wt);
+        let e = trend_line_endpoints(t, geometry.trend_end_x);
+        full_ymax = full_ymax.max(e.y0).max(e.y1);
     }
     let range = if fit {
         (data_ymin, full_ymax.max(data_ymin + 1.0))
@@ -884,26 +881,10 @@ fn render_textplots_chart(
         .map(|(p, x)| (*x as f32, p.done_weight_wt as f32))
         .collect();
     let total_trend_series = total_trend
-        .map(|t| {
-            vec![
-                (0.0_f32, t.intercept_wt as f32),
-                (
-                    geometry.trend_end_x as f32,
-                    (t.slope_wtpd * geometry.trend_end_x + t.intercept_wt) as f32,
-                ),
-            ]
-        })
+        .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
         .unwrap_or_default();
     let done_trend_series = done_trend
-        .map(|t| {
-            vec![
-                (0.0_f32, t.intercept_wt as f32),
-                (
-                    geometry.trend_end_x as f32,
-                    (t.slope_wtpd * geometry.trend_end_x + t.intercept_wt) as f32,
-                ),
-            ]
-        })
+        .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
         .unwrap_or_default();
     let xmax = geometry.chart_x_max as f32;
     let (ymin, ymax) = compute_plot_y_range(points, geometry, total_trend, done_trend, fit);
@@ -1139,24 +1120,12 @@ fn render_ascii_chart(
 
     // Trend lines (straight two-point lines over the full trend window).
     if let Some(t) = total_trend {
-        canvas.draw_line(
-            0.0,
-            t.intercept_wt,
-            geometry.trend_end_x,
-            t.slope_wtpd * geometry.trend_end_x + t.intercept_wt,
-            'O',
-            (255, 255, 0),
-        );
+        let e = trend_line_endpoints(t, geometry.trend_end_x);
+        canvas.draw_line(e.x0, e.y0, e.x1, e.y1, 'O', (255, 255, 0));
     }
     if let Some(t) = done_trend {
-        canvas.draw_line(
-            0.0,
-            t.intercept_wt,
-            geometry.trend_end_x,
-            t.slope_wtpd * geometry.trend_end_x + t.intercept_wt,
-            '0',
-            (0, 255, 255),
-        );
+        let e = trend_line_endpoints(t, geometry.trend_end_x);
+        canvas.draw_line(e.x0, e.y0, e.x1, e.y1, '0', (0, 255, 255));
     }
 
     // Raw data series (drawn last so they stay on top of trend/today lines).
@@ -1704,3 +1673,6 @@ fn civil_from_days(unix_days: i64) -> (i64, i64, i64) {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+mod trend_geometry;
+use trend_geometry::{trend_line_endpoints, trend_line_endpoints_f32};

@@ -454,6 +454,8 @@
 
 - [x] `agile when --plot --html`: add a third render mode, alongside the default Braille chart and ascii mode, that writes a self-contained HTML file (inline SVG, no external dependencies) with the same information as the terminal plots: total/done data lines, both trend lines, today marker, legend, trend line equations, latest stats, and ETA text. Written to "<milestone>-plot.html" in the current directory, where <milestone> is the milestone name lowercased and sanitized to lowercase letters, digits, and underscores. Conflicts with ascii mode; respects --fit for the y axis range.
 
+- [x] Extract the trend-line-to-plottable-points logic (converting a fitted `LinearTrend`'s slope/intercept into the two `(x, y)` endpoints over `x in [0, trend_end_x]`) out of the SVG, Braille/textplots, and ASCII renderers, which each independently duplicated this computation, into shared helpers `trend_line_endpoints`/`trend_line_endpoints_f32` in a new `crates/cli/src/eta/trend_geometry.rs` module, with unit tests in `crates/cli/src/eta/trend_geometry_tests.rs` covering zero/negative/flat slopes and the f32 conversion.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
