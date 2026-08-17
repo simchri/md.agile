@@ -476,6 +476,8 @@
 
 - [x] Renamed `LinearTrend`'s `intercept_wt`/`anchor_unix_days` fields to `anchor_y_wt`/`anchor_x_d`, adding a doc comment explaining that the `_d` suffix means "unix days" (whole days since the Unix epoch, 1970-01-01 — `unix_seconds / 86_400`) and why that's a convenient day-granularity date representation for arithmetic. Updated every field access across `trend.rs`, `trend_geometry.rs`, `eta_math.rs`, `chart_common.rs`, and their test files accordingly (`plot_data::PlotGeometry::anchor_unix_days`, a distinct field on a different struct, was left unchanged). Pure rename, no behavior change: all 848 tests pass; GUI target still builds; `agile check` passes.
 
+- [x] Changed `LinearTrend::anchor_x_d` from `Option<i64>` to a plain `f64`: a `LinearTrend` only exists once it's been fit through at least two dated points, so its anchor date is always available wherever the trend line itself is — the `Option` never actually varied independently of the line's own presence, making it a needless nullable field. `eta_math::compute_eta` and `chart_common::render_trend_equations` were simplified accordingly (no more unwrapping a separately-optional anchor date). Pure structural refactor, no behavior change: all 848 tests pass; GUI target still builds; `agile check` passes.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.

@@ -27,7 +27,6 @@ pub(super) fn eta_for_plot(
 /// trend lines, expressed relative to their shared `anchor_x_d` (the
 /// calendar date that trend-line x = 0 maps to). Returns `None` when either
 /// trend line is missing, the lines are parallel (no single intersection),
-/// the anchor date couldn't be determined (e.g. no real dates available),
 /// or the intersection falls on or before today (already reached, or
 /// unknowable).
 ///
@@ -46,10 +45,7 @@ pub(super) fn compute_eta(
         log::debug!("compute_eta: no done trend available -> None");
         return None;
     };
-    let Some(anchor) = total.anchor_x_d else {
-        log::debug!("compute_eta: no anchor_x_d available -> None");
-        return None;
-    };
+    let anchor = total.anchor_x_d;
     let Some(today) = today_unix_days else {
         log::debug!("compute_eta: no today_unix_days available -> None");
         return None;
@@ -65,7 +61,7 @@ pub(super) fn compute_eta(
         return None;
     }
     let x_intersect = (done.anchor_y_wt - total.anchor_y_wt) / slope_diff;
-    let unix_days = anchor + x_intersect.round() as i64;
+    let unix_days = (anchor + x_intersect).round() as i64;
     log::debug!(
         "compute_eta: slope_diff={slope_diff:.6} x_intersect={x_intersect:.3} (days since anchor) -> unix_days={unix_days}"
     );

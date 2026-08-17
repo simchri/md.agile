@@ -4,7 +4,7 @@ fn trend(slope_wtpd: f64, anchor_y_wt: f64) -> LinearTrend {
     LinearTrend {
         slope_wtpd,
         anchor_y_wt,
-        anchor_x_d: None,
+        anchor_x_d: 0.0,
     }
 }
 

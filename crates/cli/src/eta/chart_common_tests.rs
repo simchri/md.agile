@@ -5,12 +5,12 @@ fn render_trend_equations_shows_intercept_and_slope_relative_to_the_anchor_date(
     let total_trend = LinearTrend {
         slope_wtpd: 1.95,
         anchor_y_wt: 29.85,
-        anchor_x_d: Some(20_000),
+        anchor_x_d: 20_000.0,
     };
     let done_trend = LinearTrend {
         slope_wtpd: 1.84,
         anchor_y_wt: 11.24,
-        anchor_x_d: Some(20_000),
+        anchor_x_d: 20_000.0,
     };
     let text = render_trend_equations(Some(total_trend), Some(done_trend), true);
     assert!(

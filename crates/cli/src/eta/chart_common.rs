@@ -74,8 +74,8 @@ pub(super) fn render_trend_equations(
     done_trend: Option<LinearTrend>,
     color: bool,
 ) -> String {
-    let anchor_x_d = total_trend.or(done_trend).and_then(|t| t.anchor_x_d);
-    let x_desc = match anchor_x_d.and_then(date_from_unix_days) {
+    let anchor_x_d = total_trend.or(done_trend).map(|t| t.anchor_x_d);
+    let x_desc = match anchor_x_d.and_then(|a| date_from_unix_days(a.round() as i64)) {
         Some(anchor) => format!("weeks since {anchor}"),
         None => "point index".to_string(),
     };
