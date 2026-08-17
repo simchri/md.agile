@@ -4,13 +4,15 @@
 //! - [`velocity`] — velocity/creep estimation and status-transition tracking
 //! - [`plot_data`] — building [`TodoDonePlot`] data and the geometry/sampling
 //!   shared by every chart renderer
-//! - [`trend`] — trend-line fitting and ETA math
+//! - [`trend`] — trend-line fitting
+//! - [`eta_math`] — ETA math (intersecting trend lines into a target date)
+//! - [`eta_text`] — ETA text formatting/rendering
 //! - [`chart_common`] — rendering pieces shared by the terminal and HTML charts
 //! - [`chart_terminal`] — the terminal chart output (Braille or `--ascii`)
 //! - [`chart_html`] — the `--html` SVG chart output
 //! - [`data_dump`] — the `--data` raw table output
 //! - [`report`] — the bare `agile when` list and `--velocity` text reports
-//! - [`date_utils`] — shared unix-days/`YYYY-MM-DD` date conversions
+//! - [`date_utils`] — shared unix-days/calendar-date conversions
 //! - [`trend_geometry`] — shared trend-line-to-line-segment geometry
 
 mod chart_common;
@@ -19,6 +21,8 @@ mod chart_terminal;
 mod chart_trends;
 mod data_dump;
 mod date_utils;
+mod eta_math;
+mod eta_text;
 mod plot_data;
 mod report;
 mod trend;

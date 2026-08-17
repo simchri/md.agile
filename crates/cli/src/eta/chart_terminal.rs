@@ -8,8 +8,8 @@ mod chart_terminal_braille;
 
 use super::chart_common::{render_plot_legend, render_plot_stats, render_plot_trend_equations};
 use super::chart_trends::compute_chart_trends;
+use super::eta_text::render_eta_text;
 use super::plot_data::TodoDonePlot;
-use super::trend::render_eta_text;
 use chart_terminal_ascii::render_ascii_chart;
 use chart_terminal_braille::render_textplots_chart;
 

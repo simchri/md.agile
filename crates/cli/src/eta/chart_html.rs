@@ -4,8 +4,9 @@
 
 use super::chart_common::{render_plot_stats, render_plot_trend_equations};
 use super::chart_trends::compute_chart_trends;
+use super::eta_text::render_eta_text;
 use super::plot_data::{TodoDonePlot, TodoDonePlotPoint, x_axis_date_labels};
-use super::trend::{LinearTrend, render_eta_text};
+use super::trend::LinearTrend;
 use super::trend_geometry::trend_line_endpoints;
 use std::path::Path;
 

@@ -2,8 +2,9 @@
 //! milestone) and `agile when --velocity`'s velocity/creep summary. Neither
 //! is a chart, but both build on the same trend/ETA machinery.
 
+use super::eta_math::{EtaEstimate, eta_for_plot};
+use super::eta_text::eta_span;
 use super::plot_data::build_todo_done_plot;
-use super::trend::{EtaEstimate, eta_for_plot, eta_span};
 use super::velocity::{VelocityEstimate, require_git_repo};
 use crate::cli::common::find_task_files;
 use crate::parser::{self, FileItem, Status};

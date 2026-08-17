@@ -4,11 +4,12 @@
 //! drawn. Every chart backend renders from a [`ChartTrends`]; nothing
 //! upstream of rendering (ETA, velocity/creep) depends on this module.
 
+use super::eta_math::{EtaEstimate, compute_eta};
 use super::plot_data::{
     PlotGeometry, TodoDonePlot, TodoDonePlotPoint, compute_plot_geometry, compute_plot_y_range,
     downsample_plot_points,
 };
-use super::trend::{EtaEstimate, LinearTrend, compute_eta, compute_milestone_trends};
+use super::trend::{LinearTrend, compute_milestone_trends};
 
 /// Maximum number of points a chart draws directly; the milestone's full
 /// history (however long) is downsampled to this many points purely for
