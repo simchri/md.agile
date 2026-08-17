@@ -3,12 +3,10 @@
 //! `--ascii`, as a plain 7-bit-ASCII character grid.
 
 use super::chart_common::{
-    ansi_rgb_text, render_plot_legend, render_plot_stats, render_trend_equations,
+    ansi_rgb_text, render_plot_legend, render_plot_stats, render_plot_trend_equations,
 };
-use super::plot_data::{
-    PlotGeometry, TodoDonePlot, TodoDonePlotPoint, compute_plot_y_range, x_axis_date_labels,
-};
-use super::trend::{LinearTrend, compute_eta, compute_plot_trends, render_eta_text};
+use super::plot_data::{TodoDonePlot, TodoDonePlotPoint, x_axis_date_labels};
+use super::trend::{LinearTrend, PlotTrends, compute_plot_trends, render_eta_text};
 use super::trend_geometry::{trend_line_endpoints, trend_line_endpoints_f32};
 use rgb::RGB8;
 use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Plot, Shape};
@@ -22,73 +20,56 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color:
     out.push_str(&format!("Milestone: {}\n", plot.milestone_name));
     out.push_str("\n");
     if ascii {
-        out.push_str(&render_ascii_chart(
-            &trends.sampled,
-            &trends.geometry,
-            trends.total_trend,
-            trends.done_trend,
-            fit,
-            color,
-        ));
+        out.push_str(&render_ascii_chart(&trends, fit, color));
     } else {
-        out.push_str(&render_textplots_chart(
-            &trends.sampled,
-            &trends.geometry,
-            trends.total_trend,
-            trends.done_trend,
-            fit,
-            color,
-        ));
+        out.push_str(&render_textplots_chart(&trends, fit, color));
     }
     out.push_str(&render_plot_legend(ascii, color));
     out.push_str("\n");
-    out.push_str(&render_trend_equations(
-        trends.total_trend,
-        trends.done_trend,
-        trends.geometry.anchor_unix_days,
-        color,
-    ));
+    out.push_str(&render_plot_trend_equations(&trends, color));
     if let Some(latest) = plot.points.last() {
         out.push_str("\n");
         out.push_str(&render_plot_stats(latest));
     }
     out.push_str("\n");
-    let eta = compute_eta(
-        trends.total_trend,
-        trends.done_trend,
-        trends.geometry.anchor_unix_days,
+    out.push_str(&render_eta_text(
+        trends.eta(today_unix_days),
         today_unix_days,
-    );
-    out.push_str(&render_eta_text(eta, today_unix_days));
+    ));
     out
 }
 
-fn render_textplots_chart(
+/// Builds one series as `(x, y)` `f32` pairs ready for `textplots`, pairing
+/// each sampled point with its already-computed x value. Shared by the
+/// total/done data series (which otherwise differ only in which weight
+/// field they read).
+fn series_f32(
     points: &[TodoDonePlotPoint],
-    geometry: &PlotGeometry,
-    total_trend: Option<LinearTrend>,
-    done_trend: Option<LinearTrend>,
-    fit: bool,
-    color: bool,
-) -> String {
-    let total_series: Vec<(f32, f32)> = points
+    x_values: &[f64],
+    value_of: impl Fn(&TodoDonePlotPoint) -> f64,
+) -> Vec<(f32, f32)> {
+    points
         .iter()
-        .zip(geometry.x_values.iter())
-        .map(|(p, x)| (*x as f32, p.total_weight_wt as f32))
-        .collect();
-    let done_series: Vec<(f32, f32)> = points
-        .iter()
-        .zip(geometry.x_values.iter())
-        .map(|(p, x)| (*x as f32, p.done_weight_wt as f32))
-        .collect();
-    let total_trend_series = total_trend
+        .zip(x_values.iter())
+        .map(|(p, x)| (*x as f32, value_of(p) as f32))
+        .collect()
+}
+
+fn render_textplots_chart(trends: &PlotTrends, fit: bool, color: bool) -> String {
+    let points = &trends.sampled;
+    let geometry = &trends.geometry;
+    let total_series = series_f32(points, &geometry.x_values, |p| p.total_weight_wt);
+    let done_series = series_f32(points, &geometry.x_values, |p| p.done_weight_wt);
+    let total_trend_series = trends
+        .total_trend
         .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
         .unwrap_or_default();
-    let done_trend_series = done_trend
+    let done_trend_series = trends
+        .done_trend
         .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
         .unwrap_or_default();
     let xmax = geometry.chart_x_max as f32;
-    let (ymin, ymax) = compute_plot_y_range(points, geometry, total_trend, done_trend, fit);
+    let (ymin, ymax) = trends.y_range(fit);
     let (ymin, ymax) = (ymin as f32, ymax as f32);
     let today_series = vec![
         (geometry.today_x as f32, ymin),
@@ -234,6 +215,21 @@ impl AsciiCanvas {
         });
     }
 
+    /// Draws `trend`'s straight line segment (over `x in [0, trend_end_x]`)
+    /// onto the canvas, if `trend` was successfully fit. Shared by the
+    /// total/done trend lines, which otherwise differ only in glyph/color.
+    fn draw_trend_line(
+        &mut self,
+        trend: Option<LinearTrend>,
+        trend_end_x: f64,
+        ch: char,
+        color: (u8, u8, u8),
+    ) {
+        let Some(t) = trend else { return };
+        let e = trend_line_endpoints(t, trend_end_x);
+        self.draw_line(e.x0, e.y0, e.x1, e.y1, ch, color);
+    }
+
     fn draw_line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, ch: char, color: (u8, u8, u8)) {
         let (col0, row0) = (self.to_col(x0), self.to_row(y0));
         let (col1, row1) = (self.to_col(x1), self.to_row(y1));
@@ -275,18 +271,13 @@ impl AsciiCanvas {
 /// otherwise. Resolution is intentionally much lower than the default
 /// Braille-based chart: one glyph per terminal cell instead of a packed
 /// sub-pixel grid.
-fn render_ascii_chart(
-    points: &[TodoDonePlotPoint],
-    geometry: &PlotGeometry,
-    total_trend: Option<LinearTrend>,
-    done_trend: Option<LinearTrend>,
-    fit: bool,
-    color: bool,
-) -> String {
+fn render_ascii_chart(trends: &PlotTrends, fit: bool, color: bool) -> String {
+    let points = &trends.sampled;
+    let geometry = &trends.geometry;
     let width = ASCII_CHART_WIDTH;
     let height = ASCII_CHART_HEIGHT;
     let xmax = geometry.chart_x_max.max(1.0);
-    let (ymin, ymax) = compute_plot_y_range(points, geometry, total_trend, done_trend, fit);
+    let (ymin, ymax) = trends.y_range(fit);
     let yspan = (ymax - ymin).max(1e-9);
     log::debug!(
         "render_ascii_chart: {}x{} grid, {} raw points, today_x={:.3}, x range=[0, {xmax:.3}], y range=[{ymin:.3}, {ymax:.3}]",
@@ -309,14 +300,8 @@ fn render_ascii_chart(
     }
 
     // Trend lines (straight two-point lines over the full trend window).
-    if let Some(t) = total_trend {
-        let e = trend_line_endpoints(t, geometry.trend_end_x);
-        canvas.draw_line(e.x0, e.y0, e.x1, e.y1, 'O', (255, 255, 0));
-    }
-    if let Some(t) = done_trend {
-        let e = trend_line_endpoints(t, geometry.trend_end_x);
-        canvas.draw_line(e.x0, e.y0, e.x1, e.y1, '0', (0, 255, 255));
-    }
+    canvas.draw_trend_line(trends.total_trend, geometry.trend_end_x, 'O', (255, 255, 0));
+    canvas.draw_trend_line(trends.done_trend, geometry.trend_end_x, '0', (0, 255, 255));
 
     // Raw data series (drawn last so they stay on top of trend/today lines).
     canvas.draw_series(points, &geometry.x_values, 'o', (255, 0, 0), |p| {

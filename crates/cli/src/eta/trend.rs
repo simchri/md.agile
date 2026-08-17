@@ -52,22 +52,8 @@ pub(super) fn compute_plot_trends(plot: &TodoDonePlot, today_unix_days: Option<i
         geometry.chart_x_max,
         geometry.anchor_unix_days
     );
-    let total_trend = linear_trend(
-        &geometry
-            .x_values
-            .iter()
-            .zip(sampled.iter())
-            .map(|(x, p)| (*x, p.total_weight_wt))
-            .collect::<Vec<_>>(),
-    );
-    let done_trend = linear_trend(
-        &geometry
-            .x_values
-            .iter()
-            .zip(sampled.iter())
-            .map(|(x, p)| (*x, p.done_weight_wt))
-            .collect::<Vec<_>>(),
-    );
+    let total_trend = fit_series_trend(&geometry.x_values, &sampled, |p| p.total_weight_wt);
+    let done_trend = fit_series_trend(&geometry.x_values, &sampled, |p| p.done_weight_wt);
     log::debug!("compute_plot_trends: total_trend = {total_trend:?} (slope_wtpd, intercept_wt)");
     log::debug!("compute_plot_trends: done_trend = {done_trend:?} (slope_wtpd, intercept_wt)");
     PlotTrends {
@@ -78,19 +64,58 @@ pub(super) fn compute_plot_trends(plot: &TodoDonePlot, today_unix_days: Option<i
     }
 }
 
+/// Fits a [`LinearTrend`] through one plotted series (total or done weight),
+/// pairing each sampled point with its already-computed x value. Shared by
+/// both `total_trend` and `done_trend` in [`compute_plot_trends`] so the two
+/// series are always fit the exact same way.
+fn fit_series_trend(
+    x_values: &[f64],
+    sampled: &[TodoDonePlotPoint],
+    value_of: impl Fn(&TodoDonePlotPoint) -> f64,
+) -> Option<LinearTrend> {
+    linear_trend(
+        &x_values
+            .iter()
+            .zip(sampled.iter())
+            .map(|(x, p)| (*x, value_of(p)))
+            .collect::<Vec<_>>(),
+    )
+}
+
+impl PlotTrends {
+    /// Computes this plot's ETA (see [`compute_eta`]) from its already-fit
+    /// trend lines. Shared by every renderer/report so they can't drift on
+    /// how ETA is derived from a [`PlotTrends`].
+    pub(super) fn eta(&self, today_unix_days: Option<i64>) -> Option<EtaEstimate> {
+        compute_eta(
+            self.total_trend,
+            self.done_trend,
+            self.geometry.anchor_unix_days,
+            today_unix_days,
+        )
+    }
+
+    /// Computes the y-axis range (see [`compute_plot_y_range`]) shared by
+    /// every chart renderer, from this [`PlotTrends`]' sampled points,
+    /// geometry, and fitted trend lines.
+    pub(super) fn y_range(&self, fit: bool) -> (f64, f64) {
+        super::plot_data::compute_plot_y_range(
+            &self.sampled,
+            &self.geometry,
+            self.total_trend,
+            self.done_trend,
+            fit,
+        )
+    }
+}
+
 /// Computes a milestone's ETA (see [`compute_eta`]) directly from its plot
 /// data, deriving the trend lines the same way the chart does.
 pub(super) fn eta_for_plot(
     plot: &TodoDonePlot,
     today_unix_days: Option<i64>,
 ) -> Option<EtaEstimate> {
-    let trends = compute_plot_trends(plot, today_unix_days);
-    compute_eta(
-        trends.total_trend,
-        trends.done_trend,
-        trends.geometry.anchor_unix_days,
-        today_unix_days,
-    )
+    compute_plot_trends(plot, today_unix_days).eta(today_unix_days)
 }
 
 fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {

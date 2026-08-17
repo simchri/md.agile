@@ -2,9 +2,9 @@
 //! self-contained HTML file (inline SVG chart, no external dependencies/
 //! network access) to disk.
 
-use super::chart_common::{render_plot_stats, render_trend_equations};
-use super::plot_data::{TodoDonePlot, TodoDonePlotPoint, compute_plot_y_range, x_axis_date_labels};
-use super::trend::{LinearTrend, compute_eta, compute_plot_trends, render_eta_text};
+use super::chart_common::{render_plot_stats, render_plot_trend_equations};
+use super::plot_data::{TodoDonePlot, TodoDonePlotPoint, x_axis_date_labels};
+use super::trend::{LinearTrend, compute_plot_trends, render_eta_text};
 use super::trend_geometry::trend_line_endpoints;
 use std::path::Path;
 
@@ -69,19 +69,8 @@ const HTML_SVG_MARGIN_BOTTOM: f64 = 40.0;
 fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
     let today_unix_days = super::date_utils::today_unix_days();
     let trends = compute_plot_trends(plot, today_unix_days);
-    let (ymin, ymax) = compute_plot_y_range(
-        &trends.sampled,
-        &trends.geometry,
-        trends.total_trend,
-        trends.done_trend,
-        fit,
-    );
-    let eta = compute_eta(
-        trends.total_trend,
-        trends.done_trend,
-        trends.geometry.anchor_unix_days,
-        today_unix_days,
-    );
+    let (ymin, ymax) = trends.y_range(fit);
+    let eta = trends.eta(today_unix_days);
     log::debug!(
         "render_todo_done_plot_html: {} sampled points, x range=[0, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",
         trends.sampled.len(),
@@ -142,23 +131,11 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
         "  <line x1=\"{today_x_svg:.2}\" y1=\"{top_y_svg:.2}\" x2=\"{today_x_svg:.2}\" y2=\"{bottom_y_svg:.2}\" stroke=\"#888\" stroke-width=\"1\" stroke-dasharray=\"4,3\"/>\n"
     ));
     // Trend lines (drawn under the raw data lines).
-    if let Some((x1, y1, x2, y2)) = total_trend_line {
-        svg.push_str(&format!(
-            "  <line x1=\"{x1:.2}\" y1=\"{y1:.2}\" x2=\"{x2:.2}\" y2=\"{y2:.2}\" stroke=\"#e6b800\" stroke-width=\"2\"/>\n"
-        ));
-    }
-    if let Some((x1, y1, x2, y2)) = done_trend_line {
-        svg.push_str(&format!(
-            "  <line x1=\"{x1:.2}\" y1=\"{y1:.2}\" x2=\"{x2:.2}\" y2=\"{y2:.2}\" stroke=\"#00b3b3\" stroke-width=\"2\"/>\n"
-        ));
-    }
+    svg.push_str(&svg_trend_line_svg(total_trend_line, "#e6b800"));
+    svg.push_str(&svg_trend_line_svg(done_trend_line, "#00b3b3"));
     // Raw data lines.
-    svg.push_str(&format!(
-        "  <polyline points=\"{total_points_attr}\" fill=\"none\" stroke=\"red\" stroke-width=\"2\"/>\n"
-    ));
-    svg.push_str(&format!(
-        "  <polyline points=\"{done_points_attr}\" fill=\"none\" stroke=\"green\" stroke-width=\"2\"/>\n"
-    ));
+    svg.push_str(&svg_polyline_svg(&total_points_attr, "red"));
+    svg.push_str(&svg_polyline_svg(&done_points_attr, "green"));
     // Axis labels: min/max y value, and start/end date on the x axis.
     svg.push_str(&format!(
         "  <text x=\"{:.2}\" y=\"{:.2}\" text-anchor=\"end\">{:.0}</text>\n",
@@ -195,12 +172,7 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
          \x20 <li><span class=\"swatch\" style=\"background:#888\"></span>today</li>\n\
          </ul>"
     );
-    let trend_equations = render_trend_equations(
-        trends.total_trend,
-        trends.done_trend,
-        trends.geometry.anchor_unix_days,
-        false,
-    );
+    let trend_equations = render_plot_trend_equations(&trends, false);
     let stats = plot
         .points
         .last()
@@ -262,6 +234,27 @@ fn svg_trend_line_attrs(
         to_svg_y(e.y0),
         to_svg_x(e.x1),
         to_svg_y(e.y1),
+    )
+}
+
+/// Renders one trend line's SVG `<line>` element from its already-computed
+/// endpoints, or nothing if the trend couldn't be fit. Shared by the
+/// total/done trend lines, which otherwise differ only in color.
+fn svg_trend_line_svg(attrs: Option<(f64, f64, f64, f64)>, color: &str) -> String {
+    match attrs {
+        Some((x1, y1, x2, y2)) => format!(
+            "  <line x1=\"{x1:.2}\" y1=\"{y1:.2}\" x2=\"{x2:.2}\" y2=\"{y2:.2}\" stroke=\"{color}\" stroke-width=\"2\"/>\n"
+        ),
+        None => String::new(),
+    }
+}
+
+/// Renders one raw-data series' SVG `<polyline>` element from its
+/// already-computed `points` attribute. Shared by the total/done data
+/// lines, which otherwise differ only in color.
+fn svg_polyline_svg(points_attr: &str, color: &str) -> String {
+    format!(
+        "  <polyline points=\"{points_attr}\" fill=\"none\" stroke=\"{color}\" stroke-width=\"2\"/>\n"
     )
 }
 
