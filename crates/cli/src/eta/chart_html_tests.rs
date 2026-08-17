@@ -1,5 +1,6 @@
 use super::*;
 use crate::eta::plot_data::{TodoDonePlot, TodoDonePlotPoint};
+use chrono::NaiveDate;
 use std::fs;
 use tempfile::tempdir;
 
@@ -26,14 +27,14 @@ fn sample_plot() -> TodoDonePlot {
         milestone_name: "Beta Release".to_string(),
         points: vec![
             TodoDonePlotPoint {
-                date: "2026-01-01".to_string(),
+                date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
                 total_weight_wt: 10.0,
                 done_weight_wt: 2.0,
                 total_count_t: 10,
                 done_count_t: 2,
             },
             TodoDonePlotPoint {
-                date: "2026-01-08".to_string(),
+                date: NaiveDate::from_ymd_opt(2026, 1, 8).unwrap(),
                 total_weight_wt: 12.0,
                 done_weight_wt: 6.0,
                 total_count_t: 12,

@@ -91,9 +91,8 @@ pub fn estimate_velocity_with_window(
 
     let today = super::date_utils::today_unix_days();
     if let Some(cutoff) = window_days.and_then(|days| today.map(|t| t - i64::from(days))) {
-        plot.points.retain(|p| {
-            super::date_utils::parse_yyyy_mm_dd_to_unix_days(&p.date).is_none_or(|d| d >= cutoff)
-        });
+        plot.points
+            .retain(|p| super::date_utils::unix_days_from_date(p.date) >= cutoff);
     }
 
     let trends = compute_milestone_trends(&plot);

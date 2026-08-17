@@ -6,18 +6,19 @@
 //! `chart_trends.rs` for how the two combine only once a chart is actually
 //! rendered.
 
-use super::date_utils::{format_yyyy_mm_dd_from_unix_days, today_unix_days};
+use super::date_utils::today_date;
 use super::trend::{LinearTrend, date_x_values};
 use super::trend_geometry::trend_line_endpoints;
 use super::velocity::{require_git_repo, weight_for_depth};
 use crate::cli::common::find_task_files;
 use crate::lifecycle_cache;
 use crate::parser::{self, FileItem, Status};
+use chrono::NaiveDate;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TodoDonePlotPoint {
-    pub date: String,
+    pub date: NaiveDate,
     pub total_weight_wt: f64,
     pub done_weight_wt: f64,
     pub total_count_t: usize,
@@ -71,7 +72,8 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
 /// (which may include uncommitted edits), using the same fixed milestone
 /// rank as the rest of the timeline.
 fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotPoint {
-    let today = format_yyyy_mm_dd_from_unix_days(today_unix_days().unwrap_or(0));
+    let today = today_date()
+        .unwrap_or(NaiveDate::from_ymd_opt(1970, 1, 1).expect("1970-01-01 is a valid date"));
 
     let Some(target_rank) = target_rank else {
         // Milestone precedes every task: nothing is ever in scope.
@@ -265,8 +267,8 @@ pub(super) fn x_axis_date_labels(
     geometry: &PlotGeometry,
 ) -> Option<(String, String)> {
     let first_point = points.first()?;
-    let first_unix_days = super::date_utils::parse_yyyy_mm_dd_to_unix_days(&first_point.date)?;
-    let chart_end_days = first_unix_days + geometry.chart_x_max.ceil() as i64;
-    let end_date = format_yyyy_mm_dd_from_unix_days(chart_end_days);
-    Some((first_point.date.clone(), end_date))
+    let chart_end_date = first_point
+        .date
+        .checked_add_signed(chrono::Duration::days(geometry.chart_x_max.ceil() as i64))?;
+    Some((first_point.date.to_string(), chart_end_date.to_string()))
 }

@@ -3,7 +3,7 @@
 //! color helpers.
 
 use super::chart_trends::ChartTrends;
-use super::date_utils::format_yyyy_mm_dd_from_unix_days;
+use super::date_utils::date_from_unix_days;
 use super::plot_data::TodoDonePlotPoint;
 use super::trend::{DAYS_PER_WEEK, LinearTrend};
 
@@ -75,8 +75,8 @@ pub(super) fn render_trend_equations(
     anchor_unix_days: Option<i64>,
     color: bool,
 ) -> String {
-    let x_desc = match anchor_unix_days {
-        Some(anchor) => format!("weeks since {}", format_yyyy_mm_dd_from_unix_days(anchor)),
+    let x_desc = match anchor_unix_days.and_then(date_from_unix_days) {
+        Some(anchor) => format!("weeks since {anchor}"),
         None => "point index".to_string(),
     };
     let yellow = if color {

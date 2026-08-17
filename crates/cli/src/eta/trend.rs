@@ -10,7 +10,7 @@
 //! [`MilestoneTrends`] with that rendering-only detail for the chart
 //! backends.
 
-use super::date_utils::{format_yyyy_mm_dd_from_unix_days, parse_yyyy_mm_dd_to_unix_days};
+use super::date_utils::{date_from_unix_days, unix_days_from_date};
 use super::{TodoDonePlot, TodoDonePlotPoint};
 
 /// Number of days in a week, used to convert day-based rates (`_wtpd`) to
@@ -66,26 +66,19 @@ pub(super) fn compute_milestone_trends(plot: &TodoDonePlot) -> MilestoneTrends {
 }
 
 /// Maps each point's calendar date to an x value in days since the first
-/// point's date, alongside that anchor date itself. Falls back to plain
-/// point indices (and `None` anchor) when dates can't be parsed (e.g. in
-/// tests). Shared by trend fitting here and, independently, by
-/// `plot_data::compute_plot_geometry` (which applies the same mapping to
-/// the downsampled/display point series for rendering).
+/// point's date, alongside that anchor date itself (as unix days). `None`
+/// only when there are no points at all. Shared by trend fitting here and,
+/// independently, by `plot_data::compute_plot_geometry` (which applies the
+/// same mapping to the downsampled/display point series for rendering).
 pub(super) fn date_x_values(points: &[TodoDonePlotPoint]) -> (Vec<f64>, Option<i64>) {
-    let index_fallback = || (0..points.len()).map(|i| i as f64).collect();
-    let Some(first_date_days) = points
-        .first()
-        .and_then(|p| parse_yyyy_mm_dd_to_unix_days(&p.date))
-    else {
-        return (index_fallback(), None);
+    let Some(first_point) = points.first() else {
+        return (Vec::new(), None);
     };
-    let mut x_values = Vec::with_capacity(points.len());
-    for point in points {
-        let Some(unix_days) = parse_yyyy_mm_dd_to_unix_days(&point.date) else {
-            return (index_fallback(), None);
-        };
-        x_values.push((unix_days - first_date_days) as f64);
-    }
+    let first_date_days = unix_days_from_date(first_point.date);
+    let x_values = points
+        .iter()
+        .map(|point| (unix_days_from_date(point.date) - first_date_days) as f64)
+        .collect();
     (x_values, Some(first_date_days))
 }
 
@@ -255,7 +248,9 @@ pub(super) fn render_eta_text(eta: Option<EtaEstimate>, today_unix_days: Option<
     let Some(span) = eta_span(eta, today_unix_days) else {
         return format!("{:<10}unknown\n", "ETA:");
     };
-    let date = format_yyyy_mm_dd_from_unix_days(eta.unwrap().unix_days);
+    let date = date_from_unix_days(eta.unwrap().unix_days)
+        .map(|d| d.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
     format!("{:<10}{span}\n{:<10}{date}\n", "ETA:", "ETA date:")
 }
 

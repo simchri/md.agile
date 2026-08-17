@@ -1,5 +1,6 @@
 use super::*;
 use crate::eta::plot_data::{TodoDonePlot, TodoDonePlotPoint};
+use chrono::NaiveDate;
 
 #[test]
 fn render_todo_done_data_outputs_table_of_counts_and_weights() {
@@ -7,14 +8,14 @@ fn render_todo_done_data_outputs_table_of_counts_and_weights() {
         milestone_name: "alpha".to_string(),
         points: vec![
             TodoDonePlotPoint {
-                date: "2026-07-10".to_string(),
+                date: NaiveDate::from_ymd_opt(2026, 7, 10).unwrap(),
                 total_weight_wt: 2.0,
                 done_weight_wt: 0.0,
                 total_count_t: 2,
                 done_count_t: 0,
             },
             TodoDonePlotPoint {
-                date: "2026-07-11".to_string(),
+                date: NaiveDate::from_ymd_opt(2026, 7, 11).unwrap(),
                 total_weight_wt: 2.0,
                 done_weight_wt: 1.0,
                 total_count_t: 2,
