@@ -185,22 +185,28 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
          <html lang=\"en\">\n\
          <head>\n\
          \x20 <meta charset=\"utf-8\">\n\
+         \x20 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
          \x20 <title>{title}</title>\n\
          \x20 <style>\n\
-         \x20   body {{ font-family: monospace; margin: 2em; }}\n\
-         \x20   pre {{ white-space: pre-wrap; }}\n\
-         \x20   .legend {{ list-style: none; padding: 0; display: flex; gap: 1.5em; }}\n\
+         \x20   * {{ box-sizing: border-box; }}\n\
+         \x20   body {{ font-family: monospace; margin: 0; padding: 1.5em; }}\n\
+         \x20   .container {{ max-width: {HTML_SVG_WIDTH}px; margin: 0 auto; }}\n\
+         \x20   svg {{ display: block; width: 100%; height: auto; }}\n\
+         \x20   pre {{ white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%; }}\n\
+         \x20   .legend {{ list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 1.5em; }}\n\
          \x20   .legend li {{ display: flex; align-items: center; gap: 0.4em; }}\n\
-         \x20   .swatch {{ display: inline-block; width: 1em; height: 1em; border-radius: 50%; }}\n\
+         \x20   .swatch {{ display: inline-block; width: 1em; height: 1em; border-radius: 50%; flex-shrink: 0; }}\n\
          \x20 </style>\n\
          </head>\n\
          <body>\n\
-         \x20 <h1>Milestone: {title}</h1>\n\
-         \x20 {svg}\n\
-         \x20 {legend}\n\
-         \x20 <pre>{trend_equations}</pre>\n\
-         \x20 <pre>{stats}</pre>\n\
-         \x20 <pre>{eta_text}</pre>\n\
+         \x20 <div class=\"container\">\n\
+         \x20   <h1>Milestone: {title}</h1>\n\
+         \x20   {svg}\n\
+         \x20   {legend}\n\
+         \x20   <pre>{trend_equations}</pre>\n\
+         \x20   <pre>{stats}</pre>\n\
+         \x20   <pre>{eta_text}</pre>\n\
+         \x20 </div>\n\
          </body>\n\
          </html>\n",
         title = html_escape(&plot.milestone_name),
