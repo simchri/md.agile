@@ -456,6 +456,8 @@
 
 - [x] Extract the trend-line-to-plottable-points logic (converting a fitted `LinearTrend`'s slope/intercept into the two `(x, y)` endpoints over `x in [0, trend_end_x]`) out of the SVG, Braille/textplots, and ASCII renderers, which each independently duplicated this computation, into shared helpers `trend_line_endpoints`/`trend_line_endpoints_f32` in a new `crates/cli/src/eta/trend_geometry.rs` module, with unit tests in `crates/cli/src/eta/trend_geometry_tests.rs` covering zero/negative/flat slopes and the f32 conversion.
 
+- [x] Refactor `crates/cli/src/eta/mod.rs` (previously one 1678-line file) into one file per distinct graph/report output plus shared-logic modules: `chart_terminal.rs` (Braille/ASCII terminal chart), `chart_html.rs` (SVG/HTML chart), `data_dump.rs` (`--data` table), `report.rs` (bare `agile when` list and `--velocity` text), `velocity.rs` (velocity/creep estimation, status transitions), `plot_data.rs` (building `TodoDonePlot` and chart geometry/sampling), `trend.rs` (trend-line fitting and ETA math), `chart_common.rs` (legend/trend-equation rendering shared by both charts), and `date_utils.rs` (unix-days/date conversions), with `mod.rs` reduced to module wiring and public re-exports. Tests split correspondingly into one `<module>_tests.rs` per source file, per the repo's test-file convention; no test coverage was lost (same 42 `eta::` unit tests, all passing).
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.

@@ -6,7 +6,7 @@
 //! trend_end_x + intercept)` computation was previously duplicated
 //! independently in each renderer.
 
-use super::LinearTrend;
+use super::trend::LinearTrend;
 
 /// The two endpoints of a trend line's straight-line segment, in plot data
 /// coordinates (not yet projected to pixel/SVG space).
