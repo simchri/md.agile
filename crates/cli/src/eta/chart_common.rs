@@ -2,9 +2,10 @@
 //! the plot legend, trend-line equations, latest-point stats, and ANSI
 //! color helpers.
 
+use super::chart_trends::ChartTrends;
 use super::date_utils::format_yyyy_mm_dd_from_unix_days;
 use super::plot_data::TodoDonePlotPoint;
-use super::trend::{DAYS_PER_WEEK, LinearTrend, PlotTrends};
+use super::trend::{DAYS_PER_WEEK, LinearTrend};
 
 pub(super) fn ansi_rgb_sample(r: u8, g: u8, b: u8) -> String {
     format!("\x1b[38;2;{r};{g};{b}m....\x1b[0m")
@@ -97,9 +98,9 @@ pub(super) fn render_trend_equations(
 
 /// Convenience wrapper over [`render_trend_equations`] that pulls its
 /// total/done trend and anchor date straight from an already-computed
-/// [`PlotTrends`], so callers that already have one (every chart renderer)
+/// [`ChartTrends`], so callers that already have one (every chart renderer)
 /// don't each have to unpack the same three fields themselves.
-pub(super) fn render_plot_trend_equations(trends: &PlotTrends, color: bool) -> String {
+pub(super) fn render_plot_trend_equations(trends: &ChartTrends, color: bool) -> String {
     render_trend_equations(
         trends.total_trend,
         trends.done_trend,

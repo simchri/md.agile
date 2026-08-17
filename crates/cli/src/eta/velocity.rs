@@ -4,7 +4,7 @@
 //! transitions (e.g. todo -> done).
 
 use super::plot_data::build_todo_done_plot;
-use super::trend::{DAYS_PER_WEEK, compute_plot_trends};
+use super::trend::{DAYS_PER_WEEK, compute_milestone_trends};
 use crate::git;
 use crate::parser::{self, FileItem, Status};
 use std::collections::{HashMap, HashSet};
@@ -71,7 +71,7 @@ pub fn estimate_velocity(root: &Path) -> Result<VelocityEstimate, String> {
 ///
 /// Velocity and creep are the slopes of the exact same done-weight/
 /// total-weight trend lines `agile when --plot` fits and draws for the same
-/// milestone (see [`compute_plot_trends`]) — both expressed in weight/week.
+/// milestone (see [`compute_milestone_trends`]) — both expressed in weight/week.
 /// Either metric independently resolves to `None` when its trend line can't
 /// be computed (fewer than two distinct points in the window).
 pub fn estimate_velocity_with_window(
@@ -96,7 +96,7 @@ pub fn estimate_velocity_with_window(
         });
     }
 
-    let trends = compute_plot_trends(&plot, today);
+    let trends = compute_milestone_trends(&plot);
 
     Ok(VelocityEstimate {
         velocity_wtpw: trends.done_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),

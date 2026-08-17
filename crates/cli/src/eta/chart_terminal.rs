@@ -7,8 +7,9 @@ mod chart_terminal_ascii;
 mod chart_terminal_braille;
 
 use super::chart_common::{render_plot_legend, render_plot_stats, render_plot_trend_equations};
+use super::chart_trends::compute_chart_trends;
 use super::plot_data::TodoDonePlot;
-use super::trend::{compute_plot_trends, render_eta_text};
+use super::trend::render_eta_text;
 use chart_terminal_ascii::render_ascii_chart;
 use chart_terminal_braille::render_textplots_chart;
 
@@ -24,7 +25,7 @@ pub(super) const CHART_CHAR_HEIGHT: usize = 20;
 
 pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color: bool) -> String {
     let today_unix_days = super::date_utils::today_unix_days();
-    let trends = compute_plot_trends(plot, today_unix_days);
+    let trends = compute_chart_trends(plot, today_unix_days);
 
     let mut out = String::new();
     out.push_str("\n");

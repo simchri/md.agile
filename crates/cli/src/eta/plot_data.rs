@@ -1,12 +1,13 @@
 //! Builds and prepares [`TodoDonePlot`] data: assembling the todo/done
 //! timeline for a milestone from git history plus the live worktree, and
-//! the shared geometry/sampling every chart renderer draws from (x-axis
-//! mapping, y-axis range, downsampling, axis date labels).
+//! the rendering-only geometry/sampling every chart backend draws from
+//! (downsampling for display, x-axis mapping, y-axis range, axis date
+//! labels). None of this is trend/ETA math — see `trend.rs` for that, and
+//! `chart_trends.rs` for how the two combine only once a chart is actually
+//! rendered.
 
-use super::date_utils::{
-    format_yyyy_mm_dd_from_unix_days, parse_yyyy_mm_dd_to_unix_days, today_unix_days,
-};
-use super::trend::LinearTrend;
+use super::date_utils::{format_yyyy_mm_dd_from_unix_days, today_unix_days};
+use super::trend::{LinearTrend, date_x_values};
 use super::trend_geometry::trend_line_endpoints;
 use super::velocity::{require_git_repo, weight_for_depth};
 use crate::cli::common::find_task_files;
@@ -154,6 +155,11 @@ fn accumulate_subtasks(
     }
 }
 
+/// Purely a chart's x-axis geometry: computed from whatever point series is
+/// actually being drawn (typically [`downsample_plot_points`]'s output, not
+/// the milestone's full history — see `chart_trends.rs`). Carries no trend
+/// math itself; [`compute_plot_y_range`] combines it with fitted trend
+/// lines only to answer a rendering question (the y-axis range to draw).
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct PlotGeometry {
     pub(super) x_values: Vec<f64>,
@@ -170,51 +176,24 @@ pub(super) fn compute_plot_geometry(
     points: &[TodoDonePlotPoint],
     today_unix_days: Option<i64>,
 ) -> PlotGeometry {
-    let index_fallback = || {
-        let x_values: Vec<f64> = (0..points.len()).map(|i| i as f64).collect();
-        let start_x = *x_values.first().unwrap_or(&0.0);
-        let end_x = *x_values.last().unwrap_or(&0.0);
-        let measurement_range = (end_x - start_x).max(0.0);
-        let trend_end_x = end_x + (measurement_range / 3.0);
-        let today_x = end_x;
-        let chart_x_max = trend_end_x.max(today_x).max(1.0);
-        PlotGeometry {
-            x_values,
-            trend_end_x,
-            today_x,
-            chart_x_max,
-            anchor_unix_days: None,
-        }
-    };
-    let Some(first_date_days) = points
-        .first()
-        .and_then(|p| parse_yyyy_mm_dd_to_unix_days(&p.date))
-    else {
-        return index_fallback();
-    };
-
-    let mut x_values = Vec::with_capacity(points.len());
-    for point in points {
-        let Some(unix_days) = parse_yyyy_mm_dd_to_unix_days(&point.date) else {
-            return index_fallback();
-        };
-        x_values.push((unix_days - first_date_days) as f64);
-    }
-
+    let (x_values, anchor_unix_days) = date_x_values(points);
     let start_x = *x_values.first().unwrap_or(&0.0);
     let end_x = *x_values.last().unwrap_or(&0.0);
     let measurement_range = (end_x - start_x).max(0.0);
     let trend_end_x = end_x + (measurement_range / 3.0);
-    let today_x = today_unix_days
-        .map(|d| (d - first_date_days) as f64)
-        .unwrap_or(end_x);
+    let today_x = match anchor_unix_days {
+        Some(first_date_days) => today_unix_days
+            .map(|d| (d - first_date_days) as f64)
+            .unwrap_or(end_x),
+        None => end_x,
+    };
     let chart_x_max = trend_end_x.max(today_x).max(1.0);
     PlotGeometry {
         x_values,
         trend_end_x,
         today_x,
         chart_x_max,
-        anchor_unix_days: Some(first_date_days),
+        anchor_unix_days,
     }
 }
 
@@ -286,7 +265,7 @@ pub(super) fn x_axis_date_labels(
     geometry: &PlotGeometry,
 ) -> Option<(String, String)> {
     let first_point = points.first()?;
-    let first_unix_days = parse_yyyy_mm_dd_to_unix_days(&first_point.date)?;
+    let first_unix_days = super::date_utils::parse_yyyy_mm_dd_to_unix_days(&first_point.date)?;
     let chart_end_days = first_unix_days + geometry.chart_x_max.ceil() as i64;
     let end_date = format_yyyy_mm_dd_from_unix_days(chart_end_days);
     Some((first_point.date.clone(), end_date))

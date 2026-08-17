@@ -2,9 +2,15 @@
 //! linear trend through a series of `(x, weight)` points, and computing/
 //! formatting the ETA (the calendar date where the total and done trend
 //! lines intersect).
+//!
+//! Everything here is pure math over a milestone's full point history: no
+//! plotting/rendering detail (downsampling for display, chart axis
+//! geometry) lives in this module. Those only become relevant once a plot
+//! is actually rendered — see `plot_data::ChartTrends`, which wraps a
+//! [`MilestoneTrends`] with that rendering-only detail for the chart
+//! backends.
 
-use super::date_utils::format_yyyy_mm_dd_from_unix_days;
-use super::plot_data::{PlotGeometry, compute_plot_geometry, downsample_plot_points};
+use super::date_utils::{format_yyyy_mm_dd_from_unix_days, parse_yyyy_mm_dd_to_unix_days};
 use super::{TodoDonePlot, TodoDonePlotPoint};
 
 /// Number of days in a week, used to convert day-based rates (`_wtpd`) to
@@ -24,98 +30,104 @@ pub(super) struct EtaEstimate {
     pub(super) unix_days: i64,
 }
 
-/// The trend lines and supporting geometry/sampling used both to render the
-/// terminal chart and to compute the milestone's ETA.
-pub(super) struct PlotTrends {
-    pub(super) sampled: Vec<TodoDonePlotPoint>,
-    pub(super) geometry: PlotGeometry,
+/// The two fitted trend lines (total/done weight vs. time) for a milestone,
+/// plus the calendar anchor date they're relative to — pure math, computed
+/// from the milestone's full point history. Carries no plotting/rendering
+/// detail whatsoever (no sampling, no chart geometry): those only matter
+/// once a plot is actually drawn.
+pub(super) struct MilestoneTrends {
     pub(super) total_trend: Option<LinearTrend>,
     pub(super) done_trend: Option<LinearTrend>,
+    /// Real calendar date (as unix days) that x = 0 (day offset 0) maps to.
+    /// `None` when the points don't carry parseable dates (e.g. in tests),
+    /// in which case x values are plain indices and an ETA can't be
+    /// resolved to a calendar date.
+    pub(super) anchor_unix_days: Option<i64>,
 }
 
-pub(super) fn compute_plot_trends(plot: &TodoDonePlot, today_unix_days: Option<i64>) -> PlotTrends {
+pub(super) fn compute_milestone_trends(plot: &TodoDonePlot) -> MilestoneTrends {
     log::debug!(
-        "compute_plot_trends: plot.points has {} points (milestone {:?})",
+        "compute_milestone_trends: plot.points has {} points (milestone {:?})",
         plot.points.len(),
         plot.milestone_name
     );
-    let sampled = downsample_plot_points(&plot.points, 96);
+    let (x_values, anchor_unix_days) = date_x_values(&plot.points);
+    let total_trend = fit_series_trend(&x_values, &plot.points, |p| p.total_weight_wt);
+    let done_trend = fit_series_trend(&x_values, &plot.points, |p| p.done_weight_wt);
     log::debug!(
-        "compute_plot_trends: downsampled to {} points",
-        sampled.len()
+        "compute_milestone_trends: total_trend = {total_trend:?} (slope_wtpd, intercept_wt)"
     );
-    let geometry = compute_plot_geometry(&sampled, today_unix_days);
-    log::debug!(
-        "compute_plot_trends: geometry = trend_end_x={:.3} today_x={:.3} chart_x_max={:.3} anchor_unix_days={:?}",
-        geometry.trend_end_x,
-        geometry.today_x,
-        geometry.chart_x_max,
-        geometry.anchor_unix_days
-    );
-    let total_trend = fit_series_trend(&geometry.x_values, &sampled, |p| p.total_weight_wt);
-    let done_trend = fit_series_trend(&geometry.x_values, &sampled, |p| p.done_weight_wt);
-    log::debug!("compute_plot_trends: total_trend = {total_trend:?} (slope_wtpd, intercept_wt)");
-    log::debug!("compute_plot_trends: done_trend = {done_trend:?} (slope_wtpd, intercept_wt)");
-    PlotTrends {
-        sampled,
-        geometry,
+    log::debug!("compute_milestone_trends: done_trend = {done_trend:?} (slope_wtpd, intercept_wt)");
+    MilestoneTrends {
         total_trend,
         done_trend,
+        anchor_unix_days,
     }
 }
 
+/// Maps each point's calendar date to an x value in days since the first
+/// point's date, alongside that anchor date itself. Falls back to plain
+/// point indices (and `None` anchor) when dates can't be parsed (e.g. in
+/// tests). Shared by trend fitting here and, independently, by
+/// `plot_data::compute_plot_geometry` (which applies the same mapping to
+/// the downsampled/display point series for rendering).
+pub(super) fn date_x_values(points: &[TodoDonePlotPoint]) -> (Vec<f64>, Option<i64>) {
+    let index_fallback = || (0..points.len()).map(|i| i as f64).collect();
+    let Some(first_date_days) = points
+        .first()
+        .and_then(|p| parse_yyyy_mm_dd_to_unix_days(&p.date))
+    else {
+        return (index_fallback(), None);
+    };
+    let mut x_values = Vec::with_capacity(points.len());
+    for point in points {
+        let Some(unix_days) = parse_yyyy_mm_dd_to_unix_days(&point.date) else {
+            return (index_fallback(), None);
+        };
+        x_values.push((unix_days - first_date_days) as f64);
+    }
+    (x_values, Some(first_date_days))
+}
+
 /// Fits a [`LinearTrend`] through one plotted series (total or done weight),
-/// pairing each sampled point with its already-computed x value. Shared by
-/// both `total_trend` and `done_trend` in [`compute_plot_trends`] so the two
+/// pairing each point with its already-computed x value. Shared by both
+/// `total_trend` and `done_trend` in [`compute_milestone_trends`] so the two
 /// series are always fit the exact same way.
 fn fit_series_trend(
     x_values: &[f64],
-    sampled: &[TodoDonePlotPoint],
+    points: &[TodoDonePlotPoint],
     value_of: impl Fn(&TodoDonePlotPoint) -> f64,
 ) -> Option<LinearTrend> {
     linear_trend(
         &x_values
             .iter()
-            .zip(sampled.iter())
+            .zip(points.iter())
             .map(|(x, p)| (*x, value_of(p)))
             .collect::<Vec<_>>(),
     )
 }
 
-impl PlotTrends {
-    /// Computes this plot's ETA (see [`compute_eta`]) from its already-fit
-    /// trend lines. Shared by every renderer/report so they can't drift on
-    /// how ETA is derived from a [`PlotTrends`].
+impl MilestoneTrends {
+    /// Computes this milestone's ETA (see [`compute_eta`]) from its
+    /// already-fit trend lines. Shared by every renderer/report so they
+    /// can't drift on how ETA is derived from a [`MilestoneTrends`].
     pub(super) fn eta(&self, today_unix_days: Option<i64>) -> Option<EtaEstimate> {
         compute_eta(
             self.total_trend,
             self.done_trend,
-            self.geometry.anchor_unix_days,
+            self.anchor_unix_days,
             today_unix_days,
-        )
-    }
-
-    /// Computes the y-axis range (see [`compute_plot_y_range`]) shared by
-    /// every chart renderer, from this [`PlotTrends`]' sampled points,
-    /// geometry, and fitted trend lines.
-    pub(super) fn y_range(&self, fit: bool) -> (f64, f64) {
-        super::plot_data::compute_plot_y_range(
-            &self.sampled,
-            &self.geometry,
-            self.total_trend,
-            self.done_trend,
-            fit,
         )
     }
 }
 
 /// Computes a milestone's ETA (see [`compute_eta`]) directly from its plot
-/// data, deriving the trend lines the same way the chart does.
+/// data, deriving the trend lines the same way every other consumer does.
 pub(super) fn eta_for_plot(
     plot: &TodoDonePlot,
     today_unix_days: Option<i64>,
 ) -> Option<EtaEstimate> {
-    compute_plot_trends(plot, today_unix_days).eta(today_unix_days)
+    compute_milestone_trends(plot).eta(today_unix_days)
 }
 
 fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {

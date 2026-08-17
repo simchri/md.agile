@@ -16,6 +16,7 @@
 mod chart_common;
 mod chart_html;
 mod chart_terminal;
+mod chart_trends;
 mod data_dump;
 mod date_utils;
 mod plot_data;
