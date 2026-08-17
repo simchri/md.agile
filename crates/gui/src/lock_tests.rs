@@ -146,18 +146,6 @@ fn is_lock_live_is_false_for_a_dead_pid() {
 }
 
 #[test]
-fn find_free_port_returns_preferred_port_when_available() {
-    // Bind an ephemeral port first purely to get a number we know nothing
-    // else is listening on, then release it before asking for exactly that
-    // port back.
-    let probe = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let free_port = probe.local_addr().unwrap().port();
-    drop(probe);
-
-    assert_eq!(find_free_port(free_port), free_port);
-}
-
-#[test]
 fn find_free_port_falls_back_when_preferred_port_is_taken() {
     let busy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let busy_port = busy.local_addr().unwrap().port();

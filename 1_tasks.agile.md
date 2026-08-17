@@ -462,6 +462,8 @@
 
 - [x] `agile when --plot --html`: made the generated HTML page responsive so the SVG chart and the trend-equations/stats/ETA text below it fit the browser viewport instead of overflowing at a fixed 900px width — added a `viewport` meta tag, wrapped the content in a max-width container, made the SVG scale via `width: 100%; height: auto` (its `viewBox` was already resolution-independent), and let the `<pre>` text blocks wrap instead of overflowing horizontally.
 
+- [x] Removed the flaky `find_free_port_returns_preferred_port_when_available` test in `crates/gui/src/lock_tests.rs` (it bound an ephemeral port, released it, then re-bound it, racing against other concurrent test threads/processes for that exact port number — occasionally another `bind(0)` call would grab it first, making the assert fail). Left this "happy path" of `find_free_port`'s port-binding logic untested; `find_free_port_falls_back_when_preferred_port_is_taken` (its fallback path) remains as the sole regression test.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
