@@ -67,15 +67,15 @@ pub(super) fn render_plot_legend(ascii: bool, color: bool) -> String {
 /// trend's weight at `x = 0`) that drive the chart and the ETA are visible,
 /// not just implied by the drawn lines. The slope is shown in weight/week
 /// — matching the unit `--velocity` reports — with `x` in weeks since
-/// `anchor_unix_days` (or a plain point index when no real dates are
-/// available — see `PlotGeometry::anchor_unix_days`).
+/// `anchor_x_d` (or a plain point index when no real dates are
+/// available — see `LinearTrend::anchor_x_d`).
 pub(super) fn render_trend_equations(
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
     color: bool,
 ) -> String {
-    let anchor_unix_days = total_trend.or(done_trend).and_then(|t| t.anchor_unix_days);
-    let x_desc = match anchor_unix_days.and_then(date_from_unix_days) {
+    let anchor_x_d = total_trend.or(done_trend).and_then(|t| t.anchor_x_d);
+    let x_desc = match anchor_x_d.and_then(date_from_unix_days) {
         Some(anchor) => format!("weeks since {anchor}"),
         None => "point index".to_string(),
     };
@@ -112,7 +112,7 @@ fn render_trend_equation(trend: Option<LinearTrend>) -> String {
     match trend {
         Some(t) => format!(
             "{:.2} + {:.2}/week * x",
-            t.intercept_wt,
+            t.anchor_y_wt,
             t.slope_wtpd * DAYS_PER_WEEK
         ),
         None => "unknown".to_string(),

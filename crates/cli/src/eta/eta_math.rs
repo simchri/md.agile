@@ -24,7 +24,7 @@ pub(super) fn eta_for_plot(
 }
 
 /// Computes the ETA to a milestone as the intersection of the total and done
-/// trend lines, expressed relative to their shared `anchor_unix_days` (the
+/// trend lines, expressed relative to their shared `anchor_x_d` (the
 /// calendar date that trend-line x = 0 maps to). Returns `None` when either
 /// trend line is missing, the lines are parallel (no single intersection),
 /// the anchor date couldn't be determined (e.g. no real dates available),
@@ -46,8 +46,8 @@ pub(super) fn compute_eta(
         log::debug!("compute_eta: no done trend available -> None");
         return None;
     };
-    let Some(anchor) = total.anchor_unix_days else {
-        log::debug!("compute_eta: no anchor_unix_days available -> None");
+    let Some(anchor) = total.anchor_x_d else {
+        log::debug!("compute_eta: no anchor_x_d available -> None");
         return None;
     };
     let Some(today) = today_unix_days else {
@@ -56,7 +56,7 @@ pub(super) fn compute_eta(
     };
 
     log::debug!(
-        "compute_eta: total_trend={total:?} done_trend={done:?} anchor_unix_days={anchor} today_unix_days={today}"
+        "compute_eta: total_trend={total:?} done_trend={done:?} anchor_x_d={anchor} today_unix_days={today}"
     );
 
     let slope_diff = total.slope_wtpd - done.slope_wtpd;
@@ -64,7 +64,7 @@ pub(super) fn compute_eta(
         log::debug!("compute_eta: slopes are equal (parallel trend lines) -> None");
         return None;
     }
-    let x_intersect = (done.intercept_wt - total.intercept_wt) / slope_diff;
+    let x_intersect = (done.anchor_y_wt - total.anchor_y_wt) / slope_diff;
     let unix_days = anchor + x_intersect.round() as i64;
     log::debug!(
         "compute_eta: slope_diff={slope_diff:.6} x_intersect={x_intersect:.3} (days since anchor) -> unix_days={unix_days}"

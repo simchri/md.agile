@@ -16,12 +16,19 @@ pub(super) const DAYS_PER_WEEK: f64 = 7.0;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct LinearTrend {
     pub(super) slope_wtpd: f64,
-    pub(super) intercept_wt: f64,
-    /// Real calendar date (as unix days) that x = 0 (day offset 0) maps to.
-    /// `None` when the points don't carry parseable dates (e.g. in tests),
-    /// in which case x values are plain indices and an ETA can't be
-    /// resolved to a calendar date.
-    pub(super) anchor_unix_days: Option<i64>,
+    /// The line's value at `x = anchor_x_d` (i.e. `x = 0` in the line's own
+    /// coordinate space) — the weight (`_wt`) intercept.
+    pub(super) anchor_y_wt: f64,
+    /// The real calendar date that `x = 0` maps to, expressed as "unix
+    /// days" (the `_d` suffix): the number of whole days since the Unix
+    /// epoch (1970-01-01), i.e. `unix_seconds / 86_400`. This is the
+    /// day-granularity analogue of a Unix timestamp — a single integer
+    /// that unambiguously identifies a calendar date, convenient for date
+    /// arithmetic (differences, offsets) without touching time zones or
+    /// sub-day precision. `None` when the points don't carry parseable
+    /// dates (e.g. in tests), in which case x values are plain indices and
+    /// an ETA can't be resolved to a calendar date.
+    pub(super) anchor_x_d: Option<i64>,
 }
 
 /// Fits both the total and done trend lines (weight vs. time) for a
@@ -36,21 +43,18 @@ pub(super) fn compute_milestone_trends(
         plot.points.len(),
         plot.milestone_name
     );
-    let (x_values, anchor_unix_days) = date_x_values(&plot.points);
-    let total_trend = fit_series_trend(&x_values, &plot.points, anchor_unix_days, |p| {
-        p.total_weight_wt
-    });
-    let done_trend = fit_series_trend(&x_values, &plot.points, anchor_unix_days, |p| {
-        p.done_weight_wt
-    });
+    let (x_values, anchor_x_d) = date_x_values(&plot.points);
+    let total_trend = fit_series_trend(&x_values, &plot.points, anchor_x_d, |p| p.total_weight_wt);
+    let done_trend = fit_series_trend(&x_values, &plot.points, anchor_x_d, |p| p.done_weight_wt);
     log::debug!("compute_milestone_trends: total_trend = {total_trend:?}");
     log::debug!("compute_milestone_trends: done_trend = {done_trend:?}");
     (total_trend, done_trend)
 }
 
 /// Maps each point's calendar date to an x value in days since the first
-/// point's date, alongside that anchor date itself (as unix days). `None`
-/// only when there are no points at all. Shared by trend fitting here and,
+/// point's date, alongside that anchor date itself (as unix days — see
+/// [`LinearTrend::anchor_x_d`] for what "unix days" means). `None` only
+/// when there are no points at all. Shared by trend fitting here and,
 /// independently, by `plot_data::compute_plot_geometry` (which applies the
 /// same mapping to the downsampled/display point series for rendering).
 pub(super) fn date_x_values(points: &[TodoDonePlotPoint]) -> (Vec<f64>, Option<i64>) {
@@ -72,7 +76,7 @@ pub(super) fn date_x_values(points: &[TodoDonePlotPoint]) -> (Vec<f64>, Option<i
 fn fit_series_trend(
     x_values: &[f64],
     points: &[TodoDonePlotPoint],
-    anchor_unix_days: Option<i64>,
+    anchor_x_d: Option<i64>,
     value_of: impl Fn(&TodoDonePlotPoint) -> f64,
 ) -> Option<LinearTrend> {
     linear_trend(
@@ -81,11 +85,11 @@ fn fit_series_trend(
             .zip(points.iter())
             .map(|(x, p)| (*x, value_of(p)))
             .collect::<Vec<_>>(),
-        anchor_unix_days,
+        anchor_x_d,
     )
 }
 
-fn linear_trend(points: &[(f64, f64)], anchor_unix_days: Option<i64>) -> Option<LinearTrend> {
+fn linear_trend(points: &[(f64, f64)], anchor_x_d: Option<i64>) -> Option<LinearTrend> {
     if points.len() < 2 {
         return None;
     }
@@ -102,10 +106,10 @@ fn linear_trend(points: &[(f64, f64)], anchor_unix_days: Option<i64>) -> Option<
         return None;
     }
     let slope_wtpd = cov / var;
-    let intercept_wt = mean_y - slope_wtpd * mean_x;
+    let anchor_y_wt = mean_y - slope_wtpd * mean_x;
     Some(LinearTrend {
         slope_wtpd,
-        intercept_wt,
-        anchor_unix_days,
+        anchor_y_wt,
+        anchor_x_d,
     })
 }

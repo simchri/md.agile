@@ -2,8 +2,8 @@
 //! endpoint coordinates needed to draw it as a straight line, in the
 //! `x in [0, trend_end_x]` window shared by all three chart renderers
 //! (SVG/HTML, Braille/textplots, ASCII). Extracted here because the exact
-//! same `(x0, y0) = (0, intercept)` / `(x1, y1) = (trend_end_x, slope *
-//! trend_end_x + intercept)` computation was previously duplicated
+//! same `(x0, y0) = (0, anchor_y_wt)` / `(x1, y1) = (trend_end_x, slope *
+//! trend_end_x + anchor_y_wt)` computation was previously duplicated
 //! independently in each renderer.
 
 use super::trend::LinearTrend;
@@ -19,14 +19,14 @@ pub(super) struct TrendLineEndpoints {
 }
 
 /// Computes the two data-space endpoints of `trend`'s line over `x in [0,
-/// trend_end_x]`: `(0, intercept)` and `(trend_end_x, slope * trend_end_x +
-/// intercept)`.
+/// trend_end_x]`: `(0, anchor_y_wt)` and `(trend_end_x, slope * trend_end_x +
+/// anchor_y_wt)`.
 pub(super) fn trend_line_endpoints(trend: LinearTrend, trend_end_x: f64) -> TrendLineEndpoints {
     TrendLineEndpoints {
         x0: 0.0,
-        y0: trend.intercept_wt,
+        y0: trend.anchor_y_wt,
         x1: trend_end_x,
-        y1: trend.slope_wtpd * trend_end_x + trend.intercept_wt,
+        y1: trend.slope_wtpd * trend_end_x + trend.anchor_y_wt,
     }
 }
 

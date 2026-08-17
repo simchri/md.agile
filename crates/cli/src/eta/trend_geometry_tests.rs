@@ -1,10 +1,10 @@
 use super::*;
 
-fn trend(slope_wtpd: f64, intercept_wt: f64) -> LinearTrend {
+fn trend(slope_wtpd: f64, anchor_y_wt: f64) -> LinearTrend {
     LinearTrend {
         slope_wtpd,
-        intercept_wt,
-        anchor_unix_days: None,
+        anchor_y_wt,
+        anchor_x_d: None,
     }
 }
 
@@ -21,7 +21,7 @@ fn endpoints_at_trend_end_x_apply_slope() {
     let t = trend(2.0, 5.0);
     let e = trend_line_endpoints(t, 10.0);
     assert_eq!(e.x1, 10.0);
-    // y1 = slope * trend_end_x + intercept = 2*10 + 5 = 25
+    // y1 = slope * trend_end_x + anchor_y_wt = 2*10 + 5 = 25
     assert_eq!(e.y1, 25.0);
 }
 
