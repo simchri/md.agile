@@ -464,6 +464,8 @@
 
 - [x] Removed the flaky `find_free_port_returns_preferred_port_when_available` test in `crates/gui/src/lock_tests.rs` (it bound an ephemeral port, released it, then re-bound it, racing against other concurrent test threads/processes for that exact port number — occasionally another `bind(0)` call would grab it first, making the assert fail). Left this "happy path" of `find_free_port`'s port-binding logic untested; `find_free_port_falls_back_when_preferred_port_is_taken` (its fallback path) remains as the sole regression test.
 
+- [x] Split `crates/cli/src/eta/chart_terminal.rs` further into one file per terminal chart sub-mode: `chart_terminal/chart_terminal_braille.rs` (the default `textplots`-based Braille chart) and `chart_terminal/chart_terminal_ascii.rs` (the `--ascii` fallback, including `AsciiCanvas`), with `chart_terminal.rs` reduced to the shared `render_todo_done_plot` entry point, the `CHART_CHAR_WIDTH`/`CHART_CHAR_HEIGHT` constants shared by both backends' sizing, and module wiring. Pure structural refactor, no behavior/logic change: no tests existed directly against this file before (covered via `when.rs` integration tests) and none were added.
+
 - [ ] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
