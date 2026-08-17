@@ -4,6 +4,7 @@ fn trend(slope_wtpd: f64, intercept_wt: f64) -> LinearTrend {
     LinearTrend {
         slope_wtpd,
         intercept_wt,
+        anchor_unix_days: None,
     }
 }
 

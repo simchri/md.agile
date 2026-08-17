@@ -4,7 +4,7 @@
 //! (see `trend.rs`).
 
 use super::TodoDonePlot;
-use super::trend::{LinearTrend, MilestoneTrends, compute_milestone_trends};
+use super::trend::{LinearTrend, compute_milestone_trends};
 
 /// The estimated time of arrival at a milestone: the calendar date (as unix
 /// days) where the total and done trend lines intersect.
@@ -13,42 +13,29 @@ pub(super) struct EtaEstimate {
     pub(super) unix_days: i64,
 }
 
-impl MilestoneTrends {
-    /// Computes this milestone's ETA (see [`compute_eta`]) from its
-    /// already-fit trend lines. Shared by every renderer/report so they
-    /// can't drift on how ETA is derived from a [`MilestoneTrends`].
-    pub(super) fn eta(&self, today_unix_days: Option<i64>) -> Option<EtaEstimate> {
-        compute_eta(
-            self.total_trend,
-            self.done_trend,
-            self.anchor_unix_days,
-            today_unix_days,
-        )
-    }
-}
-
 /// Computes a milestone's ETA (see [`compute_eta`]) directly from its plot
 /// data, deriving the trend lines the same way every other consumer does.
 pub(super) fn eta_for_plot(
     plot: &TodoDonePlot,
     today_unix_days: Option<i64>,
 ) -> Option<EtaEstimate> {
-    compute_milestone_trends(plot).eta(today_unix_days)
+    let (total_trend, done_trend) = compute_milestone_trends(plot);
+    compute_eta(total_trend, done_trend, today_unix_days)
 }
 
 /// Computes the ETA to a milestone as the intersection of the total and done
-/// trend lines, expressed relative to `anchor_unix_days` (the calendar date
-/// that trend-line x = 0 maps to). Returns `None` when either trend line is
-/// missing, the lines are parallel (no single intersection), the anchor date
-/// couldn't be determined (e.g. no real dates available), or the
-/// intersection falls on or before today (already reached, or unknowable).
+/// trend lines, expressed relative to their shared `anchor_unix_days` (the
+/// calendar date that trend-line x = 0 maps to). Returns `None` when either
+/// trend line is missing, the lines are parallel (no single intersection),
+/// the anchor date couldn't be determined (e.g. no real dates available),
+/// or the intersection falls on or before today (already reached, or
+/// unknowable).
 ///
 /// This function is purely date/time math — it performs no string
 /// formatting; see `eta_text::render_eta_text` for that.
 pub(super) fn compute_eta(
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
-    anchor_unix_days: Option<i64>,
     today_unix_days: Option<i64>,
 ) -> Option<EtaEstimate> {
     let Some(total) = total_trend else {
@@ -59,7 +46,7 @@ pub(super) fn compute_eta(
         log::debug!("compute_eta: no done trend available -> None");
         return None;
     };
-    let Some(anchor) = anchor_unix_days else {
+    let Some(anchor) = total.anchor_unix_days else {
         log::debug!("compute_eta: no anchor_unix_days available -> None");
         return None;
     };

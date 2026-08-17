@@ -95,11 +95,11 @@ pub fn estimate_velocity_with_window(
             .retain(|p| super::date_utils::unix_days_from_date(p.date) >= cutoff);
     }
 
-    let trends = compute_milestone_trends(&plot);
+    let (total_trend, done_trend) = compute_milestone_trends(&plot);
 
     Ok(VelocityEstimate {
-        velocity_wtpw: trends.done_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),
-        creep_wtpw: trends.total_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),
+        velocity_wtpw: done_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),
+        creep_wtpw: total_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),
     })
 }
 

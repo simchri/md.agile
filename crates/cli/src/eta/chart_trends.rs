@@ -32,7 +32,7 @@ pub(super) fn compute_chart_trends(
     plot: &TodoDonePlot,
     today_unix_days: Option<i64>,
 ) -> ChartTrends {
-    let milestone_trends = compute_milestone_trends(plot);
+    let (total_trend, done_trend) = compute_milestone_trends(plot);
     let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
     log::debug!(
         "compute_chart_trends: downsampled {} points to {} for display",
@@ -50,21 +50,16 @@ pub(super) fn compute_chart_trends(
     ChartTrends {
         sampled,
         geometry,
-        total_trend: milestone_trends.total_trend,
-        done_trend: milestone_trends.done_trend,
+        total_trend,
+        done_trend,
     }
 }
 
 impl ChartTrends {
     /// Computes this chart's ETA (see [`compute_eta`]) from its fitted
-    /// trend lines and calendar anchor date.
+    /// trend lines.
     pub(super) fn eta(&self, today_unix_days: Option<i64>) -> Option<EtaEstimate> {
-        compute_eta(
-            self.total_trend,
-            self.done_trend,
-            self.geometry.anchor_unix_days,
-            today_unix_days,
-        )
+        compute_eta(self.total_trend, self.done_trend, today_unix_days)
     }
 
     /// Computes the y-axis range (see [`compute_plot_y_range`]) shared by

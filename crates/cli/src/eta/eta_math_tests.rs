@@ -7,14 +7,15 @@ fn compute_eta_intersects_trend_lines_in_the_future() {
     let total_trend = LinearTrend {
         slope_wtpd: 0.0,
         intercept_wt: 10.0,
+        anchor_unix_days: Some(0),
     };
     let done_trend = LinearTrend {
         slope_wtpd: 1.0,
         intercept_wt: 0.0,
+        anchor_unix_days: Some(0),
     };
     // Anchor is day 0; "today" is day 0 too. Lines cross at x = 10.
-    let eta = compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(0))
-        .expect("expected an ETA");
+    let eta = compute_eta(Some(total_trend), Some(done_trend), Some(0)).expect("expected an ETA");
     assert_eq!(eta.unix_days, 10);
 }
 
@@ -23,12 +24,14 @@ fn compute_eta_is_none_when_trend_lines_are_parallel() {
     let total_trend = LinearTrend {
         slope_wtpd: 1.0,
         intercept_wt: 10.0,
+        anchor_unix_days: Some(0),
     };
     let done_trend = LinearTrend {
         slope_wtpd: 1.0,
         intercept_wt: 0.0,
+        anchor_unix_days: Some(0),
     };
-    assert!(compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(0)).is_none());
+    assert!(compute_eta(Some(total_trend), Some(done_trend), Some(0)).is_none());
 }
 
 #[test]
@@ -36,14 +39,16 @@ fn compute_eta_is_none_when_intersection_is_in_the_past() {
     let total_trend = LinearTrend {
         slope_wtpd: 0.0,
         intercept_wt: 10.0,
+        anchor_unix_days: Some(0),
     };
     let done_trend = LinearTrend {
         slope_wtpd: 1.0,
         intercept_wt: 0.0,
+        anchor_unix_days: Some(0),
     };
     // Intersection is at x = 10 (relative to anchor), but "today" is day 20,
     // i.e. the crossing already happened in the past.
-    assert!(compute_eta(Some(total_trend), Some(done_trend), Some(0), Some(20)).is_none());
+    assert!(compute_eta(Some(total_trend), Some(done_trend), Some(20)).is_none());
 }
 
 #[test]
@@ -51,11 +56,17 @@ fn compute_eta_is_none_without_both_trends_or_anchor() {
     let total_trend = LinearTrend {
         slope_wtpd: 0.0,
         intercept_wt: 10.0,
+        anchor_unix_days: Some(0),
     };
-    assert!(compute_eta(Some(total_trend), None, Some(0), Some(0)).is_none());
+    assert!(compute_eta(Some(total_trend), None, Some(0)).is_none());
     let done_trend = LinearTrend {
         slope_wtpd: 1.0,
         intercept_wt: 0.0,
+        anchor_unix_days: Some(0),
     };
-    assert!(compute_eta(Some(total_trend), Some(done_trend), None, Some(0)).is_none());
+    let total_no_anchor = LinearTrend {
+        anchor_unix_days: None,
+        ..total_trend
+    };
+    assert!(compute_eta(Some(total_no_anchor), Some(done_trend), Some(0)).is_none());
 }

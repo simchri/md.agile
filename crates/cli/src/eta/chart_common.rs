@@ -72,9 +72,9 @@ pub(super) fn render_plot_legend(ascii: bool, color: bool) -> String {
 pub(super) fn render_trend_equations(
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
-    anchor_unix_days: Option<i64>,
     color: bool,
 ) -> String {
+    let anchor_unix_days = total_trend.or(done_trend).and_then(|t| t.anchor_unix_days);
     let x_desc = match anchor_unix_days.and_then(date_from_unix_days) {
         Some(anchor) => format!("weeks since {anchor}"),
         None => "point index".to_string(),
@@ -97,16 +97,11 @@ pub(super) fn render_trend_equations(
 }
 
 /// Convenience wrapper over [`render_trend_equations`] that pulls its
-/// total/done trend and anchor date straight from an already-computed
-/// [`ChartTrends`], so callers that already have one (every chart renderer)
-/// don't each have to unpack the same three fields themselves.
+/// total/done trend straight from an already-computed [`ChartTrends`], so
+/// callers that already have one (every chart renderer) don't each have to
+/// unpack the same fields themselves.
 pub(super) fn render_plot_trend_equations(trends: &ChartTrends, color: bool) -> String {
-    render_trend_equations(
-        trends.total_trend,
-        trends.done_trend,
-        trends.geometry.anchor_unix_days,
-        color,
-    )
+    render_trend_equations(trends.total_trend, trends.done_trend, color)
 }
 
 /// Renders a single trend line as `<intercept> + <slope>/week * x`, or

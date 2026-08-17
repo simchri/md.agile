@@ -17,16 +17,6 @@ pub(super) const DAYS_PER_WEEK: f64 = 7.0;
 pub(super) struct LinearTrend {
     pub(super) slope_wtpd: f64,
     pub(super) intercept_wt: f64,
-}
-
-/// The two fitted trend lines (total/done weight vs. time) for a milestone,
-/// plus the calendar anchor date they're relative to — pure math, computed
-/// from the milestone's full point history. Carries no plotting/rendering
-/// detail whatsoever (no sampling, no chart geometry): those only matter
-/// once a plot is actually drawn.
-pub(super) struct MilestoneTrends {
-    pub(super) total_trend: Option<LinearTrend>,
-    pub(super) done_trend: Option<LinearTrend>,
     /// Real calendar date (as unix days) that x = 0 (day offset 0) maps to.
     /// `None` when the points don't carry parseable dates (e.g. in tests),
     /// in which case x values are plain indices and an ETA can't be
@@ -34,24 +24,28 @@ pub(super) struct MilestoneTrends {
     pub(super) anchor_unix_days: Option<i64>,
 }
 
-pub(super) fn compute_milestone_trends(plot: &TodoDonePlot) -> MilestoneTrends {
+/// Fits both the total and done trend lines (weight vs. time) for a
+/// milestone from its full point history — pure math, no plotting/rendering
+/// detail whatsoever (no sampling, no chart geometry): those only matter
+/// once a plot is actually drawn.
+pub(super) fn compute_milestone_trends(
+    plot: &TodoDonePlot,
+) -> (Option<LinearTrend>, Option<LinearTrend>) {
     log::debug!(
         "compute_milestone_trends: plot.points has {} points (milestone {:?})",
         plot.points.len(),
         plot.milestone_name
     );
     let (x_values, anchor_unix_days) = date_x_values(&plot.points);
-    let total_trend = fit_series_trend(&x_values, &plot.points, |p| p.total_weight_wt);
-    let done_trend = fit_series_trend(&x_values, &plot.points, |p| p.done_weight_wt);
-    log::debug!(
-        "compute_milestone_trends: total_trend = {total_trend:?} (slope_wtpd, intercept_wt)"
-    );
-    log::debug!("compute_milestone_trends: done_trend = {done_trend:?} (slope_wtpd, intercept_wt)");
-    MilestoneTrends {
-        total_trend,
-        done_trend,
-        anchor_unix_days,
-    }
+    let total_trend = fit_series_trend(&x_values, &plot.points, anchor_unix_days, |p| {
+        p.total_weight_wt
+    });
+    let done_trend = fit_series_trend(&x_values, &plot.points, anchor_unix_days, |p| {
+        p.done_weight_wt
+    });
+    log::debug!("compute_milestone_trends: total_trend = {total_trend:?}");
+    log::debug!("compute_milestone_trends: done_trend = {done_trend:?}");
+    (total_trend, done_trend)
 }
 
 /// Maps each point's calendar date to an x value in days since the first
@@ -78,6 +72,7 @@ pub(super) fn date_x_values(points: &[TodoDonePlotPoint]) -> (Vec<f64>, Option<i
 fn fit_series_trend(
     x_values: &[f64],
     points: &[TodoDonePlotPoint],
+    anchor_unix_days: Option<i64>,
     value_of: impl Fn(&TodoDonePlotPoint) -> f64,
 ) -> Option<LinearTrend> {
     linear_trend(
@@ -86,10 +81,11 @@ fn fit_series_trend(
             .zip(points.iter())
             .map(|(x, p)| (*x, value_of(p)))
             .collect::<Vec<_>>(),
+        anchor_unix_days,
     )
 }
 
-fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {
+fn linear_trend(points: &[(f64, f64)], anchor_unix_days: Option<i64>) -> Option<LinearTrend> {
     if points.len() < 2 {
         return None;
     }
@@ -110,5 +106,6 @@ fn linear_trend(points: &[(f64, f64)]) -> Option<LinearTrend> {
     Some(LinearTrend {
         slope_wtpd,
         intercept_wt,
+        anchor_unix_days,
     })
 }
