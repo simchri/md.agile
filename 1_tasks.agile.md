@@ -407,6 +407,13 @@
 - [x] command: `agile task next --mine` show the next task eligible.
   Eligbility --> same rules as for assignment / completion validation 
 
+- [ ] #bug in task output (e.g. agile task next --mine), the assignment markers are not visible ("@someone")
+
+- [x] command: `agile task next --mine --subtask` show the next subtask task eligible.
+  goal: represent blocked states properly. I want to be able to model the situation where I am working on other people on a subtask (e.g. assigned to review .. waiting for feedback). This would probably happen in combination with ordering: "1. waiting for review by .. 2. implement feedback"
+
+
+
 - [x] mark tasks done from CLI
   - [x] tasks
     - [x] by rank
@@ -668,6 +675,9 @@
 - [ ] menu
   - [ ] switch / select projects
 
+## Compatibility of Assignments with mandatory subtasks
+- [ ] Consider: How can mandatory subtasks be --dynamically-- assigned to people, i.e. on a case-by-case basis. Possible syntax:
+  "some mandatory subtask" \@foo
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
