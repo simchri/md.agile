@@ -6,8 +6,8 @@
 //! `chart_trends.rs` for how the two combine only once a chart is actually
 //! rendered.
 
-use super::date_utils::today_date;
-use super::trend::{LinearTrend, date_x_values};
+use super::date_utils::{date_from_unix_days, today_date, unix_days_from_date};
+use super::trend::LinearTrend;
 use super::trend_geometry::trend_line_endpoints;
 use super::velocity::{require_git_repo, weight_for_depth};
 use crate::cli::common::find_task_files;
@@ -162,40 +162,45 @@ fn accumulate_subtasks(
 /// the milestone's full history — see `chart_trends.rs`). Carries no trend
 /// math itself; [`compute_plot_y_range`] combines it with fitted trend
 /// lines only to answer a rendering question (the y-axis range to draw).
+///
+/// Every `x` field here — like every `x`/`anchor_x_d` used by trend fitting
+/// (see `trend.rs`) and ETA math (see `eta_math.rs`) — is expressed in the
+/// same single coordinate system throughout the whole graphing pipeline:
+/// unix days (whole days since the Unix epoch, 1970-01-01). Nothing here
+/// shifts that origin to the plotted series' first point, today, or
+/// anywhere else — `chart_x_min`/`chart_x_max` just happen to be large
+/// numbers (e.g. ~20000) rather than small ones. Renderers must scale
+/// against the actual `[chart_x_min, chart_x_max]` window, not assume it
+/// starts at 0.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct PlotGeometry {
     pub(super) x_values: Vec<f64>,
+    pub(super) chart_x_min: f64,
     pub(super) trend_end_x: f64,
     pub(super) today_x: f64,
     pub(super) chart_x_max: f64,
-    // Real calendar date (as unix days) that x = 0 maps to. `None` when the
-    // points don't carry parseable dates (e.g. in tests), in which case x
-    // values are plain indices and can't be converted back to a calendar ETA.
-    pub(super) anchor_unix_days: Option<i64>,
 }
 
 pub(super) fn compute_plot_geometry(
     points: &[TodoDonePlotPoint],
     today_unix_days: Option<i64>,
 ) -> PlotGeometry {
-    let (x_values, anchor_unix_days) = date_x_values(points);
+    let x_values: Vec<f64> = points
+        .iter()
+        .map(|point| unix_days_from_date(point.date) as f64)
+        .collect();
     let start_x = *x_values.first().unwrap_or(&0.0);
     let end_x = *x_values.last().unwrap_or(&0.0);
     let measurement_range = (end_x - start_x).max(0.0);
     let trend_end_x = end_x + (measurement_range / 3.0);
-    let today_x = match anchor_unix_days {
-        Some(first_date_days) => today_unix_days
-            .map(|d| (d - first_date_days) as f64)
-            .unwrap_or(end_x),
-        None => end_x,
-    };
-    let chart_x_max = trend_end_x.max(today_x).max(1.0);
+    let today_x = today_unix_days.map(|d| d as f64).unwrap_or(end_x);
+    let chart_x_max = trend_end_x.max(today_x).max(start_x + 1.0);
     PlotGeometry {
         x_values,
+        chart_x_min: start_x,
         trend_end_x,
         today_x,
         chart_x_max,
-        anchor_unix_days,
     }
 }
 
@@ -273,8 +278,6 @@ pub(super) fn x_axis_date_labels(
     geometry: &PlotGeometry,
 ) -> Option<(String, String)> {
     let first_point = points.first()?;
-    let chart_end_date = first_point
-        .date
-        .checked_add_signed(chrono::Duration::days(geometry.chart_x_max.ceil() as i64))?;
+    let chart_end_date = date_from_unix_days(geometry.chart_x_max.round() as i64)?;
     Some((first_point.date.to_string(), chart_end_date.to_string()))
 }

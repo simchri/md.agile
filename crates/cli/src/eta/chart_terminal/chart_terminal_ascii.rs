@@ -32,25 +32,27 @@ struct AsciiCanvas {
     grid: Vec<Vec<Option<AsciiGlyph>>>,
     width: usize,
     height: usize,
-    xmax: f64,
+    xmin: f64,
+    xspan: f64,
     ymin: f64,
     yspan: f64,
 }
 
 impl AsciiCanvas {
-    fn new(width: usize, height: usize, xmax: f64, ymin: f64, yspan: f64) -> Self {
+    fn new(width: usize, height: usize, xmin: f64, xspan: f64, ymin: f64, yspan: f64) -> Self {
         Self {
             grid: vec![vec![None; width]; height],
             width,
             height,
-            xmax,
+            xmin,
+            xspan,
             ymin,
             yspan,
         }
     }
 
     fn to_col(&self, x: f64) -> usize {
-        let frac = (x / self.xmax).clamp(0.0, 1.0);
+        let frac = ((x - self.xmin) / self.xspan).clamp(0.0, 1.0);
         ((frac * (self.width - 1) as f64).round() as usize).min(self.width - 1)
     }
 
@@ -128,18 +130,20 @@ pub(super) fn render_ascii_chart(trends: &ChartTrends, fit: bool, color: bool) -
     let geometry = &trends.geometry;
     let width = ASCII_CHART_WIDTH;
     let height = ASCII_CHART_HEIGHT;
-    let xmax = geometry.chart_x_max.max(1.0);
+    let xmin = geometry.chart_x_min;
+    let xspan = (geometry.chart_x_max - xmin).max(1.0);
     let (ymin, ymax) = trends.y_range(fit);
     let yspan = (ymax - ymin).max(1e-9);
     log::debug!(
-        "render_ascii_chart: {}x{} grid, {} raw points, today_x={:.3}, x range=[0, {xmax:.3}], y range=[{ymin:.3}, {ymax:.3}]",
+        "render_ascii_chart: {}x{} grid, {} raw points, today_x={:.3}, x range=[{xmin:.3}, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",
         width,
         height,
         points.len(),
-        geometry.today_x
+        geometry.today_x,
+        xmin + xspan
     );
 
-    let mut canvas = AsciiCanvas::new(width, height, xmax, ymin, yspan);
+    let mut canvas = AsciiCanvas::new(width, height, xmin, xspan, ymin, yspan);
 
     // Today marker (drawn first so data/trend lines stay visible on top of
     // it where they cross).

@@ -53,6 +53,7 @@ pub(super) fn render_textplots_chart(trends: &ChartTrends, fit: bool, color: boo
         .done_trend
         .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
         .unwrap_or_default();
+    let xmin = geometry.chart_x_min as f32;
     let xmax = geometry.chart_x_max as f32;
     let (ymin, ymax) = trends.y_range(fit);
     let (ymin, ymax) = (ymin as f32, ymax as f32);
@@ -61,7 +62,7 @@ pub(super) fn render_textplots_chart(trends: &ChartTrends, fit: bool, color: boo
         (geometry.today_x as f32, ymax),
     ];
     log::debug!(
-        "render_textplots_chart: {CHART_CHAR_WIDTH}x{CHART_CHAR_HEIGHT} char canvas ({CHART_PIXEL_WIDTH}x{CHART_PIXEL_HEIGHT} px), total series ({} points), done series ({} points), today_x={:.3}, x range=[0, {xmax:.3}], y range=[{ymin:.3}, {ymax:.3}]",
+        "render_textplots_chart: {CHART_CHAR_WIDTH}x{CHART_CHAR_HEIGHT} char canvas ({CHART_PIXEL_WIDTH}x{CHART_PIXEL_HEIGHT} px), total series ({} points), done series ({} points), today_x={:.3}, x range=[{xmin:.3}, {xmax:.3}], y range=[{ymin:.3}, {ymax:.3}]",
         total_series.len(),
         done_series.len(),
         geometry.today_x
@@ -74,8 +75,14 @@ pub(super) fn render_textplots_chart(trends: &ChartTrends, fit: bool, color: boo
     let total_trend_shape = Shape::Lines(&total_trend_series);
     let done_trend_shape = Shape::Lines(&done_trend_series);
     let today_shape = Shape::Lines(&today_series);
-    let mut chart =
-        Chart::new_with_y_range(CHART_PIXEL_WIDTH, CHART_PIXEL_HEIGHT, 0.0, xmax, ymin, ymax);
+    let mut chart = Chart::new_with_y_range(
+        CHART_PIXEL_WIDTH,
+        CHART_PIXEL_HEIGHT,
+        xmin,
+        xmax,
+        ymin,
+        ymax,
+    );
     let mut chart_ref = &mut chart;
     chart_ref = chart_ref.y_label_format(LabelFormat::None);
     if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {

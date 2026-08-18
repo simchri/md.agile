@@ -82,11 +82,11 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
     let (total_trend, done_trend) = compute_milestone_trends(plot);
     let geometry = compute_plot_geometry(&sampled, today_unix_days);
     log::debug!(
-        "render_todo_done_plot_html: geometry = trend_end_x={:.3} today_x={:.3} chart_x_max={:.3} anchor_unix_days={:?}",
+        "render_todo_done_plot_html: geometry = chart_x_min={:.3} trend_end_x={:.3} today_x={:.3} chart_x_max={:.3}",
+        geometry.chart_x_min,
         geometry.trend_end_x,
         geometry.today_x,
         geometry.chart_x_max,
-        geometry.anchor_unix_days
     );
     let trends = ChartTrends {
         sampled,
@@ -97,16 +97,18 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
     let (ymin, ymax) = trends.y_range(fit);
     let eta = trends.eta(today_unix_days);
     log::debug!(
-        "render_todo_done_plot_html: {} sampled points, x range=[0, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",
+        "render_todo_done_plot_html: {} sampled points, x range=[{:.3}, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",
         trends.sampled.len(),
+        trends.geometry.chart_x_min,
         trends.geometry.chart_x_max
     );
 
     let plot_w = HTML_SVG_WIDTH - HTML_SVG_MARGIN_LEFT - HTML_SVG_MARGIN_RIGHT;
     let plot_h = HTML_SVG_HEIGHT - HTML_SVG_MARGIN_TOP - HTML_SVG_MARGIN_BOTTOM;
-    let xmax = trends.geometry.chart_x_max.max(1e-9);
+    let xmin = trends.geometry.chart_x_min;
+    let xspan = (trends.geometry.chart_x_max - xmin).max(1e-9);
     let yspan = (ymax - ymin).max(1e-9);
-    let to_svg_x = |x: f64| HTML_SVG_MARGIN_LEFT + (x / xmax) * plot_w;
+    let to_svg_x = |x: f64| HTML_SVG_MARGIN_LEFT + ((x - xmin) / xspan) * plot_w;
     let to_svg_y = |y: f64| HTML_SVG_MARGIN_TOP + plot_h - ((y - ymin) / yspan) * plot_h;
 
     let total_points_attr = svg_polyline_points(
