@@ -630,6 +630,10 @@
     - [ ] done milestone
       ...
 
+A few actions: make --fit the default (rename option to --no-fit), note a BUG in our tasks list on the braille plot issue, formulate it
+like a concise issue report to the library authors, finally create a minimal standalone rust sample project that demonstrates the issue
+in the library
+
 - [ ] trendlines in plot - recency weighted linear
 - [ ] trendlines in plot - with uncertainty regions
   - [ ] display uncertainty
