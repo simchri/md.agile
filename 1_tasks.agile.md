@@ -626,6 +626,10 @@
 - [x] holy cow -- fixed damn bug in chart plots! 
   Cause: sonnet picked up a bug from a library, duplicated it in our code. (when lines defined by two points are rendered, the lib incorrectly applies clipping of trend line endpoints to the graph canvas -- this obviously leads to incorrect lines!)
 
+- [x] renamed `--fit` to `--extra <FACTOR>` (default `1.3`): now always multiplies the plotted x-axis range to extend the chart past the last data point (replacing the old fixed `+range/3` extension and the on/off fit toggle); the y-axis always stretches to include the trend lines within that window.
+
+- [x] wrote up the `textplots` line-clipping bug as an issue report (`../demo_clipping_bug/ISSUE.md`) and a minimal standalone Cargo demo project (`../demo_clipping_bug/`) reproducing it: a single slope-1 line segment renders correctly when both endpoints are within the fixed y-range, but gets silently flattened to the wrong slope when one endpoint lies outside it (each endpoint is pixel-clamped independently instead of the line being clipped).
+
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
     - [ ] e.g. no convergence
