@@ -142,14 +142,14 @@ impl AsciiCanvas {
 /// support it; symbols alone carry the same information otherwise.
 /// Resolution is intentionally much lower than the default Braille-based
 /// chart: one glyph per terminal cell instead of a packed sub-pixel grid.
-pub(super) fn render_ascii_chart(plot_data: &PlotData, fit: bool, color: bool) -> String {
+pub(super) fn render_ascii_chart(plot_data: &PlotData, color: bool) -> String {
     let points = &plot_data.sampled;
     let geometry = &plot_data.geometry;
     let width = ASCII_CHART_WIDTH;
     let height = ASCII_CHART_HEIGHT;
     let xmin = geometry.chart_x_min;
     let xspan = (geometry.chart_x_max - xmin).max(1.0);
-    let (ymin, ymax) = plot_data.y_range(fit);
+    let (ymin, ymax) = plot_data.y_range();
     let yspan = (ymax - ymin).max(1e-9);
     log::debug!(
         "render_ascii_chart: {}x{} grid, {} raw points, today_x={:.3}, x range=[{xmin:.3}, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",

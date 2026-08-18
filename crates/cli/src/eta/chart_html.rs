@@ -50,9 +50,9 @@ fn sanitize_milestone_slug(name: &str) -> String {
 pub fn write_todo_done_plot_html(
     root: &Path,
     plot: &TodoDonePlot,
-    fit: bool,
+    extra: f64,
 ) -> Result<std::path::PathBuf, String> {
-    let html = render_todo_done_plot_html(plot, fit);
+    let html = render_todo_done_plot_html(plot, extra);
     let filename = format!(
         "{}-plot.html",
         sanitize_milestone_slug(&plot.milestone_name)
@@ -71,7 +71,7 @@ const HTML_SVG_MARGIN_RIGHT: f64 = 20.0;
 const HTML_SVG_MARGIN_TOP: f64 = 20.0;
 const HTML_SVG_MARGIN_BOTTOM: f64 = 40.0;
 
-fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
+fn render_todo_done_plot_html(plot: &TodoDonePlot, extra: f64) -> String {
     let today_unix_days = super::date_utils::today_unix_days();
     let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
     log::debug!(
@@ -80,7 +80,7 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
         sampled.len()
     );
     let (total_trend, done_trend) = compute_milestone_trends(plot);
-    let geometry = compute_plot_geometry(&sampled, today_unix_days);
+    let geometry = compute_plot_geometry(&sampled, today_unix_days, extra);
     log::debug!(
         "render_todo_done_plot_html: geometry = chart_x_min={:.3} trend_end_x={:.3} today_x={:.3} chart_x_max={:.3}",
         geometry.chart_x_min,
@@ -94,7 +94,7 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
         total_trend,
         done_trend,
     };
-    let (ymin, ymax) = plot_data.y_range(fit);
+    let (ymin, ymax) = plot_data.y_range();
     let eta = plot_data.eta(today_unix_days);
     log::debug!(
         "render_todo_done_plot_html: {} sampled points, x range=[{:.3}, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",

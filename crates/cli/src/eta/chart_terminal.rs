@@ -37,8 +37,8 @@ pub(super) const CHART_CHAR_HEIGHT: usize = 20;
 /// `textplots` crate's `Scale::linear` both clamp *already-converted*
 /// pixel coordinates independently per endpoint rather than clipping the
 /// line itself, which distorts a segment's slope whenever one endpoint
-/// lies outside the visible range (as commonly happens for trend lines in
-/// the default, non-`--fit` y-range).
+/// lies outside the visible range (as can happen for trend lines
+/// extending past the y-axis's visible range).
 pub(super) fn clip_line_to_rect(
     x0: f64,
     y0: f64,
@@ -87,7 +87,7 @@ pub(super) fn clip_line_to_rect(
     Some((x0 + t0 * dx, y0 + t0 * dy, x0 + t1 * dx, y0 + t1 * dy))
 }
 
-pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color: bool) -> String {
+pub fn render_todo_done_plot(plot: &TodoDonePlot, extra: f64, ascii: bool, color: bool) -> String {
     let today_unix_days = super::date_utils::today_unix_days();
     let (total_trend, done_trend) = compute_milestone_trends(plot);
     log::debug!("render_todo_done_plot: total_trend = {:?}", total_trend);
@@ -103,26 +103,26 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color:
         // points than it has columns, so its series is downsampled for
         // display.
         let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
-        let geometry = compute_plot_geometry(&sampled, today_unix_days);
+        let geometry = compute_plot_geometry(&sampled, today_unix_days, extra);
         let plot_data = PlotData {
             sampled,
             geometry,
             total_trend,
             done_trend,
         };
-        out.push_str(&render_ascii_chart(&plot_data, fit, color));
+        out.push_str(&render_ascii_chart(&plot_data, color));
     } else {
         // `textplots` draws straight lines directly between whatever
         // points it's given (see `chart_terminal_braille`), so the Braille
         // chart plots the milestone's full point history unsampled.
-        let geometry = compute_plot_geometry(&plot.points, today_unix_days);
+        let geometry = compute_plot_geometry(&plot.points, today_unix_days, extra);
         let plot_data = PlotData {
             sampled: plot.points.clone(),
             geometry,
             total_trend,
             done_trend,
         };
-        out.push_str(&render_textplots_chart(&plot_data, fit, color));
+        out.push_str(&render_textplots_chart(&plot_data, color));
     }
     out.push_str(&render_plot_legend(ascii, color));
     out.push_str("\n");

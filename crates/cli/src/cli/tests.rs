@@ -37,11 +37,11 @@ fn when_data_ascii_is_rejected_by_clap_parsing() {
 }
 
 #[test]
-fn when_data_fit_is_rejected_by_clap_parsing() {
-    let result = Cli::try_parse_from(["agile", "when", "--data", "--fit"]);
+fn when_data_extra_is_rejected_by_clap_parsing() {
+    let result = Cli::try_parse_from(["agile", "when", "--data", "--extra", "1.5"]);
     assert!(
         result.is_err(),
-        "`agile when --data --fit` should be rejected since --fit requires --plot"
+        "`agile when --data --extra 1.5` should be rejected since --extra requires --plot"
     );
 }
 

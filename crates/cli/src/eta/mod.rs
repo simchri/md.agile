@@ -32,7 +32,7 @@ mod velocity;
 pub use chart_html::write_todo_done_plot_html;
 pub use chart_terminal::render_todo_done_plot;
 pub use data_dump::render_todo_done_data;
-pub use plot_data::{TodoDonePlot, TodoDonePlotPoint, build_todo_done_plot};
+pub use plot_data::{DEFAULT_EXTRA, TodoDonePlot, TodoDonePlotPoint, build_todo_done_plot};
 pub use report::{build_when_report, render_velocity_text};
 pub(crate) use velocity::weight_for_depth;
 pub use velocity::{

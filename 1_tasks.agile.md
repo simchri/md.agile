@@ -630,9 +630,7 @@
     - [ ] done milestone
       ...
 
-A few actions: make --fit the default (rename option to --no-fit), note a BUG in our tasks list on the braille plot issue, formulate it
-like a concise issue report to the library authors, finally create a minimal standalone rust sample project that demonstrates the issue
-in the library
+formulate an issue report to the library authors, and create a minimal standalone rust sample project that demonstrates the issue in the library. The demonstration project can go into a neighboring directory (../demo_clipping_bug). In the demo, plot two graphs, one where two lines are defined by two points each fully inside the plot area, and one where one of the points is outside the plot area and therefore clipped.
 
 - [ ] trendlines in plot - recency weighted linear
 - [ ] trendlines in plot - with uncertainty regions

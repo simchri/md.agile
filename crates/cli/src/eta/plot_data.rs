@@ -181,9 +181,20 @@ pub(super) struct PlotGeometry {
     pub(super) chart_x_max: f64,
 }
 
+/// Default `--extra` factor (see [`compute_plot_geometry`]): how far past
+/// the last data point the chart's x-axis (and, in turn, its trend lines)
+/// extend when the CLI flag isn't overridden.
+pub const DEFAULT_EXTRA: f64 = 1.3;
+
+/// Computes the chart's x-axis geometry: `extra` multiplies the plotted
+/// x-range (`start_x` to `end_x`) to produce `trend_end_x`, the chart's
+/// right edge past which trend lines are no longer drawn — e.g. `extra =
+/// 1.3` extends the chart 30% past the last data point, relative to the
+/// full historical span. See `--extra`'s CLI documentation.
 pub(super) fn compute_plot_geometry(
     points: &[TodoDonePlotPoint],
     today_unix_days: Option<i64>,
+    extra: f64,
 ) -> PlotGeometry {
     let x_values: Vec<f64> = points
         .iter()
@@ -191,8 +202,7 @@ pub(super) fn compute_plot_geometry(
         .collect();
     let start_x = *x_values.first().unwrap_or(&0.0);
     let end_x = *x_values.last().unwrap_or(&0.0);
-    let measurement_range = (end_x - start_x).max(0.0);
-    let trend_end_x = end_x + (measurement_range / 3.0);
+    let trend_end_x = start_x + (end_x - start_x) * extra;
     let today_x = today_unix_days.map(|d| d as f64).unwrap_or(end_x);
     let chart_x_max = trend_end_x.max(today_x).max(start_x + 1.0);
     PlotGeometry {
@@ -229,15 +239,15 @@ pub(super) fn downsample_plot_points(
 }
 
 /// Computes the y-axis range (raw weight, `_wt`) shared by every chart
-/// renderer: tight to the data (and both trend lines) when `fit` is set,
-/// or starting at zero otherwise. Kept as one function so the different
-/// chart backends can't drift apart on how they pick axis bounds.
+/// renderer: always tight to the data and both trend lines (within the
+/// `--extra`-extended x-window), so the chart never clips off a trend
+/// line's visible endpoint. Kept as one function so the different chart
+/// backends can't drift apart on how they pick axis bounds.
 pub(super) fn compute_plot_y_range(
     points: &[TodoDonePlotPoint],
     geometry: &PlotGeometry,
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
-    fit: bool,
 ) -> (f64, f64) {
     let data_ymin: f64 = points
         .iter()
@@ -261,13 +271,9 @@ pub(super) fn compute_plot_y_range(
         let e = trend_line_endpoints(t, geometry.trend_end_x);
         full_ymax = full_ymax.max(e.y0).max(e.y1);
     }
-    let range = if fit {
-        (data_ymin, full_ymax.max(data_ymin + 1.0))
-    } else {
-        (0.0, data_ymax.max(1.0))
-    };
+    let range = (data_ymin, full_ymax.max(data_ymin + 1.0));
     log::debug!(
-        "compute_plot_y_range: {} points, data_ymin={data_ymin:.3} data_ymax={data_ymax:.3} full_ymax(incl. trend projections)={full_ymax:.3} fit={fit} -> range={range:?}",
+        "compute_plot_y_range: {} points, data_ymin={data_ymin:.3} data_ymax={data_ymax:.3} full_ymax(incl. trend projections)={full_ymax:.3} -> range={range:?}",
         points.len()
     );
     range

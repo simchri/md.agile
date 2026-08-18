@@ -35,13 +35,12 @@ impl PlotData {
     /// Computes the y-axis range (see [`compute_plot_y_range`]) shared by
     /// every chart renderer, from this chart's sampled points, geometry,
     /// and fitted trend lines.
-    pub(super) fn y_range(&self, fit: bool) -> (f64, f64) {
+    pub(super) fn y_range(&self) -> (f64, f64) {
         compute_plot_y_range(
             &self.sampled,
             &self.geometry,
             self.total_trend,
             self.done_trend,
-            fit,
         )
     }
 }

@@ -12,8 +12,8 @@
 //! `textplots` (via its internal `Scale::linear`) clamps each drawn
 //! point's pixel coordinate independently to the chart's range, rather
 //! than clipping the underlying line — which distorts a segment's slope
-//! whenever one endpoint lies outside the visible range, as commonly
-//! happens for a trend line in the default (non-`--fit`) y-range. Trend
+//! whenever one endpoint lies outside the visible range, as can happen
+//! for a trend line extending past the y-axis's visible range. Trend
 //! lines are therefore pre-clipped in data space (see
 //! [`super::clip_line_to_rect`]) before ever being handed to `textplots`,
 //! so its own clamping never has anything left to distort.
@@ -49,20 +49,19 @@ fn series_f32(
         .collect()
 }
 
-pub(super) fn render_textplots_chart(plot_data: &PlotData, fit: bool, color: bool) -> String {
+pub(super) fn render_textplots_chart(plot_data: &PlotData, color: bool) -> String {
     let points = &plot_data.sampled;
     let geometry = &plot_data.geometry;
     let total_series = series_f32(points, &geometry.x_values, |p| p.total_weight_wt);
     let done_series = series_f32(points, &geometry.x_values, |p| p.done_weight_wt);
     let xmin = geometry.chart_x_min;
     let xmax = geometry.chart_x_max;
-    let (ymin, ymax) = plot_data.y_range(fit);
+    let (ymin, ymax) = plot_data.y_range();
     // `textplots` (and `Scale::linear` underneath it) clamps each
     // endpoint's already-converted pixel coordinate independently rather
     // than clipping the line itself, which would distort a trend line's
     // drawn slope whenever one endpoint lies outside the visible
-    // [xmin, xmax] x [ymin, ymax] range (routine in the default,
-    // non-`--fit` y-range). Clip in data space ourselves first, so the
+    // [xmin, xmax] x [ymin, ymax] range. Clip in data space ourselves first, so the
     // library only ever receives an already-in-range segment.
     let total_trend_series = plot_data
         .total_trend

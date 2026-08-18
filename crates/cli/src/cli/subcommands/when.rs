@@ -21,7 +21,7 @@ pub fn run(
     velocity: bool,
     plot: bool,
     data: bool,
-    fit: bool,
+    extra: f64,
     ascii: bool,
     html: bool,
     no_color: bool,
@@ -39,7 +39,7 @@ pub fn run(
         if data {
             print!("{}", eta::render_todo_done_data(&plot));
         } else if html {
-            match eta::write_todo_done_plot_html(root, &plot, fit) {
+            match eta::write_todo_done_plot_html(root, &plot, extra) {
                 Ok(path) => println!("Wrote {}", path.display()),
                 Err(msg) => {
                     log::error!("{msg}");
@@ -49,7 +49,7 @@ pub fn run(
         } else {
             print!(
                 "{}",
-                eta::render_todo_done_plot(&plot, fit, ascii, !no_color)
+                eta::render_todo_done_plot(&plot, extra, ascii, !no_color)
             );
         }
         return;

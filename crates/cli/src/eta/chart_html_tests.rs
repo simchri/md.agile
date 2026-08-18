@@ -49,7 +49,7 @@ fn write_todo_done_plot_html_writes_a_sanitized_filename() {
     let dir = tempdir().unwrap();
     let plot = sample_plot();
 
-    let path = write_todo_done_plot_html(dir.path(), &plot, false).unwrap();
+    let path = write_todo_done_plot_html(dir.path(), &plot, crate::eta::DEFAULT_EXTRA).unwrap();
 
     assert_eq!(path, dir.path().join("beta_release-plot.html"));
     assert!(path.exists(), "the html file should have been written");
@@ -60,7 +60,7 @@ fn write_todo_done_plot_html_content_includes_chart_and_report_sections() {
     let dir = tempdir().unwrap();
     let plot = sample_plot();
 
-    let path = write_todo_done_plot_html(dir.path(), &plot, false).unwrap();
+    let path = write_todo_done_plot_html(dir.path(), &plot, crate::eta::DEFAULT_EXTRA).unwrap();
     let html = fs::read_to_string(path).unwrap();
 
     assert!(html.contains("<svg"), "should embed an inline SVG chart");

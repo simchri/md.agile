@@ -116,11 +116,22 @@ pub enum Command {
         )]
         last: Option<u32>,
 
-        /// Fit the vertical axis to the data range (default starts at zero).
+        /// Factor multiplying the plotted x-axis range to determine how far
+        /// past the last data point the chart extends (and, in turn, how
+        /// far the trend lines are drawn); the y-axis always stretches to
+        /// include whatever the trend lines reach within that window.
+        /// Defaults to `1.3` (30% past the last data point, relative to
+        /// the full historical span) when omitted.
         ///
         /// Only valid with `--plot`.
-        #[arg(long, requires = "plot", conflicts_with = "data")]
-        fit: bool,
+        #[arg(
+            long,
+            value_name = "FACTOR",
+            default_value_t = crate::eta::DEFAULT_EXTRA,
+            requires = "plot",
+            conflicts_with = "data"
+        )]
+        extra: f64,
 
         /// Render the plot using only 7-bit ASCII characters (`o`, `@`,
         /// `O`, `0`, `Q`), for terminals without Unicode/Braille support.
@@ -342,7 +353,7 @@ pub fn run() {
             velocity,
             plot,
             data,
-            fit,
+            extra,
             ascii,
             html,
             no_color,
@@ -350,7 +361,7 @@ pub fn run() {
             next,
         }) => {
             subcommands::when::run(
-                root, &config, next, velocity, plot, data, fit, ascii, html, no_color, last,
+                root, &config, next, velocity, plot, data, extra, ascii, html, no_color, last,
             );
         }
         Some(Command::History) => {
