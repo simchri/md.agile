@@ -3,12 +3,13 @@
 //! network access) to disk.
 
 use super::chart_common::{render_plot_stats, render_plot_trend_equations};
-use super::chart_trends::compute_chart_trends;
+use super::chart_trends::ChartTrends;
 use super::eta_text::render_eta_text;
 use super::plot_data::{
-    MAX_CHART_POINTS, TodoDonePlot, TodoDonePlotPoint, downsample_plot_points, x_axis_date_labels,
+    MAX_CHART_POINTS, TodoDonePlot, TodoDonePlotPoint, compute_plot_geometry,
+    downsample_plot_points, x_axis_date_labels,
 };
-use super::trend::LinearTrend;
+use super::trend::{LinearTrend, compute_milestone_trends};
 use super::trend_geometry::trend_line_endpoints;
 use std::path::Path;
 
@@ -78,7 +79,21 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
         plot.points.len(),
         sampled.len()
     );
-    let trends = compute_chart_trends(plot, sampled, today_unix_days);
+    let (total_trend, done_trend) = compute_milestone_trends(plot);
+    let geometry = compute_plot_geometry(&sampled, today_unix_days);
+    log::debug!(
+        "render_todo_done_plot_html: geometry = trend_end_x={:.3} today_x={:.3} chart_x_max={:.3} anchor_unix_days={:?}",
+        geometry.trend_end_x,
+        geometry.today_x,
+        geometry.chart_x_max,
+        geometry.anchor_unix_days
+    );
+    let trends = ChartTrends {
+        sampled,
+        geometry,
+        total_trend,
+        done_trend,
+    };
     let (ymin, ymax) = trends.y_range(fit);
     let eta = trends.eta(today_unix_days);
     log::debug!(
