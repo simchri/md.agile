@@ -53,6 +53,14 @@ pub(super) fn render_textplots_chart(plot_data: &PlotData, fit: bool, color: boo
         .done_trend
         .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
         .unwrap_or_default();
+    log::debug!(
+        "render_textplots_chart total trend series: {:?}",
+        total_trend_series
+    );
+    log::debug!(
+        "render_textplots_chart done trend series: {:?}",
+        done_trend_series
+    );
     let xmin = geometry.chart_x_min as f32;
     let xmax = geometry.chart_x_max as f32;
     let (ymin, ymax) = plot_data.y_range(fit);
@@ -86,7 +94,7 @@ pub(super) fn render_textplots_chart(plot_data: &PlotData, fit: bool, color: boo
     let mut chart_ref = &mut chart;
     chart_ref = chart_ref.y_label_format(LabelFormat::None);
     if let Some((start_label, end_label)) = x_axis_date_labels(points, geometry) {
-        let split_x = xmax / 2.0;
+        let split_x = (xmin + xmax) / 2.0;
         chart_ref = chart_ref.x_label_format(LabelFormat::Custom(Box::new(move |x| {
             if x <= split_x {
                 start_label.clone()
