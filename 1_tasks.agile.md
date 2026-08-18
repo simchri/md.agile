@@ -706,4 +706,8 @@
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
   - [ ] formulate "vision"
 
+## Pre / Post conditions
+Idea: Markers to ident. pre-condition tasks ( or conversely, tasks that have to come after the current task, post- tasks)
+Markers to identify a task e.g. <<the bug fixing task>> (check to not conflict with common markdown). Then refer to it: #PRE:<<the bug fixing task>>
+
 #MILESTONE: Done
