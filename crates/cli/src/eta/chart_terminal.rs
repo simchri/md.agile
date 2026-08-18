@@ -7,7 +7,7 @@ mod chart_terminal_ascii;
 mod chart_terminal_braille;
 
 use super::chart_common::{render_plot_legend, render_plot_stats, render_trend_equations};
-use super::chart_trends::ChartTrends;
+use super::chart_trends::PlotData;
 use super::eta_math::compute_eta;
 use super::eta_text::render_eta_text;
 use super::plot_data::{
@@ -44,7 +44,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color:
         // display.
         let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
         let geometry = compute_plot_geometry(&sampled, today_unix_days);
-        let trends = ChartTrends {
+        let trends = PlotData {
             sampled,
             geometry,
             total_trend,
@@ -56,7 +56,7 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color:
         // points it's given (see `chart_terminal_braille`), so the Braille
         // chart plots the milestone's full point history unsampled.
         let geometry = compute_plot_geometry(&plot.points, today_unix_days);
-        let trends = ChartTrends {
+        let trends = PlotData {
             sampled: plot.points.clone(),
             geometry,
             total_trend,

@@ -1,9 +1,9 @@
 //! Combines a milestone's pure trend-line math (see `trend.rs`) with the
 //! rendering-only fields (sampled points, chart axis geometry — see
 //! `plot_data.rs`) that only become relevant once a plot is actually drawn,
-//! bundling them into one [`ChartTrends`] value plus convenience methods
-//! ([`ChartTrends::eta`], [`ChartTrends::y_range`]) so every chart renderer
-//! reads from the same place. Building a [`ChartTrends`] — downsampling for
+//! bundling them into one [`PlotData`] value plus convenience methods
+//! ([`PlotData::eta`], [`PlotData::y_range`]) so every chart renderer
+//! reads from the same place. Building a [`PlotData`] — downsampling for
 //! display, fitting the trend lines, and computing the axis geometry — is
 //! each renderer's own responsibility (see `chart_html.rs`,
 //! `chart_terminal.rs`); this module holds no sampling or geometry logic of
@@ -18,14 +18,14 @@ use super::trend::LinearTrend;
 /// themselves are fit on the milestone's full point history (see
 /// `trend::MilestoneTrends`); `sampled` and `geometry` are rendering-only
 /// and built by whichever chart renderer constructs this value.
-pub(super) struct ChartTrends {
+pub(super) struct PlotData {
     pub(super) sampled: Vec<TodoDonePlotPoint>,
     pub(super) geometry: PlotGeometry,
     pub(super) total_trend: Option<LinearTrend>,
     pub(super) done_trend: Option<LinearTrend>,
 }
 
-impl ChartTrends {
+impl PlotData {
     /// Computes this chart's ETA (see [`compute_eta`]) from its fitted
     /// trend lines.
     pub(super) fn eta(&self, today_unix_days: Option<i64>) -> Option<EtaEstimate> {

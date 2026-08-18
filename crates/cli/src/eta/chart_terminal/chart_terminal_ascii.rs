@@ -3,7 +3,7 @@
 //! Braille sub-pixel backend).
 
 use super::super::chart_common::ansi_rgb_text;
-use super::super::chart_trends::ChartTrends;
+use super::super::chart_trends::PlotData;
 use super::super::plot_data::{TodoDonePlotPoint, x_axis_date_labels};
 use super::super::trend::LinearTrend;
 use super::super::trend_geometry::trend_line_endpoints;
@@ -125,7 +125,7 @@ impl AsciiCanvas {
 /// support it; symbols alone carry the same information otherwise.
 /// Resolution is intentionally much lower than the default Braille-based
 /// chart: one glyph per terminal cell instead of a packed sub-pixel grid.
-pub(super) fn render_ascii_chart(trends: &ChartTrends, fit: bool, color: bool) -> String {
+pub(super) fn render_ascii_chart(trends: &PlotData, fit: bool, color: bool) -> String {
     let points = &trends.sampled;
     let geometry = &trends.geometry;
     let width = ASCII_CHART_WIDTH;

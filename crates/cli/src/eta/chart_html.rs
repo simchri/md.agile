@@ -3,7 +3,7 @@
 //! network access) to disk.
 
 use super::chart_common::{render_plot_stats, render_plot_trend_equations};
-use super::chart_trends::ChartTrends;
+use super::chart_trends::PlotData;
 use super::eta_text::render_eta_text;
 use super::plot_data::{
     MAX_CHART_POINTS, TodoDonePlot, TodoDonePlotPoint, compute_plot_geometry,
@@ -88,7 +88,7 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
         geometry.today_x,
         geometry.chart_x_max,
     );
-    let trends = ChartTrends {
+    let trends = PlotData {
         sampled,
         geometry,
         total_trend,

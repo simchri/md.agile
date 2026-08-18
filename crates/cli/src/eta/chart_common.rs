@@ -2,7 +2,7 @@
 //! the plot legend, trend-line equations, latest-point stats, and ANSI
 //! color helpers.
 
-use super::chart_trends::ChartTrends;
+use super::chart_trends::PlotData;
 use super::date_utils::date_from_unix_days;
 use super::plot_data::TodoDonePlotPoint;
 use super::trend::{DAYS_PER_WEEK, LinearTrend};
@@ -97,10 +97,10 @@ pub(super) fn render_trend_equations(
 }
 
 /// Convenience wrapper over [`render_trend_equations`] that pulls its
-/// total/done trend straight from an already-computed [`ChartTrends`], so
+/// total/done trend straight from an already-computed [`PlotData`], so
 /// callers that already have one (every chart renderer) don't each have to
 /// unpack the same fields themselves.
-pub(super) fn render_plot_trend_equations(trends: &ChartTrends, color: bool) -> String {
+pub(super) fn render_plot_trend_equations(trends: &PlotData, color: bool) -> String {
     render_trend_equations(trends.total_trend, trends.done_trend, color)
 }
 

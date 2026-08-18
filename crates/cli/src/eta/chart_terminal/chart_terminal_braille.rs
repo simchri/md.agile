@@ -9,7 +9,7 @@
 //! ([`super::render_todo_done_plot`]) feeds it the milestone's full,
 //! unsampled point history.
 
-use super::super::chart_trends::ChartTrends;
+use super::super::chart_trends::PlotData;
 use super::super::plot_data::{TodoDonePlotPoint, x_axis_date_labels};
 use super::super::trend_geometry::trend_line_endpoints_f32;
 use super::{CHART_CHAR_HEIGHT, CHART_CHAR_WIDTH};
@@ -40,7 +40,7 @@ fn series_f32(
         .collect()
 }
 
-pub(super) fn render_textplots_chart(trends: &ChartTrends, fit: bool, color: bool) -> String {
+pub(super) fn render_textplots_chart(trends: &PlotData, fit: bool, color: bool) -> String {
     let points = &trends.sampled;
     let geometry = &trends.geometry;
     let total_series = series_f32(points, &geometry.x_values, |p| p.total_weight_wt);
