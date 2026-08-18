@@ -1,26 +1,23 @@
-//! Combines a milestone's pure trend-line math (see `trend.rs`) with the
-//! rendering-only detail (downsampling for display, chart axis geometry —
-//! see `plot_data.rs`) that only becomes relevant once a plot is actually
-//! drawn. Every chart backend renders from a [`ChartTrends`]; nothing
-//! upstream of rendering (ETA, velocity/creep) depends on this module.
+//! Combines a milestone's pure trend-line math (see `trend.rs`) with
+//! rendering-only chart axis geometry (see `plot_data.rs`) that only becomes
+//! relevant once a plot is actually drawn. Every chart backend renders from
+//! a [`ChartTrends`]; nothing upstream of rendering (ETA, velocity/creep)
+//! depends on this module. Downsampling the point series for display (see
+//! [`super::plot_data::downsample_plot_points`]) is a separate, purely
+//! rendering-only concern and is the caller's responsibility: it happens
+//! before [`compute_chart_trends`] is called, not inside it.
 
 use super::eta_math::{EtaEstimate, compute_eta};
 use super::plot_data::{
     PlotGeometry, TodoDonePlot, TodoDonePlotPoint, compute_plot_geometry, compute_plot_y_range,
-    downsample_plot_points,
 };
 use super::trend::{LinearTrend, compute_milestone_trends};
 
-/// Maximum number of points a chart draws directly; the milestone's full
-/// history (however long) is downsampled to this many points purely for
-/// display — trend fitting itself (see [`compute_milestone_trends`]) always
-/// uses the full, undownsampled history.
-const MAX_CHART_POINTS: usize = 96;
-
-/// The trend lines and chart-rendering geometry/sampling used to draw a
-/// milestone's chart (terminal or HTML/SVG). The trend lines themselves are
-/// fit on the milestone's full point history (see `trend::MilestoneTrends`);
-/// only the sampled points and axis geometry here are rendering-specific.
+/// The trend lines and chart-rendering geometry used to draw a milestone's
+/// chart (terminal or HTML/SVG). The trend lines themselves are fit on the
+/// milestone's full point history (see `trend::MilestoneTrends`); only the
+/// axis geometry here (built from `sampled`, whatever point series the
+/// caller has chosen to draw) is rendering-specific.
 pub(super) struct ChartTrends {
     pub(super) sampled: Vec<TodoDonePlotPoint>,
     pub(super) geometry: PlotGeometry,
@@ -28,17 +25,17 @@ pub(super) struct ChartTrends {
     pub(super) done_trend: Option<LinearTrend>,
 }
 
+/// Computes `plot`'s trend lines (fit on its full, undownsampled point
+/// history) plus the chart geometry for `sampled` — the point series the
+/// caller has already chosen to draw (e.g. downsampled for display via
+/// [`super::plot_data::downsample_plot_points`], or the full history
+/// unchanged). This function performs no sampling itself.
 pub(super) fn compute_chart_trends(
     plot: &TodoDonePlot,
+    sampled: Vec<TodoDonePlotPoint>,
     today_unix_days: Option<i64>,
 ) -> ChartTrends {
     let (total_trend, done_trend) = compute_milestone_trends(plot);
-    let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
-    log::debug!(
-        "compute_chart_trends: downsampled {} points to {} for display",
-        plot.points.len(),
-        sampled.len()
-    );
     let geometry = compute_plot_geometry(&sampled, today_unix_days);
     log::debug!(
         "compute_chart_trends: geometry = trend_end_x={:.3} today_x={:.3} chart_x_max={:.3} anchor_unix_days={:?}",

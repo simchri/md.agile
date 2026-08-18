@@ -5,7 +5,9 @@
 use super::chart_common::{render_plot_stats, render_plot_trend_equations};
 use super::chart_trends::compute_chart_trends;
 use super::eta_text::render_eta_text;
-use super::plot_data::{TodoDonePlot, TodoDonePlotPoint, x_axis_date_labels};
+use super::plot_data::{
+    MAX_CHART_POINTS, TodoDonePlot, TodoDonePlotPoint, downsample_plot_points, x_axis_date_labels,
+};
 use super::trend::LinearTrend;
 use super::trend_geometry::trend_line_endpoints;
 use std::path::Path;
@@ -70,7 +72,13 @@ const HTML_SVG_MARGIN_BOTTOM: f64 = 40.0;
 
 fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
     let today_unix_days = super::date_utils::today_unix_days();
-    let trends = compute_chart_trends(plot, today_unix_days);
+    let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
+    log::debug!(
+        "render_todo_done_plot_html: downsampled {} points to {} for display",
+        plot.points.len(),
+        sampled.len()
+    );
+    let trends = compute_chart_trends(plot, sampled, today_unix_days);
     let (ymin, ymax) = trends.y_range(fit);
     let eta = trends.eta(today_unix_days);
     log::debug!(

@@ -199,6 +199,12 @@ pub(super) fn compute_plot_geometry(
     }
 }
 
+/// Maximum number of points a chart draws directly; the milestone's full
+/// history (however long) is downsampled to this many points purely for
+/// display — trend fitting itself (see [`super::trend::compute_milestone_trends`])
+/// always uses the full, undownsampled history.
+pub(super) const MAX_CHART_POINTS: usize = 96;
+
 pub(super) fn downsample_plot_points(
     points: &[TodoDonePlotPoint],
     max_points: usize,
