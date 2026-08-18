@@ -1,7 +1,13 @@
 //! The default terminal chart backend: a Braille sub-pixel chart rendered
 //! via `textplots`, giving higher effective resolution than one glyph per
 //! terminal cell (see [`super::chart_terminal_ascii`] for the `--ascii`
-//! fallback).
+//! fallback). `textplots`'s `Shape::Lines` draws straight canvas lines
+//! directly between whichever points it's given (see its `figures()`,
+//! which just walks the point pairs and calls `canvas.line`/
+//! `canvas.line_colored`), so unlike the ASCII backend's fixed-width
+//! character grid, this backend needs no downsampling: the caller
+//! ([`super::render_todo_done_plot`]) feeds it the milestone's full,
+//! unsampled point history.
 
 use super::super::chart_trends::ChartTrends;
 use super::super::plot_data::{TodoDonePlotPoint, x_axis_date_labels};
@@ -19,9 +25,9 @@ const CHART_PIXEL_WIDTH: u32 = (CHART_CHAR_WIDTH * BRAILLE_SUBPIXELS_X) as u32;
 const CHART_PIXEL_HEIGHT: u32 = (CHART_CHAR_HEIGHT * BRAILLE_SUBPIXELS_Y) as u32;
 
 /// Builds one series as `(x, y)` `f32` pairs ready for `textplots`, pairing
-/// each sampled point with its already-computed x value. Shared by the
-/// total/done data series (which otherwise differ only in which weight
-/// field they read).
+/// each point with its already-computed x value. Shared by the total/done
+/// data series (which otherwise differ only in which weight field they
+/// read).
 fn series_f32(
     points: &[TodoDonePlotPoint],
     x_values: &[f64],
