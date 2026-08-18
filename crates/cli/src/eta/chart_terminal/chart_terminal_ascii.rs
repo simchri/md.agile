@@ -17,6 +17,59 @@ use super::{CHART_CHAR_HEIGHT, CHART_CHAR_WIDTH};
 const ASCII_CHART_WIDTH: usize = CHART_CHAR_WIDTH;
 const ASCII_CHART_HEIGHT: usize = CHART_CHAR_HEIGHT;
 
+/// Clips the segment `(x0, y0)-(x1, y1)` against the axis-aligned
+/// rectangle `[xmin, xmax] x [ymin, ymax]` using the Liang–Barsky
+/// algorithm, returning the (possibly shortened) segment that lies inside
+/// it, or `None` if the segment doesn't intersect the rectangle at all.
+/// Operates purely in data space, before any pixel/row-column mapping.
+fn clip_line_to_rect(
+    x0: f64,
+    y0: f64,
+    x1: f64,
+    y1: f64,
+    xmin: f64,
+    xmax: f64,
+    ymin: f64,
+    ymax: f64,
+) -> Option<(f64, f64, f64, f64)> {
+    let dx = x1 - x0;
+    let dy = y1 - y0;
+    let mut t0 = 0.0_f64;
+    let mut t1 = 1.0_f64;
+    // Each (p, q) pair tests one of the rectangle's four boundaries.
+    let checks = [
+        (-dx, x0 - xmin),
+        (dx, xmax - x0),
+        (-dy, y0 - ymin),
+        (dy, ymax - y0),
+    ];
+    for (p, q) in checks {
+        if p == 0.0 {
+            // Parallel to this boundary: reject if outside it.
+            if q < 0.0 {
+                return None;
+            }
+        } else {
+            let r = q / p;
+            if p < 0.0 {
+                if r > t1 {
+                    return None;
+                }
+                t0 = t0.max(r);
+            } else {
+                if r < t0 {
+                    return None;
+                }
+                t1 = t1.min(r);
+            }
+        }
+    }
+    if t0 > t1 {
+        return None;
+    }
+    Some((x0 + t0 * dx, y0 + t0 * dy, x0 + t1 * dx, y0 + t1 * dy))
+}
+
 /// One glyph (plus optional RGB color for terminals that support it) drawn
 /// onto the ASCII chart's character grid, in growing draw-order priority:
 /// later draws win ties on the same cell.
@@ -84,7 +137,24 @@ impl AsciiCanvas {
         self.draw_line(e.x0, e.y0, e.x1, e.y1, ch, color);
     }
 
+    /// Draws the data-space segment `(x0, y0)-(x1, y1)`, clipping it against
+    /// the canvas' visible `[xmin, xmax] x [ymin, ymax]` window *before*
+    /// converting to pixel coordinates. This must happen in data space, not
+    /// pixel space: clamping each endpoint's already-converted row/col
+    /// independently (as `to_col`/`to_row` do defensively) and then
+    /// interpolating between the clamped pixel coordinates would distort
+    /// the line's slope — e.g. a trend line whose endpoint lies above
+    /// `ymax` would appear to bend flat near the top instead of exiting the
+    /// frame at its true angle. Segments entirely outside the window are
+    /// skipped without drawing anything.
     fn draw_line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, ch: char, color: (u8, u8, u8)) {
+        let xmax = self.xmin + self.xspan;
+        let ymax = self.ymin + self.yspan;
+        let Some((x0, y0, x1, y1)) =
+            clip_line_to_rect(x0, y0, x1, y1, self.xmin, xmax, self.ymin, ymax)
+        else {
+            return;
+        };
         let (col0, row0) = (self.to_col(x0), self.to_row(y0));
         let (col1, row1) = (self.to_col(x1), self.to_row(y1));
         let steps = col0.abs_diff(col1).max(row0.abs_diff(row1)).max(1);
