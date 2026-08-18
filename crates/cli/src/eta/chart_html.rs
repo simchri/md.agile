@@ -88,52 +88,52 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
         geometry.today_x,
         geometry.chart_x_max,
     );
-    let trends = PlotData {
+    let plot_data = PlotData {
         sampled,
         geometry,
         total_trend,
         done_trend,
     };
-    let (ymin, ymax) = trends.y_range(fit);
-    let eta = trends.eta(today_unix_days);
+    let (ymin, ymax) = plot_data.y_range(fit);
+    let eta = plot_data.eta(today_unix_days);
     log::debug!(
         "render_todo_done_plot_html: {} sampled points, x range=[{:.3}, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",
-        trends.sampled.len(),
-        trends.geometry.chart_x_min,
-        trends.geometry.chart_x_max
+        plot_data.sampled.len(),
+        plot_data.geometry.chart_x_min,
+        plot_data.geometry.chart_x_max
     );
 
     let plot_w = HTML_SVG_WIDTH - HTML_SVG_MARGIN_LEFT - HTML_SVG_MARGIN_RIGHT;
     let plot_h = HTML_SVG_HEIGHT - HTML_SVG_MARGIN_TOP - HTML_SVG_MARGIN_BOTTOM;
-    let xmin = trends.geometry.chart_x_min;
-    let xspan = (trends.geometry.chart_x_max - xmin).max(1e-9);
+    let xmin = plot_data.geometry.chart_x_min;
+    let xspan = (plot_data.geometry.chart_x_max - xmin).max(1e-9);
     let yspan = (ymax - ymin).max(1e-9);
     let to_svg_x = |x: f64| HTML_SVG_MARGIN_LEFT + ((x - xmin) / xspan) * plot_w;
     let to_svg_y = |y: f64| HTML_SVG_MARGIN_TOP + plot_h - ((y - ymin) / yspan) * plot_h;
 
     let total_points_attr = svg_polyline_points(
-        &trends.sampled,
-        &trends.geometry.x_values,
+        &plot_data.sampled,
+        &plot_data.geometry.x_values,
         &to_svg_x,
         &to_svg_y,
         |p| p.total_weight_wt,
     );
     let done_points_attr = svg_polyline_points(
-        &trends.sampled,
-        &trends.geometry.x_values,
+        &plot_data.sampled,
+        &plot_data.geometry.x_values,
         &to_svg_x,
         &to_svg_y,
         |p| p.done_weight_wt,
     );
 
-    let total_trend_line = trends
+    let total_trend_line = plot_data
         .total_trend
-        .map(|t| svg_trend_line_attrs(t, trends.geometry.trend_end_x, &to_svg_x, &to_svg_y));
-    let done_trend_line = trends
+        .map(|t| svg_trend_line_attrs(t, plot_data.geometry.trend_end_x, &to_svg_x, &to_svg_y));
+    let done_trend_line = plot_data
         .done_trend
-        .map(|t| svg_trend_line_attrs(t, trends.geometry.trend_end_x, &to_svg_x, &to_svg_y));
+        .map(|t| svg_trend_line_attrs(t, plot_data.geometry.trend_end_x, &to_svg_x, &to_svg_y));
 
-    let today_x_svg = to_svg_x(trends.geometry.today_x);
+    let today_x_svg = to_svg_x(plot_data.geometry.today_x);
     let top_y_svg = to_svg_y(ymax);
     let bottom_y_svg = to_svg_y(ymin);
 
@@ -176,7 +176,9 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
         top_y_svg + 4.0,
         ymax
     ));
-    if let Some((start_label, end_label)) = x_axis_date_labels(&trends.sampled, &trends.geometry) {
+    if let Some((start_label, end_label)) =
+        x_axis_date_labels(&plot_data.sampled, &plot_data.geometry)
+    {
         svg.push_str(&format!(
             "  <text x=\"{:.2}\" y=\"{:.2}\" text-anchor=\"start\">{start_label}</text>\n",
             HTML_SVG_MARGIN_LEFT,
@@ -199,7 +201,7 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, fit: bool) -> String {
          \x20 <li><span class=\"swatch\" style=\"background:#888\"></span>today</li>\n\
          </ul>"
     );
-    let trend_equations = render_plot_trend_equations(&trends, false);
+    let trend_equations = render_plot_trend_equations(&plot_data, false);
     let stats = plot
         .points
         .last()

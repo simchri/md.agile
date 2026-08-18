@@ -40,22 +40,22 @@ fn series_f32(
         .collect()
 }
 
-pub(super) fn render_textplots_chart(trends: &PlotData, fit: bool, color: bool) -> String {
-    let points = &trends.sampled;
-    let geometry = &trends.geometry;
+pub(super) fn render_textplots_chart(plot_data: &PlotData, fit: bool, color: bool) -> String {
+    let points = &plot_data.sampled;
+    let geometry = &plot_data.geometry;
     let total_series = series_f32(points, &geometry.x_values, |p| p.total_weight_wt);
     let done_series = series_f32(points, &geometry.x_values, |p| p.done_weight_wt);
-    let total_trend_series = trends
+    let total_trend_series = plot_data
         .total_trend
         .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
         .unwrap_or_default();
-    let done_trend_series = trends
+    let done_trend_series = plot_data
         .done_trend
         .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
         .unwrap_or_default();
     let xmin = geometry.chart_x_min as f32;
     let xmax = geometry.chart_x_max as f32;
-    let (ymin, ymax) = trends.y_range(fit);
+    let (ymin, ymax) = plot_data.y_range(fit);
     let (ymin, ymax) = (ymin as f32, ymax as f32);
     let today_series = vec![
         (geometry.today_x as f32, ymin),

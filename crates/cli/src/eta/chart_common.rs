@@ -100,8 +100,8 @@ pub(super) fn render_trend_equations(
 /// total/done trend straight from an already-computed [`PlotData`], so
 /// callers that already have one (every chart renderer) don't each have to
 /// unpack the same fields themselves.
-pub(super) fn render_plot_trend_equations(trends: &PlotData, color: bool) -> String {
-    render_trend_equations(trends.total_trend, trends.done_trend, color)
+pub(super) fn render_plot_trend_equations(plot_data: &PlotData, color: bool) -> String {
+    render_trend_equations(plot_data.total_trend, plot_data.done_trend, color)
 }
 
 /// Renders a single trend line as `<intercept> + <slope>/week * x`, or

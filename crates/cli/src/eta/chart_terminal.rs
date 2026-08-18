@@ -44,25 +44,25 @@ pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color:
         // display.
         let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
         let geometry = compute_plot_geometry(&sampled, today_unix_days);
-        let trends = PlotData {
+        let plot_data = PlotData {
             sampled,
             geometry,
             total_trend,
             done_trend,
         };
-        out.push_str(&render_ascii_chart(&trends, fit, color));
+        out.push_str(&render_ascii_chart(&plot_data, fit, color));
     } else {
         // `textplots` draws straight lines directly between whatever
         // points it's given (see `chart_terminal_braille`), so the Braille
         // chart plots the milestone's full point history unsampled.
         let geometry = compute_plot_geometry(&plot.points, today_unix_days);
-        let trends = PlotData {
+        let plot_data = PlotData {
             sampled: plot.points.clone(),
             geometry,
             total_trend,
             done_trend,
         };
-        out.push_str(&render_textplots_chart(&trends, fit, color));
+        out.push_str(&render_textplots_chart(&plot_data, fit, color));
     }
     out.push_str(&render_plot_legend(ascii, color));
     out.push_str("\n");

@@ -125,14 +125,14 @@ impl AsciiCanvas {
 /// support it; symbols alone carry the same information otherwise.
 /// Resolution is intentionally much lower than the default Braille-based
 /// chart: one glyph per terminal cell instead of a packed sub-pixel grid.
-pub(super) fn render_ascii_chart(trends: &PlotData, fit: bool, color: bool) -> String {
-    let points = &trends.sampled;
-    let geometry = &trends.geometry;
+pub(super) fn render_ascii_chart(plot_data: &PlotData, fit: bool, color: bool) -> String {
+    let points = &plot_data.sampled;
+    let geometry = &plot_data.geometry;
     let width = ASCII_CHART_WIDTH;
     let height = ASCII_CHART_HEIGHT;
     let xmin = geometry.chart_x_min;
     let xspan = (geometry.chart_x_max - xmin).max(1.0);
-    let (ymin, ymax) = trends.y_range(fit);
+    let (ymin, ymax) = plot_data.y_range(fit);
     let yspan = (ymax - ymin).max(1e-9);
     log::debug!(
         "render_ascii_chart: {}x{} grid, {} raw points, today_x={:.3}, x range=[{xmin:.3}, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",
@@ -156,8 +156,18 @@ pub(super) fn render_ascii_chart(trends: &PlotData, fit: bool, color: bool) -> S
     }
 
     // Trend lines (straight two-point lines over the full trend window).
-    canvas.draw_trend_line(trends.total_trend, geometry.trend_end_x, 'O', (255, 255, 0));
-    canvas.draw_trend_line(trends.done_trend, geometry.trend_end_x, '0', (0, 255, 255));
+    canvas.draw_trend_line(
+        plot_data.total_trend,
+        geometry.trend_end_x,
+        'O',
+        (255, 255, 0),
+    );
+    canvas.draw_trend_line(
+        plot_data.done_trend,
+        geometry.trend_end_x,
+        '0',
+        (0, 255, 255),
+    );
 
     // Raw data series (drawn last so they stay on top of trend/today lines).
     canvas.draw_series(points, &geometry.x_values, 'o', (255, 0, 0), |p| {
