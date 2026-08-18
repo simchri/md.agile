@@ -7,7 +7,7 @@ use super::super::chart_trends::PlotData;
 use super::super::plot_data::{TodoDonePlotPoint, x_axis_date_labels};
 use super::super::trend::LinearTrend;
 use super::super::trend_geometry::trend_line_endpoints;
-use super::{CHART_CHAR_HEIGHT, CHART_CHAR_WIDTH};
+use super::{CHART_CHAR_HEIGHT, CHART_CHAR_WIDTH, clip_line_to_rect};
 
 /// Fixed pixel-grid size for [`render_ascii_chart`]. A plain grid of one
 /// character per cell can't reach the Braille backend's resolution, but
@@ -16,59 +16,6 @@ use super::{CHART_CHAR_HEIGHT, CHART_CHAR_WIDTH};
 /// footprint as the default chart so both backends render the same size.
 const ASCII_CHART_WIDTH: usize = CHART_CHAR_WIDTH;
 const ASCII_CHART_HEIGHT: usize = CHART_CHAR_HEIGHT;
-
-/// Clips the segment `(x0, y0)-(x1, y1)` against the axis-aligned
-/// rectangle `[xmin, xmax] x [ymin, ymax]` using the Liang–Barsky
-/// algorithm, returning the (possibly shortened) segment that lies inside
-/// it, or `None` if the segment doesn't intersect the rectangle at all.
-/// Operates purely in data space, before any pixel/row-column mapping.
-fn clip_line_to_rect(
-    x0: f64,
-    y0: f64,
-    x1: f64,
-    y1: f64,
-    xmin: f64,
-    xmax: f64,
-    ymin: f64,
-    ymax: f64,
-) -> Option<(f64, f64, f64, f64)> {
-    let dx = x1 - x0;
-    let dy = y1 - y0;
-    let mut t0 = 0.0_f64;
-    let mut t1 = 1.0_f64;
-    // Each (p, q) pair tests one of the rectangle's four boundaries.
-    let checks = [
-        (-dx, x0 - xmin),
-        (dx, xmax - x0),
-        (-dy, y0 - ymin),
-        (dy, ymax - y0),
-    ];
-    for (p, q) in checks {
-        if p == 0.0 {
-            // Parallel to this boundary: reject if outside it.
-            if q < 0.0 {
-                return None;
-            }
-        } else {
-            let r = q / p;
-            if p < 0.0 {
-                if r > t1 {
-                    return None;
-                }
-                t0 = t0.max(r);
-            } else {
-                if r < t0 {
-                    return None;
-                }
-                t1 = t1.min(r);
-            }
-        }
-    }
-    if t0 > t1 {
-        return None;
-    }
-    Some((x0 + t0 * dx, y0 + t0 * dy, x0 + t1 * dx, y0 + t1 * dy))
-}
 
 /// One glyph (plus optional RGB color for terminals that support it) drawn
 /// onto the ASCII chart's character grid, in growing draw-order priority:

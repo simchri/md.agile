@@ -27,6 +27,66 @@ use chart_terminal_braille::render_textplots_chart;
 pub(super) const CHART_CHAR_WIDTH: usize = 60;
 pub(super) const CHART_CHAR_HEIGHT: usize = 20;
 
+/// Clips the segment `(x0, y0)-(x1, y1)` against the axis-aligned
+/// rectangle `[xmin, xmax] x [ymin, ymax]` using the Liang–Barsky
+/// algorithm, returning the (possibly shortened) segment that lies inside
+/// it, or `None` if the segment doesn't intersect the rectangle at all.
+/// Shared by both chart backends: each must clip trend-line/data segments
+/// itself, in data space, before handing them to its own pixel/canvas
+/// drawing code — the ASCII backend's own row/col conversion and the
+/// `textplots` crate's `Scale::linear` both clamp *already-converted*
+/// pixel coordinates independently per endpoint rather than clipping the
+/// line itself, which distorts a segment's slope whenever one endpoint
+/// lies outside the visible range (as commonly happens for trend lines in
+/// the default, non-`--fit` y-range).
+pub(super) fn clip_line_to_rect(
+    x0: f64,
+    y0: f64,
+    x1: f64,
+    y1: f64,
+    xmin: f64,
+    xmax: f64,
+    ymin: f64,
+    ymax: f64,
+) -> Option<(f64, f64, f64, f64)> {
+    let dx = x1 - x0;
+    let dy = y1 - y0;
+    let mut t0 = 0.0_f64;
+    let mut t1 = 1.0_f64;
+    // Each (p, q) pair tests one of the rectangle's four boundaries.
+    let checks = [
+        (-dx, x0 - xmin),
+        (dx, xmax - x0),
+        (-dy, y0 - ymin),
+        (dy, ymax - y0),
+    ];
+    for (p, q) in checks {
+        if p == 0.0 {
+            // Parallel to this boundary: reject if outside it.
+            if q < 0.0 {
+                return None;
+            }
+        } else {
+            let r = q / p;
+            if p < 0.0 {
+                if r > t1 {
+                    return None;
+                }
+                t0 = t0.max(r);
+            } else {
+                if r < t0 {
+                    return None;
+                }
+                t1 = t1.min(r);
+            }
+        }
+    }
+    if t0 > t1 {
+        return None;
+    }
+    Some((x0 + t0 * dx, y0 + t0 * dy, x0 + t1 * dx, y0 + t1 * dy))
+}
+
 pub fn render_todo_done_plot(plot: &TodoDonePlot, fit: bool, ascii: bool, color: bool) -> String {
     let today_unix_days = super::date_utils::today_unix_days();
     let (total_trend, done_trend) = compute_milestone_trends(plot);

@@ -8,11 +8,20 @@
 //! character grid, this backend needs no downsampling: the caller
 //! ([`super::render_todo_done_plot`]) feeds it the milestone's full,
 //! unsampled point history.
+//!
+//! `textplots` (via its internal `Scale::linear`) clamps each drawn
+//! point's pixel coordinate independently to the chart's range, rather
+//! than clipping the underlying line — which distorts a segment's slope
+//! whenever one endpoint lies outside the visible range, as commonly
+//! happens for a trend line in the default (non-`--fit`) y-range. Trend
+//! lines are therefore pre-clipped in data space (see
+//! [`super::clip_line_to_rect`]) before ever being handed to `textplots`,
+//! so its own clamping never has anything left to distort.
 
 use super::super::chart_trends::PlotData;
 use super::super::plot_data::{TodoDonePlotPoint, x_axis_date_labels};
-use super::super::trend_geometry::trend_line_endpoints_f32;
-use super::{CHART_CHAR_HEIGHT, CHART_CHAR_WIDTH};
+use super::super::trend_geometry::trend_line_endpoints;
+use super::{CHART_CHAR_HEIGHT, CHART_CHAR_WIDTH, clip_line_to_rect};
 use rgb::RGB8;
 use textplots::{Chart, ColorPlot, LabelBuilder, LabelFormat, Plot, Shape};
 
@@ -45,13 +54,31 @@ pub(super) fn render_textplots_chart(plot_data: &PlotData, fit: bool, color: boo
     let geometry = &plot_data.geometry;
     let total_series = series_f32(points, &geometry.x_values, |p| p.total_weight_wt);
     let done_series = series_f32(points, &geometry.x_values, |p| p.done_weight_wt);
+    let xmin = geometry.chart_x_min;
+    let xmax = geometry.chart_x_max;
+    let (ymin, ymax) = plot_data.y_range(fit);
+    // `textplots` (and `Scale::linear` underneath it) clamps each
+    // endpoint's already-converted pixel coordinate independently rather
+    // than clipping the line itself, which would distort a trend line's
+    // drawn slope whenever one endpoint lies outside the visible
+    // [xmin, xmax] x [ymin, ymax] range (routine in the default,
+    // non-`--fit` y-range). Clip in data space ourselves first, so the
+    // library only ever receives an already-in-range segment.
     let total_trend_series = plot_data
         .total_trend
-        .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
+        .and_then(|t| {
+            let e = trend_line_endpoints(t, geometry.trend_end_x);
+            clip_line_to_rect(e.x0, e.y0, e.x1, e.y1, xmin, xmax, ymin, ymax)
+        })
+        .map(|(x0, y0, x1, y1)| vec![(x0 as f32, y0 as f32), (x1 as f32, y1 as f32)])
         .unwrap_or_default();
     let done_trend_series = plot_data
         .done_trend
-        .map(|t| trend_line_endpoints_f32(t, geometry.trend_end_x).to_vec())
+        .and_then(|t| {
+            let e = trend_line_endpoints(t, geometry.trend_end_x);
+            clip_line_to_rect(e.x0, e.y0, e.x1, e.y1, xmin, xmax, ymin, ymax)
+        })
+        .map(|(x0, y0, x1, y1)| vec![(x0 as f32, y0 as f32), (x1 as f32, y1 as f32)])
         .unwrap_or_default();
     log::debug!(
         "render_textplots_chart total trend series: {:?}",
@@ -61,9 +88,7 @@ pub(super) fn render_textplots_chart(plot_data: &PlotData, fit: bool, color: boo
         "render_textplots_chart done trend series: {:?}",
         done_trend_series
     );
-    let xmin = geometry.chart_x_min as f32;
-    let xmax = geometry.chart_x_max as f32;
-    let (ymin, ymax) = plot_data.y_range(fit);
+    let (xmin, xmax) = (xmin as f32, xmax as f32);
     let (ymin, ymax) = (ymin as f32, ymax as f32);
     let today_series = vec![
         (geometry.today_x as f32, ymin),
