@@ -35,13 +35,6 @@ pub(super) fn trend_line_endpoints(trend: LinearTrend, trend_end_x: f64) -> Tren
     }
 }
 
-/// Same as [`trend_line_endpoints`], but returned as `(f32, f32)` pairs
-/// ready for `textplots::Shape::Lines`, which only accepts `f32` points.
-pub(super) fn trend_line_endpoints_f32(trend: LinearTrend, trend_end_x: f64) -> [(f32, f32); 2] {
-    let e = trend_line_endpoints(trend, trend_end_x);
-    [(e.x0 as f32, e.y0 as f32), (e.x1 as f32, e.y1 as f32)]
-}
-
 #[cfg(test)]
 #[path = "trend_geometry_tests.rs"]
 mod tests;
