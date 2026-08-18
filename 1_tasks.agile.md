@@ -623,14 +623,15 @@
 
 - [x] renamed quantity-bearing variables in `eta/mod.rs` (task weights, counts, velocity/creep, slope/intercept) to carry their unit as a suffix (`_t`, `_wt`, `_wtpd`, `_wtpw`); documented the convention in doc/architecture.md.
 
+- [x] holy cow -- fixed damn bug in chart plots! 
+  Cause: sonnet picked up a bug from a library, duplicated it in our code. (when lines defined by two points are rendered, the lib incorrectly applies clipping of trend line endpoints to the graph canvas -- this obviously leads to incorrect lines!)
+
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
     - [ ] e.g. no convergence
     - [ ] other milestone than latest
     - [ ] done milestone
       ...
-
-formulate an issue report to the library authors, and create a minimal standalone rust sample project that demonstrates the issue in the library. The demonstration project can go into a neighboring directory (../demo_clipping_bug). In the demo, plot two graphs, one where two lines are defined by two points each fully inside the plot area, and one where one of the points is outside the plot area and therefore clipped.
 
 - [ ] trendlines in plot - recency weighted linear
 - [ ] trendlines in plot - with uncertainty regions
