@@ -31,6 +31,40 @@ pub(super) struct LinearTrend {
     pub(super) anchor_x_d: f64,
 }
 
+/// The trend-fitting algorithm to use when turning a series of dated
+/// points into a [`LinearTrend`]. All algorithms fit a straight line (an
+/// anchor point + slope, as [`LinearTrend`] itself assumes) — they differ
+/// only in *how* that line is derived from the underlying points, e.g.
+/// weighting recent points more heavily. Adding a new algorithm means
+/// adding a variant here and a match arm in [`TrendFitAlgorithm::fit`]; no
+/// other module needs to change.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(super) enum TrendFitAlgorithm {
+    /// Ordinary least squares over the full point history, weighting every
+    /// point equally. This is the only algorithm implemented today and
+    /// remains the default.
+    #[default]
+    OrdinaryLeastSquares,
+    /// Placeholder for algorithms not yet implemented (e.g. a
+    /// recency-weighted fit): always returns `None`, so callers see "no
+    /// trend" rather than a misleading fitted line. Not wired up to any
+    /// production call site yet — exercised only by tests — so it's
+    /// allowed to look unused outside `cfg(test)` builds.
+    #[allow(dead_code)]
+    Dummy,
+}
+
+impl TrendFitAlgorithm {
+    /// Fits a [`LinearTrend`] through `points` (each an `(x, y)` pair, `x`
+    /// in days since `anchor_x_d`), using this algorithm.
+    fn fit(self, points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
+        match self {
+            TrendFitAlgorithm::OrdinaryLeastSquares => ols_linear_trend(points, anchor_x_d),
+            TrendFitAlgorithm::Dummy => None,
+        }
+    }
+}
+
 /// Fits both the total and done trend lines (weight vs. time) for a
 /// milestone from its full point history — pure math, no plotting/rendering
 /// detail whatsoever (no sampling, no chart geometry): those only matter
@@ -38,8 +72,18 @@ pub(super) struct LinearTrend {
 pub(super) fn compute_milestone_trends(
     plot: &TodoDonePlot,
 ) -> (Option<LinearTrend>, Option<LinearTrend>) {
+    compute_milestone_trends_with(plot, TrendFitAlgorithm::default())
+}
+
+/// Like [`compute_milestone_trends`], but with an explicit choice of
+/// [`TrendFitAlgorithm`] — the seam other algorithms (e.g. a
+/// recency-weighted fit) plug into.
+pub(super) fn compute_milestone_trends_with(
+    plot: &TodoDonePlot,
+    algorithm: TrendFitAlgorithm,
+) -> (Option<LinearTrend>, Option<LinearTrend>) {
     log::debug!(
-        "compute_milestone_trends: plot.points has {} points (milestone {:?})",
+        "compute_milestone_trends: plot.points has {} points (milestone {:?}) using {algorithm:?}",
         plot.points.len(),
         plot.milestone_name
     );
@@ -48,8 +92,12 @@ pub(super) fn compute_milestone_trends(
     // which case `date_x_values` always returns `Some` — the fallback here
     // is never observed.
     let anchor_x_d = anchor_x_d.unwrap_or(0) as f64;
-    let total_trend = fit_series_trend(&x_values, &plot.points, anchor_x_d, |p| p.total_weight_wt);
-    let done_trend = fit_series_trend(&x_values, &plot.points, anchor_x_d, |p| p.done_weight_wt);
+    let total_trend = fit_series_trend(&x_values, &plot.points, anchor_x_d, algorithm, |p| {
+        p.total_weight_wt
+    });
+    let done_trend = fit_series_trend(&x_values, &plot.points, anchor_x_d, algorithm, |p| {
+        p.done_weight_wt
+    });
     log::debug!("compute_milestone_trends: total_trend = {total_trend:?}");
     log::debug!("compute_milestone_trends: done_trend = {done_trend:?}");
     (total_trend, done_trend)
@@ -74,16 +122,18 @@ pub(super) fn date_x_values(points: &[TodoDonePlotPoint]) -> (Vec<f64>, Option<i
 }
 
 /// Fits a [`LinearTrend`] through one plotted series (total or done weight),
-/// pairing each point with its already-computed x value. Shared by both
-/// `total_trend` and `done_trend` in [`compute_milestone_trends`] so the two
-/// series are always fit the exact same way.
+/// pairing each point with its already-computed x value, using `algorithm`.
+/// Shared by both `total_trend` and `done_trend` in
+/// [`compute_milestone_trends_with`] so the two series are always fit the
+/// exact same way.
 fn fit_series_trend(
     x_values: &[f64],
     points: &[TodoDonePlotPoint],
     anchor_x_d: f64,
+    algorithm: TrendFitAlgorithm,
     value_of: impl Fn(&TodoDonePlotPoint) -> f64,
 ) -> Option<LinearTrend> {
-    linear_trend(
+    algorithm.fit(
         &x_values
             .iter()
             .zip(points.iter())
@@ -93,7 +143,9 @@ fn fit_series_trend(
     )
 }
 
-fn linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
+/// The ordinary-least-squares fit: the classic "line of best fit" through
+/// all points, weighting every point equally regardless of recency.
+fn ols_linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
     if points.len() < 2 {
         return None;
     }
@@ -117,3 +169,7 @@ fn linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
         anchor_x_d,
     })
 }
+
+#[cfg(test)]
+#[path = "trend_tests.rs"]
+mod tests;
