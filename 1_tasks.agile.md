@@ -691,6 +691,7 @@
 - [ ] menu
   - [ ] switch / select projects
 
+- [ ] optical indicator for prio 1,2,3 tasks - e.g. semi transparent book-mark like long sticky note with "#1" etc. at the bottom
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
