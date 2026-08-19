@@ -17,6 +17,22 @@ Nobody needs to be taught how to work with a file that looks like this:
 ```
 The moment you have seen this example, you know how to work with it.
 
+Mdagile adheres to the idea that your primary interface to the task list is actually the text file. You manage tasks by editing this file (with whatever text editor you prefer), and this should remain "intuitive". This means, e.g. that we don't use task IDs. If task IDs would appear in the file, you could never just type out a new task. How would you know what the next ID number is? 
+
+All syntax constraints are relatively simple (@someone, #some_tag etc.) -- but you still don't have to know any of them! If you don't want to use advanced features, you simply have a bullet pointed list of tasks (the sample above is perfectly valid "Mdagile"). 
+
+## Intuitive Interface
+What is an intuitive interface? To some people the classic 90s GUI layout with a menu bar at the top is "intuitive". Current day UI/UX people may insist that your app should not write out "menu" but ship with a "ham menu" button, because icons are more accessible and universal than words. Neither is correct.
+
+An interface is intuitive when:
+- you have learned it
+- you have customized it to your needs
+- it is stable (doesn't change unless you want it too)
+
+The more these points are true, the more intuitive the interface. Everything else is irrelevant. It is impossible to develop an intuitive interface. The best we can do as programmers, is to allow users to use the tools **they already know** as much as possible to do their tasks. Text editors are ancient and universal. Text files are a flexible interface between custom functionality and the user. That's why Mdagile is text based:Use your text editor, that you have customized a little and learned to use well. Update it whenever you want - or don't!
+
+You can just start typing in your task file. If you do anything "wrong" the language server will tell you. 
+
 ## Living in the Real World
 We want to build an agile task management tool from developers for developers. We want to live in a better world. This, however, also requires seeing and understanding the current state of the real world. We have to offer an on-ramp for all the other people on the project who are not developers. It must be easy to interact with the task list, even without understanding the intricacies of a version control system. Otherwise, this will never be adopted and we will be stuck with Jira.
 
