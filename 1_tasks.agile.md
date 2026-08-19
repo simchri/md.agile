@@ -630,6 +630,8 @@
 
 - [x] wrote up the `textplots` line-clipping bug as an issue report (`../demo_clipping_bug/ISSUE.md`) and a minimal standalone Cargo demo project (`../demo_clipping_bug/`) reproducing it: a single slope-1 line segment renders correctly when both endpoints are within the fixed y-range, but gets silently flattened to the wrong slope when one endpoint lies outside it (each endpoint is pixel-clamped independently instead of the line being clipped).
 
+- [ ] remove: md.agile/crates/cli/examples/braille_line.rs:1:1
+
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
     - [ ] e.g. no convergence
