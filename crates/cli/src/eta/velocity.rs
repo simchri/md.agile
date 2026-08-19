@@ -4,7 +4,7 @@
 //! transitions (e.g. todo -> done).
 
 use super::plot_data::build_todo_done_plot;
-use super::trend::{DAYS_PER_WEEK, compute_milestone_trends};
+use super::trend::{DAYS_PER_WEEK, TrendFitAlgorithm, compute_milestone_trends_with};
 use crate::git;
 use crate::parser::{self, FileItem, Status};
 use std::collections::{HashMap, HashSet};
@@ -60,7 +60,7 @@ pub struct VelocityEstimate {
 /// Returns an error when `root` isn't a git repository, or when there's no
 /// future milestone to scope to (see [`build_todo_done_plot`]).
 pub fn estimate_velocity(root: &Path) -> Result<VelocityEstimate, String> {
-    estimate_velocity_with_window(root, 1, None)
+    estimate_velocity_with_window(root, 1, None, TrendFitAlgorithm::default())
 }
 
 /// Like [`estimate_velocity`], but scoped to a caller-provided milestone
@@ -71,13 +71,15 @@ pub fn estimate_velocity(root: &Path) -> Result<VelocityEstimate, String> {
 ///
 /// Velocity and creep are the slopes of the exact same done-weight/
 /// total-weight trend lines `agile when --plot` fits and draws for the same
-/// milestone (see [`compute_milestone_trends`]) — both expressed in weight/week.
-/// Either metric independently resolves to `None` when its trend line can't
-/// be computed (fewer than two distinct points in the window).
+/// milestone (see [`compute_milestone_trends_with`]) — both expressed in
+/// weight/week. Either metric independently resolves to `None` when its
+/// trend line can't be computed (fewer than two distinct points in the
+/// window).
 pub fn estimate_velocity_with_window(
     root: &Path,
     milestone_rank: usize,
     window_days: Option<u32>,
+    algorithm: TrendFitAlgorithm,
 ) -> Result<VelocityEstimate, String> {
     require_git_repo(root)?;
     if window_days == Some(0) {
@@ -95,7 +97,7 @@ pub fn estimate_velocity_with_window(
             .retain(|p| super::date_utils::unix_days_from_date(p.date) >= cutoff);
     }
 
-    let (total_trend, done_trend) = compute_milestone_trends(&plot);
+    let (total_trend, done_trend) = compute_milestone_trends_with(&plot, algorithm);
 
     Ok(VelocityEstimate {
         velocity_wtpw: done_trend.map(|t| t.slope_wtpd * DAYS_PER_WEEK),

@@ -5,6 +5,7 @@
 use super::eta_math::{EtaEstimate, eta_for_plot};
 use super::eta_text::eta_span;
 use super::plot_data::build_todo_done_plot;
+use super::trend::TrendFitAlgorithm;
 use super::velocity::{VelocityEstimate, require_git_repo};
 use crate::cli::common::find_task_files;
 use crate::parser::{self, FileItem, Status};
@@ -15,7 +16,7 @@ use std::path::Path;
 /// order — matching README.vision.md's list-mode output. A milestone whose
 /// ETA can't be computed (e.g. not committed yet, or no convergent trend)
 /// shows "unknown" instead of a span.
-pub fn build_when_report(root: &Path) -> Result<String, String> {
+pub fn build_when_report(root: &Path, algorithm: TrendFitAlgorithm) -> Result<String, String> {
     require_git_repo(root)?;
     let today = super::date_utils::today_unix_days();
     let mut out = String::new();
@@ -23,7 +24,7 @@ pub fn build_when_report(root: &Path) -> Result<String, String> {
         let rank = index + 1;
         let eta = build_todo_done_plot(root, rank)
             .ok()
-            .and_then(|plot| eta_for_plot(&plot, today));
+            .and_then(|plot| eta_for_plot(&plot, today, algorithm));
         out.push_str(&render_when_line(&name, eta, today));
     }
     Ok(out)

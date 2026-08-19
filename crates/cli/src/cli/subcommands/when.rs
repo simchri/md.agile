@@ -1,7 +1,7 @@
 //! `agile when` — ETA and velocity-related reporting.
 
 use crate::config::Config;
-use crate::eta;
+use crate::eta::{self, TrendFitAlgorithm};
 use std::path::Path;
 
 /// `agile when` entry point.
@@ -26,6 +26,7 @@ pub fn run(
     html: bool,
     no_color: bool,
     last_days: Option<u32>,
+    algorithm: TrendFitAlgorithm,
 ) {
     if plot || data {
         let rank = next.unwrap_or(1);
@@ -39,7 +40,7 @@ pub fn run(
         if data {
             print!("{}", eta::render_todo_done_data(&plot));
         } else if html {
-            match eta::write_todo_done_plot_html(root, &plot, extra) {
+            match eta::write_todo_done_plot_html(root, &plot, extra, algorithm) {
                 Ok(path) => println!("Wrote {}", path.display()),
                 Err(msg) => {
                     log::error!("{msg}");
@@ -49,7 +50,7 @@ pub fn run(
         } else {
             print!(
                 "{}",
-                eta::render_todo_done_plot(&plot, extra, ascii, !no_color)
+                eta::render_todo_done_plot(&plot, extra, ascii, !no_color, algorithm)
             );
         }
         return;
@@ -57,7 +58,7 @@ pub fn run(
 
     if velocity {
         let rank = next.unwrap_or(1);
-        match eta::estimate_velocity_with_window(root, rank, last_days) {
+        match eta::estimate_velocity_with_window(root, rank, last_days, algorithm) {
             Ok(estimate) => print!("{}", eta::render_velocity_text(estimate)),
             Err(msg) => {
                 log::error!("{msg}");
@@ -74,7 +75,7 @@ pub fn run(
         std::process::exit(1);
     }
 
-    match eta::build_when_report(root) {
+    match eta::build_when_report(root, algorithm) {
         Ok(report) => print!("{report}"),
         Err(msg) => {
             log::error!("{msg}");

@@ -145,7 +145,8 @@ fn estimate_velocity_with_window_errors_when_not_a_git_repository() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
-    let err = estimate_velocity_with_window(dir.path(), 1, Some(90)).unwrap_err();
+    let err = estimate_velocity_with_window(dir.path(), 1, Some(90), TrendFitAlgorithm::default())
+        .unwrap_err();
     assert!(err.contains("requires a git repository"));
 }
 
@@ -162,7 +163,9 @@ fn estimate_velocity_with_window_reports_unresolved_metrics_for_zero_window() {
         .status()
         .unwrap();
 
-    let estimate = estimate_velocity_with_window(dir.path(), 1, Some(0)).unwrap();
+    let estimate =
+        estimate_velocity_with_window(dir.path(), 1, Some(0), TrendFitAlgorithm::default())
+            .unwrap();
     assert_eq!(
         estimate,
         VelocityEstimate {

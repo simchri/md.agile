@@ -9,7 +9,7 @@ use super::plot_data::{
     MAX_CHART_POINTS, TodoDonePlot, TodoDonePlotPoint, compute_plot_geometry,
     downsample_plot_points, x_axis_date_labels,
 };
-use super::trend::{LinearTrend, compute_milestone_trends};
+use super::trend::{LinearTrend, TrendFitAlgorithm, compute_milestone_trends_with};
 use super::trend_geometry::trend_line_endpoints;
 use std::path::Path;
 
@@ -51,8 +51,9 @@ pub fn write_todo_done_plot_html(
     root: &Path,
     plot: &TodoDonePlot,
     extra: f64,
+    algorithm: TrendFitAlgorithm,
 ) -> Result<std::path::PathBuf, String> {
-    let html = render_todo_done_plot_html(plot, extra);
+    let html = render_todo_done_plot_html(plot, extra, algorithm);
     let filename = format!(
         "{}-plot.html",
         sanitize_milestone_slug(&plot.milestone_name)
@@ -71,7 +72,11 @@ const HTML_SVG_MARGIN_RIGHT: f64 = 20.0;
 const HTML_SVG_MARGIN_TOP: f64 = 20.0;
 const HTML_SVG_MARGIN_BOTTOM: f64 = 40.0;
 
-fn render_todo_done_plot_html(plot: &TodoDonePlot, extra: f64) -> String {
+fn render_todo_done_plot_html(
+    plot: &TodoDonePlot,
+    extra: f64,
+    algorithm: TrendFitAlgorithm,
+) -> String {
     let today_unix_days = super::date_utils::today_unix_days();
     let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
     log::debug!(
@@ -79,7 +84,7 @@ fn render_todo_done_plot_html(plot: &TodoDonePlot, extra: f64) -> String {
         plot.points.len(),
         sampled.len()
     );
-    let (total_trend, done_trend) = compute_milestone_trends(plot);
+    let (total_trend, done_trend) = compute_milestone_trends_with(plot, algorithm);
     let geometry = compute_plot_geometry(&sampled, today_unix_days, extra);
     log::debug!(
         "render_todo_done_plot_html: geometry = chart_x_min={:.3} trend_end_x={:.3} today_x={:.3} chart_x_max={:.3}",

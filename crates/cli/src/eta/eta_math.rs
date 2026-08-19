@@ -4,7 +4,7 @@
 //! (see `trend.rs`).
 
 use super::TodoDonePlot;
-use super::trend::{LinearTrend, compute_milestone_trends};
+use super::trend::{LinearTrend, TrendFitAlgorithm, compute_milestone_trends_with};
 
 /// The estimated time of arrival at a milestone: the calendar date (as unix
 /// days) where the total and done trend lines intersect.
@@ -18,8 +18,9 @@ pub(super) struct EtaEstimate {
 pub(super) fn eta_for_plot(
     plot: &TodoDonePlot,
     today_unix_days: Option<i64>,
+    algorithm: TrendFitAlgorithm,
 ) -> Option<EtaEstimate> {
-    let (total_trend, done_trend) = compute_milestone_trends(plot);
+    let (total_trend, done_trend) = compute_milestone_trends_with(plot, algorithm);
     compute_eta(total_trend, done_trend, today_unix_days)
 }
 

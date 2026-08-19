@@ -13,7 +13,7 @@ use super::eta_text::render_eta_text;
 use super::plot_data::{
     MAX_CHART_POINTS, TodoDonePlot, compute_plot_geometry, downsample_plot_points,
 };
-use super::trend::compute_milestone_trends;
+use super::trend::{TrendFitAlgorithm, compute_milestone_trends_with};
 use chart_terminal_ascii::render_ascii_chart;
 use chart_terminal_braille::render_textplots_chart;
 
@@ -87,9 +87,15 @@ pub(super) fn clip_line_to_rect(
     Some((x0 + t0 * dx, y0 + t0 * dy, x0 + t1 * dx, y0 + t1 * dy))
 }
 
-pub fn render_todo_done_plot(plot: &TodoDonePlot, extra: f64, ascii: bool, color: bool) -> String {
+pub fn render_todo_done_plot(
+    plot: &TodoDonePlot,
+    extra: f64,
+    ascii: bool,
+    color: bool,
+    algorithm: TrendFitAlgorithm,
+) -> String {
     let today_unix_days = super::date_utils::today_unix_days();
-    let (total_trend, done_trend) = compute_milestone_trends(plot);
+    let (total_trend, done_trend) = compute_milestone_trends_with(plot, algorithm);
     log::debug!("render_todo_done_plot: total_trend = {:?}", total_trend);
     log::debug!("render_todo_done_plot: done_trend = {:?}", done_trend);
 

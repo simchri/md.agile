@@ -39,17 +39,20 @@ pub(super) struct LinearTrend {
 /// adding a variant here and a match arm in [`TrendFitAlgorithm::fit`]; no
 /// other module needs to change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(super) enum TrendFitAlgorithm {
+pub enum TrendFitAlgorithm {
     /// Ordinary least squares over the full point history, weighting every
-    /// point equally. This is the only algorithm implemented today and
-    /// remains the default.
-    #[default]
+    /// point equally.
     OrdinaryLeastSquares,
-    /// Placeholder for algorithms not yet implemented (e.g. a
-    /// recency-weighted fit): always returns `None`, so callers see "no
-    /// trend" rather than a misleading fitted line. Not wired up to any
-    /// production call site yet — exercised only by tests — so it's
-    /// allowed to look unused outside `cfg(test)` builds.
+    /// Recency-weighted least squares (see [`recency_weighted_linear_trend`]
+    /// for the exact weighting): the default, since it favors the
+    /// project's *current* pace over its whole history.
+    #[default]
+    RecencyWeighted,
+    /// Placeholder for algorithms not yet implemented: always returns
+    /// `None`, so callers see "no trend" rather than a misleading fitted
+    /// line. Not wired up to any production call site yet — exercised
+    /// only by tests — so it's allowed to look unused outside `cfg(test)`
+    /// builds.
     #[allow(dead_code)]
     Dummy,
 }
@@ -60,24 +63,17 @@ impl TrendFitAlgorithm {
     fn fit(self, points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
         match self {
             TrendFitAlgorithm::OrdinaryLeastSquares => ols_linear_trend(points, anchor_x_d),
+            TrendFitAlgorithm::RecencyWeighted => recency_weighted_linear_trend(points, anchor_x_d),
             TrendFitAlgorithm::Dummy => None,
         }
     }
 }
 
 /// Fits both the total and done trend lines (weight vs. time) for a
-/// milestone from its full point history — pure math, no plotting/rendering
-/// detail whatsoever (no sampling, no chart geometry): those only matter
-/// once a plot is actually drawn.
-pub(super) fn compute_milestone_trends(
-    plot: &TodoDonePlot,
-) -> (Option<LinearTrend>, Option<LinearTrend>) {
-    compute_milestone_trends_with(plot, TrendFitAlgorithm::default())
-}
-
-/// Like [`compute_milestone_trends`], but with an explicit choice of
-/// [`TrendFitAlgorithm`] — the seam other algorithms (e.g. a
-/// recency-weighted fit) plug into.
+/// milestone from its full point history, using the given
+/// [`TrendFitAlgorithm`] — pure math, no plotting/rendering detail
+/// whatsoever (no sampling, no chart geometry): those only matter once a
+/// plot is actually drawn.
 pub(super) fn compute_milestone_trends_with(
     plot: &TodoDonePlot,
     algorithm: TrendFitAlgorithm,
@@ -157,6 +153,69 @@ fn ols_linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTren
     for (x, y) in points {
         cov += (x - mean_x) * (y - mean_y);
         var += (x - mean_x) * (x - mean_x);
+    }
+    if var <= f64::EPSILON {
+        return None;
+    }
+    let slope_wtpd = cov / var;
+    let anchor_y_wt = mean_y - slope_wtpd * mean_x;
+    Some(LinearTrend {
+        slope_wtpd,
+        anchor_y_wt,
+        anchor_x_d,
+    })
+}
+
+/// Keeps only the last point for each distinct `x` (day) in `points`,
+/// preserving the order of each day's first appearance. `points` are
+/// assumed to already be in chronological order, so when a day repeats
+/// (multiple commits on the same day), the point kept is whichever one
+/// comes last in `points` — i.e. that day's final recorded state.
+fn dedupe_last_point_per_day(points: &[(f64, f64)]) -> Vec<(f64, f64)> {
+    let mut deduped: Vec<(f64, f64)> = Vec::new();
+    for &(x, y) in points {
+        match deduped
+            .iter_mut()
+            .find(|(ex, _)| (*ex - x).abs() <= f64::EPSILON)
+        {
+            Some(existing) => existing.1 = y,
+            None => deduped.push((x, y)),
+        }
+    }
+    deduped
+}
+
+/// Recency-weighted least squares: first [`dedupe_last_point_per_day`]s
+/// `points` down to one point per calendar day (so a day with many commits
+/// doesn't get more say in the fit than a quiet day), then fits a weighted
+/// line where each deduped point's weight is its rank among them —
+/// oldest = 1, up to newest = N — so more recent points pull the line
+/// harder than older ones, favoring the project's current pace over its
+/// whole history.
+fn recency_weighted_linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
+    let points = dedupe_last_point_per_day(points);
+    if points.len() < 2 {
+        return None;
+    }
+    let weights: Vec<f64> = (1..=points.len()).map(|rank| rank as f64).collect();
+    let sum_w: f64 = weights.iter().sum();
+    let mean_x = points
+        .iter()
+        .zip(&weights)
+        .map(|((x, _), w)| w * x)
+        .sum::<f64>()
+        / sum_w;
+    let mean_y = points
+        .iter()
+        .zip(&weights)
+        .map(|((_, y), w)| w * y)
+        .sum::<f64>()
+        / sum_w;
+    let mut cov = 0.0;
+    let mut var = 0.0;
+    for ((x, y), w) in points.iter().zip(&weights) {
+        cov += w * (x - mean_x) * (y - mean_y);
+        var += w * (x - mean_x) * (x - mean_x);
     }
     if var <= f64::EPSILON {
         return None;

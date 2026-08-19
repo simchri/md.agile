@@ -302,11 +302,12 @@ fn when_velocity_reordering_done_and_todo_tasks_preserves_nonzero_velocity() {
     commit_all_at(dir.path(), "reorder after completion", &t2);
 
     // 1 completion over a 2-day span; reordering later must not add
-    // velocity: slope 0.50/day = 3.50/week (using day-granularity dates,
-    // the fitted slope over these three unevenly-spaced points is 3.18).
+    // velocity. With the default recency-weighted fit (deduped to one
+    // point/day, weighted by recency), the fitted slope over these three
+    // unevenly-spaced points is 2.80/week.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   3.18\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   2.80\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -425,8 +426,10 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     commit_all_at(dir.path(), "delete completed task a", &t2);
 
     // Deleting the already-completed task a pulls the done trend down at the
-    // end of the history (-0.64/week). Creep stays flat at 0.00: milestone
-    // scoping fixes the in-scope rank cutoff at the *final* rank of the last
+    // end of the history. With the default recency-weighted fit, this
+    // late drop pulls the slope down more sharply than an unweighted fit
+    // would (-1.40/week). Creep stays flat at 0.00: milestone scoping
+    // fixes the in-scope rank cutoff at the *final* rank of the last
     // preceding task ("task b"), so deleting "task a" (which precedes it)
     // shifts "task b" into the vacated rank slot rather than shrinking total
     // weight — this is the same rank-cutoff behavior `agile when
@@ -434,7 +437,7 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     // quirk.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   -0.64\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   -1.40\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -509,9 +512,11 @@ fn when_velocity_counts_real_completion_only_once_even_if_moved_later() {
     commit_all_at(dir.path(), "move completed task a", &t2);
 
     // 1 completion over a 2-day observed span, plateauing after the move.
+    // With the default recency-weighted fit, the fitted slope is
+    // 2.80/week.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   3.18\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   2.80\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -581,17 +586,18 @@ fn when_velocity_last_flag_restricts_history_window() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "complete b", &t2);
 
-    // Full history's done-weight trend slope, in weight/week.
+    // Full history's done-weight trend slope, in weight/week (default
+    // recency-weighted fit).
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   2.38\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   2.19\ncreep:    weight/week   0.00\n",
     );
     // Restricting to the last 5 days excludes the oldest commit, changing
-    // the fitted slope.
+    // the fitted slope (recency-weighted fit).
     assert_velocity_with_args(
         dir.path(),
         &["when", "--velocity", "--last", "5"],
-        "velocity: weight/week   1.88\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   1.75\ncreep:    weight/week   0.00\n",
     );
 }
 

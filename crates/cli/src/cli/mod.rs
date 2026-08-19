@@ -5,6 +5,7 @@
 //! across subcommands live in [`common`].
 
 use crate::config;
+use crate::eta;
 use clap::{Parser, Subcommand};
 use log::error;
 use std::path::Path;
@@ -161,6 +162,24 @@ pub enum Command {
         /// Only valid with `--plot`.
         #[arg(long, requires = "plot", conflicts_with = "data")]
         no_color: bool,
+
+        /// Fit trend lines with plain (unweighted) ordinary least squares
+        /// over the milestone's whole history, instead of the default
+        /// recency-weighted fit.
+        ///
+        /// Conflicts with `--fit-algo-recent` and `--data` (which shows no
+        /// fitted trend at all).
+        #[arg(long, conflicts_with_all = ["fit_algo_recent", "data"])]
+        fit_algo_linear: bool,
+
+        /// Fit trend lines with the default recency-weighted algorithm
+        /// (deduplicated to one point per day, then weighted so more
+        /// recent days count more) — the same as omitting both
+        /// `--fit-algo-*` flags. Only useful to make the default explicit.
+        ///
+        /// Conflicts with `--fit-algo-linear` and `--data`.
+        #[arg(long, conflicts_with_all = ["fit_algo_linear", "data"])]
+        fit_algo_recent: bool,
 
         /// Select the Nth milestone rank.
         ///
@@ -357,11 +376,19 @@ pub fn run() {
             ascii,
             html,
             no_color,
+            fit_algo_linear,
+            fit_algo_recent: _,
             last,
             next,
         }) => {
+            let algorithm = if fit_algo_linear {
+                eta::TrendFitAlgorithm::OrdinaryLeastSquares
+            } else {
+                eta::TrendFitAlgorithm::RecencyWeighted
+            };
             subcommands::when::run(
                 root, &config, next, velocity, plot, data, extra, ascii, html, no_color, last,
+                algorithm,
             );
         }
         Some(Command::History) => {
