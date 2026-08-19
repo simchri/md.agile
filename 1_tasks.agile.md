@@ -672,6 +672,11 @@
 
 #MILESTONE: Milestones & ETA
 
+## Compatibility of Assignments with mandatory subtasks
+- [ ] Consider: How can mandatory subtasks be --dynamically-- assigned to people, i.e. on a case-by-case basis. Possible syntax:
+  "some mandatory subtask" \@foo
+  - [ ] or solve by: Placement of properties, e.g. in body of task - currently not recognized --> change
+
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
 
@@ -682,9 +687,6 @@
 - [ ] menu
   - [ ] switch / select projects
 
-## Compatibility of Assignments with mandatory subtasks
-- [ ] Consider: How can mandatory subtasks be --dynamically-- assigned to people, i.e. on a case-by-case basis. Possible syntax:
-  "some mandatory subtask" \@foo
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
