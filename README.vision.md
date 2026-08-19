@@ -97,20 +97,7 @@ short = "feat_"
 
 ### Milestones and ETA to Milestone
 
-Mdagile supports agile planning and time estimation via milestones:
-
-A milestone is simply a marker between tasks, identified by the special tag `#MILESTONE` . When all tasks above (before) the milestone are complete, the milestone is reached.
-
-```md
-- [x] implement all MVP features
-- [x] perform first release
-
-#MILESTONE: Release of MVP :)
-
-- [ ] gather first user feedback
-
-```
-Punctuation directly behind the tag is ignored (`#MILESTONE` is equivalent to `#MILESTONE:`, `#MILESTONE!` etc.). A milestone name must be provided, and milestones must be unique across the project.
+...
 
 The `milestone` (alias `milestones`) command allows you to manage milestones:
 
@@ -125,21 +112,7 @@ The flag `--next` limits output to future milestones, i.e. milestones that appea
 
 (c.f. also `agile when --help`)
 
-You can then get ...
-
-- count of remaining tasks (and subtasks) to milestones
-- estimate average time per task for past tasks
-- ETAs (Estimated Time to Arrival) for each milestone
-
-with the `agile when` command:
-```bash
-$ agile when
-7 days    0.8 alpha
-3 weeks   Release of MVP :)
-4 months  Release of v2.0
-2 years   Product generation 2
-```
-Alone, `agile when` calculates the ETA for all milestones and lists them in order as they appear in your backlog (which by design is the same as ordering by ETA). The time unit is weeks for ETAs below 8 weeks, years from 3 years and higher, months otherwise.
+...
 
 You can inspect one milestone in more detail by providing its rank (as provided by `agile milestones --list [--next]`), e.g. 
 ```bash

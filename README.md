@@ -128,7 +128,7 @@ A minimal LSP server that offers real-time diagnostics as you edit, and offers q
 
 ## GUI
 
-Use the installed shortcuts - just search "mdagile Board". This opens a browser view to your tasks - Don't be confused: Your browser is connecting to a program running fully locally on your machine. We simply use the browser as a powerful "UI framework" so to say. 
+Use the installed shortcuts - just search "mdagile Board". This opens a browser view to your tasks - Don't be confused: Your browser is connecting to a program running fully locally on your machine. We simply use the browser as a powerful "UI framework" so to say.
 
 Alternatively, launch via terminal command `agilegui` then connect to the shown ip in a browser (in browser search bar type e.g. `http://127.0.0.1:8080/`).
 
@@ -377,6 +377,84 @@ You can tag multiple people or groups on the same task. In this case any person 
 ```
 If you want an AND connection instead, create subtasks for each person!
 
+### Milestones and ETA to Milestone
+
+Mdagile supports agile planning and time estimation via milestones:
+
+A milestone is simply a marker between tasks, identified by the special tag `#MILESTONE` . When all tasks above (before) the milestone are complete, the milestone is reached.
+
+```md
+- [x] implement all MVP features
+- [x] perform first release
+
+#MILESTONE: Release of MVP :)
+
+- [ ] gather first user feedback
+```
+Punctuation directly behind the tag is ignored (`#MILESTONE` is equivalent to `#MILESTONE:`, `#MILESTONE!` etc.). A milestone name must be provided, and milestones must be unique across the project.
+
+Once you have defined milestones you can
+
+- get count of remaining tasks (and subtasks) to milestones
+- estimate velocity and creep
+- calculate ETAs (Estimated Time to Arrival) for each milestone
+
+with the `agile when` command:
+```bash
+$ agile when
+7 days    0.8 alpha
+3 weeks   Release of MVP :)
+4 months  Release of v2.0
+2 years   Product generation 2
+```
+Alone, `agile when` calculates the ETA for all future milestones and lists them in order as they appear in your backlog (which by design is the same as ordering by ETA). The time unit is weeks for ETAs below 8 weeks, years from 3 years and higher, months otherwise.
+
+Estimation is based on a recency weighted linear fit for both the "total" and "done" tasks (using task weights). ETA is simply the point where the extrapolated trend lines intersect. You can get a visualization with the `--plot` flag. There are options for ascii art terminal output and html.
+
+(In your terminal this output will come with color ;))
+```
+$ agile when --plot
+
+Milestone: Demo milestone
+
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠤⠒⠁
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⣀⠤⠒⠉⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⣀⠤⠒⠉⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⡧⠒⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠂
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠤⠒⠉⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⢀⠤⠒⠁⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠤⠒⠉⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⣀⠔⠊⠁⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⢤⣒⣉⣀⣀⣀⣀⣀⣀⣀⣀⣀⡇⠀⠀⡠⠔⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠤⠒⢉⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡧⠒⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠔⠊⠁⠀⢀⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠤⠊⠁⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠈⠑⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠔⠊⠁⠀⠀⠀⡠⠔⠁⠀⠀⠀⠀⠀⠀⠀⠀⡠⠔⠊⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠈⠢⢄⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠔⠊⠁⠀⠀⠀⠀⠀⡠⠊⠀⠀⠀⠀⠀⠀⠀⢀⡠⠔⠉⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠑⠢⡀⠀⠀⢀⡠⠔⠊⠁⠀⠀⠀⠀⠀⠀⠀⡠⠊⠀⠀⠀⠀⠀⠀⢀⠤⠒⠁⠀⢀⣀⣀⡠⠤⠤⠔⠒⠒⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⢀⡨⠕⢎⣁⣀⣀⡠⠤⠤⠤⠔⠒⠒⠒⠉⠀⠀⠀⠀⠀⣀⠔⠊⢁⠤⠊⠉⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⢀⡠⠔⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⠔⠉⣀⠔⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⣀⡠⠔⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠒⢉⡠⠔⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠤⢊⣁⠤⠒⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⡠⠴⠞⠒⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠔⢒⡪⠝⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢀⡠⠔⠊⢁⠤⠒⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⢀⡠⠔⠊⠁⣀⠔⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠉⠁⠀⠀⠀⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+2026-06-24                                        2026-09-05
+
+.... total          .... done
+.... total trend    .... done trend
+.... today
+
+Trend lines (x = weeks since 2026-06-24):
+  total = 8.94 + 1.59/week * x
+  done  = 1.29 + 1.97/week * x
+
+total:  23 tasks  (weight 23.00)
+done:   18 tasks  (weight 18.00)
+
+ETA:      3 months
+ETA date: 2026-11-10
+```
+If the mathematical intersection point is in the past (or lines are perfectly parallel), the ETA will be "unknown". This happens when your "total" is growing faster than your "done" line, or in other words your scope creep is higher than your velocity. You have runaway scope and should probably put a lid on those feature requests ...
 
 ## Project Philosophy
 
