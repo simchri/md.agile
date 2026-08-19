@@ -655,7 +655,7 @@
 
 - [ ] non-terminal plots 
   - [ ] SVG
-  - [ ] html
+  - [x] html
 
 - [x] "velocity" is the slope of the (weighted) linear trend 
 
