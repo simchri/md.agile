@@ -42,6 +42,8 @@ It must be possible to easily attach a GUI. This GUI should handle git pull and 
 Ever seen a ticket that was "done" and wondered in which version the feature would actually be available? Have you had the pleasure yet of trying to configure your CI to integrate with Jira?
 Manage your tasks in your repo. Mark them as "done" in the same commit where the feature is implemented! You will always know exactly where the project stands.
 
+Caveat: This requires robust trunk-based development practice or otherwise a very well thought through branching scheme and CI configuration and a well trained team. Realistically, most teams will be better off with their task files in a separate repository, reserved for task management.
+
 ## No Story Points - #NoEstimates
 This project does not and will not have support for story points or sprints. Scrum is an antipattern.
 There is a better way to do Agile, and we can promote healthier, more effective software work by providing suitable tools (Jira is not suitable). Therefore, this project comes with estimation features in line with Allen Holub's #NoEstimates concept: Provide Estimated Time of Arrival based simply on task counts and past performance (but don't estimate individual tasks).
