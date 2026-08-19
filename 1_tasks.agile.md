@@ -632,6 +632,8 @@
 
 - [ ] remove: md.agile/crates/cli/examples/braille_line.rs:1:1
 
+- [ ] foo '@unknown'
+
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
     - [ ] e.g. no convergence
@@ -682,6 +684,8 @@
 - [ ] Consider: How can mandatory subtasks be --dynamically-- assigned to people, i.e. on a case-by-case basis. Possible syntax:
   "some mandatory subtask" \@foo
   - [ ] or solve by: Placement of properties, e.g. in body of task - currently not recognized --> change
+  - [ ] Design note: see [doc/dynamic-assignment-mandatory-subtasks.md](doc/dynamic-assignment-mandatory-subtasks.md). Chosen direction: marker after the closing quote (`"some mandatory subtask" \@foo`), keeping `raw_title` byte-exact for matching. Accept as a known, rare edge case: this reclassifies a fully-quoted custom title with trailing markers (e.g. `"ship the release" \#foo \@someone`) as `PropertyRequired`, spuriously triggering E011 if not declared by a property. Workaround: add any other unquoted word to break the full quote-wrap.
+  - [ ] Revisit the quote-adjacency escaping rule (`is_marker_quote` in `parser/mod.rs`) in more detail: today a single leading quote before `\#`/`\@` suppresses marker recognition. Consider: requiring the term to be fully quoted (`"\@alice"`) instead of just quote-adjacent; whether the existing `\\#`/`\\@` backslash-escape already makes this rule unnecessary; or using single ticks (`'`) as the literal/escaping convention instead.
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
