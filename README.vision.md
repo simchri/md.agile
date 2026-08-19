@@ -133,23 +133,8 @@ done: 3
 
 ### ETA - Task Weights
 
-For the purpose of ETA estimation only, the tool assigns different weights to tasks and subtasks. The total weight of a task is the sum of the weights of its subtasks, plus 1 (the task itself). The weight of a subtask is 1/"subtask level". E.g.:
 
-```md
-- [ ] A simple task: Weight = **1**
-
-- [ ] A task with two subtasks: Total weight = 1 + .5 + .5 = **2**
-  - [ ] subtask 1: Weight = 1/2
-  - [ ] subtask 2: Weight = 1/2
-
-- [ ] Total weight = 1 + .5 + .33 = **1.83**
-  - [ ] Weight = 1/2
-    - [ ] Weight = 1/3
-```
-
-Whenever the tool needs to "count" tasks, for the purpose of time estimation, task weights are used instead of the raw count.
-
-Subtasks that are required by a property are counted in exactly the same way as custom tasks. Subtasks required by a property used in **short form** are also counted, even if not (yet) explicitly written out! (c.f. "Property Short Forms")
+Subtasks required by a property used in **short form** are also counted, even if not (yet) explicitly written out! (c.f. "Property Short Forms")
 
 ...
 

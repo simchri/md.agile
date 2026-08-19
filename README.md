@@ -456,6 +456,24 @@ ETA date: 2026-11-10
 ```
 If the mathematical intersection point is in the past (or lines are perfectly parallel), the ETA will be "unknown". This happens when your "total" is growing faster than your "done" line, or in other words your scope creep is higher than your velocity. You have runaway scope and should probably put a lid on those feature requests ...
 
+### ETA - Task Weights
+
+For the purpose of ETA estimation only, the tool assigns different weights to tasks and subtasks. The total weight of a task is the sum of the weights of its subtasks, plus 1 (the task itself). The weight of a subtask is 1/"subtask level". E.g.:
+
+```md
+- [ ] A simple task: Weight = **1**
+
+- [ ] A task with two subtasks: Total weight = 1 + .5 + .5 = **2**
+  - [ ] subtask 1: Weight = 1/2
+  - [ ] subtask 2: Weight = 1/2
+
+- [ ] Total weight = 1 + .5 + .33 = **1.83**
+  - [ ] Weight = 1/2
+    - [ ] Weight = 1/3
+```
+
+Whenever the tool needs to "count" tasks, for the purpose of time estimation, task weights are used instead of the raw count. Subtasks that are required by a property are counted in exactly the same way as custom tasks.
+
 ## Project Philosophy
 
 See [MANIFESTO.md](MANIFESTO.md). Term definitions (Marker, Property, Assignment, Special Marker, etc.) are in [GLOSSARY.md](GLOSSARY.md).
