@@ -696,6 +696,7 @@
     - [x] \#/\@ markers now stay inline in `Task`/`Subtask::title` (parser no longer strips them out in `parse_markers`), so they show up automatically wherever a title is rendered, including `agile task next`.
   - [x] `--full` flag, also shows task bodies
     - [x] Added `--full` to `agile task next`; when set, each (sub)task's body lines are printed indented under it (`push_body_lines` in `cli/common.rs`).
+  - [ ] #bug printing mandatory subtasks with the "" syntax drops appended properties and assignements in the output
   - [ ] --no-col or no-markup flag: Allows all tests to ignore bolding, color etc. This does not need to be tested, but the output pollutes assertions everywhere
 
 - [ ] Revisit the quote-adjacency escaping rule (`is_marker_quote` in `parser/mod.rs`) in more detail: today a single leading quote before `\#`/`\@` suppresses marker recognition. Consider: requiring the term to be fully quoted (`"\@alice"`) instead of just quote-adjacent; whether the existing `\\#`/`\\@` backslash-escape already makes this rule unnecessary; or using single ticks (`'`) as the literal/escaping convention instead.
