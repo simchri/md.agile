@@ -662,7 +662,7 @@
 
 - [x] made the exponential-decay recency-weighted algorithm the new default `agile when` trend fit (was linear-rank `RecencyWeighted`); `--fit-algo-linear` and `--fit-algo-recent` remain selectable to opt back into OLS or the linear-rank fit respectively. Updated acceptance tests whose expected velocity numbers changed under the new default, with comments explaining the new values.
 
-- [ ] #bug fix behavior of `--last` N with `--plot` 
+- [x] #bug fix behavior of `--last` N with `--plot` 
 
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
@@ -772,6 +772,8 @@ Idea: Markers to ident. pre-condition tasks ( or conversely, tasks that have to 
 Markers to identify a task e.g. <<the bug fixing task>> (check to not conflict with common markdown). Then refer to it: #PRE:<<the bug fixing task>>
 
 ## Further milestone and ETA improvements
+
+- [ ] trend algo sensitivity to data concentration: Many entries over a few days can potentially influence the fit massively compared to isolated entries. Investigate and fix e.g. with regularizing sampling as a pre-processing step. 
 
 - [ ] trendlines in plot - with uncertainty regions
   - [ ] display uncertainty

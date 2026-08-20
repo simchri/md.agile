@@ -305,10 +305,10 @@ fn when_velocity_reordering_done_and_todo_tasks_preserves_nonzero_velocity() {
     // velocity. With the default exponential-decay recency-weighted fit
     // (deduped to one point/day, weighted so recency dominates even more
     // than the linear-rank `--fit-algo-recent` fit's 2.80/week), the fitted
-    // slope over these three unevenly-spaced points is 1.55/week.
+    // slope over these three unevenly-spaced points is 0.39/week.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   1.55\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   0.39\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -430,7 +430,7 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     // end of the history. With the default exponential-decay
     // recency-weighted fit, this late drop pulls the slope down more
     // sharply than the linear-rank `--fit-algo-recent` fit's -1.40/week,
-    // down to -3.90/week. Creep stays flat at 0.00: milestone scoping
+    // down to -6.21/week. Creep stays flat at 0.00: milestone scoping
     // fixes the in-scope rank cutoff at the *final* rank of the last
     // preceding task ("task b"), so deleting "task a" (which precedes it)
     // shifts "task b" into the vacated rank slot rather than shrinking total
@@ -439,7 +439,7 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     // quirk.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   -3.90\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   -6.21\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -593,10 +593,10 @@ fn when_velocity_counts_real_completion_only_once_even_if_moved_later() {
 
     // 1 completion over a 2-day observed span, plateauing after the move.
     // With the default exponential-decay recency-weighted fit, the fitted
-    // slope is 1.55/week.
+    // slope is 0.39/week.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   1.55\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   0.39\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -670,7 +670,7 @@ fn when_velocity_last_flag_restricts_history_window() {
     // exponential-decay recency-weighted fit).
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   1.86\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   0.82\ncreep:    weight/week   0.00\n",
     );
     // Restricting to the last 5 days excludes the oldest commit, changing
     // the fitted slope (still the default exponential-decay
@@ -678,7 +678,7 @@ fn when_velocity_last_flag_restricts_history_window() {
     assert_velocity_with_args(
         dir.path(),
         &["when", "--velocity", "--last", "5"],
-        "velocity: weight/week   1.11\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   0.16\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -743,7 +743,11 @@ fn when_velocity_errors_when_there_is_no_future_milestone() {
 }
 
 #[test]
-fn when_last_requires_velocity() {
+fn when_last_requires_a_display_mode() {
+    // `--last` restricts the plotted-point window, so it's meaningless
+    // without a mode that consumes that window (`--velocity`, `--plot`,
+    // or `--data`); bare `agile when --last N` (the future-milestones list
+    // mode) has nothing to restrict.
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] one task
@@ -755,8 +759,99 @@ fn when_last_requires_velocity() {
     assert!(!out.status.success());
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(
-        stderr.contains("--velocity"),
-        "expected clap error mentioning --velocity requirement, stderr: {stderr:?}"
+        stderr.contains("--velocity") && stderr.contains("--plot") && stderr.contains("--data"),
+        "expected error mentioning --velocity/--plot/--data, stderr: {stderr:?}"
+    );
+}
+
+#[test]
+fn when_data_last_restricts_the_plotted_window() {
+    // Arrange
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t_old = git_date_from_unix_secs(unix_ts_days_ago(6));
+    let t_recent = git_date_from_unix_secs(unix_ts_days_ago(3));
+
+    let file_content = "\
+- [ ] keep milestone future
+- [ ] task a
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "old", &t_old);
+
+    let file_content = "\
+- [ ] keep milestone future
+- [x] task a
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "recent", &t_recent);
+
+    // Act: full history vs. windowed to the last 5 days (excluding the
+    // 6-day-old commit, keeping the 3-day-old commit and today's implicit
+    // worktree point).
+    let full_out = run_agile(dir.path(), &["when", "--data"]);
+    let windowed_out = run_agile(dir.path(), &["when", "--data", "--last", "5"]);
+
+    // Assert
+    assert!(full_out.status.success());
+    assert!(windowed_out.status.success());
+    let full_stdout = String::from_utf8(full_out.stdout).unwrap();
+    let windowed_stdout = String::from_utf8(windowed_out.stdout).unwrap();
+
+    let count_data_rows = |stdout: &str| -> usize {
+        // Data rows are every line after the "Milestone:", blank, and
+        // column-header lines.
+        stdout.lines().count() - 3
+    };
+    let full_rows = count_data_rows(&full_stdout);
+    let windowed_rows = count_data_rows(&windowed_stdout);
+    assert_eq!(
+        windowed_rows,
+        full_rows - 1,
+        "expected --last 5 to drop exactly the 6-day-old row; full:\n{full_stdout}windowed:\n{windowed_stdout}"
+    );
+}
+
+#[test]
+fn when_plot_accepts_last_without_erroring() {
+    // Arrange
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(6));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(1));
+
+    let file_content = "\
+- [ ] keep milestone future
+- [ ] task a
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "old", &t0);
+
+    let file_content = "\
+- [ ] keep milestone future
+- [x] task a
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "recent", &t1);
+
+    // Act
+    let out = run_agile(dir.path(), &["when", "--plot", "--ascii", "--last", "5"]);
+
+    // Assert
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
     );
 }
 

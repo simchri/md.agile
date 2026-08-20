@@ -105,14 +105,16 @@ pub enum Command {
         #[arg(long, conflicts_with_all = ["velocity", "plot"])]
         data: bool,
 
-        /// Restrict velocity history to the last N days (defaults to the
-        /// milestone's whole history when omitted).
+        /// Restrict the plotted-point history to the last N days (defaults
+        /// to the milestone's whole history when omitted): with
+        /// `--velocity`, restricts the fitted trend line's input window;
+        /// with `--plot`/`--data` (and `--html`), restricts which points
+        /// are shown/fitted.
         ///
-        /// Only valid with `--velocity`.
+        /// Only valid with `--velocity`, `--plot`, or `--data`.
         #[arg(
             long,
             value_name = "DAYS",
-            requires = "velocity",
             value_parser = clap::value_parser!(u32).range(1..)
         )]
         last: Option<u32>,

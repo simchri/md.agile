@@ -90,12 +90,7 @@ pub fn estimate_velocity_with_window(
     }
 
     let mut plot = build_todo_done_plot(root, milestone_rank)?;
-
-    let today = super::date_utils::today_unix_days();
-    if let Some(cutoff) = window_days.and_then(|days| today.map(|t| t - i64::from(days))) {
-        plot.points
-            .retain(|p| super::date_utils::unix_days_from_date(p.date) >= cutoff);
-    }
+    super::plot_data::restrict_to_window_days(&mut plot, window_days);
 
     let (total_trend, done_trend) = compute_milestone_trends_with(&plot, algorithm);
 

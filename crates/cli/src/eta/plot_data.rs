@@ -68,6 +68,23 @@ pub fn build_todo_done_plot(root: &Path, milestone_rank: usize) -> Result<TodoDo
     })
 }
 
+/// Restricts `plot`'s points in place to the trailing `window_days`
+/// (points on or after `today - window_days`), matching the `--last`
+/// flag's day-cutoff semantics on `agile when --velocity`/`--plot`/
+/// `--data`. `window_days: None` leaves `plot` unchanged (the milestone's
+/// whole history) — the same "no restriction" default every one of those
+/// modes uses when `--last` is omitted. Shared by [`super::velocity`]'s
+/// windowed velocity estimate and every plot-rendering mode that accepts
+/// `--last`, so the exact same day-cutoff applies everywhere it's
+/// accepted.
+pub fn restrict_to_window_days(plot: &mut TodoDonePlot, window_days: Option<u32>) {
+    let today = super::date_utils::today_unix_days();
+    if let Some(cutoff) = window_days.and_then(|days| today.map(|t| t - i64::from(days))) {
+        plot.points
+            .retain(|p| unix_days_from_date(p.date) >= cutoff);
+    }
+}
+
 /// Computes the "right now" plot point directly from the on-disk worktree
 /// (which may include uncommitted edits), using the same fixed milestone
 /// rank as the rest of the timeline.

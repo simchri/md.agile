@@ -8,11 +8,13 @@ use std::path::Path;
 ///
 /// Supports `--velocity [--next <rank>] [--last <days>]` (defaults to
 /// `--next 1`, i.e. the next milestone) and terminal plotting via `--plot
-/// [--next <rank>]` (same default), plus `--data` to show the same
-/// underlying data as a raw table of task counts, and `--html` to write a
-/// self-contained HTML/SVG chart file instead of printing to the terminal.
-/// With no flags, lists the ETA time span for every future milestone, in
-/// backlog order.
+/// [--next <rank>] [--last <days>]` (same default), plus `--data` to show
+/// the same underlying data as a raw table of task counts, and `--html`
+/// to write a self-contained HTML/SVG chart file instead of printing to
+/// the terminal. `--last` restricts the plotted-point history the same
+/// way for all three modes (`--velocity`/`--plot`/`--data`) — it's
+/// meaningless (and rejected) without one of them. With no flags, lists
+/// the ETA time span for every future milestone, in backlog order.
 #[allow(clippy::too_many_arguments)]
 pub fn run(
     root: &Path,
@@ -28,15 +30,23 @@ pub fn run(
     last_days: Option<u32>,
     algorithm: TrendFitAlgorithm,
 ) {
+    if last_days.is_some() && !velocity && !plot && !data {
+        log::error!(
+            "`--last` restricts the plotted-point history, so it requires `--velocity`, `--plot`, or `--data`"
+        );
+        std::process::exit(1);
+    }
+
     if plot || data {
         let rank = next.unwrap_or(1);
-        let plot = match eta::build_todo_done_plot(root, rank) {
+        let mut plot = match eta::build_todo_done_plot(root, rank) {
             Ok(plot) => plot,
             Err(msg) => {
                 log::error!("{msg}");
                 std::process::exit(1);
             }
         };
+        eta::restrict_to_window_days(&mut plot, last_days);
         if data {
             print!("{}", eta::render_todo_done_data(&plot));
         } else if html {
