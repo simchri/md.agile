@@ -88,7 +88,10 @@ pub fn run_next(
         identity.as_ref(),
         Status::Todo,
     ) {
-        Ok(resolved) => print!("{}", render_resolved(&resolved, full)),
+        Ok(resolved) => print!(
+            "{}",
+            render_resolved(&resolved, full, identity.as_ref(), config)
+        ),
         Err(e) => {
             if explicit_address {
                 log::error!("{e}");
@@ -245,7 +248,12 @@ fn next_n_tasks(
                     continue;
                 }
             }
-            render_task_highlighting_next_leaf(task, include_body, &mut out);
+            render_task_highlighting_next_leaf(
+                task,
+                include_body,
+                identity.map(|identity| (identity, config)),
+                &mut out,
+            );
             found += 1;
             if found >= n {
                 break;
@@ -412,14 +420,25 @@ fn format_address(parts: &[usize]) -> String {
 /// exactly like [`render_task`] would for a top-level task, but bolds the
 /// first `Todo` leaf in the subtree — the concrete next actionable task —
 /// and, if `full` is true, also prints body lines (see
-/// [`render_task_highlighting_next_leaf`]).
+/// [`render_task_highlighting_next_leaf`]). If `identity` is `Some`, only a
+/// leaf eligible for that identity is bolded (see
+/// [`rules::is_eligible_for`]); otherwise the first `Todo` leaf is bolded
+/// unconditionally.
 ///
 /// [`render_task`]: crate::cli::common::render_task
-fn render_resolved(resolved: &ResolvedAddress, full: bool) -> String {
+fn render_resolved(
+    resolved: &ResolvedAddress,
+    full: bool,
+    identity: Option<&ResolvedIdentity>,
+    config: &Config,
+) -> String {
     let mut out = String::new();
+    let identity = identity.map(|identity| (identity, config));
     match resolved.node_ref() {
-        NodeRef::Task(task) => render_task_highlighting_next_leaf(task, full, &mut out),
-        NodeRef::Subtask(sub) => render_subtask_as_root_highlighting_next_leaf(sub, full, &mut out),
+        NodeRef::Task(task) => render_task_highlighting_next_leaf(task, full, identity, &mut out),
+        NodeRef::Subtask(sub) => {
+            render_subtask_as_root_highlighting_next_leaf(sub, full, identity, &mut out)
+        }
     }
     out
 }

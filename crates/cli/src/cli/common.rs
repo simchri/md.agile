@@ -1,6 +1,8 @@
 //! Helpers shared across CLI subcommands: file discovery, parsing, and rendering.
 
+use crate::config::Config;
 use crate::parser::{self, FileItem};
+use crate::rules::{self, NodeRef, ResolvedIdentity};
 use ignore::WalkBuilder;
 use log::{debug, warn};
 use std::path::{Path, PathBuf};
@@ -109,22 +111,26 @@ pub fn render_task(task: &parser::Task, out: &mut String) {
 /// (a node with no children of its own) encountered in document order — the
 /// concrete next actionable task within the printed subtree — and, if
 /// `include_body` is true, also prints each node's body lines indented one
-/// level deeper than the node itself. Used exclusively by `agile task next`
-/// to highlight which line is actually "next" (and, with `--full`, show
-/// task bodies) when a whole task tree (with already-done
-/// siblings/subtasks) is shown.
+/// level deeper than the node itself. If `identity` is `Some`, only a leaf
+/// [`rules::is_eligible_for`] that identity is considered a bolding
+/// candidate — leaves assigned to someone else are skipped over (but still
+/// printed, unbolded) so the highlighted line is one `identity` can
+/// actually act on. Used exclusively by `agile task next` to highlight
+/// which line is actually "next" (and, with `--full`, show task bodies)
+/// when a whole task tree (with already-done siblings/subtasks) is shown.
 pub(crate) fn render_task_highlighting_next_leaf(
     task: &parser::Task,
     include_body: bool,
+    identity: Option<(&ResolvedIdentity, &Config)>,
     out: &mut String,
 ) {
     let mut found = false;
     render_node_as_root_highlighting_next_leaf(
-        &task.status,
-        &task.title,
+        NodeRef::Task(task),
         &task.body,
         &task.children,
         include_body,
+        identity,
         out,
         &mut found,
     );
@@ -133,23 +139,24 @@ pub(crate) fn render_task_highlighting_next_leaf(
 /// Renders a subtask as if it were the root of its own tree (no leading
 /// indentation for `sub` itself, children indented by two spaces per level),
 /// bolding the first `Todo` leaf like [`render_task_highlighting_next_leaf`]
-/// does, and likewise printing body lines when `include_body` is true. Used
-/// when a dotted task address (e.g. `agile task next 1.2`) points at a
-/// specific subtask rather than a whole top-level task — the addressed
-/// subtask is displayed as its own root instead of nested under its
-/// ancestors.
+/// does (subject to the same `identity` eligibility restriction), and
+/// likewise printing body lines when `include_body` is true. Used when a
+/// dotted task address (e.g. `agile task next 1.2`) points at a specific
+/// subtask rather than a whole top-level task — the addressed subtask is
+/// displayed as its own root instead of nested under its ancestors.
 pub(crate) fn render_subtask_as_root_highlighting_next_leaf(
     sub: &parser::Subtask,
     include_body: bool,
+    identity: Option<(&ResolvedIdentity, &Config)>,
     out: &mut String,
 ) {
     let mut found = false;
     render_node_as_root_highlighting_next_leaf(
-        &sub.status,
-        &sub.title,
+        NodeRef::Subtask(sub),
         &sub.body,
         &sub.children,
         include_body,
+        identity,
         out,
         &mut found,
     );
@@ -171,20 +178,20 @@ fn render_node_as_root(
 }
 
 fn render_node_as_root_highlighting_next_leaf(
-    status: &parser::Status,
-    title: &str,
+    node: NodeRef,
     body: &[String],
     children: &[parser::Subtask],
     include_body: bool,
+    identity: Option<(&ResolvedIdentity, &Config)>,
     out: &mut String,
     found: &mut bool,
 ) {
-    push_node_line(status, title, children.is_empty(), out, found);
+    push_node_line(node, children.is_empty(), identity, out, found);
     if include_body {
         push_body_lines(body, out);
     }
     for child in children {
-        render_subtask_highlighting_next_leaf(child, 1, include_body, out, found);
+        render_subtask_highlighting_next_leaf(child, 1, include_body, identity, out, found);
     }
 }
 
@@ -208,24 +215,32 @@ fn render_subtask(sub: &parser::Subtask, depth: usize, out: &mut String) {
 
 /// Same as [`render_subtask`], but bolds the first `Todo` leaf encountered
 /// in document order (tracked via `found`), like
-/// [`render_task_highlighting_next_leaf`] does for the root, and prints
-/// body lines when `include_body` is true.
+/// [`render_task_highlighting_next_leaf`] does for the root, subject to the
+/// same `identity` eligibility restriction, and prints body lines when
+/// `include_body` is true.
 fn render_subtask_highlighting_next_leaf(
     sub: &parser::Subtask,
     depth: usize,
     include_body: bool,
+    identity: Option<(&ResolvedIdentity, &Config)>,
     out: &mut String,
     found: &mut bool,
 ) {
     for _ in 0..depth {
         out.push_str("  ");
     }
-    push_node_line(&sub.status, &sub.title, sub.children.is_empty(), out, found);
+    push_node_line(
+        NodeRef::Subtask(sub),
+        sub.children.is_empty(),
+        identity,
+        out,
+        found,
+    );
     if include_body {
         push_body_lines(&sub.body, out);
     }
     for child in &sub.children {
-        render_subtask_highlighting_next_leaf(child, depth + 1, include_body, out, found);
+        render_subtask_highlighting_next_leaf(child, depth + 1, include_body, identity, out, found);
     }
 }
 
@@ -240,18 +255,28 @@ fn push_body_lines(body: &[String], out: &mut String) {
 }
 
 /// Writes one `[<status>] <title>` line to `out`, bolding it (via ANSI
-/// escapes) when it's the first `Todo` leaf seen so far (`is_leaf` is true,
-/// `status` is `Todo`, and `*found` hasn't already been set by an earlier
-/// line). Sets `*found` when it bolds so only one line per render is ever
-/// highlighted.
+/// escapes) when it's the first `Todo` leaf seen so far that qualifies as a
+/// bolding candidate (`is_leaf` is true, the node's status is `Todo`, and
+/// `*found` hasn't already been set by an earlier line). If `identity` is
+/// `Some((identity, config))`, a leaf additionally only qualifies when
+/// [`rules::is_eligible_for`] that identity — leaves assigned to someone
+/// else are printed normally (unbolded) instead, and the search continues
+/// for a later, eligible leaf. Sets `*found` when it bolds so only one line
+/// per render is ever highlighted.
 fn push_node_line(
-    status: &parser::Status,
-    title: &str,
+    node: NodeRef,
     is_leaf: bool,
+    identity: Option<(&ResolvedIdentity, &Config)>,
     out: &mut String,
     found: &mut bool,
 ) {
-    let should_bold = !*found && is_leaf && *status == parser::Status::Todo;
+    let status = node.status();
+    let title = node.title();
+    let is_candidate = !*found && is_leaf && *status == parser::Status::Todo;
+    let should_bold = is_candidate
+        && identity
+            .map(|(identity, config)| rules::is_eligible_for(node, identity, config))
+            .unwrap_or(true);
     if should_bold {
         *found = true;
         out.push_str(crate::formatter::BOLD);
