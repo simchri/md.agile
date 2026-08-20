@@ -37,7 +37,8 @@ fn bolds_the_only_todo_leaf() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next"]);
-    assert_eq!(stdout, format!("{BOLD}[ ] parent task{RESET}\n"));
+    let expected = format!("{BOLD}[ ] parent task{RESET}\n");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -52,12 +53,15 @@ fn bolds_first_todo_leaf_in_document_order() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] parent task\n  [x] already done subtask\n  {BOLD}[ ] first todo leaf{RESET}\n  [ ] second todo leaf\n"
-        )
+    let expected = format!(
+        "\
+[ ] parent task
+  [x] already done subtask
+  {BOLD}[ ] first todo leaf{RESET}
+  [ ] second todo leaf
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -73,12 +77,14 @@ fn skips_non_leaf_todo_nodes() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] parent task\n  [ ] mid-level subtask with children\n    {BOLD}[ ] actual leaf{RESET}\n"
-        )
+    let expected = format!(
+        "\
+[ ] parent task
+  [ ] mid-level subtask with children
+    {BOLD}[ ] actual leaf{RESET}
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -107,12 +113,14 @@ fn bolds_within_dotted_addressed_subtask_subtree() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "1.1"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] addressed subtask\n  [x] already done grandchild\n  {BOLD}[ ] next leaf{RESET}\n"
-        )
+    let expected = format!(
+        "\
+[ ] addressed subtask
+  [x] already done grandchild
+  {BOLD}[ ] next leaf{RESET}
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -127,12 +135,15 @@ fn includes_body_when_full_flag_given() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "--full"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] parent task\n  some body text\n  {BOLD}[ ] leaf with a body{RESET}\n    leaf body line\n"
-        )
+    let expected = format!(
+        "\
+[ ] parent task
+  some body text
+  {BOLD}[ ] leaf with a body{RESET}
+    leaf body line
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -145,7 +156,8 @@ fn omits_body_by_default() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next"]);
-    assert_eq!(stdout, format!("{BOLD}[ ] parent task{RESET}\n"));
+    let expected = format!("{BOLD}[ ] parent task{RESET}\n");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -173,12 +185,14 @@ git_emails = [\"bob@example.com\"]
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] parent task\n  [ ] leaf assigned to bob @bob\n  {BOLD}[ ] leaf eligible for alice{RESET}\n"
-        )
+    let expected = format!(
+        "\
+[ ] parent task
+  [ ] leaf assigned to bob @bob
+  {BOLD}[ ] leaf eligible for alice{RESET}
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -270,10 +284,14 @@ git_emails = [\"bob@example.com\"]
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
-    assert_eq!(
-        stdout,
-        format!("[ ] parent task\n  [x] first step @bob\n  {BOLD}[ ] second step @alice{RESET}\n")
+    let expected = format!(
+        "\
+[ ] parent task
+  [x] first step @bob
+  {BOLD}[ ] second step @alice{RESET}
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -292,10 +310,14 @@ fn without_identity_still_bolds_blocked_ordered_leaf_unconditionally() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next"]);
-    assert_eq!(
-        stdout,
-        format!("[ ] parent task\n  {BOLD}[ ] first step @bob{RESET}\n  [ ] second step @alice\n")
+    let expected = format!(
+        "\
+[ ] parent task
+  {BOLD}[ ] first step @bob{RESET}
+  [ ] second step @alice
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -310,10 +332,8 @@ fn bolds_unconditionally_without_mine_or_as() {
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next"]);
-    assert_eq!(
-        stdout,
-        format!("[ ] parent task\n  {BOLD}[ ] leaf assigned to bob @bob{RESET}\n")
-    );
+    let expected = format!("[ ] parent task\n  {BOLD}[ ] leaf assigned to bob @bob{RESET}\n");
+    assert_eq!(stdout, expected);
 }
 
 /// A VER-161-style task: quoted subtask titles required by a
@@ -344,12 +364,16 @@ git_emails = [\"alice@example.com\"]
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review @Gini{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
-        )
+    let expected = format!(
+        "\
+[ ] VER-161 System Test Image Installation and Smoke Test #systemtest
+  [x] 1. write draft
+  {BOLD}[ ] 2. assign review @Gini{RESET}
+  [ ] 3. implement feedback
+  [ ] 4. approved
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -380,12 +404,16 @@ git_emails = [\"alice@example.com\"]
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "--as", "Gini"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review @Gini{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
-        )
+    let expected = format!(
+        "\
+[ ] VER-161 System Test Image Installation and Smoke Test #systemtest
+  [x] 1. write draft
+  {BOLD}[ ] 2. assign review @Gini{RESET}
+  [ ] 3. implement feedback
+  [ ] 4. approved
+"
     );
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -467,10 +495,13 @@ git_emails = [\"bob@example.com\"]
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] parent task\n  [ ] first step @bob\n  [ ] blocked step @alice\n  {BOLD}[ ] separate unordered step @alice{RESET}\n"
-        )
+    let expected = format!(
+        "\
+[ ] parent task
+  [ ] first step @bob
+  [ ] blocked step @alice
+  {BOLD}[ ] separate unordered step @alice{RESET}
+"
     );
+    assert_eq!(stdout, expected);
 }
