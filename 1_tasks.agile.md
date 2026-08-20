@@ -697,7 +697,7 @@
   - [ ] make next eligible task bold
     - [x] Implemented in `cli/common.rs`: `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf` walk the tree, bolding (ANSI `\x1b[1m`/`\x1b[0m`, see `formatter::BOLD`/`RESET`) the first `Todo` *leaf* (a node with no children) in document order — the concrete next actionable task, even nested under already-done siblings/ancestors.
     - [x] Bugfix: when `--mine`/`--as` is given, the bolded leaf must be one *eligible* for the resolved identity (`rules::is_eligible_for`), not just the first `Todo` leaf regardless of assignment — leaves assigned to someone else are skipped over. Without `--mine`/`--as` (no identity resolved), the old unconditional first-`Todo`-leaf bolding is unchanged. Threaded via a new `identity: Option<(&ResolvedIdentity, &Config)>` parameter through `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf`/`render_node_as_root_highlighting_next_leaf`/`render_subtask_highlighting_next_leaf`/`push_node_line`.
-    - [ ] #bug still seems buggy! Investigate further!
+    - [x] #bug still seems buggy! Investigate further!
     - [ ] refactor some AC tests: The file content / expectation is not super obviously formatted everywhere, const variables are used in multiple tests etc.
   - [x] Show assignments and properties
     - [x] \#/\@ markers now stay inline in `Task`/`Subtask::title` (parser no longer strips them out in `parse_markers`), so they show up automatically wherever a title is rendered, including `agile task next`.
