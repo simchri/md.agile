@@ -10,3 +10,5 @@ build_agile_cli
 
 "$SCRIPT_DIR/plot-demo-messy-both.bash" --no-build
 "$SCRIPT_DIR/plot-demo-new-milestone.bash" --no-build
+"$SCRIPT_DIR/plot-demo-no-convergence.bash" --no-build
+"$SCRIPT_DIR/plot-demo-second-milestone.bash" --no-build
