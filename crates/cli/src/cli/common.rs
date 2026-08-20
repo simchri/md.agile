@@ -186,12 +186,20 @@ fn render_node_as_root_highlighting_next_leaf(
     out: &mut String,
     found: &mut bool,
 ) {
-    push_node_line(node, children.is_empty(), identity, out, found);
+    push_node_line(node, &[], identity, out, found);
     if include_body {
         push_body_lines(body, out);
     }
     for child in children {
-        render_subtask_highlighting_next_leaf(child, 1, include_body, identity, out, found);
+        render_subtask_highlighting_next_leaf(
+            child,
+            1,
+            children,
+            include_body,
+            identity,
+            out,
+            found,
+        );
     }
 }
 
@@ -217,10 +225,13 @@ fn render_subtask(sub: &parser::Subtask, depth: usize, out: &mut String) {
 /// in document order (tracked via `found`), like
 /// [`render_task_highlighting_next_leaf`] does for the root, subject to the
 /// same `identity` eligibility restriction, and prints body lines when
-/// `include_body` is true.
+/// `include_body` is true. `siblings` is the slice `sub` was found in
+/// (its parent's children), needed to check whether `sub` is order-blocked
+/// — see [`rules::is_next_eligible_leaf`].
 fn render_subtask_highlighting_next_leaf(
     sub: &parser::Subtask,
     depth: usize,
+    siblings: &[parser::Subtask],
     include_body: bool,
     identity: Option<(&ResolvedIdentity, &Config)>,
     out: &mut String,
@@ -229,18 +240,20 @@ fn render_subtask_highlighting_next_leaf(
     for _ in 0..depth {
         out.push_str("  ");
     }
-    push_node_line(
-        NodeRef::Subtask(sub),
-        sub.children.is_empty(),
-        identity,
-        out,
-        found,
-    );
+    push_node_line(NodeRef::Subtask(sub), siblings, identity, out, found);
     if include_body {
         push_body_lines(&sub.body, out);
     }
     for child in &sub.children {
-        render_subtask_highlighting_next_leaf(child, depth + 1, include_body, identity, out, found);
+        render_subtask_highlighting_next_leaf(
+            child,
+            depth + 1,
+            &sub.children,
+            include_body,
+            identity,
+            out,
+            found,
+        );
     }
 }
 
@@ -255,28 +268,22 @@ fn push_body_lines(body: &[String], out: &mut String) {
 }
 
 /// Writes one `[<status>] <title>` line to `out`, bolding it (via ANSI
-/// escapes) when it's the first `Todo` leaf seen so far that qualifies as a
-/// bolding candidate (`is_leaf` is true, the node's status is `Todo`, and
-/// `*found` hasn't already been set by an earlier line). If `identity` is
-/// `Some((identity, config))`, a leaf additionally only qualifies when
-/// [`rules::is_eligible_for`] that identity — leaves assigned to someone
-/// else are printed normally (unbolded) instead, and the search continues
-/// for a later, eligible leaf. Sets `*found` when it bolds so only one line
-/// per render is ever highlighted.
+/// escapes) when it's the first line seen so far (`*found` not yet set)
+/// that [`rules::is_next_eligible_leaf`] — see that function for the full
+/// definition of what makes a line the "next" actionable one. `siblings` is
+/// the slice `node` was found in (empty for a root node, which is never
+/// order-blocked). Sets `*found` when it bolds so only one line per render
+/// is ever highlighted.
 fn push_node_line(
     node: NodeRef,
-    is_leaf: bool,
+    siblings: &[parser::Subtask],
     identity: Option<(&ResolvedIdentity, &Config)>,
     out: &mut String,
     found: &mut bool,
 ) {
     let status = node.status();
     let title = node.title();
-    let is_candidate = !*found && is_leaf && *status == parser::Status::Todo;
-    let should_bold = is_candidate
-        && identity
-            .map(|(identity, config)| rules::is_eligible_for(node, identity, config))
-            .unwrap_or(true);
+    let should_bold = !*found && rules::is_next_eligible_leaf(node, siblings, identity);
     if should_bold {
         *found = true;
         out.push_str(crate::formatter::BOLD);

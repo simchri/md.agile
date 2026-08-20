@@ -389,3 +389,54 @@ fn as_alice_skips_leaf_assigned_to_gini() {
     let stdout = stdout_of(dir.path(), &["task", "next", "--as", "alice"]);
     assert_eq!(stdout, "");
 }
+
+#[test]
+fn mine_does_not_bold_an_order_blocked_leaf_assigned_to_identity_even_when_a_later_unordered_sibling_is_the_real_eligible_one()
+ {
+    // Regression test for a second angle on the same order-blocking bug:
+    // the *task-level* eligibility check (whether to show the task at all
+    // under `--mine`) already excludes order-blocked children, via
+    // `rules::is_eligible_for` recursing over `task.children`. But the
+    // *leaf-bolding* walk (which finds the specific line to highlight)
+    // previously called `rules::is_eligible_for` directly on each candidate
+    // leaf in isolation — which, for a leaf with no children of its own,
+    // only checks its own assignment markers and never re-derives whether
+    // *that specific leaf* is order-blocked by its siblings.
+    //
+    // So here: "2. blocked step" is nominally assigned to alice but blocked
+    // by bob's incomplete "1. first step". The task is still eligible for
+    // alice overall (because "separate unordered step", also hers, is
+    // unblocked and unordered). But document order visits "2. blocked step"
+    // before "separate unordered step" — so the buggy leaf-level check
+    // would bold "2. blocked step" (wrong: not actually actionable) instead
+    // of skipping over it to bold "separate unordered step" (the real next
+    // actionable line for alice).
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] parent task
+  - [ ] 1. first step @bob
+  - [ ] 2. blocked step @alice
+  - [ ] separate unordered step @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
+    assert_eq!(
+        stdout,
+        format!(
+            "[ ] parent task\n  [ ] first step @bob\n  [ ] blocked step @alice\n  {BOLD}[ ] separate unordered step @alice{RESET}\n"
+        )
+    );
+}
