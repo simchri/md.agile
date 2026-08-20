@@ -488,6 +488,11 @@ fn check_order_completable(items: &[FileItem], node: NodeRef) -> Vec<Issue> {
 /// there's nothing left for `identity` to actually do there. `#OPT` children
 /// still count towards eligibility like any other child.
 ///
+/// An ordered child that is still blocked by an incomplete lower-ordered
+/// sibling (see [`invalid_order::blocked_by_incomplete_lower_order`]) is not
+/// actually actionable yet, regardless of who it's assigned to, so it's
+/// excluded from eligibility just like a `Done`/`Cancelled` child would be.
+///
 /// Used by `agile task next --mine`.
 pub fn is_eligible_for(node: NodeRef, identity: &ResolvedIdentity, config: &Config) -> bool {
     if !is_eligible_by_own_markers(node.markers(), identity, config) {
@@ -498,7 +503,13 @@ pub fn is_eligible_for(node: NodeRef, identity: &ResolvedIdentity, config: &Conf
         return true;
     }
     children.iter().any(|child| {
-        child.status == Status::Todo && is_eligible_for(NodeRef::Subtask(child), identity, config)
+        child.status == Status::Todo
+            && !matches!(
+                child.order,
+                Order::Ordered(order_number)
+                    if invalid_order::blocked_by_incomplete_lower_order(children, order_number)
+            )
+            && is_eligible_for(NodeRef::Subtask(child), identity, config)
     })
 }
 

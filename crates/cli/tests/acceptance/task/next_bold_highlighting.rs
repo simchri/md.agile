@@ -210,6 +210,95 @@ git_emails = [\"bob@example.com\"]
 }
 
 #[test]
+fn mine_skips_ordered_leaf_eligible_for_identity_but_blocked_by_incomplete_lower_order_sibling_assigned_to_someone_else()
+ {
+    // Regression test: ordered subtasks (`1. ...`, `2. ...`) establish an
+    // execution sequence among siblings — a higher-ordered sibling cannot
+    // actually be worked on while a lower-ordered one is still incomplete
+    // (see E015 / `invalid_order::blocked_by_incomplete_lower_order`).
+    // Eligibility must take this into account: alice is nominally assigned
+    // "2. second step", but bob's still-incomplete "1. first step" blocks
+    // it, so there is nothing alice can actually do yet, and `--mine`
+    // should bold nothing (not the blocked step assigned to her).
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] parent task
+  - [ ] 1. first step @bob
+  - [ ] 2. second step @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
+    assert!(stdout.is_empty(), "stdout: {stdout:?}");
+    assert!(!stdout.contains(BOLD));
+}
+
+#[test]
+fn mine_bolds_ordered_leaf_once_blocking_lower_order_sibling_is_done() {
+    // Same setup as above, but bob's "1. first step" is now done, so
+    // alice's "2. second step" is actually actionable and should be bolded.
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] parent task
+  - [x] 1. first step @bob
+  - [ ] 2. second step @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
+    assert_eq!(
+        stdout,
+        format!("[ ] parent task\n  [x] first step @bob\n  {BOLD}[ ] second step @alice{RESET}\n")
+    );
+}
+
+#[test]
+fn without_identity_still_bolds_blocked_ordered_leaf_unconditionally() {
+    // Without `--mine`/`--as`, the unconditional "first Todo leaf" behavior
+    // is unchanged: order-blocking is an eligibility-only concern, not a
+    // general "is this leaf actionable" concern for the unconditional case.
+    // (`agile task done` still separately rejects completing an
+    // out-of-order leaf; this is purely about what gets highlighted.)
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] parent task
+  - [ ] 1. first step @bob
+  - [ ] 2. second step @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let stdout = stdout_of(dir.path(), &["task", "next"]);
+    assert_eq!(
+        stdout,
+        format!("[ ] parent task\n  {BOLD}[ ] first step @bob{RESET}\n  [ ] second step @alice\n")
+    );
+}
+
+#[test]
 fn bolds_unconditionally_without_mine_or_as() {
     // Without `--mine`/`--as`, the old unconditional "first Todo leaf"
     // behavior still applies even to a leaf assigned to someone else.
@@ -236,8 +325,6 @@ const VER_161_FILE_CONTENT: &str = "\
   - [ ] \"2. assign review\" @Gini
   - [ ] \"3. implement feedback\"
   - [ ] \"4. approved\"
-
-- [ ] foo
 ";
 
 const VER_161_CONFIG: &str = "\
@@ -262,7 +349,7 @@ fn bolds_first_todo_leaf_among_quoted_property_subtasks() {
     assert_eq!(
         stdout,
         format!(
-            "{BOLD}[ ] foo{RESET}\n"
+            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
         )
     );
 }
@@ -287,19 +374,18 @@ fn as_gini_bolds_leaf_assigned_to_gini() {
 
 #[test]
 fn as_alice_skips_leaf_assigned_to_gini() {
-    // For an identity other than Gini, the leaf assigned to her is skipped
-    // over (but still printed unbolded); the next unassigned leaf ("3.
-    // implement feedback", open to anyone) is bolded instead.
+    // For an identity other than Gini, the leaf assigned to her ("2. assign
+    // review") is not eligible. Since these subtasks are strictly ordered
+    // (the quoted "N. ..." titles carry real order numbers, same as
+    // unquoted ordered subtasks), the later "3. implement feedback" is also
+    // blocked while "2." remains incomplete, even though it's unassigned —
+    // alice can't jump ahead of an incomplete lower-ordered sibling. So
+    // nothing is eligible for her, and `--as alice` bolds nothing.
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     fs::write(dir.path().join("mdagile.toml"), VER_161_CONFIG).unwrap();
     fs::write(dir.path().join("tasks.agile.md"), VER_161_FILE_CONTENT).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "--as", "alice"]);
-    assert_eq!(
-        stdout,
-        format!(
-            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  [ ] 2. assign review\n  {BOLD}[ ] 3. implement feedback{RESET}\n  [ ] 4. approved\n"
-        )
-    );
+    assert_eq!(stdout, "");
 }

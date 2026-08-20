@@ -406,6 +406,7 @@
 - [x] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
 - [x] command: `agile task next --mine` show the next task eligible.
   Eligbility --> same rules as for assignment / completion validation 
+- [x] #bug `agile task next --mine`/eligibility ignored subtask ordering: a `Todo` leaf assigned to the identity was reported eligible/bolded even while a lower-ordered, incomplete sibling (assigned to someone else, or unassigned) still blocked it from actually being worked on. Fixed `rules::is_eligible_for` to exclude ordered children still blocked by `invalid_order::blocked_by_incomplete_lower_order`, matching the same order-blocking semantics already used for E015. Added acceptance tests in `crates/cli/tests/acceptance/task/next_bold_highlighting.rs` covering: an eligible-but-order-blocked leaf under `--mine` (bolds nothing until the blocker completes), the unconditional (no `--mine`/`--as`) case which is unaffected by order-blocking, and an `--as` identity skipped past an order-blocked, differently-assigned leaf in the VER-161 quoted/ordered-subtasks scenario.
 
 - [ ] #bug in task output (e.g. agile task next --mine), the assignment markers are not visible ('@someone')
 
@@ -696,6 +697,7 @@
     - [x] Implemented in `cli/common.rs`: `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf` walk the tree, bolding (ANSI `\x1b[1m`/`\x1b[0m`, see `formatter::BOLD`/`RESET`) the first `Todo` *leaf* (a node with no children) in document order — the concrete next actionable task, even nested under already-done siblings/ancestors.
     - [x] Bugfix: when `--mine`/`--as` is given, the bolded leaf must be one *eligible* for the resolved identity (`rules::is_eligible_for`), not just the first `Todo` leaf regardless of assignment — leaves assigned to someone else are skipped over. Without `--mine`/`--as` (no identity resolved), the old unconditional first-`Todo`-leaf bolding is unchanged. Threaded via a new `identity: Option<(&ResolvedIdentity, &Config)>` parameter through `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf`/`render_node_as_root_highlighting_next_leaf`/`render_subtask_highlighting_next_leaf`/`push_node_line`.
     - [ ] #bug still seems buggy! Investigate further!
+    - [ ] refactor some AC tests: The file content / expectation is not super obviously formatted everywhere, const variables are used in multiple tests etc.
   - [x] Show assignments and properties
     - [x] \#/\@ markers now stay inline in `Task`/`Subtask::title` (parser no longer strips them out in `parse_markers`), so they show up automatically wherever a title is rendered, including `agile task next`.
   - [x] `--full` flag, also shows task bodies
