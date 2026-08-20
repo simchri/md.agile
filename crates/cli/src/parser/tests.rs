@@ -335,6 +335,52 @@ fn parse_property_required_subtask_with_embedded_property_stores_raw_title() {
 }
 
 #[test]
+fn parse_property_required_subtask_with_trailing_assignment_marker() {
+    // Dynamic per-instance assignment (Option 1 from
+    // doc/dynamic-assignment-mandatory-subtasks.md): a marker placed *after*
+    // the closing quote is an ordinary marker on the subtask, and does not
+    // affect the byte-exact raw_title used for config matching.
+    let input = "\
+- [ ] parent
+  - [ ] \"PO review\" @alice
+";
+    let items = p(input);
+    let sub = &task(&items, 0).children[0];
+    assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
+    assert_eq!(sub.raw_title, Some("PO review".to_string()));
+    assert_eq!(sub.title, "PO review");
+    assert_eq!(
+        sub.markers,
+        vec![Marker::Assignment(AssignmentRef {
+            name: "alice".to_string(),
+            column: 13,
+        })]
+    );
+}
+
+#[test]
+fn parse_property_required_subtask_with_multiple_trailing_markers() {
+    let input = "\
+- [ ] parent
+  - [ ] \"PO review\" @alice #OPT
+";
+    let items = p(input);
+    let sub = &task(&items, 0).children[0];
+    assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
+    assert_eq!(sub.raw_title, Some("PO review".to_string()));
+    assert!(
+        sub.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Assignment(a) if a.name == "alice"))
+    );
+    assert!(
+        sub.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Special(s) if s.kind == SpecialMarkerKind::Opt))
+    );
+}
+
+#[test]
 fn custom_subtask_has_no_raw_title() {
     let input = "\
 - [ ] parent

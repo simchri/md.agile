@@ -1,8 +1,9 @@
 # Design Note: Dynamic Assignment of Mandatory (Property-Required) Subtasks
 
-> Status: the "dynamic assignment" feature itself (Option 1, marker after
-> the closing quote) is still a proposal / not yet implemented. The
-> quote-adjacency escaping rule follow-up (see below) has been implemented.
+> Status: the "dynamic assignment" feature (Option 1, marker after the
+> closing quote) is implemented — see `parse_subtask_kind` in
+> `crates/cli/src/parser/mod.rs`. The quote-adjacency escaping rule
+> follow-up (see below) is also implemented.
 
 ## Problem
 

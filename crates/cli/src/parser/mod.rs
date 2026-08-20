@@ -362,7 +362,11 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             // consumed — `raw_title` must stay byte-identical to the
             // property's configured subtask string (order prefix included)
             // so E010/E012 matching keeps working unchanged.
-            let (kind, unquoted) = parse_subtask_kind(&rest);
+            let (kind, unquoted, trailing_markers_src) = parse_subtask_kind(&rest);
+            // Byte offset within the original title text where the trailing
+            // marker suffix (if any) begins — needed to re-anchor its
+            // markers' columns once parsed separately below.
+            let trailing_offset = rest.len() - trailing_markers_src.len();
             let (order, rest) = match kind {
                 SubtaskKind::Custom => parse_order_prefix(unquoted),
                 SubtaskKind::PropertyRequired => {
@@ -374,7 +378,18 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
                 SubtaskKind::PropertyRequired => Some(rest.to_string()),
                 SubtaskKind::Custom => None,
             };
-            let (markers, title) = parse_markers(rest);
+            let (mut markers, title) = parse_markers(rest);
+            if kind == SubtaskKind::PropertyRequired && !trailing_markers_src.is_empty() {
+                // Dynamic per-instance assignment: markers placed after the
+                // closing quote (e.g. `"PO review" @alice`) are ordinary
+                // markers on the subtask, kept out of raw_title/title.
+                let (trailing_markers, _) = parse_markers(trailing_markers_src);
+                markers.extend(
+                    trailing_markers
+                        .into_iter()
+                        .map(|m| shift_marker_column(m, trailing_offset)),
+                );
+            }
             let mut parsing_issues = parsing_issues;
             if title.trim().is_empty() {
                 parsing_issues.push(ParsingIssue::EmptyTitle);
@@ -560,12 +575,82 @@ fn parse_order_prefix(title: &str) -> (Order, &str) {
 }
 
 // A title fully wrapped in `"..."` marks a property-required subtask; the
-// quotes are stripped and the inner text is returned.
-fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str) {
-    if title.len() >= 2 && title.starts_with('"') && title.ends_with('"') {
-        (SubtaskKind::PropertyRequired, &title[1..title.len() - 1])
+// quotes are stripped and the inner text is returned. A run of marker-shaped
+// tokens (`#foo`, `@bar`) trailing *after* the closing quote — e.g.
+// `"PO review" @alice`, the dynamic per-instance assignment syntax from
+// doc/dynamic-assignment-mandatory-subtasks.md — is peeled off first so it
+// doesn't prevent the quote-wrap from being recognised. The peeled-off
+// suffix is returned separately so the caller can parse it as ordinary
+// markers on the subtask, without it becoming part of the byte-exact
+// raw_title used for config matching.
+fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str, &str) {
+    let core_end = find_trailing_markers_start(title);
+    let (core, trailing) = title.split_at(core_end);
+    if core.len() >= 2 && core.starts_with('"') && core.ends_with('"') {
+        (
+            SubtaskKind::PropertyRequired,
+            &core[1..core.len() - 1],
+            trailing,
+        )
     } else {
-        (SubtaskKind::Custom, title)
+        (SubtaskKind::Custom, title, "")
+    }
+}
+
+// Returns the byte offset in `s` where a trailing run of marker-shaped
+// tokens (whitespace-separated words starting with `#` or `@`) begins, so
+// that `s[..offset]` is the "core" content and `s[offset..]` is the trailing
+// marker suffix (including its separating whitespace). Returns `s.len()` if
+// there's no such trailing run.
+fn find_trailing_markers_start(s: &str) -> usize {
+    let bytes = s.as_bytes();
+    let mut end = bytes.len();
+    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    loop {
+        let mut word_start = end;
+        while word_start > 0 && !bytes[word_start - 1].is_ascii_whitespace() {
+            word_start -= 1;
+        }
+        if word_start == end {
+            break;
+        }
+        let word = &s[word_start..end];
+        // A trailing marker word must not itself contain a `"` — otherwise
+        // this would wrongly eat a closing quote that belongs to the
+        // quoted title (e.g. `"developer #review"`, where `#review` is
+        // *inside* the quotes, not a marker trailing them).
+        if (word.starts_with('#') || word.starts_with('@')) && !word.contains('"') {
+            end = word_start;
+            while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+                end -= 1;
+            }
+        } else {
+            break;
+        }
+    }
+    end
+}
+
+// Shifts a marker's column by `offset` — used to re-anchor markers parsed
+// from a substring (e.g. the trailing-marker suffix after a property-required
+// subtask's closing quote) back to their real position within the subtask's
+// full title text.
+fn shift_marker_column(marker: Marker, offset: usize) -> Marker {
+    match marker {
+        Marker::Property(mut p) => {
+            p.column += offset;
+            Marker::Property(p)
+        }
+        Marker::Assignment(mut a) => {
+            a.column += offset;
+            Marker::Assignment(a)
+        }
+        Marker::Special(mut s) => {
+            s.column += offset;
+            Marker::Special(s)
+        }
     }
 }
 
