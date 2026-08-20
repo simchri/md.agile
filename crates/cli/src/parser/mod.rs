@@ -604,10 +604,7 @@ fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str, &str) {
 // there's no such trailing run.
 fn find_trailing_markers_start(s: &str) -> usize {
     let bytes = s.as_bytes();
-    let mut end = bytes.len();
-    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
-        end -= 1;
-    }
+    let mut end = trim_trailing_ascii_whitespace(bytes, bytes.len());
     loop {
         let mut word_start = end;
         while word_start > 0 && !bytes[word_start - 1].is_ascii_whitespace() {
@@ -622,13 +619,19 @@ fn find_trailing_markers_start(s: &str) -> usize {
         // quoted title (e.g. `"developer #review"`, where `#review` is
         // *inside* the quotes, not a marker trailing them).
         if (word.starts_with('#') || word.starts_with('@')) && !word.contains('"') {
-            end = word_start;
-            while end > 0 && bytes[end - 1].is_ascii_whitespace() {
-                end -= 1;
-            }
+            end = trim_trailing_ascii_whitespace(bytes, word_start);
         } else {
             break;
         }
+    }
+    end
+}
+
+// Returns the largest `i <= end` such that `bytes[..i]` has no trailing
+// ASCII whitespace byte.
+fn trim_trailing_ascii_whitespace(bytes: &[u8], mut end: usize) -> usize {
+    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
     }
     end
 }

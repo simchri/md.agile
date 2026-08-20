@@ -285,6 +285,55 @@ fn optional_leaf_still_counts_toward_eligibility() {
 
 #[test]
 fn deeply_nested_eligible_leaf_makes_grandparent_eligible() {
+    // The mid-level task is unassigned here, so its own eligibility passes
+    // through to its unassigned deep leaf, which in turn makes the whole
+    // chain eligible for alice.
+    let input = "\
+- [ ] some #feature
+  - [ ] mid level
+    - [ ] deep leaf
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice", "bob"]);
+    assert!(is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
+}
+
+#[test]
+fn assignment_on_a_parent_claims_its_whole_subtree_even_with_an_unassigned_child() {
+    // A parent explicitly assigned to `bob` claims everything beneath it -
+    // an unassigned child is not up for grabs by someone else just because
+    // the child itself carries no marker. This guards against the (fixed)
+    // regression where a parent's own `@` marker was skipped entirely once
+    // it had children, silently making it "eligible" for anyone.
+    let input = "\
+- [ ] parent task @bob
+  - [ ] unassigned subtask
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice", "bob"]);
+    assert!(!is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
+    // ...but it's still eligible for the assignee themselves.
+    assert!(is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("bob".to_string()),
+        &config
+    ));
+}
+
+#[test]
+fn assignment_on_a_mid_level_task_blocks_eligibility_for_its_whole_branch() {
+    // Same cascade rule, deeper: `mid level` claims itself and `deep leaf`
+    // for `bob`, so the top-level task has nothing left for `alice`.
     let input = "\
 - [ ] some #feature
   - [ ] mid level @bob
@@ -293,7 +342,7 @@ fn deeply_nested_eligible_leaf_makes_grandparent_eligible() {
     let items = p(input);
     let task = first_task(&items);
     let config = config_with_users(&["alice", "bob"]);
-    assert!(is_eligible_for(
+    assert!(!is_eligible_for(
         NodeRef::Task(task),
         &ResolvedIdentity::Known("alice".to_string()),
         &config

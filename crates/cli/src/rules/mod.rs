@@ -475,20 +475,27 @@ fn check_order_completable(items: &[FileItem], node: NodeRef) -> Vec<Issue> {
 /// philosophy that assignment never restricts *unassigned* tasks), or if
 /// `identity` is directly assigned or a member of an assigned group.
 ///
-/// If `node` has been broken down into subtasks, eligibility is recursive:
-/// `node` itself is eligible only if at least one *leaf* descendant (a
-/// subtask with no children of its own) that is still actionable (`Todo`,
-/// not `Done`/`Cancelled`) is eligible. This means a node whose own markers
-/// would make it eligible can still be reported ineligible overall if every
-/// actionable leaf underneath it has been assigned to someone else — there's
-/// nothing left for `identity` to actually do there. `#OPT` leaves still
-/// count towards eligibility like any other leaf.
+/// An explicit assignment on `node` itself is checked *first* and, if it
+/// excludes `identity`, blocks the whole subtree — assigning a parent or
+/// mid-level task claims everything beneath it, so an unassigned descendant
+/// under an explicitly-assigned ancestor is not up for grabs.
+///
+/// Otherwise, if `node` has been broken down into subtasks, eligibility is
+/// recursive: `node` is eligible if at least one actionable (`Todo`, not
+/// `Done`/`Cancelled`) child is eligible. This means a node with no
+/// assignment of its own can still be reported ineligible overall if every
+/// actionable child underneath it has been assigned to someone else —
+/// there's nothing left for `identity` to actually do there. `#OPT` children
+/// still count towards eligibility like any other child.
 ///
 /// Used by `agile task next --mine`.
 pub fn is_eligible_for(node: NodeRef, identity: &ResolvedIdentity, config: &Config) -> bool {
+    if !is_eligible_by_own_markers(node.markers(), identity, config) {
+        return false;
+    }
     let children = node.children();
     if children.is_empty() {
-        return is_eligible_by_own_markers(node.markers(), identity, config);
+        return true;
     }
     children.iter().any(|child| {
         child.status == Status::Todo && is_eligible_for(NodeRef::Subtask(child), identity, config)
