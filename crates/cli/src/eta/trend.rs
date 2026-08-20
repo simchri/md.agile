@@ -199,7 +199,7 @@ fn dedupe_last_point_per_day(points: &[(f64, f64)]) -> Vec<(f64, f64)> {
 
 /// Fraction of a series' observed date span (oldest to newest deduped
 /// point) used as the half-life for [`exponential_decay_linear_trend`]'s
-const EXPONENTIAL_DECAY_HALF_LIFE_SPAN_FRACTION: f64 = 0.20;
+const EXPONENTIAL_DECAY_HALF_LIFE_SPAN_FRACTION: f64 = 0.10;
 
 /// Fits a weighted least-squares line through `points`, each paired with
 /// a non-negative `weight` (same order, same length) — the shared core of
