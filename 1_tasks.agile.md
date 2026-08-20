@@ -687,9 +687,9 @@
 #MILESTONE: Milestones & ETA
 
 ## Compatibility of Assignments with mandatory subtasks
-- [ ] Consider: How can mandatory subtasks be --dynamically-- assigned to people, i.e. on a case-by-case basis. Possible syntax:
+- [x] Consider: How can mandatory subtasks be --dynamically-- assigned to people, i.e. on a case-by-case basis. Possible syntax:
   "some mandatory subtask" \@foo
-  - [ ] or solve by: Placement of properties, e.g. in body of task - currently not recognized --> change
+  - [x] or solve by: Placement of properties, e.g. in body of task - currently not recognized --> change
   - [x] Design note: see [doc/dynamic-assignment-mandatory-subtasks.md](doc/dynamic-assignment-mandatory-subtasks.md). Chosen direction: marker after the closing quote (`"some mandatory subtask" \@foo`), keeping `raw_title` byte-exact for matching. Accept as a known, rare edge case: this reclassifies a fully-quoted custom title with trailing markers (e.g. `"ship the release" \#foo \@someone`) as `PropertyRequired`, spuriously triggering E011 if not declared by a property. Workaround: add any other unquoted word to break the full quote-wrap.
     - [x] Implemented in `parser/mod.rs`: `parse_subtask_kind` now peels off a trailing run of marker-shaped tokens (`\#foo`, `\@bar`) before checking the `"..."` quote-wrap, so e.g. `"PO review" \@alice` is still recognized as `PropertyRequired` with `raw_title == "PO review"`; the peeled-off trailing markers are parsed normally and added to the subtask's `markers` (columns re-anchored via `shift_marker_column`). Markers still embedded *inside* the quotes (e.g. `"developer \#review"`) are unaffected, since a trailing word containing `"` is never peeled. E010/E011/invalid_order matching is unaffected since `raw_title` is unchanged.
   - [x] #bug the list in md.agile/0_dummy_tasks.agile.md:1:19 currently shows a task where each subtask is not eligible to me (because assigned to alice). however "agile task next --mine" still shows the top level (unassigned) task to me. I would expect that this is not eligble.
