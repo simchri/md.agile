@@ -658,12 +658,19 @@
 
 - [x] "velocity" is the slope of the (weighted) linear trend 
 
+- [ ] more aggressive recency weighted algorithm
 
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
   - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
   - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
+    - [ ] no milestones: print "no milestones" exit 0
+    - [ ] no git history / not a git repo: print "no history, can not compute velocity data" exit 1
+    - [ ] zero velocity: No special handling
+    - [ ] ?
+    - [ ] cancelled tasks: count as neither "total" nor "done" (are removed from "total")
+    - [ ] ?
   - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
   - [ ] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
   - [ ] Implement vision-aligned task counting for ETA that includes property-required subtasks, including short-form implied subtasks once short-forms are supported
