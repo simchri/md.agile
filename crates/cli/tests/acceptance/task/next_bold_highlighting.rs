@@ -349,7 +349,7 @@ fn bolds_first_todo_leaf_among_quoted_property_subtasks() {
     assert_eq!(
         stdout,
         format!(
-            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
+            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review @Gini{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
         )
     );
 }
@@ -367,7 +367,7 @@ fn as_gini_bolds_leaf_assigned_to_gini() {
     assert_eq!(
         stdout,
         format!(
-            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
+            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review @Gini{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
         )
     );
 }

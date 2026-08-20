@@ -378,12 +378,19 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
                 SubtaskKind::PropertyRequired => Some(rest.to_string()),
                 SubtaskKind::Custom => None,
             };
-            let (mut markers, title) = parse_markers(rest);
+            let (mut markers, mut title) = parse_markers(rest);
             if kind == SubtaskKind::PropertyRequired && !trailing_markers_src.is_empty() {
                 // Dynamic per-instance assignment: markers placed after the
                 // closing quote (e.g. `"PO review" @alice`) are ordinary
-                // markers on the subtask, kept out of raw_title/title.
-                let (trailing_markers, _) = parse_markers(trailing_markers_src);
+                // markers on the subtask. They're kept out of raw_title (so
+                // E010/E012 config matching stays byte-exact), but are
+                // appended to the display `title` — like `Custom` subtasks,
+                // callers that render the title should still show
+                // `@alice`/`#feature` inline.
+                let (trailing_markers, trailing_title) = parse_markers(trailing_markers_src);
+                if !trailing_title.is_empty() {
+                    title = format!("{title} {trailing_title}");
+                }
                 markers.extend(
                     trailing_markers
                         .into_iter()

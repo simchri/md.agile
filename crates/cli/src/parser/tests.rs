@@ -339,7 +339,9 @@ fn parse_property_required_subtask_with_trailing_assignment_marker() {
     // Dynamic per-instance assignment (Option 1 from
     // doc/dynamic-assignment-mandatory-subtasks.md): a marker placed *after*
     // the closing quote is an ordinary marker on the subtask, and does not
-    // affect the byte-exact raw_title used for config matching.
+    // affect the byte-exact raw_title used for config matching. It's still
+    // appended to the display `title`, though, so renderers show it inline
+    // (like `Custom` subtasks already do for their markers).
     let input = "\
 - [ ] parent
   - [ ] \"PO review\" @alice
@@ -348,7 +350,7 @@ fn parse_property_required_subtask_with_trailing_assignment_marker() {
     let sub = &task(&items, 0).children[0];
     assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
     assert_eq!(sub.raw_title, Some("PO review".to_string()));
-    assert_eq!(sub.title, "PO review");
+    assert_eq!(sub.title, "PO review @alice");
     assert_eq!(
         sub.markers,
         vec![Marker::Assignment(AssignmentRef {
