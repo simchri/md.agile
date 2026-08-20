@@ -120,15 +120,23 @@ pub(crate) fn is_marker_boundary(c: char) -> bool {
 
 /// Returns `true` if `c` is the single-tick character (`'`) used to fully
 /// wrap a marker name and suppress its interpretation (`'#feat'`,
-/// `'@alice'`). Unlike [`is_marker_escape`], suppression requires a
-/// *matching* tick both immediately before the sigil and immediately after
-/// the marker name — a tick on only one side does not suppress recognition.
-/// See [`parse_markers`] and `goto_definition::token_name_at_position` for
-/// the paired-check logic. Double quotes (`"`) have no escaping effect at
-/// all; they are reserved for the unrelated property-required-subtask
-/// quoting convention (see `parse_subtask_kind`).
+/// `'@alice'`). Double quotes (`"`) have no escaping effect at all; they are
+/// reserved for the unrelated property-required-subtask quoting convention
+/// (see `parse_subtask_kind`).
 pub(crate) fn is_marker_tick(c: char) -> bool {
     c == '\''
+}
+
+/// Returns `true` if a marker name is fully wrapped in single ticks, given
+/// the character immediately before the sigil (`before_sigil`, `None` at the
+/// start of the string) and the character immediately after the name
+/// (`after_name`, `None` at the end of the string). Suppression requires a
+/// *matching* tick on **both** sides — a tick on only one side does not
+/// suppress recognition (e.g. `weird'#feat` is still a marker). Shared by
+/// [`parse_markers`] and `goto_definition::token_name_at_position` so the
+/// paired-check logic lives in exactly one place.
+pub(crate) fn is_tick_wrapped(before_sigil: Option<char>, after_name: Option<char>) -> bool {
+    before_sigil.is_some_and(is_marker_tick) && after_name.is_some_and(is_marker_tick)
 }
 
 /// Returns `true` if `c` is the escape character that, when immediately
@@ -619,10 +627,13 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
 
             // Single-tick wrap rule: only a *matching* opening AND closing
             // tick suppresses recognition — a lone tick on one side does not.
-            let tick_wrapped = i > 0
-                && is_marker_tick(bytes[i - 1] as char)
-                && bytes.get(j).is_some_and(|&c| is_marker_tick(c as char));
-            if tick_wrapped {
+            let before_sigil = if i > 0 {
+                Some(bytes[i - 1] as char)
+            } else {
+                None
+            };
+            let after_name = bytes.get(j).map(|&c| c as char);
+            if is_tick_wrapped(before_sigil, after_name) {
                 i += 1;
                 continue;
             }

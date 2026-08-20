@@ -3,7 +3,7 @@
 /// Both functions are free of I/O and async so they can be unit-tested
 /// without spinning up the full LSP server.
 use crate::parser::{
-    MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is_marker_escape, is_marker_tick,
+    MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is_marker_escape, is_tick_wrapped,
 };
 
 // ── Shared cursor helper ──────────────────────────────────────────────────────
@@ -23,9 +23,8 @@ use crate::parser::{
 ///
 /// Quote rule (mirrors `parse_markers`): a sigil is treated as prose (and
 /// this returns `None`) only when its name is fully wrapped in single
-/// ticks — an opening [`is_marker_tick`] character immediately before the
-/// sigil AND a closing one immediately after the name. A tick on only one
-/// side does not suppress it.
+/// ticks — see [`is_tick_wrapped`]. A tick on only one side does not
+/// suppress it.
 ///
 /// Escape rule (mirrors `parse_markers`): a sigil immediately preceded by a
 /// backslash ([`is_marker_escape`]) is treated as a literal character and
@@ -79,10 +78,13 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
 
     // Quote rule (mirrors parse_markers): only a *matching* opening AND
     // closing tick suppresses recognition — a lone tick on one side does not.
-    let tick_wrapped = sigil_pos > 0
-        && is_marker_tick(chars[sigil_pos - 1])
-        && chars.get(end).is_some_and(|&c| is_marker_tick(c));
-    if tick_wrapped {
+    let before_sigil = if sigil_pos > 0 {
+        Some(chars[sigil_pos - 1])
+    } else {
+        None
+    };
+    let after_name = chars.get(end).copied();
+    if is_tick_wrapped(before_sigil, after_name) {
         return None;
     }
 
