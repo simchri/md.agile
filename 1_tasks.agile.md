@@ -663,8 +663,8 @@
     - [ ] steps - number of steps in that window
     - [ ] time per step
 
-- [ ] non-terminal plots 
-  - [ ] SVG
+- [x] non-terminal plots 
+  - [-] SVG
   - [x] html
 
 - [x] "velocity" is the slope of the (weighted) linear trend 
