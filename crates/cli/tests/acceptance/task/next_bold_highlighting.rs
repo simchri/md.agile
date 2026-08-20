@@ -236,6 +236,8 @@ const VER_161_FILE_CONTENT: &str = "\
   - [ ] \"2. assign review\" @Gini
   - [ ] \"3. implement feedback\"
   - [ ] \"4. approved\"
+
+- [ ] foo
 ";
 
 const VER_161_CONFIG: &str = "\
@@ -260,7 +262,7 @@ fn bolds_first_todo_leaf_among_quoted_property_subtasks() {
     assert_eq!(
         stdout,
         format!(
-            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
+            "{BOLD}[ ] foo{RESET}\n"
         )
     );
 }
