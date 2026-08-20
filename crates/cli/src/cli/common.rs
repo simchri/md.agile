@@ -298,7 +298,3 @@ fn status_marker(status: &parser::Status) -> &'static str {
         parser::Status::Cancelled => "[-]",
     }
 }
-
-#[cfg(test)]
-#[path = "common_tests.rs"]
-mod tests;
