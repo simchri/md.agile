@@ -1,7 +1,10 @@
 //! `agile task <action>` — task-centric subcommands.
 
 use crate::checker;
-use crate::cli::common::{find_task_files, parse_file, render_subtask_as_root, render_task};
+use crate::cli::common::{
+    find_task_files, parse_file, render_subtask_as_root_highlighting_next_leaf,
+    render_task_highlighting_next_leaf,
+};
 use crate::config::Config;
 use crate::formatter;
 use crate::parser::{FileItem, Status, Subtask};
@@ -29,12 +32,16 @@ use std::path::{Path, PathBuf};
 /// a dotted address already names one exact node regardless of assignment.
 /// `as_user` implies `mine` even if `mine` itself is `false`, so `--as alice`
 /// alone (without `--mine`) still filters by alice's eligibility.
+///
+/// `full` additionally prints each (sub)task's body lines alongside its
+/// title line.
 pub fn run_next(
     root: &Path,
     config: &Config,
     address: Option<&str>,
     mine: bool,
     as_user: Option<&str>,
+    full: bool,
 ) {
     let mine = mine || as_user.is_some();
 
@@ -81,7 +88,7 @@ pub fn run_next(
         identity.as_ref(),
         Status::Todo,
     ) {
-        Ok(resolved) => print!("{}", render_resolved(&resolved)),
+        Ok(resolved) => print!("{}", render_resolved(&resolved, full)),
         Err(e) => {
             if explicit_address {
                 log::error!("{e}");
@@ -210,19 +217,21 @@ pub fn run_undone(root: &Path, config: &Config, address: &str) {
 /// skipped. Returns an empty string if every task is complete or cancelled, or
 /// if there are no tasks.
 pub fn next_task(items: &[FileItem]) -> String {
-    next_n_tasks(items, 1, None, &Config::default())
+    next_n_tasks(items, 1, None, &Config::default(), false)
 }
 
 /// Returns the rendered blocks of the first `n` incomplete top-level tasks in
 /// `items`, in document order. If `identity` is `Some`, tasks assigned to
 /// someone else (and not also unassigned) are skipped — see
 /// [`rules::is_eligible_for`]. Returns fewer than `n` blocks (possibly none)
-/// if there aren't enough matching tasks.
+/// if there aren't enough matching tasks. `include_body` also prints each
+/// node's body lines (see [`render_task_highlighting_next_leaf`]).
 fn next_n_tasks(
     items: &[FileItem],
     n: usize,
     identity: Option<&ResolvedIdentity>,
     config: &Config,
+    include_body: bool,
 ) -> String {
     let mut out = String::new();
     let mut found = 0;
@@ -236,7 +245,7 @@ fn next_n_tasks(
                     continue;
                 }
             }
-            render_task(task, &mut out);
+            render_task_highlighting_next_leaf(task, include_body, &mut out);
             found += 1;
             if found >= n {
                 break;
@@ -400,12 +409,17 @@ fn format_address(parts: &[usize]) -> String {
 }
 
 /// Renders the (sub)task resolved by `resolved` as its own root block,
-/// exactly like [`render_task`] would for a top-level task.
-fn render_resolved(resolved: &ResolvedAddress) -> String {
+/// exactly like [`render_task`] would for a top-level task, but bolds the
+/// first `Todo` leaf in the subtree — the concrete next actionable task —
+/// and, if `full` is true, also prints body lines (see
+/// [`render_task_highlighting_next_leaf`]).
+///
+/// [`render_task`]: crate::cli::common::render_task
+fn render_resolved(resolved: &ResolvedAddress, full: bool) -> String {
     let mut out = String::new();
     match resolved.node_ref() {
-        NodeRef::Task(task) => render_task(task, &mut out),
-        NodeRef::Subtask(sub) => render_subtask_as_root(sub, &mut out),
+        NodeRef::Task(task) => render_task_highlighting_next_leaf(task, full, &mut out),
+        NodeRef::Subtask(sub) => render_subtask_as_root_highlighting_next_leaf(sub, full, &mut out),
     }
     out
 }

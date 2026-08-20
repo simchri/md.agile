@@ -11,7 +11,8 @@ fn tasks_is_alias_for_task_subcommand() {
             action: TaskAction::Next {
                 address: None,
                 mine: false,
-                r#as: None
+                r#as: None,
+                full: false
             }
         })
     ));

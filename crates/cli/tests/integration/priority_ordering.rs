@@ -4,6 +4,9 @@ use mdagile::cli::subcommands::task::next_task;
 use std::fs;
 use tempfile::tempdir;
 
+const BOLD: &str = "\x1b[1m";
+const RESET: &str = "\x1b[0m";
+
 #[test]
 fn current_tasks_listed_before_backlog_before_inbox() {
     let dir = tempdir().unwrap();
@@ -60,7 +63,7 @@ fn next_task_comes_from_current_not_backlog() {
     fs::write(tasks.join("b_backlog.agile.md"), backlog).unwrap();
     fs::write(tasks.join("c_inbox.agile.md"), inbox).unwrap();
 
-    let expected = "[ ] current task one\n".to_string();
+    let expected = format!("{BOLD}[ ] current task one{RESET}\n");
     let items = parse_files(&find_task_files(dir.path()));
     assert_eq!(next_task(&items), expected);
 }
@@ -81,7 +84,7 @@ fn next_task_falls_through_to_backlog_when_current_is_done() {
     fs::write(tasks.join("b_backlog.agile.md"), backlog).unwrap();
     fs::write(tasks.join("c_inbox.agile.md"), inbox).unwrap();
 
-    let expected = "[ ] backlog task one\n".to_string();
+    let expected = format!("{BOLD}[ ] backlog task one{RESET}\n");
     let items = parse_files(&find_task_files(dir.path()));
     assert_eq!(next_task(&items), expected);
 }

@@ -2,6 +2,9 @@ use mdagile::cli::subcommands::task::next_task;
 use mdagile::parser::{self, FileItem};
 use std::path::PathBuf;
 
+const BOLD: &str = "\x1b[1m";
+const RESET: &str = "\x1b[0m";
+
 fn p(input: &str) -> Vec<FileItem> {
     parser::parse(input, PathBuf::from("test.agile.md"))
 }
@@ -39,7 +42,8 @@ fn next_task_skips_done_and_returns_first_todo() {
   - [ ] pending subtask
 - [ ] another task
 ";
-    let expected = "[ ] the next task\n  [x] done subtask\n  [ ] pending subtask\n".to_string();
+    let expected =
+        format!("[ ] the next task\n  [x] done subtask\n  {BOLD}[ ] pending subtask{RESET}\n");
     assert_eq!(next_task(&p(input)), expected);
 }
 
@@ -59,6 +63,6 @@ fn next_task_skips_cancelled() {
 - [-] cancelled task
 - [ ] actual next task
 ";
-    let expected = "[ ] actual next task\n".to_string();
+    let expected = format!("{BOLD}[ ] actual next task{RESET}\n");
     assert_eq!(next_task(&p(input)), expected);
 }

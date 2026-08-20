@@ -105,14 +105,54 @@ pub fn render_task(task: &parser::Task, out: &mut String) {
     render_node_as_root(&task.status, &task.title, &task.children, out);
 }
 
-/// Renders `sub` as if it were the root of its own tree: no leading
-/// indentation for `sub` itself, with its children indented by two spaces
-/// per level exactly like [`render_task`]. Used when a dotted task address
-/// (e.g. `agile task next 1.2`) points at a specific subtask rather than a
-/// whole top-level task — the addressed subtask is displayed as its own
-/// root instead of nested under its ancestors.
-pub(crate) fn render_subtask_as_root(sub: &parser::Subtask, out: &mut String) {
-    render_node_as_root(&sub.status, &sub.title, &sub.children, out);
+/// Same as [`render_task`], but bolds the line of the first `Todo` *leaf*
+/// (a node with no children of its own) encountered in document order — the
+/// concrete next actionable task within the printed subtree — and, if
+/// `include_body` is true, also prints each node's body lines indented one
+/// level deeper than the node itself. Used exclusively by `agile task next`
+/// to highlight which line is actually "next" (and, with `--full`, show
+/// task bodies) when a whole task tree (with already-done
+/// siblings/subtasks) is shown.
+pub(crate) fn render_task_highlighting_next_leaf(
+    task: &parser::Task,
+    include_body: bool,
+    out: &mut String,
+) {
+    let mut found = false;
+    render_node_as_root_highlighting_next_leaf(
+        &task.status,
+        &task.title,
+        &task.body,
+        &task.children,
+        include_body,
+        out,
+        &mut found,
+    );
+}
+
+/// Renders a subtask as if it were the root of its own tree (no leading
+/// indentation for `sub` itself, children indented by two spaces per level),
+/// bolding the first `Todo` leaf like [`render_task_highlighting_next_leaf`]
+/// does, and likewise printing body lines when `include_body` is true. Used
+/// when a dotted task address (e.g. `agile task next 1.2`) points at a
+/// specific subtask rather than a whole top-level task — the addressed
+/// subtask is displayed as its own root instead of nested under its
+/// ancestors.
+pub(crate) fn render_subtask_as_root_highlighting_next_leaf(
+    sub: &parser::Subtask,
+    include_body: bool,
+    out: &mut String,
+) {
+    let mut found = false;
+    render_node_as_root_highlighting_next_leaf(
+        &sub.status,
+        &sub.title,
+        &sub.body,
+        &sub.children,
+        include_body,
+        out,
+        &mut found,
+    );
 }
 
 fn render_node_as_root(
@@ -127,6 +167,24 @@ fn render_node_as_root(
     out.push('\n');
     for child in children {
         render_subtask(child, 1, out);
+    }
+}
+
+fn render_node_as_root_highlighting_next_leaf(
+    status: &parser::Status,
+    title: &str,
+    body: &[String],
+    children: &[parser::Subtask],
+    include_body: bool,
+    out: &mut String,
+    found: &mut bool,
+) {
+    push_node_line(status, title, children.is_empty(), out, found);
+    if include_body {
+        push_body_lines(body, out);
+    }
+    for child in children {
+        render_subtask_highlighting_next_leaf(child, 1, include_body, out, found);
     }
 }
 
@@ -148,6 +206,65 @@ fn render_subtask(sub: &parser::Subtask, depth: usize, out: &mut String) {
     }
 }
 
+/// Same as [`render_subtask`], but bolds the first `Todo` leaf encountered
+/// in document order (tracked via `found`), like
+/// [`render_task_highlighting_next_leaf`] does for the root, and prints
+/// body lines when `include_body` is true.
+fn render_subtask_highlighting_next_leaf(
+    sub: &parser::Subtask,
+    depth: usize,
+    include_body: bool,
+    out: &mut String,
+    found: &mut bool,
+) {
+    for _ in 0..depth {
+        out.push_str("  ");
+    }
+    push_node_line(&sub.status, &sub.title, sub.children.is_empty(), out, found);
+    if include_body {
+        push_body_lines(&sub.body, out);
+    }
+    for child in &sub.children {
+        render_subtask_highlighting_next_leaf(child, depth + 1, include_body, out, found);
+    }
+}
+
+/// Writes each line of `body` to `out`, terminated by a newline. Body lines
+/// are stored with their original source indentation intact (see
+/// [`parser::Task::body`]), so no extra indentation is added here.
+fn push_body_lines(body: &[String], out: &mut String) {
+    for line in body {
+        out.push_str(line);
+        out.push('\n');
+    }
+}
+
+/// Writes one `[<status>] <title>` line to `out`, bolding it (via ANSI
+/// escapes) when it's the first `Todo` leaf seen so far (`is_leaf` is true,
+/// `status` is `Todo`, and `*found` hasn't already been set by an earlier
+/// line). Sets `*found` when it bolds so only one line per render is ever
+/// highlighted.
+fn push_node_line(
+    status: &parser::Status,
+    title: &str,
+    is_leaf: bool,
+    out: &mut String,
+    found: &mut bool,
+) {
+    let should_bold = !*found && is_leaf && *status == parser::Status::Todo;
+    if should_bold {
+        *found = true;
+        out.push_str(crate::formatter::BOLD);
+    }
+    out.push_str(status_marker(status));
+    out.push(' ');
+    out.push_str(title);
+    if should_bold {
+        out.push_str(crate::formatter::RESET);
+    }
+    out.push('\n');
+}
+
 /// Returns the textual checkbox for a [`parser::Status`]: `[ ]`, `[x]`, or `[-]`.
 fn status_marker(status: &parser::Status) -> &'static str {
     match status {
@@ -156,3 +273,7 @@ fn status_marker(status: &parser::Status) -> &'static str {
         parser::Status::Cancelled => "[-]",
     }
 }
+
+#[cfg(test)]
+#[path = "common_tests.rs"]
+mod tests;

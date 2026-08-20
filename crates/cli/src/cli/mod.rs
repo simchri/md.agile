@@ -267,6 +267,10 @@ pub enum TaskAction {
         /// Implies `--mine` even when `--mine` isn't given.
         #[arg(long, value_name = "USER")]
         r#as: Option<String>,
+
+        /// Also show each (sub)task's body text alongside its title
+        #[arg(long)]
+        full: bool,
     },
 
     /// Mark the (sub)task at ADDRESS done
@@ -351,9 +355,17 @@ pub fn run() {
                     address,
                     mine,
                     r#as,
+                    full,
                 },
         }) => {
-            subcommands::task::run_next(root, &config, address.as_deref(), mine, r#as.as_deref());
+            subcommands::task::run_next(
+                root,
+                &config,
+                address.as_deref(),
+                mine,
+                r#as.as_deref(),
+                full,
+            );
         }
         Some(Command::Task {
             action: TaskAction::Done { address },

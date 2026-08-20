@@ -246,7 +246,7 @@ fn parse_property_marker_in_title() {
 ";
     let items = p(input);
     let t = task(&items, 0);
-    assert_eq!(t.title, "add basket");
+    assert_eq!(t.title, "#feature: add basket");
     assert_eq!(
         t.markers,
         vec![Marker::Property(PropertyRef {
@@ -264,7 +264,7 @@ fn parse_assignment_marker_in_title() {
 ";
     let items = p(input);
     let t = task(&items, 0);
-    assert_eq!(t.title, "implement");
+    assert_eq!(t.title, "implement @markus");
     assert_eq!(
         t.markers,
         vec![Marker::Assignment(AssignmentRef {
@@ -282,7 +282,7 @@ fn parse_opt_subtask() {
 ";
     let items = p(input);
     let sub = &task(&items, 0).children[0];
-    assert_eq!(sub.title, "optional thing");
+    assert_eq!(sub.title, "#OPT optional thing");
     assert_eq!(
         sub.markers,
         vec![Marker::Special(SpecialMarker {
@@ -330,8 +330,8 @@ fn parse_property_required_subtask_with_embedded_property_stores_raw_title() {
     assert_eq!(sub.kind, SubtaskKind::PropertyRequired);
     // raw_title preserves the full inner text before marker extraction
     assert_eq!(sub.raw_title, Some("developer #review".to_string()));
-    // title has the #review marker stripped out (trailing space trimmed)
-    assert_eq!(sub.title, "developer");
+    // title keeps the marker text inline for display purposes
+    assert_eq!(sub.title, "developer #review");
 }
 
 #[test]
@@ -781,7 +781,7 @@ fn unescaped_marker_after_escaped_marker_is_still_parsed() {
             column: 22,
         })]
     );
-    assert_eq!(t.title, "#not_a_property but is real");
+    assert_eq!(t.title, "#not_a_property but #feature is real");
 }
 
 #[test]

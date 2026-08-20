@@ -681,6 +681,14 @@ fn shift_marker_column(marker: Marker, offset: usize) -> Marker {
 // the backslash itself is dropped from the reconstructed title, leaving only
 // the literal sigil (e.g. `\#not_a_property` → `#not_a_property` in the
 // title, no Property marker recorded).
+/// Extracts `#`/`@` markers from `title` for the `markers` list, while
+/// returning a "clean" title that keeps the marker text itself (unlike raw
+/// escape sequences, which still have their backslash stripped). Recognized
+/// markers are left in place so callers that display the title (e.g.
+/// `agile task next`) still show `#feature`/`@alice` inline; callers that
+/// need marker-free text (e.g. fuzzy title-similarity matching in
+/// `eta`/`lifecycle_cache`) are expected to strip markers themselves if
+/// needed.
 fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
     let bytes = title.as_bytes();
@@ -753,8 +761,10 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
             };
 
             if recognized {
-                // Keep everything before this marker in the title.
-                title_frags.push(&title[title_keep_from..i]);
+                // Keep the marker text itself in the title (unlike escaped
+                // sigils, which drop their backslash) — display should
+                // still show `#feature`/`@alice` inline.
+                title_frags.push(&title[title_keep_from..j]);
                 title_keep_from = j;
             }
             i = j;

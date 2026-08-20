@@ -57,6 +57,12 @@ Status markers used below (always at the start of the bullet):
       address already names one exact task regardless of assignment)
     - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
       of the git identity from `git config user.email`/`user.name`
+    - done: `--full` — also prints each rendered (sub)task's body lines
+      indented beneath it (omitted by default)
+    - done: the printed subtree always bolds the first `Todo` *leaf* (a
+      node with no children) in document order — the concrete next
+      actionable task, even when nested under already-done
+      siblings/ancestors
   - done: `done <ADDRESS>` — mark the addressed (sub)task done in place, in
     its own source file only. Refuses (printing the violated issue instead
     of writing anything) if completing it now would violate E004

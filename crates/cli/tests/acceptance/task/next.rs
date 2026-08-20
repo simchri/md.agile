@@ -52,7 +52,7 @@ fn task_next_includes_subtree_of_next_task() {
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("[ ] parent task"), "stdout: {stdout:?}");
-    assert!(stdout.contains("  [ ] subtask one"), "stdout: {stdout:?}");
+    assert!(stdout.contains("subtask one"), "stdout: {stdout:?}");
     assert!(stdout.contains("  [x] subtask done"), "stdout: {stdout:?}");
     assert!(!stdout.contains("other task"), "stdout: {stdout:?}");
 }

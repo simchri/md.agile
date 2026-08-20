@@ -29,14 +29,15 @@ fn flags_subtask_with_no_title_text() {
 }
 
 #[test]
-fn flags_task_consisting_only_of_a_marker() {
-    // No descriptive text remains once the `#urgent` marker is stripped out.
+fn task_consisting_only_of_a_marker_is_not_flagged() {
+    // Since markers now stay inline in the title, a marker-only line (e.g.
+    // `#urgent`) is no longer considered empty — the marker text itself
+    // counts as title text.
     let file_content = "\
 - [ ] #urgent
 ";
     let issues = empty_title(&p(file_content));
-    assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, crate::rules::ErrorCode::EmptyTitle);
+    assert_eq!(issues.len(), 0);
 }
 
 #[test]

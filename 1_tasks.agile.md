@@ -690,9 +690,12 @@
     - [x] Fixed: `rules::is_eligible_for` is now recursive - a task/subtask with children is eligible only if at least one actionable (`Todo`) leaf descendant is eligible (own markers, or unassigned). '#OPT' leaves still count; `Done`/`Cancelled` leaves don't. A childless node still falls back to its own markers as before.
 
 - [ ] improvement of output of `agile task next`: 
-  - [ ] make next eligible task bold
-  - [ ] Show assignments and properties
-  - [ ] `--full` flag, also shows task bodies
+  - [x] make next eligible task bold
+    - [x] Implemented in `cli/common.rs`: `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf` walk the tree, bolding (ANSI `\x1b[1m`/`\x1b[0m`, see `formatter::BOLD`/`RESET`) the first `Todo` *leaf* (a node with no children) in document order — the concrete next actionable task, even nested under already-done siblings/ancestors.
+  - [x] Show assignments and properties
+    - [x] \#/\@ markers now stay inline in `Task`/`Subtask::title` (parser no longer strips them out in `parse_markers`), so they show up automatically wherever a title is rendered, including `agile task next`.
+  - [x] `--full` flag, also shows task bodies
+    - [x] Added `--full` to `agile task next`; when set, each (sub)task's body lines are printed indented under it (`push_body_lines` in `cli/common.rs`).
   - [ ] --no-col or no-markup flag: Allows all tests to ignore bolding, color etc. This does not need to be tested, but the output pollutes assertions everywhere
 
 - [ ] Revisit the quote-adjacency escaping rule (`is_marker_quote` in `parser/mod.rs`) in more detail: today a single leading quote before `\#`/`\@` suppresses marker recognition. Consider: requiring the term to be fully quoted (`"\@alice"`) instead of just quote-adjacent; whether the existing `\\#`/`\\@` backslash-escape already makes this rule unnecessary; or using single ticks (`'`) as the literal/escaping convention instead.
