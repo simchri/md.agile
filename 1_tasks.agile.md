@@ -652,16 +652,7 @@
 - [x] Implemented the recency-weighted trend-fitting algorithm (`TrendFitAlgorithm::RecencyWeighted`) and made it the default: for line fitting only, points are first deduplicated to the last point recorded per calendar day (so a day with many commits doesn't outweigh a quiet day), then fit via weighted least squares where each deduped point's weight is its rank among them (oldest = 1, newest = N) — more recent days pull the line harder. `LinearTrend` itself is unchanged (still anchor + slope); `compute_milestone_trends_with`/`TrendFitAlgorithm` is now `pub` and threaded through every consumer (`eta_math`, `velocity`, `chart_terminal`, `chart_html`, `report`). Added two new `agile when` flags: `--fit-algo-linear` (plain unweighted OLS, the previous default) and `--fit-algo-recent` (explicit recency-weighted, same as the new default); both conflict with each other and with `--data`. Removed the now-unused `compute_milestone_trends` default-algorithm wrapper. Updated 4 `--velocity` acceptance tests whose expected numbers changed under the new default algorithm (with comments explaining the new expected values), and added `trend_tests.rs` coverage for the default, the per-day dedup, the two-point minimum, and the recency-weighting-vs-OLS slope difference. All 852 tests pass; GUI target still builds; `agile check` passes.
 
 - [x] trendlines in plot - recency weighted linear
-- [ ] trendlines in plot - with uncertainty regions
-  - [ ] display uncertainty
-  - [ ] refuse to display ETA if uncertainty to high
 
-- [ ] uncertainty via roll forward
-- [ ] animate roll forward - illustrate uncertainty 
-  - [ ] params
-    - [ ] window  - time in pct backwards from current that is animated
-    - [ ] steps - number of steps in that window
-    - [ ] time per step
 
 - [x] non-terminal plots 
   - [-] SVG
@@ -669,7 +660,6 @@
 
 - [x] "velocity" is the slope of the (weighted) linear trend 
 
-- [ ] parameters for agile.md.toml to override defaults ETA algorithm parameters. NO COMMAND LINE OPTIONS TO DO THE SAME - THIS CAN ONLY BE DONE THROUGH A VERSIONED CHANGE
 
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
@@ -771,5 +761,23 @@
 ## Pre / Post conditions
 Idea: Markers to ident. pre-condition tasks ( or conversely, tasks that have to come after the current task, post- tasks)
 Markers to identify a task e.g. <<the bug fixing task>> (check to not conflict with common markdown). Then refer to it: #PRE:<<the bug fixing task>>
+
+## Further milestone and ETA improvements
+
+- [ ] trendlines in plot - with uncertainty regions
+  - [ ] display uncertainty
+  - [ ] refuse to display ETA if uncertainty to high
+
+- [ ] uncertainty via roll forward
+- [ ] animate roll forward - illustrate uncertainty 
+  - [ ] params
+    - [ ] window  - time in pct backwards from current that is animated
+    - [ ] steps - number of steps in that window
+    - [ ] time per step
+
+- [ ] parameters for agile.md.toml to override defaults ETA algorithm parameters. NO COMMAND LINE OPTIONS TO DO THE SAME - THIS CAN ONLY BE DONE THROUGH A VERSIONED CHANGE
+
+#MILESTONE: Further milestone and ETA improvements
+
 
 #MILESTONE: Done
