@@ -319,15 +319,17 @@ fn bolds_unconditionally_without_mine_or_as() {
 /// A VER-161-style task: quoted subtask titles required by a
 /// `[Properties.systemtest]` config entry (with `subtasks_allow_cancel`),
 /// and one subtask assigned via `@Gini`.
-const VER_161_FILE_CONTENT: &str = "\
+#[test]
+fn bolds_first_todo_leaf_among_quoted_property_subtasks() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
 - [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
   - [x] \"1. write draft\"
   - [ ] \"2. assign review\" @Gini
   - [ ] \"3. implement feedback\"
   - [ ] \"4. approved\"
 ";
-
-const VER_161_CONFIG: &str = "\
+    let config = "\
 [Properties.systemtest]
 subtasks = [\"1. write draft\", \"2. assign review\", \"3. implement feedback\", \"4. approved\"]
 subtasks_allow_cancel = [true, true, true, true]
@@ -338,12 +340,8 @@ git_emails = [\"gini@example.com\"]
 [Users.alice]
 git_emails = [\"alice@example.com\"]
 ";
-
-#[test]
-fn bolds_first_todo_leaf_among_quoted_property_subtasks() {
-    let dir = tempdir().unwrap();
-    fs::write(dir.path().join("mdagile.toml"), VER_161_CONFIG).unwrap();
-    fs::write(dir.path().join("tasks.agile.md"), VER_161_FILE_CONTENT).unwrap();
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next"]);
     assert_eq!(
@@ -360,8 +358,26 @@ fn as_gini_bolds_leaf_assigned_to_gini() {
     // and gets bolded, same as the unconditional case.
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
-    fs::write(dir.path().join("mdagile.toml"), VER_161_CONFIG).unwrap();
-    fs::write(dir.path().join("tasks.agile.md"), VER_161_FILE_CONTENT).unwrap();
+    let file_content = "\
+- [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
+  - [x] \"1. write draft\"
+  - [ ] \"2. assign review\" @Gini
+  - [ ] \"3. implement feedback\"
+  - [ ] \"4. approved\"
+";
+    let config = "\
+[Properties.systemtest]
+subtasks = [\"1. write draft\", \"2. assign review\", \"3. implement feedback\", \"4. approved\"]
+subtasks_allow_cancel = [true, true, true, true]
+
+[Users.Gini]
+git_emails = [\"gini@example.com\"]
+
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "--as", "Gini"]);
     assert_eq!(
@@ -383,8 +399,26 @@ fn as_alice_skips_leaf_assigned_to_gini() {
     // nothing is eligible for her, and `--as alice` bolds nothing.
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
-    fs::write(dir.path().join("mdagile.toml"), VER_161_CONFIG).unwrap();
-    fs::write(dir.path().join("tasks.agile.md"), VER_161_FILE_CONTENT).unwrap();
+    let file_content = "\
+- [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
+  - [x] \"1. write draft\"
+  - [ ] \"2. assign review\" @Gini
+  - [ ] \"3. implement feedback\"
+  - [ ] \"4. approved\"
+";
+    let config = "\
+[Properties.systemtest]
+subtasks = [\"1. write draft\", \"2. assign review\", \"3. implement feedback\", \"4. approved\"]
+subtasks_allow_cancel = [true, true, true, true]
+
+[Users.Gini]
+git_emails = [\"gini@example.com\"]
+
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let stdout = stdout_of(dir.path(), &["task", "next", "--as", "alice"]);
     assert_eq!(stdout, "");
