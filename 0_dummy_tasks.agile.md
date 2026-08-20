@@ -1,3 +1,3 @@
 - [ ] some #feature
-  - [ ] "2. (feature) validation by programmer" @alice
   - [ ] "1. (feature) implementation" @alice
+  - [ ] "2. (feature) validation by programmer" @alice

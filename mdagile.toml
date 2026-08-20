@@ -1,7 +1,7 @@
 [Properties]
 
 [Properties.feature]
-subtasks = ["(feature) validation by programmer", "(feature) implementation"]
+subtasks = ["2. (feature) validation by programmer", "1. (feature) implementation"]
 
 [Properties.feat]
 
