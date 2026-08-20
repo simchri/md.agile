@@ -636,14 +636,14 @@
 
 - [x] remove: md.agile/crates/cli/examples/braille_line.rs:1:1
 
-- [ ] extensions to testing script
-  - [ ] edge case scenarios, 
+- [x] extensions to testing script
+  - [x] edge case scenarios, 
     - [x] e.g. no convergence
-    - [ ] other milestone than latest
+    - [-] other milestone than latest
     - [-] done milestone
-    - [ ] second milestone
+    - [x] second milestone
       - [x] impl
-      - [ ] #bug milestone rank 2 does not exist??
+      - [x] #bug milestone rank 2 does not exist??
 
 - [x] Prepared `trend.rs`'s architecture to accommodate alternative trend-fitting algorithms (e.g. a future recency-weighted fit) without touching any consumer: extracted the previous single hard-coded fit into a `TrendFitAlgorithm` enum (`OrdinaryLeastSquares` default variant, plus a `Dummy` placeholder that always returns `None`) with a `fit()` method; `compute_milestone_trends(plot)` keeps its existing signature (defaulting to OLS) while a new `compute_milestone_trends_with(plot, algorithm)` lets any future call site pick a different algorithm. `LinearTrend` itself (anchor point + slope) is unchanged, per the assumption that all fits remain linear. Added `trend_tests.rs` covering the OLS default, the two-point minimum, and the dummy algorithm. All 849 tests pass; GUI target still builds.
 
