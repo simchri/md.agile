@@ -188,6 +188,81 @@ fn render_task_highlighting_next_leaf_bolds_nothing_when_no_leaf_eligible_for_id
     assert!(!out.contains(BOLD));
 }
 
+fn config_with_systemtest_property_and_users(users: &[&str]) -> Config {
+    let mut config = config_with_users(users);
+    config.properties.insert(
+        "systemtest".to_string(),
+        crate::config::PropertyConfig {
+            name: "systemtest".to_string(),
+            subtasks: vec![
+                "1. write draft".to_string(),
+                "2. assign review".to_string(),
+                "3. implement feedback".to_string(),
+                "4. approved".to_string(),
+            ],
+            subtasks_allow_cancel: vec![true, true, true, true],
+        },
+    );
+    config
+}
+
+const VER_161_FILE_CONTENT: &str = "\
+- [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
+  - [x] \"1. write draft\"
+  - [ ] \"2. assign review\" @Gini
+  - [ ] \"3. implement feedback\"
+  - [ ] \"4. approved\"
+";
+
+#[test]
+fn render_task_highlighting_next_leaf_bolds_first_todo_leaf_among_quoted_property_subtasks() {
+    let task = parse_one_task(VER_161_FILE_CONTENT);
+    let mut out = String::new();
+    render_task_highlighting_next_leaf(&task, false, None, &mut out);
+    assert_eq!(
+        out,
+        format!(
+            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
+        )
+    );
+}
+
+#[test]
+fn render_task_highlighting_next_leaf_bolds_assigned_leaf_for_its_own_assignee() {
+    // With the `#systemtest` property config in play and the identity set to
+    // the leaf's own assignee (Gini), the leaf assigned to her is eligible
+    // and gets bolded, same as the unconditional case.
+    let task = parse_one_task(VER_161_FILE_CONTENT);
+    let config = config_with_systemtest_property_and_users(&["Gini"]);
+    let identity = ResolvedIdentity::Known("Gini".to_string());
+    let mut out = String::new();
+    render_task_highlighting_next_leaf(&task, false, Some((&identity, &config)), &mut out);
+    assert_eq!(
+        out,
+        format!(
+            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  {BOLD}[ ] 2. assign review{RESET}\n  [ ] 3. implement feedback\n  [ ] 4. approved\n"
+        )
+    );
+}
+
+#[test]
+fn render_task_highlighting_next_leaf_skips_assigned_leaf_for_a_different_identity() {
+    // For an identity other than Gini, the leaf assigned to her is skipped
+    // over (but still printed unbolded); the next unassigned leaf ("3.
+    // implement feedback", open to anyone) is bolded instead.
+    let task = parse_one_task(VER_161_FILE_CONTENT);
+    let config = config_with_systemtest_property_and_users(&["Gini", "alice"]);
+    let identity = ResolvedIdentity::Known("alice".to_string());
+    let mut out = String::new();
+    render_task_highlighting_next_leaf(&task, false, Some((&identity, &config)), &mut out);
+    assert_eq!(
+        out,
+        format!(
+            "[ ] VER-161 System Test Image Installation and Smoke Test #systemtest\n  [x] 1. write draft\n  [ ] 2. assign review\n  {BOLD}[ ] 3. implement feedback{RESET}\n  [ ] 4. approved\n"
+        )
+    );
+}
+
 #[test]
 fn render_task_highlighting_next_leaf_bolds_unconditionally_without_identity() {
     // Without an identity (plain `agile task next`, no `--mine`/`--as`), the
