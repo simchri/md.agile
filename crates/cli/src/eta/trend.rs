@@ -44,16 +44,18 @@ pub enum TrendFitAlgorithm {
     /// point equally.
     OrdinaryLeastSquares,
     /// Recency-weighted least squares (see [`recency_weighted_linear_trend`]
-    /// for the exact weighting): the default, since it favors the
-    /// project's *current* pace over its whole history.
-    #[default]
+    /// for the exact weighting): favors the project's *current* pace over
+    /// its whole history via a linear 1..N rank ramp. Superseded as the
+    /// default by [`Self::ExponentialDecay`], which biases towards recent
+    /// points more aggressively, but kept selectable.
     RecencyWeighted,
     /// Exponential-decay recency-weighted least squares (see
-    /// [`exponential_decay_linear_trend`] for the exact weighting): a more
-    /// aggressively recency-biased alternative to [`Self::RecencyWeighted`]
-    /// — instead of a linear 1..N rank ramp, weight decays exponentially
-    /// with each point's calendar-day age, so a handful of very recent
-    /// days can dominate the fit.
+    /// [`exponential_decay_linear_trend`] for the exact weighting): the
+    /// default, and a more aggressively recency-biased alternative to
+    /// [`Self::RecencyWeighted`] — instead of a linear 1..N rank ramp,
+    /// weight decays exponentially with each point's calendar-day age, so
+    /// a handful of very recent days can dominate the fit.
+    #[default]
     ExponentialDecay,
     /// Placeholder for algorithms not yet implemented: always returns
     /// `None`, so callers see "no trend" rather than a misleading fitted

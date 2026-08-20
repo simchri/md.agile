@@ -302,12 +302,13 @@ fn when_velocity_reordering_done_and_todo_tasks_preserves_nonzero_velocity() {
     commit_all_at(dir.path(), "reorder after completion", &t2);
 
     // 1 completion over a 2-day span; reordering later must not add
-    // velocity. With the default recency-weighted fit (deduped to one
-    // point/day, weighted by recency), the fitted slope over these three
-    // unevenly-spaced points is 2.80/week.
+    // velocity. With the default exponential-decay recency-weighted fit
+    // (deduped to one point/day, weighted so recency dominates even more
+    // than the linear-rank `--fit-algo-recent` fit's 2.80/week), the fitted
+    // slope over these three unevenly-spaced points is 1.55/week.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   2.80\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   1.55\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -426,9 +427,10 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     commit_all_at(dir.path(), "delete completed task a", &t2);
 
     // Deleting the already-completed task a pulls the done trend down at the
-    // end of the history. With the default recency-weighted fit, this
-    // late drop pulls the slope down more sharply than an unweighted fit
-    // would (-1.40/week). Creep stays flat at 0.00: milestone scoping
+    // end of the history. With the default exponential-decay
+    // recency-weighted fit, this late drop pulls the slope down more
+    // sharply than the linear-rank `--fit-algo-recent` fit's -1.40/week,
+    // down to -3.90/week. Creep stays flat at 0.00: milestone scoping
     // fixes the in-scope rank cutoff at the *final* rank of the last
     // preceding task ("task b"), so deleting "task a" (which precedes it)
     // shifts "task b" into the vacated rank slot rather than shrinking total
@@ -437,7 +439,7 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     // quirk.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   -1.40\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   -3.90\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -481,21 +483,22 @@ fn when_velocity_fit_algo_decay_weights_a_late_burst_more_aggressively_than_rece
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
     commit_all_at(dir.path(), "day4-burst", &t4);
 
-    // Act
-    let recency_out = run_agile(dir.path(), &["when", "--velocity"]);
-    let decay_out = run_agile(dir.path(), &["when", "--velocity", "--fit-algo-decay"]);
+    // Act: the bare `--velocity` (default exponential-decay fit) against
+    // the explicit linear-rank `--fit-algo-recent` fit.
+    let decay_out = run_agile(dir.path(), &["when", "--velocity"]);
+    let recency_out = run_agile(dir.path(), &["when", "--velocity", "--fit-algo-recent"]);
 
     // Assert
-    assert!(recency_out.status.success());
     assert!(decay_out.status.success());
-    let recency_stdout = String::from_utf8(recency_out.stdout).unwrap();
+    assert!(recency_out.status.success());
     let decay_stdout = String::from_utf8(decay_out.stdout).unwrap();
+    let recency_stdout = String::from_utf8(recency_out.stdout).unwrap();
 
     // Five distinct done-weight points (0,0,0,0,3), all committed on their
     // own calendar day, with the whole rise concentrated on the very last
-    // day. `--fit-algo-decay`'s exponential weighting concentrates far
-    // more relative weight on that last day than the default linear-rank
-    // `RecencyWeighted` fit, so it must produce a strictly steeper
+    // day. The default exponential-decay weighting concentrates far more
+    // relative weight on that last day than the linear-rank
+    // `--fit-algo-recent` fit, so it must produce a strictly steeper
     // (larger) velocity slope for the same data.
     let parse_velocity = |stdout: &str| -> f64 {
         stdout
@@ -508,13 +511,13 @@ fn when_velocity_fit_algo_decay_weights_a_late_burst_more_aggressively_than_rece
             .parse()
             .unwrap()
     };
-    let recency_velocity = parse_velocity(&recency_stdout);
     let decay_velocity = parse_velocity(&decay_stdout);
+    let recency_velocity = parse_velocity(&recency_stdout);
     assert!(
         decay_velocity > recency_velocity,
-        "expected --fit-algo-decay velocity ({decay_velocity}) to exceed the \
-         default recency-weighted velocity ({recency_velocity}); got:\n\
-         recency: {recency_stdout:?}\ndecay: {decay_stdout:?}"
+        "expected the default exponential-decay velocity ({decay_velocity}) to \
+         exceed the linear-rank --fit-algo-recent velocity ({recency_velocity}); \
+         got:\ndecay: {decay_stdout:?}\nrecency: {recency_stdout:?}"
     );
 }
 
@@ -589,11 +592,11 @@ fn when_velocity_counts_real_completion_only_once_even_if_moved_later() {
     commit_all_at(dir.path(), "move completed task a", &t2);
 
     // 1 completion over a 2-day observed span, plateauing after the move.
-    // With the default recency-weighted fit, the fitted slope is
-    // 2.80/week.
+    // With the default exponential-decay recency-weighted fit, the fitted
+    // slope is 1.55/week.
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   2.80\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   1.55\ncreep:    weight/week   0.00\n",
     );
 }
 
@@ -664,17 +667,18 @@ fn when_velocity_last_flag_restricts_history_window() {
     commit_all_at(dir.path(), "complete b", &t2);
 
     // Full history's done-weight trend slope, in weight/week (default
-    // recency-weighted fit).
+    // exponential-decay recency-weighted fit).
     assert_velocity(
         dir.path(),
-        "velocity: weight/week   2.19\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   1.86\ncreep:    weight/week   0.00\n",
     );
     // Restricting to the last 5 days excludes the oldest commit, changing
-    // the fitted slope (recency-weighted fit).
+    // the fitted slope (still the default exponential-decay
+    // recency-weighted fit).
     assert_velocity_with_args(
         dir.path(),
         &["when", "--velocity", "--last", "5"],
-        "velocity: weight/week   1.75\ncreep:    weight/week   0.00\n",
+        "velocity: weight/week   1.11\ncreep:    weight/week   0.00\n",
     );
 }
 

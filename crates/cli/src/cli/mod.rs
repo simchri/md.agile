@@ -165,29 +165,31 @@ pub enum Command {
 
         /// Fit trend lines with plain (unweighted) ordinary least squares
         /// over the milestone's whole history, instead of the default
-        /// recency-weighted fit.
+        /// exponential-decay recency-weighted fit.
         ///
         /// Conflicts with `--fit-algo-recent`, `--fit-algo-decay` and
         /// `--data` (which shows no fitted trend at all).
         #[arg(long, conflicts_with_all = ["fit_algo_recent", "fit_algo_decay", "data"])]
         fit_algo_linear: bool,
 
-        /// Fit trend lines with the default recency-weighted algorithm
-        /// (deduplicated to one point per day, then weighted so more
-        /// recent days count more) — the same as omitting both
-        /// `--fit-algo-*` flags. Only useful to make the default explicit.
+        /// Fit trend lines with the linear-rank recency-weighted algorithm
+        /// (deduplicated to one point per day, then weighted by rank —
+        /// oldest = 1, newest = N) instead of the default, more
+        /// aggressively recency-biased exponential-decay fit.
         ///
         /// Conflicts with `--fit-algo-linear`, `--fit-algo-decay` and `--data`.
         #[arg(long, conflicts_with_all = ["fit_algo_linear", "fit_algo_decay", "data"])]
         fit_algo_recent: bool,
 
-        /// Fit trend lines with a more aggressively recency-biased
-        /// algorithm: like `--fit-algo-recent`, points are deduplicated to
-        /// one per day, but weight decays exponentially with each point's
-        /// age instead of ramping up linearly, so the most recent days can
-        /// dominate the fit. The decay half-life scales with the
-        /// milestone's own observed date span (20% of it), so the bias is
-        /// relative rather than a fixed day count.
+        /// Fit trend lines with the default exponential-decay
+        /// recency-weighted algorithm — the same as omitting all
+        /// `--fit-algo-*` flags. Only useful to make the default explicit.
+        /// Points are deduplicated to one per day, then weighted so that
+        /// weight decays exponentially with each point's age instead of
+        /// ramping up linearly (as `--fit-algo-recent` does), so the most
+        /// recent days can dominate the fit. The decay half-life scales
+        /// with the milestone's own observed date span (20% of it), so the
+        /// bias is relative rather than a fixed day count.
         ///
         /// Conflicts with `--fit-algo-linear`, `--fit-algo-recent` and
         /// `--data`.
@@ -409,17 +411,17 @@ pub fn run() {
             html,
             no_color,
             fit_algo_linear,
-            fit_algo_recent: _,
-            fit_algo_decay,
+            fit_algo_recent,
+            fit_algo_decay: _,
             last,
             next,
         }) => {
             let algorithm = if fit_algo_linear {
                 eta::TrendFitAlgorithm::OrdinaryLeastSquares
-            } else if fit_algo_decay {
-                eta::TrendFitAlgorithm::ExponentialDecay
-            } else {
+            } else if fit_algo_recent {
                 eta::TrendFitAlgorithm::RecencyWeighted
+            } else {
+                eta::TrendFitAlgorithm::ExponentialDecay
             };
             subcommands::when::run(
                 root, &config, next, velocity, plot, data, extra, ascii, html, no_color, last,

@@ -660,6 +660,10 @@
 
 - [x] more aggressive recency weighted algorithm
 
+- [x] made the exponential-decay recency-weighted algorithm the new default `agile when` trend fit (was linear-rank `RecencyWeighted`); `--fit-algo-linear` and `--fit-algo-recent` remain selectable to opt back into OLS or the linear-rank fit respectively. Updated acceptance tests whose expected velocity numbers changed under the new default, with comments explaining the new values.
+
+- [ ] #bug fix behavior of `--last` N with `--plot` 
+
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months

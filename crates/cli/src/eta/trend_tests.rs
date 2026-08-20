@@ -24,12 +24,12 @@ fn date(day: u32) -> NaiveDate {
 }
 
 #[test]
-fn recency_weighted_is_the_default_algorithm() {
+fn exponential_decay_is_the_default_algorithm() {
     let plot = plot_with_points(vec![(date(1), 10.0, 0.0), (date(2), 10.0, 1.0)]);
     let (default_total, default_done) =
         compute_milestone_trends_with(&plot, TrendFitAlgorithm::default());
     let (explicit_total, explicit_done) =
-        compute_milestone_trends_with(&plot, TrendFitAlgorithm::RecencyWeighted);
+        compute_milestone_trends_with(&plot, TrendFitAlgorithm::ExponentialDecay);
     assert_eq!(default_total, explicit_total);
     assert_eq!(default_done, explicit_done);
     assert!(explicit_total.is_some());
