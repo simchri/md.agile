@@ -636,8 +636,6 @@
 
 - [x] remove: md.agile/crates/cli/examples/braille_line.rs:1:1
 
-- [ ] foo '@unknown'
-
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
     - [x] e.g. no convergence
