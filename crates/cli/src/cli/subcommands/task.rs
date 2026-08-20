@@ -35,6 +35,12 @@ use std::path::{Path, PathBuf};
 ///
 /// `full` additionally prints each (sub)task's body lines alongside its
 /// title line.
+/// `full` additionally prints each (sub)task's body lines alongside its
+/// title line.
+///
+/// `no_markup` disables ANSI bold/color escapes entirely: the concrete next
+/// actionable line is instead marked by appending `" <=="` to it. Useful
+/// for scripting/piping output where ANSI escapes would be unwanted noise.
 pub fn run_next(
     root: &Path,
     config: &Config,
@@ -42,6 +48,7 @@ pub fn run_next(
     mine: bool,
     as_user: Option<&str>,
     full: bool,
+    no_markup: bool,
 ) {
     let mine = mine || as_user.is_some();
 
@@ -90,7 +97,7 @@ pub fn run_next(
     ) {
         Ok(resolved) => print!(
             "{}",
-            render_resolved(&resolved, full, identity.as_ref(), config)
+            render_resolved(&resolved, full, identity.as_ref(), config, no_markup)
         ),
         Err(e) => {
             if explicit_address {
@@ -252,6 +259,7 @@ fn next_n_tasks(
                 task,
                 include_body,
                 identity.map(|identity| (identity, config)),
+                false,
                 &mut out,
             );
             found += 1;
@@ -417,13 +425,15 @@ fn format_address(parts: &[usize]) -> String {
 }
 
 /// Renders the (sub)task resolved by `resolved` as its own root block,
-/// exactly like [`render_task`] would for a top-level task, but bolds the
+/// exactly like [`render_task`] would for a top-level task, but marks the
 /// first `Todo` leaf in the subtree — the concrete next actionable task —
 /// and, if `full` is true, also prints body lines (see
 /// [`render_task_highlighting_next_leaf`]). If `identity` is `Some`, only a
-/// leaf eligible for that identity is bolded (see
-/// [`rules::is_eligible_for`]); otherwise the first `Todo` leaf is bolded
-/// unconditionally.
+/// leaf eligible for that identity is marked (see
+/// [`rules::is_eligible_for`]); otherwise the first `Todo` leaf is marked
+/// unconditionally. Normally the marked line is bolded (ANSI escapes); if
+/// `no_markup` is true, it's instead marked by appending `" <=="` in
+/// plain text.
 ///
 /// [`render_task`]: crate::cli::common::render_task
 fn render_resolved(
@@ -431,13 +441,16 @@ fn render_resolved(
     full: bool,
     identity: Option<&ResolvedIdentity>,
     config: &Config,
+    no_markup: bool,
 ) -> String {
     let mut out = String::new();
     let identity = identity.map(|identity| (identity, config));
     match resolved.node_ref() {
-        NodeRef::Task(task) => render_task_highlighting_next_leaf(task, full, identity, &mut out),
+        NodeRef::Task(task) => {
+            render_task_highlighting_next_leaf(task, full, identity, no_markup, &mut out)
+        }
         NodeRef::Subtask(sub) => {
-            render_subtask_as_root_highlighting_next_leaf(sub, full, identity, &mut out)
+            render_subtask_as_root_highlighting_next_leaf(sub, full, identity, no_markup, &mut out)
         }
     }
     out

@@ -122,6 +122,7 @@ pub(crate) fn render_task_highlighting_next_leaf(
     task: &parser::Task,
     include_body: bool,
     identity: Option<(&ResolvedIdentity, &Config)>,
+    no_markup: bool,
     out: &mut String,
 ) {
     let mut found = false;
@@ -131,6 +132,7 @@ pub(crate) fn render_task_highlighting_next_leaf(
         &task.children,
         include_body,
         identity,
+        no_markup,
         out,
         &mut found,
     );
@@ -148,6 +150,7 @@ pub(crate) fn render_subtask_as_root_highlighting_next_leaf(
     sub: &parser::Subtask,
     include_body: bool,
     identity: Option<(&ResolvedIdentity, &Config)>,
+    no_markup: bool,
     out: &mut String,
 ) {
     let mut found = false;
@@ -157,6 +160,7 @@ pub(crate) fn render_subtask_as_root_highlighting_next_leaf(
         &sub.children,
         include_body,
         identity,
+        no_markup,
         out,
         &mut found,
     );
@@ -183,10 +187,11 @@ fn render_node_as_root_highlighting_next_leaf(
     children: &[parser::Subtask],
     include_body: bool,
     identity: Option<(&ResolvedIdentity, &Config)>,
+    no_markup: bool,
     out: &mut String,
     found: &mut bool,
 ) {
-    push_node_line(node, &[], identity, out, found);
+    push_node_line(node, &[], identity, no_markup, out, found);
     if include_body {
         push_body_lines(body, out);
     }
@@ -197,6 +202,7 @@ fn render_node_as_root_highlighting_next_leaf(
             children,
             include_body,
             identity,
+            no_markup,
             out,
             found,
         );
@@ -234,13 +240,21 @@ fn render_subtask_highlighting_next_leaf(
     siblings: &[parser::Subtask],
     include_body: bool,
     identity: Option<(&ResolvedIdentity, &Config)>,
+    no_markup: bool,
     out: &mut String,
     found: &mut bool,
 ) {
     for _ in 0..depth {
         out.push_str("  ");
     }
-    push_node_line(NodeRef::Subtask(sub), siblings, identity, out, found);
+    push_node_line(
+        NodeRef::Subtask(sub),
+        siblings,
+        identity,
+        no_markup,
+        out,
+        found,
+    );
     if include_body {
         push_body_lines(&sub.body, out);
     }
@@ -251,6 +265,7 @@ fn render_subtask_highlighting_next_leaf(
             &sub.children,
             include_body,
             identity,
+            no_markup,
             out,
             found,
         );
@@ -267,32 +282,41 @@ fn push_body_lines(body: &[String], out: &mut String) {
     }
 }
 
-/// Writes one `[<status>] <title>` line to `out`, bolding it (via ANSI
-/// escapes) when it's the first line seen so far (`*found` not yet set)
-/// that [`rules::is_next_eligible_leaf`] — see that function for the full
-/// definition of what makes a line the "next" actionable one. `siblings` is
-/// the slice `node` was found in (empty for a root node, which is never
-/// order-blocked). Sets `*found` when it bolds so only one line per render
-/// is ever highlighted.
+/// Writes one `[<status>] <title>` line to `out`, marking it as the
+/// concrete "next" actionable line — the first one seen so far (`*found`
+/// not yet set) for which [`rules::is_next_eligible_leaf`] is true; see
+/// that function for the full definition of what makes a line "next" —
+/// via ANSI bold escapes, or, if `no_markup` is true, by appending
+/// `" <=="` to the plain-text line instead (no ANSI escapes at all).
+/// `siblings` is the slice `node` was found in (empty for a root node,
+/// which is never order-blocked). Sets `*found` when it marks a line so
+/// only one line per render is ever highlighted.
 fn push_node_line(
     node: NodeRef,
     siblings: &[parser::Subtask],
     identity: Option<(&ResolvedIdentity, &Config)>,
+    no_markup: bool,
     out: &mut String,
     found: &mut bool,
 ) {
     let status = node.status();
     let title = node.title();
-    let should_bold = !*found && rules::is_next_eligible_leaf(node, siblings, identity);
-    if should_bold {
+    let is_next = !*found && rules::is_next_eligible_leaf(node, siblings, identity);
+    if is_next {
         *found = true;
+    }
+    if is_next && !no_markup {
         out.push_str(crate::formatter::BOLD);
     }
     out.push_str(status_marker(status));
     out.push(' ');
     out.push_str(title);
-    if should_bold {
-        out.push_str(crate::formatter::RESET);
+    if is_next {
+        if no_markup {
+            out.push_str(" <==");
+        } else {
+            out.push_str(crate::formatter::RESET);
+        }
     }
     out.push('\n');
 }

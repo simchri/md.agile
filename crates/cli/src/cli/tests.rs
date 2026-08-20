@@ -12,7 +12,8 @@ fn tasks_is_alias_for_task_subcommand() {
                 address: None,
                 mine: false,
                 r#as: None,
-                full: false
+                full: false,
+                no_markup: false
             }
         })
     ));

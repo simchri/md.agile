@@ -271,6 +271,11 @@ pub enum TaskAction {
         /// Also show each (sub)task's body text alongside its title
         #[arg(long)]
         full: bool,
+
+        /// Disable ANSI bold/color output. The concrete next actionable
+        /// line is instead marked by appending " <==" to it in plain text.
+        #[arg(long)]
+        no_markup: bool,
     },
 
     /// Mark the (sub)task at ADDRESS done
@@ -356,6 +361,7 @@ pub fn run() {
                     mine,
                     r#as,
                     full,
+                    no_markup,
                 },
         }) => {
             subcommands::task::run_next(
@@ -365,6 +371,7 @@ pub fn run() {
                 mine,
                 r#as.as_deref(),
                 full,
+                no_markup,
             );
         }
         Some(Command::Task {
