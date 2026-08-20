@@ -30,19 +30,24 @@ fn stdout_of(dir: &std::path::Path, args: &[&str]) -> String {
 
 #[test]
 fn bolds_the_only_todo_leaf() {
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next"]);
+
+    // Assert
     let expected = format!("{BOLD}[ ] parent task{RESET}\n");
     assert_eq!(stdout, expected);
 }
 
 #[test]
 fn bolds_first_todo_leaf_in_document_order() {
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
@@ -52,7 +57,10 @@ fn bolds_first_todo_leaf_in_document_order() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] parent task
@@ -68,6 +76,8 @@ fn bolds_first_todo_leaf_in_document_order() {
 fn skips_non_leaf_todo_nodes() {
     // A `Todo` node with children is not itself a leaf, so it is never
     // bolded - only the actual leaf (a node with no children) is.
+
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
@@ -76,7 +86,10 @@ fn skips_non_leaf_todo_nodes() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] parent task
@@ -89,6 +102,7 @@ fn skips_non_leaf_todo_nodes() {
 
 #[test]
 fn bolds_nothing_when_no_todo_leaf_exists() {
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [x] parent task
@@ -97,12 +111,16 @@ fn bolds_nothing_when_no_todo_leaf_exists() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next"]);
+
+    // Assert
     assert!(stdout.is_empty(), "stdout: {stdout:?}");
 }
 
 #[test]
 fn bolds_within_dotted_addressed_subtask_subtree() {
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
@@ -112,7 +130,10 @@ fn bolds_within_dotted_addressed_subtask_subtree() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "1.1"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] addressed subtask
@@ -125,6 +146,7 @@ fn bolds_within_dotted_addressed_subtask_subtree() {
 
 #[test]
 fn includes_body_when_full_flag_given() {
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
@@ -134,7 +156,10 @@ fn includes_body_when_full_flag_given() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "--full"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] parent task
@@ -148,6 +173,7 @@ fn includes_body_when_full_flag_given() {
 
 #[test]
 fn omits_body_by_default() {
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
@@ -155,7 +181,10 @@ fn omits_body_by_default() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next"]);
+
+    // Assert
     let expected = format!("{BOLD}[ ] parent task{RESET}\n");
     assert_eq!(stdout, expected);
 }
@@ -164,6 +193,8 @@ fn omits_body_by_default() {
 fn mine_skips_leaf_assigned_to_someone_else() {
     // Regression test for the reported bug: bolding must respect eligibility
     // for the resolved git identity, not just "first Todo leaf" unconditionally.
+
+    // Arrange
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -184,7 +215,10 @@ git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] parent task
@@ -200,6 +234,8 @@ fn mine_bolds_nothing_when_no_leaf_eligible_for_identity() {
     // The top-level task itself is filtered out by eligibility (it has no
     // Todo child eligible for alice), so `agile task next --mine` finds no
     // matching top-level task at all and prints nothing.
+
+    // Arrange
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -219,7 +255,10 @@ git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
+
+    // Assert
     assert!(stdout.is_empty(), "stdout: {stdout:?}");
 }
 
@@ -234,6 +273,8 @@ fn mine_skips_ordered_leaf_eligible_for_identity_but_blocked_by_incomplete_lower
     // "2. second step", but bob's still-incomplete "1. first step" blocks
     // it, so there is nothing alice can actually do yet, and `--mine`
     // should bold nothing (not the blocked step assigned to her).
+
+    // Arrange
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -254,7 +295,10 @@ git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
+
+    // Assert
     assert!(stdout.is_empty(), "stdout: {stdout:?}");
     assert!(!stdout.contains(BOLD));
 }
@@ -263,6 +307,8 @@ git_emails = [\"bob@example.com\"]
 fn mine_bolds_ordered_leaf_once_blocking_lower_order_sibling_is_done() {
     // Same setup as above, but bob's "1. first step" is now done, so
     // alice's "2. second step" is actually actionable and should be bolded.
+
+    // Arrange
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -283,7 +329,10 @@ git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] parent task
@@ -301,6 +350,8 @@ fn without_identity_still_bolds_blocked_ordered_leaf_unconditionally() {
     // general "is this leaf actionable" concern for the unconditional case.
     // (`agile task done` still separately rejects completing an
     // out-of-order leaf; this is purely about what gets highlighted.)
+
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
@@ -309,7 +360,10 @@ fn without_identity_still_bolds_blocked_ordered_leaf_unconditionally() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] parent task
@@ -324,6 +378,8 @@ fn without_identity_still_bolds_blocked_ordered_leaf_unconditionally() {
 fn bolds_unconditionally_without_mine_or_as() {
     // Without `--mine`/`--as`, the old unconditional "first Todo leaf"
     // behavior still applies even to a leaf assigned to someone else.
+
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
@@ -331,7 +387,10 @@ fn bolds_unconditionally_without_mine_or_as() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next"]);
+
+    // Assert
     let expected = format!("[ ] parent task\n  {BOLD}[ ] leaf assigned to bob @bob{RESET}\n");
     assert_eq!(stdout, expected);
 }
@@ -341,6 +400,7 @@ fn bolds_unconditionally_without_mine_or_as() {
 /// and one subtask assigned via `@Gini`.
 #[test]
 fn bolds_first_todo_leaf_among_quoted_property_subtasks() {
+    // Arrange
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
@@ -363,7 +423,10 @@ git_emails = [\"alice@example.com\"]
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
@@ -380,6 +443,8 @@ git_emails = [\"alice@example.com\"]
 fn as_gini_bolds_leaf_assigned_to_gini() {
     // With `--as Gini`, the leaf assigned to her (via `@Gini`) is eligible
     // and gets bolded, same as the unconditional case.
+
+    // Arrange
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     let file_content = "\
@@ -403,7 +468,10 @@ git_emails = [\"alice@example.com\"]
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "--as", "Gini"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
@@ -425,6 +493,8 @@ fn as_alice_skips_leaf_assigned_to_gini() {
     // blocked while "2." remains incomplete, even though it's unassigned —
     // alice can't jump ahead of an incomplete lower-ordered sibling. So
     // nothing is eligible for her, and `--as alice` bolds nothing.
+
+    // Arrange
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     let file_content = "\
@@ -448,7 +518,10 @@ git_emails = [\"alice@example.com\"]
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "--as", "alice"]);
+
+    // Assert
     assert_eq!(stdout, "");
 }
 
@@ -473,6 +546,8 @@ fn mine_does_not_bold_an_order_blocked_leaf_assigned_to_identity_even_when_a_lat
     // would bold "2. blocked step" (wrong: not actually actionable) instead
     // of skipping over it to bold "separate unordered step" (the real next
     // actionable line for alice).
+
+    // Arrange
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["config", "user.email", "alice@example.com"]);
@@ -494,7 +569,10 @@ git_emails = [\"bob@example.com\"]
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
+    // Act
     let stdout = stdout_of(dir.path(), &["task", "next", "--mine"]);
+
+    // Assert
     let expected = format!(
         "\
 [ ] parent task
