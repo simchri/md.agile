@@ -41,7 +41,8 @@ invalid state.
 ### Parser: two layers
 
 `pulldown-cmark` is not replaced with a custom lexer. It owns everything structural:
-indentation, nesting, checkbox state, escaped characters (`\#`, `\@`). The custom layer
+indentation, nesting, checkbox state, escaped characters (`\#`, `\@`, or a term fully
+wrapped in single ticks e.g. `'#feat'`). The custom layer
 is a ~50-line inline scanner that runs on the *text content* of each list item to extract
 `Marker`s and the optional order prefix. This keeps parsing correct and fast while
 staying minimal.

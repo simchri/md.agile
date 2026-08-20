@@ -62,12 +62,18 @@ And some further notes
 - [ ] more tasks
 ```
 
-mdagile uses the following symbols for syntax: `# @ \`
-If necessary, escape these with `\`
+mdagile uses the following symbols for syntax: `# @ \ '`
+
+Escape a `#`/`@` so it's treated as plain text (not a marker) with either:
+- a backslash immediately before it (`\#`, `\@`), or
+- a pair of single ticks fully wrapping the term (`'#not_a_property'`, `'@not_an_assignment'` — both the opening and closing tick must be present, immediately around the term).
+
+Double quotes (`"`) have **no** escaping effect — `"#foo"` and `"@bob"` are still real markers. Double quotes are reserved for a separate, unrelated convention: marking a subtask as required by a property (see "Subtasks" below).
 
 ```md
 - [ ] a task with a hashtag \#not_a_property
 - [ ] a task with a mail address: markus\@company.org
+- [ ] a task mentioning '#not_a_property' or '@not_an_assignment' in prose
 ```
 
 ## Prioritization
