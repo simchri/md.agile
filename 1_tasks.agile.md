@@ -222,14 +222,14 @@
     - [x] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some'#feature' hernameis@alice -- the used assumption is that there will always be whitespace is wrong
       - [x] fix
       - [x] refactor: The detection logic of markers and properties in files should be centralized to avoid bugs like above
-  - [x] "(feature) validation by programmer"
-  - [x] "(feature) implementation"
+  - [x] "2. (feature) validation by programmer"
+  - [x] "1. (feature) implementation"
   - [x] "bar"
   - [x] "baz"
 
 - [x] #feature syntax highlighting for #OPT
-  - [x] "(feature) validation by programmer"
-  - [x] "(feature) implementation"
+  - [x] "2. (feature) validation by programmer"
+  - [x] "1. (feature) implementation"
 - [x] #feature syntax highlighting for '#MILESTONES'
   - [x] basic implementation
   - [x] double check details of #MILESTONE handling. AI did something weird here. Handled it a bit like a normal property
@@ -237,12 +237,12 @@
     - [x] #MILESTONE not a highlighted as keyword here
   - [x] #MDAGILE double check #MDAGILE special marker handling - should this be highlighted as keyword here?
     No! config keys still to be implemented - re-visit later. N.B. MDAGILE tag currently never highlighted, but that's ok since keys are not implemented anyways
-  - [x] "(feature) validation by programmer"
-  - [x] "(feature) implementation"
+  - [x] "2. (feature) validation by programmer"
+  - [x] "1. (feature) implementation"
 
 - [x] #feature: syntax highlighting for assignments: asdf@alice
-  - [x] "(feature) validation by programmer"
-  - [x] "(feature) implementation"
+  - [x] "2. (feature) validation by programmer"
+  - [x] "1. (feature) implementation"
 
 - [x] syntax highlighting for '#properties'
 
@@ -273,13 +273,13 @@
   - [x] Register in the REGISTRY in lsp/quickfix/mod.rs
   - [x] Tests for the quickfix builder
   - [x] validation
-  - [x] "(feature) validation by programmer"
-  - [x] "(feature) implementation"
+  - [x] "2. (feature) validation by programmer"
+  - [x] "1. (feature) implementation"
 
 - [x] #feature Check that detects subtasks completely surrounded by quotes (- [ ] "some subtask"), but which are NOT required subtasks
   This syntax is reserved for required subtasks (by #properties) and should not be usable otherwise
-  - [x] "(feature) implementation"
-  - [x] "(feature) validation by programmer"
+  - [x] "1. (feature) implementation"
+  - [x] "2. (feature) validation by programmer"
 
 - [x] #foo Allow cancelling required subtasks (subtasks_allow_cancel)
   When a property defines `subtasks_allow_cancel`, individual required subtasks may be cancelled without error
