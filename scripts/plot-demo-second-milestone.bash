@@ -16,7 +16,9 @@ create_sample_repo() {
 
     compute_dates 5 14
 
-    # --- snapshot 1: total=15 done=3 (same as messy-both) ---
+    # --- snapshot 1: total=16 done=3. Task 6 (before the "Demo milestone"
+    # marker) is left undone in every snapshot so that milestone never
+    # becomes fully reached, keeping "Demo milestone 2" at rank 2 throughout ---
     cat > tasks.agile.md <<'EOF'
 - [x] Task 1
 - [x] Task 2
@@ -45,7 +47,9 @@ other notes 1
 EOF
     commit_snapshot 1 "${dates[0]}"
 
-    # --- snapshot 2: total=14 done=6 (same as messy-both) ---
+    # --- snapshot 2: total=16 done=6. Task 6 stays undone (see snapshot 1) so
+    # "Demo milestone" never becomes fully reached; progress toward it instead
+    # comes from completing tasks 7-15, keeping "Demo milestone 2" at rank 2 ---
     cat > tasks.agile.md <<'EOF'
 - [x] Task 1
 - [x] Task 2
@@ -56,8 +60,8 @@ EOF
 
 #MILESTONE: Demo milestone 
 
-- [ ] Task 7
-- [ ] Task 8
+- [x] Task 7
+- [x] Task 8
 - [ ] Task 9
 - [ ] Task 10
 - [ ] Task 11
@@ -74,7 +78,7 @@ other notes 2
 EOF
     commit_snapshot 2 "${dates[1]}"
 
-    # --- snapshot 3: total=16 done=8 (same as messy-both) ---
+    # --- snapshot 3: total=16 done=8 (Task 6 still undone) ---
     cat > tasks.agile.md <<'EOF'
 - [x] Task 1
 - [x] Task 2
@@ -85,9 +89,9 @@ EOF
 
 #MILESTONE: Demo milestone 
 
-- [ ] Task 7
-- [ ] Task 8
-- [ ] Task 9
+- [x] Task 7
+- [x] Task 8
+- [x] Task 9
 - [ ] Task 10
 - [ ] Task 11
 - [ ] Task 12
@@ -103,22 +107,22 @@ other notes 3
 EOF
     commit_snapshot 3 "${dates[2]}"
 
-    # --- snapshot 4: total=17 done=10, plus a new milestone appended at the end ---
+    # --- snapshot 4: total=16 done=10 (Task 6 still undone) ---
     cat > tasks.agile.md <<'EOF'
 - [x] Task 1
 - [x] Task 2
 - [x] Task 3
 - [x] Task 4
 - [x] Task 5
-- [x] Task 6
+- [ ] Task 6
 
 #MILESTONE: Demo milestone 
 
-- [ ] Task 7
-- [ ] Task 8
-- [ ] Task 9
-- [ ] Task 10
-- [ ] Task 11
+- [x] Task 7
+- [x] Task 8
+- [x] Task 9
+- [x] Task 10
+- [x] Task 11
 - [ ] Task 12
 - [ ] Task 13
 - [ ] Task 14
@@ -132,24 +136,26 @@ other notes 4
 EOF
     commit_snapshot 4 "${dates[3]}"
 
-    # --- snapshot 5: total=18 done=12 (last commit: today) ---
+    # --- snapshot 5: total=16 done=12 (last commit: today). Task 6 is still
+    # undone here, so "Demo milestone" remains a future milestone and
+    # "Demo milestone 2" stays rank 2, making `--next 2` resolve correctly ---
     cat > tasks.agile.md <<'EOF'
 - [x] Task 1
 - [x] Task 2
 - [x] Task 3
 - [x] Task 4
 - [x] Task 5
-- [x] Task 6
+- [ ] Task 6
 
 #MILESTONE: Demo milestone 
 
 - [x] Task 7
-- [ ] Task 8
-- [ ] Task 9
-- [ ] Task 10
-- [ ] Task 11
-- [ ] Task 12
-- [ ] Task 13
+- [x] Task 8
+- [x] Task 9
+- [x] Task 10
+- [x] Task 11
+- [x] Task 12
+- [x] Task 13
 - [ ] Task 14
 - [ ] Task 15
 
