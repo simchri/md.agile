@@ -4,7 +4,7 @@ mod done;
 mod list;
 #[path = "task/next.rs"]
 mod next;
-#[path = "task/next_bold_highlighting.rs"]
-mod next_bold_highlighting;
+#[path = "task/next_eligibility.rs"]
+mod next_eligibility;
 #[path = "task/undone.rs"]
 mod undone;

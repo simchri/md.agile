@@ -1,9 +1,9 @@
-//! Acceptance-level tests for the "mark eligible tasks bold" feature
-//! (`agile task next`): the first `Todo` leaf in document order is
-//! highlighted with ANSI bold escapes, subject to `--mine`/`--as` identity
-//! eligibility. These exercise the full CLI — including `mdagile.toml`
-//! config loading (`[Properties.*]`, `[Users.*]`) and git identity
-//! resolution — rather than calling the rendering helpers directly.
+//! Acceptance-level tests for task eligibility (`agile task next`): the
+//! first `Todo` leaf in document order that is eligible for the resolved
+//! `--mine`/`--as` identity is highlighted with ANSI bold escapes. These
+//! exercise the full CLI — including `mdagile.toml` config loading
+//! (`[Properties.*]`, `[Users.*]`) and git identity resolution — rather
+//! than calling the rendering helpers directly.
 
 use crate::helpers::run_agile;
 use std::fs;
