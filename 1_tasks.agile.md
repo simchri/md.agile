@@ -695,8 +695,8 @@
   - [x] #bug the list in md.agile/0_dummy_tasks.agile.md:1:19 currently shows a task where each subtask is not eligible to me (because assigned to alice). however "agile task next --mine" still shows the top level (unassigned) task to me. I would expect that this is not eligble.
     - [x] Fixed: `rules::is_eligible_for` is now recursive - a task/subtask with children is eligible only if at least one actionable (`Todo`) leaf descendant is eligible (own markers, or unassigned). '#OPT' leaves still count; `Done`/`Cancelled` leaves don't. A childless node still falls back to its own markers as before.
 
-- [ ] improvement of output of `agile task next`: 
-  - [ ] make next eligible task bold
+- [x] improvement of output of `agile task next`: 
+  - [x] make next eligible task bold
     - [x] Implemented in `cli/common.rs`: `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf` walk the tree, bolding (ANSI `\x1b[1m`/`\x1b[0m`, see `formatter::BOLD`/`RESET`) the first `Todo` *leaf* (a node with no children) in document order — the concrete next actionable task, even nested under already-done siblings/ancestors.
     - [x] Bugfix: when `--mine`/`--as` is given, the bolded leaf must be one *eligible* for the resolved identity (`rules::is_eligible_for`), not just the first `Todo` leaf regardless of assignment — leaves assigned to someone else are skipped over. Without `--mine`/`--as` (no identity resolved), the old unconditional first-`Todo`-leaf bolding is unchanged. Threaded via a new `identity: Option<(&ResolvedIdentity, &Config)>` parameter through `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf`/`render_node_as_root_highlighting_next_leaf`/`render_subtask_highlighting_next_leaf`/`push_node_line`.
     - [x] #bug still seems buggy! Investigate further!
