@@ -48,6 +48,13 @@ pub enum TrendFitAlgorithm {
     /// project's *current* pace over its whole history.
     #[default]
     RecencyWeighted,
+    /// Exponential-decay recency-weighted least squares (see
+    /// [`exponential_decay_linear_trend`] for the exact weighting): a more
+    /// aggressively recency-biased alternative to [`Self::RecencyWeighted`]
+    /// — instead of a linear 1..N rank ramp, weight decays exponentially
+    /// with each point's calendar-day age, so a handful of very recent
+    /// days can dominate the fit.
+    ExponentialDecay,
     /// Placeholder for algorithms not yet implemented: always returns
     /// `None`, so callers see "no trend" rather than a misleading fitted
     /// line. Not wired up to any production call site yet — exercised
@@ -64,6 +71,9 @@ impl TrendFitAlgorithm {
         match self {
             TrendFitAlgorithm::OrdinaryLeastSquares => ols_linear_trend(points, anchor_x_d),
             TrendFitAlgorithm::RecencyWeighted => recency_weighted_linear_trend(points, anchor_x_d),
+            TrendFitAlgorithm::ExponentialDecay => {
+                exponential_decay_linear_trend(points, anchor_x_d)
+            }
             TrendFitAlgorithm::Dummy => None,
         }
     }
@@ -185,35 +195,41 @@ fn dedupe_last_point_per_day(points: &[(f64, f64)]) -> Vec<(f64, f64)> {
     deduped
 }
 
-/// Recency-weighted least squares: first [`dedupe_last_point_per_day`]s
-/// `points` down to one point per calendar day (so a day with many commits
-/// doesn't get more say in the fit than a quiet day), then fits a weighted
-/// line where each deduped point's weight is its rank among them —
-/// oldest = 1, up to newest = N — so more recent points pull the line
-/// harder than older ones, favoring the project's current pace over its
-/// whole history.
-fn recency_weighted_linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
-    let points = dedupe_last_point_per_day(points);
+/// Fraction of a series' observed date span (oldest to newest deduped
+/// point) used as the half-life for [`exponential_decay_linear_trend`]'s
+/// weighting — see that function for how it's applied.
+const EXPONENTIAL_DECAY_HALF_LIFE_SPAN_FRACTION: f64 = 0.20;
+
+/// Fits a weighted least-squares line through `points`, each paired with
+/// a non-negative `weight` (same order, same length) — the shared core of
+/// [`recency_weighted_linear_trend`] and
+/// [`exponential_decay_linear_trend`], which differ only in how they
+/// compute `weights`. Returns `None` when there are fewer than two points
+/// or all points share the same `x` (a vertical/degenerate fit).
+fn weighted_linear_trend(
+    points: &[(f64, f64)],
+    weights: &[f64],
+    anchor_x_d: f64,
+) -> Option<LinearTrend> {
     if points.len() < 2 {
         return None;
     }
-    let weights: Vec<f64> = (1..=points.len()).map(|rank| rank as f64).collect();
     let sum_w: f64 = weights.iter().sum();
     let mean_x = points
         .iter()
-        .zip(&weights)
+        .zip(weights)
         .map(|((x, _), w)| w * x)
         .sum::<f64>()
         / sum_w;
     let mean_y = points
         .iter()
-        .zip(&weights)
+        .zip(weights)
         .map(|((_, y), w)| w * y)
         .sum::<f64>()
         / sum_w;
     let mut cov = 0.0;
     let mut var = 0.0;
-    for ((x, y), w) in points.iter().zip(&weights) {
+    for ((x, y), w) in points.iter().zip(weights) {
         cov += w * (x - mean_x) * (y - mean_y);
         var += w * (x - mean_x) * (x - mean_x);
     }
@@ -227,6 +243,49 @@ fn recency_weighted_linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Opti
         anchor_y_wt,
         anchor_x_d,
     })
+}
+
+/// Recency-weighted least squares: first [`dedupe_last_point_per_day`]s
+/// `points` down to one point per calendar day (so a day with many commits
+/// doesn't get more say in the fit than a quiet day), then fits a weighted
+/// line where each deduped point's weight is its rank among them —
+/// oldest = 1, up to newest = N — so more recent points pull the line
+/// harder than older ones, favoring the project's current pace over its
+/// whole history.
+fn recency_weighted_linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
+    let points = dedupe_last_point_per_day(points);
+    let weights: Vec<f64> = (1..=points.len()).map(|rank| rank as f64).collect();
+    weighted_linear_trend(&points, &weights, anchor_x_d)
+}
+
+/// Exponential-decay recency-weighted least squares: a more aggressively
+/// recency-biased alternative to [`recency_weighted_linear_trend`]. Like
+/// that algorithm, it first [`dedupe_last_point_per_day`]s `points`, but
+/// instead of a linear 1..N rank ramp, each deduped point's weight decays
+/// exponentially with its calendar-day age (days before the newest
+/// point): `weight = 0.5 ^ (age_days / half_life)`. The half-life itself
+/// scales with the series' own observed span (oldest to newest point) —
+/// [`EXPONENTIAL_DECAY_HALF_LIFE_SPAN_FRACTION`] of it — so the same
+/// relative recency bias applies whether the history covers a few days or
+/// several months, rather than a fixed day count that would dominate a
+/// short history or barely register on a long one.
+fn exponential_decay_linear_trend(points: &[(f64, f64)], anchor_x_d: f64) -> Option<LinearTrend> {
+    let points = dedupe_last_point_per_day(points);
+    if points.len() < 2 {
+        return None;
+    }
+    let newest_x = points.iter().map(|(x, _)| *x).fold(f64::MIN, f64::max);
+    let oldest_x = points.iter().map(|(x, _)| *x).fold(f64::MAX, f64::min);
+    let span_days = newest_x - oldest_x;
+    let half_life = (EXPONENTIAL_DECAY_HALF_LIFE_SPAN_FRACTION * span_days).max(f64::EPSILON);
+    let weights: Vec<f64> = points
+        .iter()
+        .map(|(x, _)| {
+            let age_days = newest_x - x;
+            0.5f64.powf(age_days / half_life)
+        })
+        .collect();
+    weighted_linear_trend(&points, &weights, anchor_x_d)
 }
 
 #[cfg(test)]

@@ -167,9 +167,9 @@ pub enum Command {
         /// over the milestone's whole history, instead of the default
         /// recency-weighted fit.
         ///
-        /// Conflicts with `--fit-algo-recent` and `--data` (which shows no
-        /// fitted trend at all).
-        #[arg(long, conflicts_with_all = ["fit_algo_recent", "data"])]
+        /// Conflicts with `--fit-algo-recent`, `--fit-algo-decay` and
+        /// `--data` (which shows no fitted trend at all).
+        #[arg(long, conflicts_with_all = ["fit_algo_recent", "fit_algo_decay", "data"])]
         fit_algo_linear: bool,
 
         /// Fit trend lines with the default recency-weighted algorithm
@@ -177,9 +177,22 @@ pub enum Command {
         /// recent days count more) — the same as omitting both
         /// `--fit-algo-*` flags. Only useful to make the default explicit.
         ///
-        /// Conflicts with `--fit-algo-linear` and `--data`.
-        #[arg(long, conflicts_with_all = ["fit_algo_linear", "data"])]
+        /// Conflicts with `--fit-algo-linear`, `--fit-algo-decay` and `--data`.
+        #[arg(long, conflicts_with_all = ["fit_algo_linear", "fit_algo_decay", "data"])]
         fit_algo_recent: bool,
+
+        /// Fit trend lines with a more aggressively recency-biased
+        /// algorithm: like `--fit-algo-recent`, points are deduplicated to
+        /// one per day, but weight decays exponentially with each point's
+        /// age instead of ramping up linearly, so the most recent days can
+        /// dominate the fit. The decay half-life scales with the
+        /// milestone's own observed date span (20% of it), so the bias is
+        /// relative rather than a fixed day count.
+        ///
+        /// Conflicts with `--fit-algo-linear`, `--fit-algo-recent` and
+        /// `--data`.
+        #[arg(long, conflicts_with_all = ["fit_algo_linear", "fit_algo_recent", "data"])]
+        fit_algo_decay: bool,
 
         /// Select the Nth milestone rank.
         ///
@@ -397,11 +410,14 @@ pub fn run() {
             no_color,
             fit_algo_linear,
             fit_algo_recent: _,
+            fit_algo_decay,
             last,
             next,
         }) => {
             let algorithm = if fit_algo_linear {
                 eta::TrendFitAlgorithm::OrdinaryLeastSquares
+            } else if fit_algo_decay {
+                eta::TrendFitAlgorithm::ExponentialDecay
             } else {
                 eta::TrendFitAlgorithm::RecencyWeighted
             };

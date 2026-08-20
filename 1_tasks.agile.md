@@ -658,7 +658,7 @@
 
 - [x] "velocity" is the slope of the (weighted) linear trend 
 
-- [ ] more aggressive recency weighted algorithm
+- [x] more aggressive recency weighted algorithm
 
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)

@@ -16,7 +16,7 @@ fn git(dir: &std::path::Path, args: &[&str]) {
 fn commit_all_at(dir: &std::path::Path, message: &str, iso_timestamp: &str) {
     git(dir, &["add", "-A"]);
     let status = Command::new("git")
-        .args(["commit", "-q", "-m", message])
+        .args(["commit", "-q", "--allow-empty", "-m", message])
         .current_dir(dir)
         .env("GIT_AUTHOR_DATE", iso_timestamp)
         .env("GIT_COMMITTER_DATE", iso_timestamp)
@@ -438,6 +438,83 @@ fn when_velocity_deleting_done_tasks_reduces_velocity_over_full_history() {
     assert_velocity(
         dir.path(),
         "velocity: weight/week   -1.40\ncreep:    weight/week   0.00\n",
+    );
+}
+
+#[test]
+fn when_velocity_fit_algo_decay_weights_a_late_burst_more_aggressively_than_recency_weighted() {
+    // Arrange
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t0 = git_date_from_unix_secs(unix_ts_days_ago(4));
+    let t1 = git_date_from_unix_secs(unix_ts_days_ago(3));
+    let t2 = git_date_from_unix_secs(unix_ts_days_ago(2));
+    let t3 = git_date_from_unix_secs(unix_ts_days_ago(1));
+    let t4 = git_date_from_unix_secs(unix_ts_days_ago(0));
+
+    let file_content = "\
+- [ ] keep milestone future
+- [ ] task a
+- [ ] task b
+- [ ] task c
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day0", &t0);
+
+    // Three quiet no-op commits (re-committing the same content) keep the
+    // done-weight flat at 0 across days 1-3, each on its own calendar day.
+    commit_all_at(dir.path(), "day1-quiet", &t1);
+    commit_all_at(dir.path(), "day2-quiet", &t2);
+    commit_all_at(dir.path(), "day3-quiet", &t3);
+
+    let file_content = "\
+- [ ] keep milestone future
+- [x] task a
+- [x] task b
+- [x] task c
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day4-burst", &t4);
+
+    // Act
+    let recency_out = run_agile(dir.path(), &["when", "--velocity"]);
+    let decay_out = run_agile(dir.path(), &["when", "--velocity", "--fit-algo-decay"]);
+
+    // Assert
+    assert!(recency_out.status.success());
+    assert!(decay_out.status.success());
+    let recency_stdout = String::from_utf8(recency_out.stdout).unwrap();
+    let decay_stdout = String::from_utf8(decay_out.stdout).unwrap();
+
+    // Five distinct done-weight points (0,0,0,0,3), all committed on their
+    // own calendar day, with the whole rise concentrated on the very last
+    // day. `--fit-algo-decay`'s exponential weighting concentrates far
+    // more relative weight on that last day than the default linear-rank
+    // `RecencyWeighted` fit, so it must produce a strictly steeper
+    // (larger) velocity slope for the same data.
+    let parse_velocity = |stdout: &str| -> f64 {
+        stdout
+            .lines()
+            .next()
+            .unwrap()
+            .rsplit(' ')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap()
+    };
+    let recency_velocity = parse_velocity(&recency_stdout);
+    let decay_velocity = parse_velocity(&decay_stdout);
+    assert!(
+        decay_velocity > recency_velocity,
+        "expected --fit-algo-decay velocity ({decay_velocity}) to exceed the \
+         default recency-weighted velocity ({recency_velocity}); got:\n\
+         recency: {recency_stdout:?}\ndecay: {decay_stdout:?}"
     );
 }
 

@@ -18,6 +18,8 @@ The philosophy for this project is defined in [MANIFESTO.md](MANIFESTO.md). AI a
 
 **⚠️ IMPORTANT: All build, test, and dev commands must run inside Docker using the `devenv` wrapper. Do not run them directly on the host.**
 
+This also rules out ad-hoc, throwaway probing on the host to "see what the actual output is" (e.g. hand-rolled `git init`/`git commit`/binary invocations in `/tmp` to reverse-engineer an expected test value) — do that inside `cargo test` via `devenv` instead: write the test with the reasoning behind the expected value, run it once to see the real failure output if needed, then fix the assertion. The test itself, not a scratch host script, is the place to derive and record expected values.
+
 All commands run through Docker via the `devenv` helper script:
 
 ```bash
