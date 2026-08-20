@@ -630,16 +630,18 @@
 
 - [x] wrote up the `textplots` line-clipping bug as an issue report (`../demo_clipping_bug/ISSUE.md`) and a minimal standalone Cargo demo project (`../demo_clipping_bug/`) reproducing it: a single slope-1 line segment renders correctly when both endpoints are within the fixed y-range, but gets silently flattened to the wrong slope when one endpoint lies outside it (each endpoint is pixel-clamped independently instead of the line being clipped).
 
-- [ ] remove: md.agile/crates/cli/examples/braille_line.rs:1:1
+- [x] remove: md.agile/crates/cli/examples/braille_line.rs:1:1
 
 - [ ] foo '@unknown'
 
 - [ ] extensions to testing script
   - [ ] edge case scenarios, 
-    - [ ] e.g. no convergence
+    - [x] e.g. no convergence
     - [ ] other milestone than latest
-    - [ ] done milestone
-      ...
+    - [-] done milestone
+    - [ ] second milestone
+      - [x] impl
+      - [ ] #bug milestone rank 2 does not exist??
 
 - [x] Prepared `trend.rs`'s architecture to accommodate alternative trend-fitting algorithms (e.g. a future recency-weighted fit) without touching any consumer: extracted the previous single hard-coded fit into a `TrendFitAlgorithm` enum (`OrdinaryLeastSquares` default variant, plus a `Dummy` placeholder that always returns `None`) with a `fit()` method; `compute_milestone_trends(plot)` keeps its existing signature (defaulting to OLS) while a new `compute_milestone_trends_with(plot, algorithm)` lets any future call site pick a different algorithm. `LinearTrend` itself (anchor point + slope) is unchanged, per the assumption that all fits remain linear. Added `trend_tests.rs` covering the OLS default, the two-point minimum, and the dummy algorithm. All 849 tests pass; GUI target still builds.
 
