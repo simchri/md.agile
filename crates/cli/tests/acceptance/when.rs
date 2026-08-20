@@ -302,10 +302,7 @@ fn when_velocity_reordering_done_and_todo_tasks_preserves_nonzero_velocity() {
     commit_all_at(dir.path(), "reorder after completion", &t2);
 
     // 1 completion over a 2-day span; reordering later must not add
-    // velocity. With the default exponential-decay recency-weighted fit
-    // (deduped to one point/day, weighted so recency dominates even more
-    // than the linear-rank `--fit-algo-recent` fit's 2.80/week), the fitted
-    // slope over these three unevenly-spaced points is 0.39/week.
+    // velocity.
     assert_velocity(
         dir.path(),
         "velocity: weight/week   0.39\ncreep:    weight/week   0.00\n",
