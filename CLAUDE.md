@@ -111,6 +111,14 @@ fn it_works() { ... }
 
 Name the test file `<source_stem>_tests.rs` and place it alongside the source file.
 
+### Acceptance test conventions
+
+Learnings from refactoring the acceptance tests in `crates/cli/tests/acceptance/`:
+
+- **Independence over sharing**: don't share data between tests via module-level constants (e.g. `FOO_FILE_CONTENT`, `FOO_CONFIG`). Copy the content into each test body instead, even if it duplicates text across tests. Each test must be understandable and runnable in isolation.
+- **Readable expected output**: don't build expected CLI output as a dense `format!("...\n...")` one-liner with embedded `\n` escapes. Introduce an intermediate `let expected = format!("\ ...")` variable using the same multi-line continuation style as `file_content`/`config` (see "Sample text in tests" above), so the expected output's indentation and structure are visible at a glance.
+- **Arrange/Act/Assert structure**: every test should be split into three clearly separated sections via `Arrange`, `Act`, `Assert`  — setup (tempdir, git config, writing files/config), the CLI invocation, and the output assertion, respectively. It is sufficient to separate sections with an empty line.
+
 ### Formatting
 
 After adding or editing any `.rs` file, run `cargo fmt` before committing.
