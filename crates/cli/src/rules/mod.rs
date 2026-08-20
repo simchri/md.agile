@@ -475,9 +475,35 @@ fn check_order_completable(items: &[FileItem], node: NodeRef) -> Vec<Issue> {
 /// philosophy that assignment never restricts *unassigned* tasks), or if
 /// `identity` is directly assigned or a member of an assigned group.
 ///
+/// If `node` has been broken down into subtasks, eligibility is recursive:
+/// `node` itself is eligible only if at least one *leaf* descendant (a
+/// subtask with no children of its own) that is still actionable (`Todo`,
+/// not `Done`/`Cancelled`) is eligible. This means a node whose own markers
+/// would make it eligible can still be reported ineligible overall if every
+/// actionable leaf underneath it has been assigned to someone else — there's
+/// nothing left for `identity` to actually do there. `#OPT` leaves still
+/// count towards eligibility like any other leaf.
+///
 /// Used by `agile task next --mine`.
 pub fn is_eligible_for(node: NodeRef, identity: &ResolvedIdentity, config: &Config) -> bool {
-    let names = unauthorized_completion::assignment_names(node.markers());
+    let children = node.children();
+    if children.is_empty() {
+        return is_eligible_by_own_markers(node.markers(), identity, config);
+    }
+    children.iter().any(|child| {
+        child.status == Status::Todo && is_eligible_for(NodeRef::Subtask(child), identity, config)
+    })
+}
+
+/// Returns whether `identity` is eligible for a single node based solely on
+/// its own assignment markers (no recursion into children) — the base case
+/// for [`is_eligible_for`].
+fn is_eligible_by_own_markers(
+    markers: &[Marker],
+    identity: &ResolvedIdentity,
+    config: &Config,
+) -> bool {
+    let names = unauthorized_completion::assignment_names(markers);
     if names.is_empty() {
         return true;
     }

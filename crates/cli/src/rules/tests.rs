@@ -1,9 +1,36 @@
 use super::*;
+use crate::config::{Config, UserConfig};
 use crate::parser::parse;
 use std::path::PathBuf;
 
 fn p(input: &str) -> Vec<FileItem> {
     parse(input, PathBuf::from("test.agile.md"))
+}
+
+fn config_with_users(users: &[&str]) -> Config {
+    Config {
+        users: users
+            .iter()
+            .map(|&n| {
+                (
+                    n.to_string(),
+                    UserConfig {
+                        name: n.to_string(),
+                        git_emails: vec![],
+                        git_names: vec![],
+                    },
+                )
+            })
+            .collect(),
+        ..Config::default()
+    }
+}
+
+fn first_task(items: &[FileItem]) -> &Task {
+    match &items[0] {
+        FileItem::Task(t) => t,
+        _ => panic!("expected a task"),
+    }
 }
 
 #[test]
@@ -148,4 +175,127 @@ fn find_node_by_line_returns_none_when_no_node_starts_there() {
     let items = p(input);
     assert!(find_node_by_line(&items, 2).is_none());
     assert!(find_node_by_line(&items, 0).is_none());
+}
+
+// ── is_eligible_for: recursive leaf-based eligibility ─────────────────────────
+
+#[test]
+fn unassigned_leaf_task_is_eligible_for_anyone() {
+    let input = "\
+- [ ] a leaf task
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice"]);
+    assert!(is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
+}
+
+#[test]
+fn task_assigned_to_someone_else_is_not_eligible() {
+    let input = "\
+- [ ] a leaf task @bob
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice", "bob"]);
+    assert!(!is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
+}
+
+#[test]
+fn unassigned_parent_is_ineligible_when_every_leaf_is_assigned_elsewhere() {
+    // The parent itself carries no `@` marker, but every actionable leaf
+    // subtask is assigned to someone else - there is nothing for `alice`
+    // to do here, so the parent as a whole must not be considered eligible.
+    let input = "\
+- [ ] some #feature
+  - [ ] first subtask @bob
+  - [ ] second subtask @bob
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice", "bob"]);
+    assert!(!is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
+}
+
+#[test]
+fn unassigned_parent_is_eligible_when_at_least_one_leaf_is_eligible() {
+    let input = "\
+- [ ] some #feature
+  - [ ] first subtask @bob
+  - [ ] second subtask
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice", "bob"]);
+    assert!(is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
+}
+
+#[test]
+fn done_and_cancelled_leaves_assigned_to_me_do_not_count_as_eligible_leaves() {
+    // Both leaves are technically assigned to `alice`, but neither is
+    // actionable any more (one done, one cancelled) - there's nothing left
+    // to do, so the parent must not be considered eligible.
+    let input = "\
+- [ ] some #feature
+  - [x] first subtask @alice
+  - [-] second subtask @alice
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice"]);
+    assert!(!is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
+}
+
+#[test]
+fn optional_leaf_still_counts_toward_eligibility() {
+    let input = "\
+- [ ] some #feature
+  - [ ] first subtask @bob
+  - [ ] #OPT optional subtask
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice", "bob"]);
+    assert!(is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
+}
+
+#[test]
+fn deeply_nested_eligible_leaf_makes_grandparent_eligible() {
+    let input = "\
+- [ ] some #feature
+  - [ ] mid level @bob
+    - [ ] deep leaf
+";
+    let items = p(input);
+    let task = first_task(&items);
+    let config = config_with_users(&["alice", "bob"]);
+    assert!(is_eligible_for(
+        NodeRef::Task(task),
+        &ResolvedIdentity::Known("alice".to_string()),
+        &config
+    ));
 }
