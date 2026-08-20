@@ -1,7 +1,8 @@
 # Design Note: Dynamic Assignment of Mandatory (Property-Required) Subtasks
 
-> Status: proposal / not yet implemented. Captures a design discussion; no
-> code has been changed as a result of this note.
+> Status: the "dynamic assignment" feature itself (Option 1, marker after
+> the closing quote) is still a proposal / not yet implemented. The
+> quote-adjacency escaping rule follow-up (see below) has been implemented.
 
 ## Problem
 
@@ -64,26 +65,32 @@ full quote-wrap), e.g. `- [ ] note: "ship the release" #foo @someone`. This
 is considered acceptable because fully-quoting an entire custom title with
 no other surrounding words is uncommon in practice.
 
-Also note (regardless of which option is chosen): the existing
-quote-adjacency rule in `parse_markers` (`is_marker_quote`) treats a
-`#`/`@` immediately preceded by `'`/`"` as prose. This means
-`"some mandatory subtask"@foo` (no space) would **not** parse `@foo` as a
-marker at all — a space is required: `"some mandatory subtask" @foo`. See
-the follow-up item below about revisiting this rule.
+Also note: since double quotes no longer have any escaping effect (see
+"Follow-up" below, now resolved), `"some mandatory subtask"@foo` (no space)
+**does** parse `@foo` as a real marker even without a separating space — the
+`"` no longer suppresses it. A space is still recommended for readability
+(`"some mandatory subtask" @foo`) but is no longer functionally required.
 
-## Follow-up: revisit the quote-adjacency escaping rule
+## Follow-up: quote-adjacency escaping rule — resolved
 
 Tracked separately in `1_tasks.agile.md` (see "Compatibility of Assignments
-with mandatory subtasks"). Current rule: a single leading quote character
-immediately before `#`/`@` is enough to suppress marker recognition (used to
-make `"@alice"` render as literal prose). Candidate re-designs, to be
-evaluated in more detail before implementing:
+with mandatory subtasks"). **Implemented.** Only two escaping mechanisms are
+now supported:
 
-- The single-quote-prefix trigger may be too broad/accidental as an
-  exclusion rule; if kept, requiring the term to be **fully quoted**
-  (`"@alice"`, not just preceded by a stray `"`) would be more deliberate.
-- The existing `\#`/`\@` backslash-escape mechanism may already cover this
-  need entirely — the quote-adjacency rule might not be needed at all.
-- Alternative: reserve single ticks (`'`) as the literal/escaping quote
-  convention instead of (or in addition to) `"` — rarer in prose, but
-  familiar to programmers from shell quoting conventions.
+- `\` immediately before `#`/`@` (unchanged) — the backslash is dropped, the
+  sigil becomes a literal character.
+- Single ticks **fully surrounding** the marker term — an opening `'`
+  immediately before the sigil **and** a closing `'` immediately after the
+  marker name, e.g. `'@alice'`, `'#feat'`. A tick on only one side no longer
+  suppresses recognition (e.g. `weird'#feat` is now correctly still a real
+  marker — this asymmetric single-sided trigger was the bug).
+
+Double quotes (`"`) have **no escaping effect at all** — `"@alice"` and
+`"#feat"` are now real markers. `"` remains reserved for the unrelated
+property-required-subtask quoting convention (`parse_subtask_kind`), which
+this change does not touch.
+
+`is_marker_quote` was renamed to `is_marker_tick` in `parser/mod.rs`
+(mirrored in `lsp/goto_definition.rs`), since it now only ever checks for a
+single-quote character, and the caller is responsible for pairing an opening
+and closing occurrence rather than checking a lone preceding character.

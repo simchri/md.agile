@@ -3,7 +3,7 @@
 /// Both functions are free of I/O and async so they can be unit-tested
 /// without spinning up the full LSP server.
 use crate::parser::{
-    MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is_marker_escape, is_marker_quote,
+    MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is_marker_escape, is_marker_tick,
 };
 
 // ── Shared cursor helper ──────────────────────────────────────────────────────
@@ -21,8 +21,11 @@ use crate::parser::{
 /// is applied** — callers are responsible for that (see `normalize_property_name`
 /// and `assignment_name_at_position`).
 ///
-/// Quote rule (mirrors `parse_markers`): a sigil immediately preceded by an
-/// [`is_marker_quote`] character is treated as prose and returns `None`.
+/// Quote rule (mirrors `parse_markers`): a sigil is treated as prose (and
+/// this returns `None`) only when its name is fully wrapped in single
+/// ticks — an opening [`is_marker_tick`] character immediately before the
+/// sigil AND a closing one immediately after the name. A tick on only one
+/// side does not suppress it.
 ///
 /// Escape rule (mirrors `parse_markers`): a sigil immediately preceded by a
 /// backslash ([`is_marker_escape`]) is treated as a literal character and
@@ -60,12 +63,6 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
         found?
     };
 
-    // Quote rule (mirrors parse_markers): a sigil immediately preceded by an
-    // is_marker_quote character is treated as prose.
-    if sigil_pos > 0 && is_marker_quote(chars[sigil_pos - 1]) {
-        return None;
-    }
-
     // Escape rule (mirrors parse_markers): a sigil immediately preceded by a
     // backslash (`\#`, `\@`) is treated as a literal character, not a marker.
     if sigil_pos > 0 && is_marker_escape(chars[sigil_pos - 1]) {
@@ -78,6 +75,15 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
     let mut end = name_start;
     while end < chars.len() && !is_marker_boundary(chars[end]) {
         end += 1;
+    }
+
+    // Quote rule (mirrors parse_markers): only a *matching* opening AND
+    // closing tick suppresses recognition — a lone tick on one side does not.
+    let tick_wrapped = sigil_pos > 0
+        && is_marker_tick(chars[sigil_pos - 1])
+        && chars.get(end).is_some_and(|&c| is_marker_tick(c));
+    if tick_wrapped {
+        return None;
     }
 
     // The cursor must lie within [sigil_pos..end).
@@ -402,17 +408,30 @@ mod tests {
     }
 
     #[test]
-    fn assignment_returns_none_when_quoted_with_double_quotes() {
-        // "@alice" — sigil immediately preceded by '"' → prose, not a marker
+    fn assignment_returns_name_when_quoted_with_double_quotes() {
+        // "@alice" — double quotes have no escaping effect; still a marker
         let doc = "- [ ] task \"@alice\"\n";
-        assert_eq!(assignment_name_at_position(doc, 0, 13), None);
+        assert_eq!(
+            assignment_name_at_position(doc, 0, 13),
+            Some("alice".to_string())
+        );
     }
 
     #[test]
     fn assignment_returns_none_when_quoted_with_single_quotes() {
-        // '@alice' — sigil immediately preceded by '\'' → prose
+        // '@alice' — fully wrapped in single ticks → prose
         let doc = "- [ ] task '@alice'\n";
         assert_eq!(assignment_name_at_position(doc, 0, 13), None);
+    }
+
+    #[test]
+    fn assignment_returns_name_when_preceded_by_lone_unmatched_tick() {
+        // weird'@alice (no closing tick) — must NOT suppress recognition.
+        let doc = "- [ ] task weird'@alice and more\n";
+        assert_eq!(
+            assignment_name_at_position(doc, 0, 17),
+            Some("alice".to_string())
+        );
     }
 
     #[test]
@@ -437,9 +456,20 @@ mod tests {
     }
 
     #[test]
-    fn property_returns_none_when_quoted_with_double_quotes() {
-        // "#feat" — quoted → prose
+    fn property_returns_name_when_quoted_with_double_quotes() {
+        // "#feat" — double quotes have no escaping effect; still a marker
         let doc = "- [ ] task \"#feat\"\n";
+        assert_eq!(
+            property_name_at_position(doc, 0, 13),
+            Some("feat".to_string())
+        );
+    }
+
+    #[test]
+    fn property_returns_none_when_quoted_with_single_quotes() {
+        // '#feat' — fully wrapped in single ticks → prose (README's
+        // documented convention for excluding a property from a subtask)
+        let doc = "- [ ] task '#feat'\n";
         assert_eq!(property_name_at_position(doc, 0, 13), None);
     }
 

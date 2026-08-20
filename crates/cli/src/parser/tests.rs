@@ -617,17 +617,67 @@ fn all_three_inline_markers_in_user_example() {
 }
 
 #[test]
-fn marker_preceded_by_quote_is_not_detected() {
-    // '#marker' and "@user" — the '#'/'@' is immediately after a quote char,
-    // so it is treated as prose, not a marker.
+fn marker_wrapped_in_single_ticks_is_not_detected() {
+    // '#feat' and '@alice' — fully wrapped in single ticks, so both are
+    // treated as prose, not markers.
     let input = "\
-- [ ] refer to '#feat' and \"@alice\" in prose
+- [ ] refer to '#feat' and '@alice' in prose
 ";
     let items = p(input);
     let t = task(&items, 0);
     assert!(
         t.markers.is_empty(),
         "expected no markers, got {:?}",
+        t.markers
+    );
+}
+
+#[test]
+fn marker_wrapped_in_double_quotes_is_still_detected() {
+    // Double quotes have no escaping effect at all — "@alice" and "#feat"
+    // are real markers, unlike single-tick wrapping.
+    let input = "\
+- [ ] refer to \"#feat\" and \"@alice\" in prose
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Property(p) if p.name == "feat")),
+        "expected #feat, got {:?}",
+        t.markers
+    );
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Assignment(a) if a.name == "alice")),
+        "expected @alice, got {:?}",
+        t.markers
+    );
+}
+
+#[test]
+fn marker_preceded_by_lone_unmatched_tick_is_still_detected() {
+    // A single tick with no matching closing tick right after the marker
+    // name must NOT suppress recognition — only a full `'...'` wrap does.
+    let input = "\
+- [ ] weird'#feat and weird'@alice without closing ticks
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Property(p) if p.name == "feat")),
+        "expected #feat, got {:?}",
+        t.markers
+    );
+    assert!(
+        t.markers
+            .iter()
+            .any(|m| matches!(m, Marker::Assignment(a) if a.name == "alice")),
+        "expected @alice, got {:?}",
         t.markers
     );
 }

@@ -200,7 +200,7 @@
   Note: property markers are only recognized in the task title (#here #they #are #ignored)
   - [x] Read mdagile.toml config in checker; pass config to rules
   - [x] Detect undefined '#property' markers in tasks
-    - [x] basic detection and errors "#foo" '#bar'
+    - [x] basic detection and errors '#foo' '#bar'
       - [x] agile check
         - [x] bug: diagnostic column indication is wrong (seems to be always at 0)
           - [x] reproduce in a test case (failing)
@@ -212,14 +212,14 @@
     - [x] go to def in lsp
     - [x] Implement fuzzy matching to suggest close matches (typo detection)
     - [x] Test with common typos: '#Feature', '#feat', etc.
-  - [x] Detect undefined "@user" and "@group" assignments
+  - [x] Detect undefined '@user' and '@group' assignments
     - [x] basic implementation
-    - [x] bug: ("@bob") ("#someundefproperty") asdf"#anotherundefprop" -> Done
+    - [x] bug: ('@bob') ('#someundefproperty') asdf'#anotherundefprop' -> Done
     - [x] Suggest close matches for misspelled names
   - [-] Update error formatter for new error codes
-  - [x] GoTo for "@assignments"
+  - [x] GoTo for '@assignments'
     - [x] basic implementation @alice
-    - [x] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some"#feature" hernameis@alice -- the used assumption is that there will always be whitespace is wrong
+    - [x] BUG: go to definition does not work if the assignment or feature marker is not separated by whitespace e.g. some'#feature' hernameis@alice -- the used assumption is that there will always be whitespace is wrong
       - [x] fix
       - [x] refactor: The detection logic of markers and properties in files should be centralized to avoid bugs like above
   - [x] "(feature) validation by programmer"
@@ -407,7 +407,7 @@
 - [x] command: `agile task next --mine` show the next task eligible.
   Eligbility --> same rules as for assignment / completion validation 
 
-- [ ] #bug in task output (e.g. agile task next --mine), the assignment markers are not visible ("@someone")
+- [ ] #bug in task output (e.g. agile task next --mine), the assignment markers are not visible ('@someone')
 
 - [x] command: `agile task next --mine --subtask` show the next subtask task eligible.
   goal: represent blocked states properly. I want to be able to model the situation where I am working on other people on a subtask (e.g. assigned to review .. waiting for feedback). This would probably happen in combination with ordering: "1. waiting for review by .. 2. implement feedback"
@@ -685,7 +685,8 @@
   "some mandatory subtask" \@foo
   - [ ] or solve by: Placement of properties, e.g. in body of task - currently not recognized --> change
   - [ ] Design note: see [doc/dynamic-assignment-mandatory-subtasks.md](doc/dynamic-assignment-mandatory-subtasks.md). Chosen direction: marker after the closing quote (`"some mandatory subtask" \@foo`), keeping `raw_title` byte-exact for matching. Accept as a known, rare edge case: this reclassifies a fully-quoted custom title with trailing markers (e.g. `"ship the release" \#foo \@someone`) as `PropertyRequired`, spuriously triggering E011 if not declared by a property. Workaround: add any other unquoted word to break the full quote-wrap.
-  - [ ] Revisit the quote-adjacency escaping rule (`is_marker_quote` in `parser/mod.rs`) in more detail: today a single leading quote before `\#`/`\@` suppresses marker recognition. Consider: requiring the term to be fully quoted (`"\@alice"`) instead of just quote-adjacent; whether the existing `\\#`/`\\@` backslash-escape already makes this rule unnecessary; or using single ticks (`'`) as the literal/escaping convention instead.
+  - [x] Revisit the quote-adjacency escaping rule (`is_marker_quote` in `parser/mod.rs`) in more detail: today a single leading quote before `\#`/`\@` suppresses marker recognition. Consider: requiring the term to be fully quoted (`"\@alice"`) instead of just quote-adjacent; whether the existing `\\#`/`\\@` backslash-escape already makes this rule unnecessary; or using single ticks (`'`) as the literal/escaping convention instead.
+    - [x] Implemented: retained exactly two escaping mechanisms — `\` before `\#`/`\@` (unchanged), and single ticks fully surrounding a term (`'\@something'`, opening AND closing tick both required — a lone tick no longer suppresses, e.g. `weird'\#feat` is a real marker). Double quotes now have no escaping effect at all (`"\@alice"`/`"\#feat"` are real markers); `"` is still used unrelatedly for the property-required-subtask quoting convention. Renamed `is_marker_quote` to `is_marker_tick` in `parser/mod.rs`; mirrored in `lsp/goto_definition.rs`. Tests updated/added in `parser/tests.rs` and `goto_definition.rs`.
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
@@ -697,7 +698,7 @@
 - [ ] menu
   - [ ] switch / select projects
 
-- [ ] indicator for prio 1,2,3 tasks - e.g. semi transparent book-mark like long sticky note with "#1" etc. at the bottom
+- [ ] indicator for prio 1,2,3 tasks - e.g. semi transparent book-mark like long sticky note with '#1' etc. at the bottom
 - [ ] indicator for milestones
 
 ## Neighbor Tasks / Branch Properties / Workflows
@@ -729,7 +730,7 @@
 - [ ] LSP Phase 4: Enhanced Features (Optional)
   - [ ] textDocument/hover — show property definitions
     - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
-    - [ ] idem "@assignments" relevant, e.g. for groups
+    - [ ] idem '@assignments' relevant, e.g. for groups
   - [ ] textDocument/completion — suggest properties, users, groups
 - [ ] "go to" next open task
 - [ ] "go to" next my open task

@@ -118,17 +118,23 @@ pub(crate) fn is_marker_boundary(c: char) -> bool {
         || c == '"'
 }
 
-/// Returns `true` if `c` is a quoting character that, when immediately
-/// preceding a sigil, causes the sigil to be treated as prose rather than a
-/// marker start.
-pub(crate) fn is_marker_quote(c: char) -> bool {
-    c == '\'' || c == '"'
+/// Returns `true` if `c` is the single-tick character (`'`) used to fully
+/// wrap a marker name and suppress its interpretation (`'#feat'`,
+/// `'@alice'`). Unlike [`is_marker_escape`], suppression requires a
+/// *matching* tick both immediately before the sigil and immediately after
+/// the marker name — a tick on only one side does not suppress recognition.
+/// See [`parse_markers`] and `goto_definition::token_name_at_position` for
+/// the paired-check logic. Double quotes (`"`) have no escaping effect at
+/// all; they are reserved for the unrelated property-required-subtask
+/// quoting convention (see `parse_subtask_kind`).
+pub(crate) fn is_marker_tick(c: char) -> bool {
+    c == '\''
 }
 
 /// Returns `true` if `c` is the escape character that, when immediately
 /// preceding a sigil, suppresses marker interpretation (`\#`, `\@`). The
 /// backslash itself is dropped from the reconstructed title; the sigil is
-/// kept as a literal character. Mirrors [`is_marker_quote`], but the quote
+/// kept as a literal character. Mirrors [`is_marker_tick`], but the tick
 /// characters stay in the title while the backslash does not.
 pub(crate) fn is_marker_escape(c: char) -> bool {
     c == '\\'
@@ -560,16 +566,22 @@ fn parse_subtask_kind(title: &str) -> (SubtaskKind, &str) {
 // `(@bob)`, `(#feature)`, or `asdf#prop`. Everything that is not consumed
 // as a marker is collected back into the returned title string.
 //
-// Quote policy — two cooperating mechanisms implement one rule:
-//   1. `'` and `"` are stop bytes for name scanning, so a trailing quote is
-//      never absorbed into a marker name (e.g. `feat'` → name is `feat`).
-//   2. A `#`/`@` that is *immediately preceded* by `'` or `"` is skipped
-//      entirely (not recognised as a marker start).
-// Together these ensure that `'#feat'` and `"@alice"` are prose, while
-// `(#feat)` and `asdf#feat` are markers.
+// Quote policy: a `#`/`@` is treated as prose, not a marker start, only when
+// the marker *name* is fully wrapped in single ticks — an opening `'`
+// immediately before the sigil AND a closing `'` immediately after the name
+// (e.g. `'#feat'`, `'@alice'`; this is the convention documented in
+// README.md "Properties can also be added to subtasks"). A tick on only one
+// side does *not* suppress recognition (e.g. `weird'#feat` is still a
+// marker) — this asymmetric, single-sided rule was a past bug, since fixed.
+// Double quotes have no escaping effect at all: `"#feat"` and `"@alice"` are
+// real markers (double quotes are reserved for the unrelated
+// property-required-subtask quoting convention, handled in
+// `parse_subtask_kind`, not here). `'` and `"` remain stop bytes for name
+// scanning either way, so a trailing quote is never absorbed into a marker
+// name (e.g. `feat'` → name is `feat`).
 //
 // Escape policy: a `#`/`@` immediately preceded by a backslash (`\#`, `\@`)
-// is also treated as prose, not a marker start — but unlike the quote rule,
+// is also treated as prose, not a marker start — but unlike the tick rule,
 // the backslash itself is dropped from the reconstructed title, leaving only
 // the literal sigil (e.g. `\#not_a_property` → `#not_a_property` in the
 // title, no Property marker recorded).
@@ -596,9 +608,21 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
             continue;
         }
         if b == b'#' || b == b'@' {
-            // Skip when immediately preceded by a quote — treat as prose.
-            let preceded_by_quote = i > 0 && is_marker_quote(bytes[i - 1] as char);
-            if preceded_by_quote {
+            // Look ahead to the end of the marker name up front — needed
+            // both for the tick-wrap check below and for the marker
+            // itself, so it's computed once here instead of twice.
+            let name_start = i + 1;
+            let mut j = name_start;
+            while j < len && !is_marker_stop_byte(bytes[j]) {
+                j += 1;
+            }
+
+            // Single-tick wrap rule: only a *matching* opening AND closing
+            // tick suppresses recognition — a lone tick on one side does not.
+            let tick_wrapped = i > 0
+                && is_marker_tick(bytes[i - 1] as char)
+                && bytes.get(j).is_some_and(|&c| is_marker_tick(c as char));
+            if tick_wrapped {
                 i += 1;
                 continue;
             }
@@ -606,13 +630,6 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
             // 1-based column of this `#`/`@` within the title string.
             let col = i + 1;
             let marker_byte = b;
-            let name_start = i + 1;
-
-            // Advance past the marker name: stop at whitespace or delimiter chars.
-            let mut j = name_start;
-            while j < len && !is_marker_stop_byte(bytes[j]) {
-                j += 1;
-            }
             let name = &title[name_start..j];
 
             let recognized = if marker_byte == b'#' {
