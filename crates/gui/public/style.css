@@ -590,7 +590,7 @@ body {
     background: var(--menu-color-hover);
 }
 
-.app-menu-modal-title {
+.menu-major-heading {
     font-size: var(--menu-font-size-title);
     margin-bottom: var(--menu-spacing-lg);
 }
@@ -625,14 +625,14 @@ body {
 /* The "Switch project" sub-view (see `SwitchProjectView` in main.rs),
    rendered inside the same `.app-menu-modal` as the main menu. Follows the
    same left-aligned, single-column layout as the main menu: everything
-   left-edge-aligns with `.app-menu-modal-title`/`.app-menu-item` (no extra
+   left-edge-aligns with `.menu-major-heading`/`.app-menu-item` (no extra
    indentation), and all text sizing comes from the `--menu-font-size-*`
    tokens rather than one-off pixel values, so this view reads as part of
    the same page rather than a differently-styled panel. */
-.switch-project-label {
-    font-size: var(--menu-font-size-small);
+.menu-minor-heading {
+    font-size: var(--menu-font-size-heading);
     color: var(--menu-color-text-muted);
-    margin-bottom: var(--menu-spacing-xs);
+    margin-bottom: var(--menu-spacing-sm);
 }
 
 .switch-project-current-path {
@@ -672,19 +672,13 @@ body {
     background: var(--menu-color-accent-hover);
 }
 
-.switch-project-error {
+.menu-error {
     color: var(--menu-color-error);
     font-size: var(--menu-font-size-small);
     margin-bottom: var(--menu-spacing-md);
 }
 
-.switch-project-recent-heading {
-    font-size: var(--menu-font-size-heading);
-    color: var(--menu-color-text-muted);
-    margin-bottom: var(--menu-spacing-sm);
-}
-
-.switch-project-recent-empty {
+.menu-empty {
     font-size: var(--menu-font-size-body);
     color: var(--menu-color-text-muted);
 }

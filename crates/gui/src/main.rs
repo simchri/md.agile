@@ -974,7 +974,7 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
 
                     match view() {
                         AppMenuView::Main => rsx! {
-                            h2 { class: "app-menu-modal-title", "Menu" }
+                            h2 { class: "menu-major-heading", "Menu" }
 
                             button {
                                 class: "app-menu-item",
@@ -1038,13 +1038,13 @@ fn SwitchProjectView(on_back: EventHandler<()>) -> Element {
     };
 
     rsx! {
-        h2 { class: "app-menu-modal-title", "Switch project" }
+        h2 { class: "menu-major-heading", "Switch project" }
         match &*projects_resource.read() {
             Some(Ok(projects)) if projects.is_empty() && !error_text().is_empty() => rsx! {
-                p { class: "switch-project-error", "{error_text}" }
+                p { class: "menu-error", "{error_text}" }
             },
             Some(Ok(projects)) => rsx! {
-                h3 { class: "switch-project-recent-heading", "Current Project" }
+                h3 { class: "menu-minor-heading", "Current Project" }
                 p { class: "switch-project-current-path",
                     "{projects.iter().find(|p| p.is_current).map(|p| p.path.as_str()).unwrap_or(\"unknown\")}"
                 }
@@ -1063,10 +1063,10 @@ fn SwitchProjectView(on_back: EventHandler<()>) -> Element {
                     }
                 }
                 if !error_text().is_empty() {
-                    p { class: "switch-project-error", "{error_text}" }
+                    p { class: "menu-error", "{error_text}" }
                 }
                 if !projects.is_empty() {
-                    h3 { class: "switch-project-recent-heading", "Recent Projects" }
+                    h3 { class: "menu-minor-heading", "Recent Projects" }
                     ul { class: "switch-project-recent",
                         for project in projects.iter() {
                             li {
@@ -1086,12 +1086,12 @@ fn SwitchProjectView(on_back: EventHandler<()>) -> Element {
                         }
                     }
                 } else {
-                    h3 { class: "switch-project-recent-heading", "Recent Projects" }
-                    p { class: "switch-project-recent-empty", "(none)" }
+                    h3 { class: "menu-minor-heading", "Recent Projects" }
+                    p { class: "menu-empty", "(none)" }
                 }
             },
             Some(Err(_)) => rsx! {
-                p { class: "switch-project-error", "Could not load project list." }
+                p { class: "menu-error", "Could not load project list." }
             },
             None => rsx! {
                 p { "Loading…" }
