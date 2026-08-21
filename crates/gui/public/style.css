@@ -598,7 +598,7 @@ body {
 .app-menu-item {
     display: block;
     width: 100%;
-    padding: var(--menu-spacing-md);
+    padding: var(--menu-spacing-md) var(--menu-spacing-md) var(--menu-spacing-md) 0;
     border: none;
     border-radius: var(--menu-radius);
     background: none;
@@ -649,7 +649,8 @@ body {
 
 .switch-project-input {
     flex: 1;
-    padding: var(--menu-spacing-sm) var(--menu-spacing-md);
+    /*padding: var(--menu-spacing-sm) var(--menu-spacing-md);*/
+    padding: 0 0;
     font-size: var(--menu-font-size-body);
     font-family: inherit;
     border: 1px solid var(--menu-color-border);
@@ -698,7 +699,7 @@ body {
 .switch-project-recent-item {
     display: block;
     width: 100%;
-    padding: var(--menu-spacing-sm) var(--menu-spacing-md);
+    padding: 0 0;
     border: none;
     border-radius: var(--menu-radius);
     background: none;
