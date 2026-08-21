@@ -1067,6 +1067,7 @@ fn SwitchProjectView(on_back: EventHandler<()>) -> Element {
                     p { class: "switch-project-error", "{error_text}" }
                 }
                 if !projects.is_empty() {
+                    h3 { class: "switch-project-recent-heading", "Recent Projects" }
                     ul { class: "switch-project-recent",
                         for project in projects.iter() {
                             li {
@@ -1085,6 +1086,9 @@ fn SwitchProjectView(on_back: EventHandler<()>) -> Element {
                             }
                         }
                     }
+                } else {
+                    h3 { class: "switch-project-recent-heading", "Recent Projects" }
+                    p { class: "switch-project-recent-empty", "(none)" }
                 }
             },
             Some(Err(_)) => rsx! {

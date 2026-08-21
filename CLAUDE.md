@@ -147,6 +147,8 @@ Always confirm the GUI target still compiles after a change
 devenv . --no-tty -a -c  "cd crates/gui && dx build --platform web"
 ```
 
+When working on the GUI, generally skip visual testing/inspection (e.g. spawning `dx serve`/the GUI server process, or inspecting with headless Chrome) unless the user explicitly raises a problem that needs it. A successful `dx build --platform web` is enough by default.
+
 ### Auto-commit
 
 Whenever a prompt results in code changes (modifications to versioned files or new files to be versioned), **automatically create a commit**
