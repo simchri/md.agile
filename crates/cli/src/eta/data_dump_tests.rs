@@ -9,17 +9,21 @@ fn render_todo_done_data_outputs_table_of_counts_and_weights() {
         points: vec![
             TodoDonePlotPoint {
                 date: NaiveDate::from_ymd_opt(2026, 7, 10).unwrap(),
-                total_weight_wt: 2.0,
+                total_weight_wt: 2.5,
                 done_weight_wt: 0.0,
-                total_count_t: 2,
+                total_count_t: 3,
                 done_count_t: 0,
+                total_top_level_t: 2,
+                done_top_level_t: 0,
             },
             TodoDonePlotPoint {
                 date: NaiveDate::from_ymd_opt(2026, 7, 11).unwrap(),
-                total_weight_wt: 2.0,
-                done_weight_wt: 1.0,
-                total_count_t: 2,
-                done_count_t: 1,
+                total_weight_wt: 2.5,
+                done_weight_wt: 1.5,
+                total_count_t: 3,
+                done_count_t: 2,
+                total_top_level_t: 2,
+                done_top_level_t: 1,
             },
         ],
     };
@@ -39,9 +43,16 @@ fn render_todo_done_data_outputs_table_of_counts_and_weights() {
         .lines()
         .find(|line| line.contains("2026-07-10"))
         .unwrap_or_else(|| panic!("missing row for 2026-07-10, out: {out:?}"));
-    assert!(row1.contains('2') && row1.contains('0'), "row1: {row1:?}");
+    // Total/Done columns show top-level-only counts (2, 0), not the
+    // subtask-inclusive total_count_t/done_count_t (3, 0).
+    let fields1: Vec<&str> = row1.split_whitespace().collect();
+    assert_eq!(
+        fields1[1], "2",
+        "Total column should be top-level count, not subtask-inclusive: row1: {row1:?}"
+    );
+    assert_eq!(fields1[2], "0", "row1: {row1:?}");
     assert!(
-        row1.contains("2.00") && row1.contains("0.00"),
+        row1.contains("2.50") && row1.contains("0.00"),
         "row1: {row1:?}"
     );
 
@@ -49,9 +60,15 @@ fn render_todo_done_data_outputs_table_of_counts_and_weights() {
         .lines()
         .find(|line| line.contains("2026-07-11"))
         .unwrap_or_else(|| panic!("missing row for 2026-07-11, out: {out:?}"));
-    assert!(row2.contains('2') && row2.contains('1'), "row2: {row2:?}");
+    // Top-level-only counts (2, 1), not subtask-inclusive counts (3, 2).
+    let fields2: Vec<&str> = row2.split_whitespace().collect();
+    assert_eq!(
+        fields2[1], "2",
+        "Total column should be top-level count, not subtask-inclusive: row2: {row2:?}"
+    );
+    assert_eq!(fields2[2], "1", "row2: {row2:?}");
     assert!(
-        row2.contains("2.00") && row2.contains("1.00"),
+        row2.contains("2.50") && row2.contains("1.50"),
         "row2: {row2:?}"
     );
 }

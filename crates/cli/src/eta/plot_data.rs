@@ -23,6 +23,14 @@ pub struct TodoDonePlotPoint {
     pub done_weight_wt: f64,
     pub total_count_t: usize,
     pub done_count_t: usize,
+    /// Same scope as `total_count_t`/`done_count_t`, but counting only
+    /// top-level tasks (depth 1), excluding subtasks. This is what's shown
+    /// to the user (e.g. `agile when --plot`'s stats line and `--data`
+    /// table); `total_count_t`/`done_count_t` (which include subtasks) are
+    /// retained for internal/weight-adjacent bookkeeping and any callers
+    /// that still need the subtask-inclusive count.
+    pub total_top_level_t: usize,
+    pub done_top_level_t: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -100,6 +108,8 @@ fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotP
             done_weight_wt: 0.0,
             total_count_t: 0,
             done_count_t: 0,
+            total_top_level_t: 0,
+            done_top_level_t: 0,
         };
     };
 
@@ -107,6 +117,8 @@ fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotP
     let mut done_weight_wt = 0.0;
     let mut total_count_t = 0usize;
     let mut done_count_t = 0usize;
+    let mut total_top_level_t = 0usize;
+    let mut done_top_level_t = 0usize;
     let mut rank = 0usize;
     for path in find_task_files(root) {
         let Ok(content) = std::fs::read_to_string(&path) else {
@@ -123,9 +135,11 @@ fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotP
             }
             total_weight_wt += 1.0;
             total_count_t += 1;
+            total_top_level_t += 1;
             if matches!(task.status, Status::Done | Status::Cancelled) {
                 done_weight_wt += 1.0;
                 done_count_t += 1;
+                done_top_level_t += 1;
             }
             accumulate_subtasks(
                 &task.children,
@@ -144,6 +158,8 @@ fn worktree_plot_point(root: &Path, target_rank: Option<usize>) -> TodoDonePlotP
         done_weight_wt,
         total_count_t,
         done_count_t,
+        total_top_level_t,
+        done_top_level_t,
     }
 }
 

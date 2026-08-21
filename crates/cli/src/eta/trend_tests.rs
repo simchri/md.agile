@@ -13,6 +13,8 @@ fn plot_with_points(points: Vec<(NaiveDate, f64, f64)>) -> TodoDonePlot {
                     done_weight_wt,
                     total_count_t: 0,
                     done_count_t: 0,
+                    total_top_level_t: 0,
+                    done_top_level_t: 0,
                 },
             )
             .collect(),

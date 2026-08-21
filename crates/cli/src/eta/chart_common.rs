@@ -122,7 +122,10 @@ fn render_trend_equation(trend: Option<LinearTrend>) -> String {
 pub(super) fn render_plot_stats(latest: &TodoDonePlotPoint) -> String {
     format!(
         "total:  {} tasks  (weight {:.2})\ndone:   {} tasks  (weight {:.2})\n",
-        latest.total_count_t, latest.total_weight_wt, latest.done_count_t, latest.done_weight_wt,
+        latest.total_top_level_t,
+        latest.total_weight_wt,
+        latest.done_top_level_t,
+        latest.done_weight_wt,
     )
 }
 

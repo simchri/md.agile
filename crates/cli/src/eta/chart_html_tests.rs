@@ -32,6 +32,8 @@ fn sample_plot() -> TodoDonePlot {
                 done_weight_wt: 2.0,
                 total_count_t: 10,
                 done_count_t: 2,
+                total_top_level_t: 10,
+                done_top_level_t: 2,
             },
             TodoDonePlotPoint {
                 date: NaiveDate::from_ymd_opt(2026, 1, 8).unwrap(),
@@ -39,6 +41,8 @@ fn sample_plot() -> TodoDonePlot {
                 done_weight_wt: 6.0,
                 total_count_t: 12,
                 done_count_t: 6,
+                total_top_level_t: 12,
+                done_top_level_t: 6,
             },
         ],
     }

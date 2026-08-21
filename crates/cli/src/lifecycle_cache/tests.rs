@@ -393,11 +393,19 @@ fn todo_done_timeline_tracks_completion_over_commits_scoped_to_milestone() {
     assert_eq!(points[0].total_count_t, 3);
     assert_eq!(points[0].done_weight_wt, 0.0);
     assert_eq!(points[0].done_count_t, 0);
+    // Top-level-only counts: task a and task b, excluding sub a1.
+    assert_eq!(points[0].total_top_level_t, 2);
+    assert_eq!(points[0].done_top_level_t, 0);
 
     assert_eq!(points[1].total_weight_wt, 2.5);
     assert_eq!(points[1].total_count_t, 3);
     assert_eq!(points[1].done_weight_wt, 1.5, "task a + sub a1 now done");
     assert_eq!(points[1].done_count_t, 2);
+    assert_eq!(points[1].total_top_level_t, 2);
+    assert_eq!(
+        points[1].done_top_level_t, 1,
+        "only task a is a done top-level task; sub a1 doesn't count here"
+    );
 }
 
 #[test]

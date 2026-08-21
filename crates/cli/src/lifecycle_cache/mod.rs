@@ -425,6 +425,8 @@ pub fn todo_done_timeline(
             let mut done_weight_wt = 0.0;
             let mut total_count_t = 0;
             let mut done_count_t = 0;
+            let mut total_top_level_t = 0;
+            let mut done_top_level_t = 0;
             for timeline in timelines.values() {
                 if !is_alive_at(timeline, i) {
                     continue;
@@ -449,9 +451,16 @@ pub fn todo_done_timeline(
                 }
                 total_weight_wt += timeline.weight;
                 total_count_t += 1;
-                if step_value(&timeline.closed_breaks, i).unwrap_or(false) {
+                let is_done = step_value(&timeline.closed_breaks, i).unwrap_or(false);
+                if is_done {
                     done_weight_wt += timeline.weight;
                     done_count_t += 1;
+                }
+                if timeline.depth == 1 {
+                    total_top_level_t += 1;
+                    if is_done {
+                        done_top_level_t += 1;
+                    }
                 }
             }
             TodoDonePlotPoint {
@@ -460,6 +469,8 @@ pub fn todo_done_timeline(
                 done_weight_wt,
                 total_count_t,
                 done_count_t,
+                total_top_level_t,
+                done_top_level_t,
             }
         })
         .collect()

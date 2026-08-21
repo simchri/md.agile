@@ -21,8 +21,8 @@ pub fn render_todo_done_data(plot: &TodoDonePlot) -> String {
         out.push_str(&format!(
             "{:<12}{:>7}{:>7}{:>10.2}{:>9.2}\n",
             point.date,
-            point.total_count_t,
-            point.done_count_t,
+            point.total_top_level_t,
+            point.done_top_level_t,
             point.total_weight_wt,
             point.done_weight_wt
         ));
