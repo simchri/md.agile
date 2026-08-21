@@ -686,6 +686,6 @@ body {
    a top margin, since it's a navigation action rather than one of the
    main menu's own options. */
 .app-menu-back {
-    margin-top: 16px;
+    margin-top: auto;
     text-align: center;
 }

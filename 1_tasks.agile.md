@@ -692,6 +692,8 @@
 
 - [x] the "Switch project" sub-view's recent-projects list now always shows a "Recent Projects" heading (`.switch-project-recent-heading`), even when the list is empty — in which case a "(none)" placeholder (`.switch-project-recent-empty`) is shown instead of the `<ul>`. Also left-aligned that heading with the modal title/menu items via the same `padding-left: 20px` (inherited through the modal's own padding, matching `.app-menu-modal-title`). Purely markup/CSS; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
+- [x] the "‹ Back" button now sits at the very bottom of the app menu modal on every page (main and "Switch project"), regardless of how much content is above it, by changing `.app-menu-back`'s `margin-top` from a fixed `16px` to `auto` — since `.app-menu-modal` is a flex column, this pushes the button all the way down instead of it just trailing directly after the last item/list. Purely CSS; no new unit tests apply. GUI web target still builds.
+
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
