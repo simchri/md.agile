@@ -535,12 +535,16 @@ body {
     background: #fff;
     width: 90vw;
     max-width: 480px;
+    height: 80vh;
     border-radius: 8px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
     padding: 28px 36px;
     position: relative;
     cursor: default;
     color: #222;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
 }
 
 .app-menu-modal-close {
@@ -564,6 +568,7 @@ body {
 
 .app-menu-modal-title {
     margin-bottom: 20px;
+    padding-left: 20px;
 }
 
 .app-menu-item {
