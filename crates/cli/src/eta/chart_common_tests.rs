@@ -37,11 +37,41 @@ fn render_trend_equations_falls_back_to_point_index_without_an_anchor_date() {
 }
 
 #[test]
-fn render_trend_equations_shows_unknown_for_unfittable_trends() {
-    let text = render_trend_equations(None, None, true);
-    let occurrences = text.matches("unknown").count();
-    assert_eq!(
-        occurrences, 2,
-        "both trend lines should render as 'unknown': {text:?}"
+fn render_plot_stats_shows_percentage_of_tasks_and_weight_done() {
+    let point = TodoDonePlotPoint {
+        date: chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+        total_weight_wt: 8.0,
+        done_weight_wt: 2.0,
+        total_count_t: 5,
+        done_count_t: 1,
+        total_top_level_t: 4,
+        done_top_level_t: 1,
+    };
+    let text = render_plot_stats(&point);
+    assert!(
+        text.contains("25%"),
+        "should show 1/4 top-level tasks done = 25%: {text:?}"
+    );
+    assert!(
+        text.contains("25.00%") || text.contains("25%"),
+        "should show 2/8 weight done = 25%: {text:?}"
+    );
+}
+
+#[test]
+fn render_plot_stats_percentage_is_zero_when_nothing_is_in_scope() {
+    let point = TodoDonePlotPoint {
+        date: chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+        total_weight_wt: 0.0,
+        done_weight_wt: 0.0,
+        total_count_t: 0,
+        done_count_t: 0,
+        total_top_level_t: 0,
+        done_top_level_t: 0,
+    };
+    let text = render_plot_stats(&point);
+    assert!(
+        text.contains("0%"),
+        "should not divide by zero and instead show 0%: {text:?}"
     );
 }

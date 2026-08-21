@@ -1135,6 +1135,9 @@ fn when_plot_shows_total_and_done_scoped_to_milestone() {
         stdout.contains("done:   1 tasks  (weight 1.00)"),
         "stdout: {stdout:?}"
     );
+    // 1/2 tasks and 1.00/2.00 weight done = 50% either way.
+    assert!(stdout.contains("tasks done:   50%"), "stdout: {stdout:?}");
+    assert!(stdout.contains("weight done:  50%"), "stdout: {stdout:?}");
     // ETA is always printed, whether resolved (span + date) or "unknown".
     assert!(stdout.contains("ETA:"), "stdout: {stdout:?}");
 }

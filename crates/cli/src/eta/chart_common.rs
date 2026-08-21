@@ -120,13 +120,28 @@ fn render_trend_equation(trend: Option<LinearTrend>) -> String {
 }
 
 pub(super) fn render_plot_stats(latest: &TodoDonePlotPoint) -> String {
+    let task_pct = percentage(
+        latest.done_top_level_t as f64,
+        latest.total_top_level_t as f64,
+    );
+    let weight_pct = percentage(latest.done_weight_wt, latest.total_weight_wt);
     format!(
-        "total:  {} tasks  (weight {:.2})\ndone:   {} tasks  (weight {:.2})\n",
+        "total:  {} tasks  (weight {:.2})\ndone:   {} tasks  (weight {:.2})\ntasks done:   {task_pct:.0}%\nweight done:  {weight_pct:.0}%\n",
         latest.total_top_level_t,
         latest.total_weight_wt,
         latest.done_top_level_t,
         latest.done_weight_wt,
     )
+}
+
+/// `100 * done / total`, or `0` when `total` is zero (nothing in scope) so
+/// callers don't have to special-case an empty milestone themselves.
+fn percentage(done: f64, total: f64) -> f64 {
+    if total == 0.0 {
+        0.0
+    } else {
+        100.0 * done / total
+    }
 }
 
 #[cfg(test)]
