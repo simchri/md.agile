@@ -690,6 +690,7 @@ body {
 
 .switch-project-recent {
     list-style: none;
+    padding: 0;
     max-height: 240px;
     overflow-y: auto;
 }
