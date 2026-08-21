@@ -20,7 +20,7 @@
     --menu-color-text: #222;
     --menu-color-text-muted: #555;
     --menu-color-border: rgba(0, 0, 0, 0.15);
-    --menu-color-hover: rgba(0, 0, 0, 0.08);
+    --menu-color-hover: #fad26de0;
     --menu-color-accent: #b8860b;
     --menu-color-accent-hover: #8a6508;
     --menu-color-error: #b91c1c;
@@ -694,6 +694,7 @@ body {
     display: block;
     width: 100%;
     padding: 0 0;
+    padding: var(--menu-spacing-xs) var(--menu-spacing-xs) var(--menu-spacing-xs) 0;
     border: none;
     border-radius: var(--menu-radius);
     background: none;
