@@ -677,6 +677,29 @@
 
 - [x] #bug the `.app-menu`'s `z-index: 100` (from the fix above) tied with `TaskCard`'s dynamic "front" z-index (`z_index: 100` in `main.rs`, applied when a card is hovered/dragged to the front — see `current_front`/`front_index`), and since cards render after `AppMenu` in the DOM, an equal z-index let the raised card win the tie and cover the menu button/fade. Raised `.app-menu` to `z-index: 500`, comfortably above any front-raised card's `100` while staying below modal backdrops/modals (1000+), so a hovered/dragged card can never appear above the menu's background element. Purely a z-index/CSS change; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
+- [ ] ETA continued
+  - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
+  - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
+  - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
+  - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
+    - [ ] no milestones: print "no milestones" exit 0
+    - [ ] no git history / not a git repo: print "no history, can not compute velocity data" exit 1
+    - [ ] zero velocity: No special handling
+    - [ ] ?
+    - [ ] cancelled tasks: count as neither "total" nor "done" (are removed from "total")
+    - [ ] ?
+  - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
+  - [ ] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
+  - [ ] Implement vision-aligned task counting for ETA that includes property-required subtasks, including short-form implied subtasks once short-forms are supported
+  - [ ] Implement velocity estimation from git history as weighted completions/day over a defined window, reusing existing git access patterns
+  - [ ] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
+  - [ ] Update CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
+
+
+#MILESTONE: Milestones & ETA
+
+## Misc App Menu improvements
+
 - [x] the app menu's dropdown (`.app-menu-dropdown`, opened via the "≡" button) was a tiny cramped list, out of proportion with the rest of the GUI's modal-style dialogs. Replaced it with a full modal matching the task modal's look: `.app-menu-backdrop` (fixed, full-viewport, dark overlay, click-to-close) behind a centered `.app-menu-modal` panel (white, rounded, `×` close button top-right via `.app-menu-modal-close`, mirroring `.modal-close`). Menu items ("🔀 Switch project…", "🛑 Close") are prefixed with a suitable emoji for a quicker visual anchor, and rendered at a larger, more spaced-out size (`.app-menu-item`: `font-size: 18px`, `padding: 16px 20px`) than the old dropdown. Given `z-index: 5000` — deliberately the highest in the app (above `.switch-project-overlay`'s `4000` and the task modal's `1000`) — since the menu must be reachable and stay on top even while a task modal is already open. Purely CSS/markup; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 - [x] #bug the "Switch project" sub-view opened its own separate `.switch-project-overlay`/`.switch-project-panel` overlay instead of living inside the new app menu modal, so it looked visually inconsistent with the main menu. Introduced an `AppMenuView` enum (`Main` / `SwitchProject`) as internal state on `AppMenu`, replacing the old `switching: Signal<bool>`. Renamed `SwitchProjectPanel` to `SwitchProjectView` (prop `on_close` renamed to `on_back`), stripped its own overlay/panel wrapper divs so it now renders directly inside the shared `.app-menu-modal`/`.app-menu-backdrop`, added a matching `app-menu-modal-title` ("🔀 Switch project") and a "‹ Back" button (`.app-menu-item.app-menu-back`) instead of its old standalone "Close" button. Removed the now-dead `.switch-project-overlay`/`.switch-project-panel`/`.switch-project-close` CSS rules. Purely CSS/markup and internal component-state refactor; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
@@ -700,26 +723,6 @@
 
 - [x] renamed several overly-specific CSS classes in the app menu / "Switch project" view to generic, reusable names, since they weren't tied to anything unique about their one current usage: `.app-menu-modal-title` → `.menu-major-heading` (page title, e.g. "Menu"/"Switch project"), `.switch-project-recent-heading` → `.menu-minor-heading` (subsection heading, e.g. "Current Project"/"Recent Projects"), `.switch-project-error` → `.menu-error`, `.switch-project-recent-empty` → `.menu-empty`. Also removed the now fully unused `.switch-project-label` rule (dead since the "Current Project" heading replaced its usage). Intent: any future menu page/sub-view can reuse `.menu-major-heading`/`.menu-minor-heading`/`.menu-error`/`.menu-empty` directly instead of inventing new page-specific classes, keeping the UI visually consistent. Purely CSS/markup rename, no behavior change; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
-- [ ] ETA continued
-  - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
-  - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
-  - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
-  - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
-    - [ ] no milestones: print "no milestones" exit 0
-    - [ ] no git history / not a git repo: print "no history, can not compute velocity data" exit 1
-    - [ ] zero velocity: No special handling
-    - [ ] ?
-    - [ ] cancelled tasks: count as neither "total" nor "done" (are removed from "total")
-    - [ ] ?
-  - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
-  - [ ] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
-  - [ ] Implement vision-aligned task counting for ETA that includes property-required subtasks, including short-form implied subtasks once short-forms are supported
-  - [ ] Implement velocity estimation from git history as weighted completions/day over a defined window, reusing existing git access patterns
-  - [ ] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
-  - [ ] Update CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
-
-
-#MILESTONE: Milestones & ETA
 
 ## Compatibility of Assignments with mandatory subtasks
 - [x] Consider: How can mandatory subtasks be --dynamically-- assigned to people, i.e. on a case-by-case basis. Possible syntax:
