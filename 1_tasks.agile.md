@@ -688,6 +688,8 @@
 
 - [x] renamed the app menu's "Close" entry to "Exit Program" for clarity (it shuts down the whole GUI server, not just the menu). Purely markup; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
+- [x] added a "‹ Back" button (`.app-menu-item.app-menu-back`) at the bottom of the main menu's entry list, closing the whole app menu just like the `×` button — so every menu page (main and "Switch project") now ends with a consistent "‹ Back" action at the bottom, not just the sub-view. Purely markup; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
+
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months

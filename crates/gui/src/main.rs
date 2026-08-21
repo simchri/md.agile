@@ -989,6 +989,11 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
                                 },
                                 "Exit Program"
                             }
+                            button {
+                                class: "app-menu-item app-menu-back",
+                                onclick: move |_| close_menu(),
+                                "‹ Back"
+                            }
                         },
                         AppMenuView::SwitchProject => rsx! {
                             SwitchProjectView { on_back: move |_| view.set(AppMenuView::Main) }
