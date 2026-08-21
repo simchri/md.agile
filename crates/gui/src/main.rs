@@ -192,6 +192,23 @@ fn resolve_kiosk_flag(kiosk_mode: Option<&Result<bool, ServerFnError>>) -> bool 
     !matches!(kiosk_mode, Some(Ok(false)))
 }
 
+/// Formats a [`ServerFnError`] for display in a snackbar, stripping the
+/// generic `"error running server function: ... (details: ...)"` wrapper
+/// that `ServerFnError`'s own `Display` impl adds around every
+/// `ServerFnError::new(...)` call (which is how every server function in
+/// this crate reports its own errors — see e.g. `server::mark_task_done`).
+/// That wrapper is just noise for the user: the actual, already
+/// human-readable message (e.g. `"foo" is already done`) is the only part
+/// worth showing. Falls back to the full `Display` output for the rarer
+/// non-`ServerError` variants (network/(de)serialization failures, etc.),
+/// which don't carry a separate plain message to extract.
+fn format_server_error(error: &ServerFnError) -> String {
+    match error {
+        ServerFnError::ServerError { message, .. } => message.clone(),
+        other => other.to_string(),
+    }
+}
+
 #[cfg(test)]
 #[path = "main_tests.rs"]
 mod tests;
@@ -788,7 +805,7 @@ fn TaskModal(
                 }
                 Err(e) => {
                     pending.set(false);
-                    error_text.set(e.to_string());
+                    error_text.set(format_server_error(&e));
                     error_show.set(true);
                 }
             }
@@ -810,7 +827,7 @@ fn TaskModal(
                     }
                     Err(e) => {
                         pending.set(false);
-                        error_text.set(e.to_string());
+                        error_text.set(format_server_error(&e));
                         error_show.set(true);
                     }
                 }
@@ -974,7 +991,7 @@ fn SwitchProjectPanel(on_close: EventHandler<()>) -> Element {
                     // trying to patch each signal individually.
                     let _ = dioxus::document::eval("window.location.reload();").await;
                 }
-                Err(e) => error_text.set(e.to_string()),
+                Err(e) => error_text.set(format_server_error(&e)),
             }
         });
     };
