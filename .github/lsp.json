@@ -1,0 +1,11 @@
+{
+  "lspServers": {
+    "rust-analyzer": {
+      "command": "docker",
+      "args": ["compose", "exec", "-T", "dev-container", "rust-analyzer"],
+      "fileExtensions": {
+        ".rs": "rust"
+      }
+    }
+  }
+}
