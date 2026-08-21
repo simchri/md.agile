@@ -660,6 +660,13 @@ body {
     margin: 8px 0 0;
 }
 
+.switch-project-current-path {
+    font-size: 13px;
+    color: #555;
+    margin: 0 0 12px;
+    line-height: 1.4;
+}
+
 /* The "‹ Back" button in the "Switch project" sub-view, returning to the
    app menu's main view within the same modal (see `AppMenuView`). Reuses
    `.app-menu-item`'s sizing/hover but is right-aligned and set apart with
