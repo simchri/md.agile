@@ -686,6 +686,8 @@
 
 - [x] the "Switch project" sub-view now always shows the current project's path above the text box, as "Current project:" followed by the path on its own line (`.switch-project-current-path`, `font-size: 13px`, slightly smaller than the rest of the view), derived from the `projects` list's `is_current` entry rather than a separate query. Purely markup/CSS; no new unit tests apply. All 903 tests still pass; GUI web target still builds. Verified visually via a headless-Chrome screenshot of the running dev server.
 
+- [x] renamed the app menu's "Close" entry to "Exit Program" for clarity (it shuts down the whole GUI server, not just the menu). Purely markup; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
+
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months

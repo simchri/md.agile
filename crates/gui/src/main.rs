@@ -923,8 +923,8 @@ fn TaskModal(
 const SNACKBAR_DISPLAY_MS: u32 = 3500;
 
 /// The "≡" menu button in the corner of the board, offering server-lifecycle
-/// actions independent of task data — "Close" (shut the server down; see
-/// [`server::shutdown_server`]) and, unless kiosk mode disables it,
+/// actions independent of task data — "Exit Program" (shut the server down;
+/// see [`server::shutdown_server`]) and, unless kiosk mode disables it,
 /// "Switch project" (see [`SwitchProjectView`]). Deliberately shown
 /// regardless of kiosk mode: kiosk mode restricts task-data write actions
 /// and project switching specifically, not overall server control.
@@ -987,7 +987,7 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
                                     close_menu();
                                     on_close.call(());
                                 },
-                                "Close"
+                                "Exit Program"
                             }
                         },
                         AppMenuView::SwitchProject => rsx! {
