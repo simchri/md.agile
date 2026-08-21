@@ -17,6 +17,7 @@
     --menu-spacing-sm: 8px;
     --menu-spacing-md: 16px;
     --menu-spacing-lg: 24px;
+    --menu-indent: 4px;
     --menu-color-text: #222;
     --menu-color-text-muted: #555;
     --menu-color-border: rgba(0, 0, 0, 0.15);
@@ -598,7 +599,7 @@ body {
 .app-menu-item {
     display: block;
     width: 100%;
-    padding: var(--menu-spacing-md) var(--menu-spacing-md) var(--menu-spacing-md) 0;
+    padding: var(--menu-spacing-md) var(--menu-spacing-md) var(--menu-spacing-md) var(--menu-indent);
     border: none;
     border-radius: var(--menu-radius);
     background: none;
@@ -694,7 +695,7 @@ body {
     display: block;
     width: 100%;
     padding: 0 0;
-    padding: var(--menu-spacing-xs) var(--menu-spacing-xs) var(--menu-spacing-xs) 0;
+    padding: var(--menu-spacing-xs) var(--menu-spacing-xs) var(--menu-spacing-xs) var(--menu-indent);
     border: none;
     border-radius: var(--menu-radius);
     background: none;
