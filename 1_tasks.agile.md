@@ -665,6 +665,8 @@
 - [x] #bug fix behavior of `--last` N with `--plot` 
 - [ ] #bug board viewer can mark non-eligible tasks done 
 
+- [ ] count top level tasks not subtasks in agile when
+
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
