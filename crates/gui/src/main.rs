@@ -935,6 +935,7 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
 
     rsx! {
         div { class: "app-menu",
+            div { class: "app-menu-fade" }
             button {
                 class: "app-menu-button",
                 onclick: move |_| open.set(!open()),

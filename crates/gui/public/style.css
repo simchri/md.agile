@@ -472,7 +472,26 @@ body {
     z-index: 3000;
 }
 
+/* Sits behind the menu button (z-index below it, via DOM order) and
+   above task cards, at the same solid background color as the page, so
+   cards drifting underneath the button don't visually clash with it.
+   Fades to transparent on the left so the separation reads as a soft
+   gradient rather than a hard-edged box. Wider/taller than the button
+   itself so the fade has room to happen before reaching the button. */
+.app-menu-fade {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 160px;
+    height: 60px;
+    background: linear-gradient(to left, #f5eedd 50%, transparent);
+    pointer-events: none;
+    z-index: 0;
+}
+
 .app-menu-button {
+    position: relative;
+    z-index: 1;
     width: 36px;
     height: 36px;
     font-size: 18px;
