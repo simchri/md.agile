@@ -675,6 +675,8 @@
 
 - [x] #bug the `.app-menu`'s `z-index: 3000` (from the fade fix above) placed it above `.modal-backdrop`/`.modal-content` (z-index 1000/implicit) and `.snackbar` (2000), so an opened task modal was drawn underneath the menu button/fade instead of on top of it. Lowered `.app-menu` to `z-index: 100`, restoring the intended stacking order end-to-end: task card < `.app-menu-fade` (0, relative to the menu) < `.app-menu-button` (1, relative to the menu) < modal backdrops/snackbar (1000+) < `.switch-project-overlay` (4000). Purely a z-index/CSS change; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
+- [x] #bug the `.app-menu`'s `z-index: 100` (from the fix above) tied with `TaskCard`'s dynamic "front" z-index (`z_index: 100` in `main.rs`, applied when a card is hovered/dragged to the front — see `current_front`/`front_index`), and since cards render after `AppMenu` in the DOM, an equal z-index let the raised card win the tie and cover the menu button/fade. Raised `.app-menu` to `z-index: 500`, comfortably above any front-raised card's `100` while staying below modal backdrops/modals (1000+), so a hovered/dragged card can never appear above the menu's background element. Purely a z-index/CSS change; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
+
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months

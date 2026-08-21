@@ -469,7 +469,12 @@ body {
     position: fixed;
     top: 12px;
     right: 12px;
-    z-index: 100;
+    /* Must stay above a "front" task card raised to z-index: 100 on
+       hover/drag (see `TaskCard`'s `z_index` prop in `main.rs`) — cards
+       are rendered after `AppMenu` in the DOM, so an equal z-index would
+       let a raised card win the stacking tie and cover the menu.
+       Still below modal backdrops/modals (1000+). */
+    z-index: 500;
 }
 
 /* Sits behind the menu button (z-index below it, via DOM order) and
