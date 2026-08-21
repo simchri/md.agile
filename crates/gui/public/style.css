@@ -513,26 +513,69 @@ body {
     background: rgba(0, 0, 0, 0.16);
 }
 
-.app-menu-dropdown {
-    position: absolute;
-    top: 42px;
-    right: 0;
+/* The app menu is a full modal (backdrop + centered panel), matching the
+   task modal's look, so it's given the highest z-index in the app —
+   above the task modal's own backdrop (1000+) — since it must be
+   reachable even while a task modal is open. */
+.app-menu-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000;
+    animation: fade-in 0.15s ease-out;
+}
+
+.app-menu-modal {
     background: #fff;
-    border-radius: 6px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-    overflow: hidden;
-    min-width: 120px;
+    width: 90vw;
+    max-width: 480px;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    padding: 28px 36px;
+    position: relative;
+    cursor: default;
+    color: #222;
+}
+
+.app-menu-modal-close {
+    position: absolute;
+    top: 8px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    font-size: 32px;
+    cursor: pointer;
+    color: #555;
+    line-height: 1;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+
+.app-menu-modal-close:hover {
+    color: #000;
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.app-menu-modal-title {
+    margin-bottom: 20px;
 }
 
 .app-menu-item {
     display: block;
     width: 100%;
-    padding: 10px 16px;
+    padding: 16px 20px;
     border: none;
+    border-radius: 6px;
     background: none;
     text-align: left;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 18px;
 }
 
 .app-menu-item:hover {

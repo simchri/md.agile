@@ -941,15 +941,29 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
                 onclick: move |_| open.set(!open()),
                 "≡"
             }
-            if open() {
-                div { class: "app-menu-dropdown",
+        }
+        if open() {
+            div { class: "app-menu-backdrop",
+                onclick: move |_| open.set(false),
+
+                div { class: "app-menu-modal",
+                    onclick: move |evt: MouseEvent| evt.stop_propagation(),
+
+                    button {
+                        class: "app-menu-modal-close",
+                        onclick: move |_| open.set(false),
+                        "×"
+                    }
+
+                    h2 { class: "app-menu-modal-title", "Menu" }
+
                     button {
                         class: "app-menu-item",
                         onclick: move |_| {
                             open.set(false);
                             switching.set(true);
                         },
-                        "Switch project…"
+                        "🔀 Switch project…"
                     }
                     button {
                         class: "app-menu-item",
@@ -957,7 +971,7 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
                             open.set(false);
                             on_close.call(());
                         },
-                        "Close"
+                        "🛑 Close"
                     }
                 }
             }
