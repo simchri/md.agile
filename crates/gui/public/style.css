@@ -469,7 +469,7 @@ body {
     position: fixed;
     top: 12px;
     right: 12px;
-    z-index: 3000;
+    z-index: 100;
 }
 
 /* Sits behind the menu button (z-index below it, via DOM order) and
@@ -477,13 +477,15 @@ body {
    cards drifting underneath the button don't visually clash with it.
    Fades to transparent on the left so the separation reads as a soft
    gradient rather than a hard-edged box. Wider/taller than the button
-   itself so the fade has room to happen before reaching the button. */
+   itself so the fade has room to happen before reaching the button.
+   Stays below modal backdrops/modals (z-index 1000+) so an opened task
+   modal is never obscured by it. */
 .app-menu-fade {
     position: absolute;
     top: -12px;
     right: -12px;
     width: 160px;
-    height: 60px;
+    height: 15vh;
     background: linear-gradient(to left, #f5eedd 50%, transparent);
     pointer-events: none;
     z-index: 0;

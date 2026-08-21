@@ -673,6 +673,8 @@
 
 - [x] #bug the app menu button in the GUI (`AppMenu` in `main.rs`) overlaid task cards drifting underneath it in the same corner, which looked visually cluttered. Added a `.app-menu-fade` element behind the button (same solid background color as the page, hex f5eedd) that's wider/taller than the button itself and fades to transparent via a `linear-gradient(to left, hex f5eedd 50%, transparent)`, so cards passing underneath fade out before reaching the button rather than visually clashing with it. Purely CSS/markup (`style.css` + a new `div` in `AppMenu`'s `rsx!`); no new unit tests needed. All 903 tests still pass; GUI web target still builds.
 
+- [x] #bug the `.app-menu`'s `z-index: 3000` (from the fade fix above) placed it above `.modal-backdrop`/`.modal-content` (z-index 1000/implicit) and `.snackbar` (2000), so an opened task modal was drawn underneath the menu button/fade instead of on top of it. Lowered `.app-menu` to `z-index: 100`, restoring the intended stacking order end-to-end: task card < `.app-menu-fade` (0, relative to the menu) < `.app-menu-button` (1, relative to the menu) < modal backdrops/snackbar (1000+) < `.switch-project-overlay` (4000). Purely a z-index/CSS change; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
+
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
