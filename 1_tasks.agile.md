@@ -682,6 +682,8 @@
 
 - [x] gave the app menu's `.app-menu-modal` a fixed `height: 80vh` (instead of shrink-to-content), with `display: flex; flex-direction: column; overflow-y: auto` so its content scrolls if it ever exceeds that height. Also left-aligned the "Menu" title with the menu entries below it by giving `.app-menu-modal-title` a `padding-left: 20px` matching `.app-menu-item`'s own left padding. Purely CSS; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
+- [x] removed the emoji prefixes ("🔀", "🛑") from the app menu's entries and the "Switch project" sub-view title, per user preference — plain text labels ("Switch project…", "Close", "Switch project") now. Purely markup; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
+
 - [ ] ETA continued
   - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months

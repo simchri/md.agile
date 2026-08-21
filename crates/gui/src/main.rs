@@ -979,7 +979,7 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
                             button {
                                 class: "app-menu-item",
                                 onclick: move |_| view.set(AppMenuView::SwitchProject),
-                                "🔀 Switch project…"
+                                "Switch project…"
                             }
                             button {
                                 class: "app-menu-item",
@@ -987,7 +987,7 @@ fn AppMenu(on_close: EventHandler<()>) -> Element {
                                     close_menu();
                                     on_close.call(());
                                 },
-                                "🛑 Close"
+                                "Close"
                             }
                         },
                         AppMenuView::SwitchProject => rsx! {
@@ -1033,7 +1033,7 @@ fn SwitchProjectView(on_back: EventHandler<()>) -> Element {
     };
 
     rsx! {
-        h2 { class: "app-menu-modal-title", "🔀 Switch project" }
+        h2 { class: "app-menu-modal-title", "Switch project" }
         match &*projects_resource.read() {
             Some(Ok(projects)) if projects.is_empty() && !error_text().is_empty() => rsx! {
                 p { class: "switch-project-error", "{error_text}" }
