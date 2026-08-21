@@ -4,6 +4,29 @@
     box-sizing: border-box;
 }
 
+/* Design tokens for the app menu / "Switch project" view (see below). Kept
+   local to this component family rather than promoted to a page-wide
+   system, since the rest of the app (board, task modal) has its own
+   established styling that isn't being touched here. */
+:root {
+    --menu-font-size-title: 20px;
+    --menu-font-size-heading: 15px;
+    --menu-font-size-body: 15px;
+    --menu-font-size-small: 13px;
+    --menu-spacing-xs: 4px;
+    --menu-spacing-sm: 8px;
+    --menu-spacing-md: 16px;
+    --menu-spacing-lg: 24px;
+    --menu-color-text: #222;
+    --menu-color-text-muted: #555;
+    --menu-color-border: rgba(0, 0, 0, 0.15);
+    --menu-color-hover: rgba(0, 0, 0, 0.08);
+    --menu-color-accent: #2563eb;
+    --menu-color-accent-hover: #1d4ed8;
+    --menu-color-error: #b91c1c;
+    --menu-radius: 6px;
+}
+
 body {
     font-family: "Consolas", "JetBrains Mono", "Fira Code", "Cascadia Code", "Liberation Mono", monospace;
     background-color: #f5eedd;
@@ -538,10 +561,11 @@ body {
     height: 80vh;
     border-radius: 8px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-    padding: 28px 36px;
+    padding: var(--menu-spacing-lg);
     position: relative;
     cursor: default;
-    color: #222;
+    color: var(--menu-color-text);
+    font-size: var(--menu-font-size-body);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -555,36 +579,37 @@ body {
     border: none;
     font-size: 32px;
     cursor: pointer;
-    color: #555;
+    color: var(--menu-color-text-muted);
     line-height: 1;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--menu-radius);
 }
 
 .app-menu-modal-close:hover {
     color: #000;
-    background: rgba(0, 0, 0, 0.08);
+    background: var(--menu-color-hover);
 }
 
 .app-menu-modal-title {
-    margin-bottom: 20px;
-    padding-left: 20px;
+    font-size: var(--menu-font-size-title);
+    margin-bottom: var(--menu-spacing-lg);
 }
 
 .app-menu-item {
     display: block;
     width: 100%;
-    padding: 16px 20px;
+    padding: var(--menu-spacing-md);
     border: none;
-    border-radius: 6px;
+    border-radius: var(--menu-radius);
     background: none;
     text-align: left;
     cursor: pointer;
-    font-size: 18px;
+    font-size: var(--menu-font-size-body);
+    color: var(--menu-color-text);
 }
 
 .app-menu-item:hover {
-    background: rgba(0, 0, 0, 0.08);
+    background: var(--menu-color-hover);
 }
 
 .server-stopped {
@@ -597,69 +622,94 @@ body {
     padding: 24px;
 }
 
+/* The "Switch project" sub-view (see `SwitchProjectView` in main.rs),
+   rendered inside the same `.app-menu-modal` as the main menu. Follows the
+   same left-aligned, single-column layout as the main menu: everything
+   left-edge-aligns with `.app-menu-modal-title`/`.app-menu-item` (no extra
+   indentation), and all text sizing comes from the `--menu-font-size-*`
+   tokens rather than one-off pixel values, so this view reads as part of
+   the same page rather than a differently-styled panel. */
+.switch-project-label {
+    font-size: var(--menu-font-size-small);
+    color: var(--menu-color-text-muted);
+    margin-bottom: var(--menu-spacing-xs);
+}
+
+.switch-project-current-path {
+    font-size: var(--menu-font-size-body);
+    margin-bottom: var(--menu-spacing-lg);
+    word-break: break-all;
+}
+
 .switch-project-input-row {
     display: flex;
-    gap: 8px;
-    margin: 12px 0;
+    gap: var(--menu-spacing-sm);
+    margin-bottom: var(--menu-spacing-md);
 }
 
 .switch-project-input {
     flex: 1;
-    padding: 8px 10px;
-    font-size: 14px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
+    padding: var(--menu-spacing-sm) var(--menu-spacing-md);
+    font-size: var(--menu-font-size-body);
+    font-family: inherit;
+    border: 1px solid var(--menu-color-border);
+    border-radius: var(--menu-radius);
 }
 
 .switch-project-go {
-    padding: 8px 16px;
+    padding: var(--menu-spacing-sm) var(--menu-spacing-md);
     border: none;
-    border-radius: 4px;
-    background: #2563eb;
+    border-radius: var(--menu-radius);
+    background: var(--menu-color-accent);
     color: #fff;
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--menu-font-size-body);
+    font-family: inherit;
 }
 
 .switch-project-go:hover {
-    background: #1d4ed8;
+    background: var(--menu-color-accent-hover);
+}
+
+.switch-project-error {
+    color: var(--menu-color-error);
+    font-size: var(--menu-font-size-small);
+    margin-bottom: var(--menu-spacing-md);
+}
+
+.switch-project-recent-heading {
+    font-size: var(--menu-font-size-heading);
+    color: var(--menu-color-text-muted);
+    margin-bottom: var(--menu-spacing-sm);
+}
+
+.switch-project-recent-empty {
+    font-size: var(--menu-font-size-body);
+    color: var(--menu-color-text-muted);
 }
 
 .switch-project-recent {
     list-style: none;
-    margin: 12px 0 0;
-    padding: 0;
     max-height: 240px;
     overflow-y: auto;
-}
-
-.switch-project-recent-heading {
-    margin: 20px 0 8px;
-    padding-left: 20px;
-    font-size: 15px;
-}
-
-.switch-project-recent-empty {
-    color: #555;
-    font-size: 14px;
-    margin: 0;
-    padding-left: 20px;
 }
 
 .switch-project-recent-item {
     display: block;
     width: 100%;
-    padding: 8px 10px;
+    padding: var(--menu-spacing-sm) var(--menu-spacing-md);
     border: none;
+    border-radius: var(--menu-radius);
     background: none;
     text-align: left;
     cursor: pointer;
-    font-size: 14px;
-    border-radius: 4px;
+    font-size: var(--menu-font-size-body);
+    font-family: inherit;
+    color: var(--menu-color-text);
 }
 
 .switch-project-recent-item:hover:not(:disabled) {
-    background: rgba(0, 0, 0, 0.08);
+    background: var(--menu-color-hover);
 }
 
 .switch-project-recent-item:disabled {
@@ -667,24 +717,10 @@ body {
     font-weight: 600;
 }
 
-.switch-project-error {
-    color: #b91c1c;
-    font-size: 13px;
-    margin: 8px 0 0;
-}
-
-.switch-project-current-path {
-    font-size: 13px;
-    color: #555;
-    margin: 0 0 12px;
-    line-height: 1.4;
-}
-
-/* The "‹ Back" button in the "Switch project" sub-view, returning to the
-   app menu's main view within the same modal (see `AppMenuView`). Reuses
-   `.app-menu-item`'s sizing/hover but is right-aligned and set apart with
-   a top margin, since it's a navigation action rather than one of the
-   main menu's own options. */
+/* The "‹ Back" button, present at the bottom of every app menu page (main
+   and "Switch project" — see `AppMenuView`). `margin-top: auto` pins it to
+   the bottom of `.app-menu-modal`'s flex column regardless of how much
+   content is above it. */
 .app-menu-back {
     margin-top: auto;
     text-align: center;

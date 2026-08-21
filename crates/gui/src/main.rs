@@ -1044,9 +1044,8 @@ fn SwitchProjectView(on_back: EventHandler<()>) -> Element {
                 p { class: "switch-project-error", "{error_text}" }
             },
             Some(Ok(projects)) => rsx! {
+                p { class: "switch-project-label", "Current project" }
                 p { class: "switch-project-current-path",
-                    "Current project:"
-                    br {}
                     "{projects.iter().find(|p| p.is_current).map(|p| p.path.as_str()).unwrap_or(\"unknown\")}"
                 }
                 div { class: "switch-project-input-row",
