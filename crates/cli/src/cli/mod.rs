@@ -301,13 +301,22 @@ pub enum TaskAction {
     /// e.g. `2` for the 2nd still-incomplete top-level task, or `1.3` for
     /// its 3rd direct child. Refuses (printing the violated rule instead of
     /// writing the file) if marking the node done would leave it with
-    /// incomplete required children, missing required subtasks, or a
-    /// disallowed cancelled required subtask. Only reads/writes the one
-    /// file the addressed task lives in — it doesn't re-validate the rest
-    /// of the project.
+    /// incomplete required children, missing required subtasks, a
+    /// disallowed cancelled required subtask, or would be an unauthorized
+    /// completion of a task assigned to someone else (E013). Only reads/
+    /// writes the one file the addressed task lives in — it doesn't
+    /// re-validate the rest of the project.
     Done {
         /// Dotted address, e.g. `2` or `1.3`.
         address: String,
+
+        /// Override the identity used for the E013 assignment/completion
+        /// check instead of the live git identity — a literal `[Users.X]`
+        /// config key (e.g. `--as alice`), not a git name/email. A key that
+        /// doesn't match any configured user is always treated as
+        /// unauthorized for assigned tasks (never silently skipped).
+        #[arg(long, value_name = "USER")]
+        r#as: Option<String>,
     },
 
     /// Revert the (sub)task at ADDRESS back to todo
@@ -392,9 +401,9 @@ pub fn run() {
             );
         }
         Some(Command::Task {
-            action: TaskAction::Done { address },
+            action: TaskAction::Done { address, r#as },
         }) => {
-            subcommands::task::run_done(root, &config, &address);
+            subcommands::task::run_done(root, &config, &address, r#as.as_deref());
         }
         Some(Command::Task {
             action: TaskAction::Undone { address },

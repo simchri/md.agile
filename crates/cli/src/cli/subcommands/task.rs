@@ -115,12 +115,21 @@ pub fn run_next(
 ///
 /// Resolves `address` (see [`parse_address`]) to a single (sub)task, checks
 /// that marking it done wouldn't violate the "incomplete children" (E004),
-/// "missing required subtasks" (E010), or "cancelled required subtask not
-/// allowed" (E012) rules, and — only if clean — flips its status box to
-/// `[x]` in place in its own source file. Prints the violated issue(s) and
-/// exits 1 instead of writing anything if the node isn't actually
-/// completable yet, or if it isn't a todo task to begin with.
-pub fn run_done(root: &Path, config: &Config, address: &str) {
+/// "missing required subtasks" (E010), "cancelled required subtask not
+/// allowed" (E012), or "unauthorized completion" (E013) rules, and — only if
+/// clean — flips its status box to `[x]` in place in its own source file.
+/// Prints the violated issue(s) and exits 1 instead of writing anything if
+/// the node isn't actually completable yet, or if it isn't a todo task to
+/// begin with.
+///
+/// The acting identity for the E013 check is resolved via
+/// [`checker::resolve_task_done_identity`]: `as_user` (from `--as`) if
+/// given, otherwise the live git identity of `root`. Unlike `--mine`, an
+/// unresolvable identity (not a git repo, or no git identity configured)
+/// never aborts the command outright — it's simply treated as unauthorized
+/// for any *assigned* task, exactly like a git identity that doesn't match
+/// any `[Users.X]` entry. Unassigned tasks are unaffected either way.
+pub fn run_done(root: &Path, config: &Config, address: &str, as_user: Option<&str>) {
     let parts = match parse_address(address) {
         Some(parts) => parts,
         None => {
@@ -139,8 +148,9 @@ pub fn run_done(root: &Path, config: &Config, address: &str) {
         }
     };
 
+    let identity = checker::resolve_task_done_identity(root, config, as_user);
     let line = resolved.node_ref().location().line;
-    match mark_node_done(&resolved.file, &resolved.items, line, config) {
+    match mark_node_done(&resolved.file, &resolved.items, line, config, &identity) {
         Ok(title) => println!("done: {title}"),
         Err(MarkDoneError::NotTodo(title)) => {
             log::error!("task {address:?} ({title}) is not a todo task");
@@ -506,7 +516,8 @@ pub enum MarkDoneError {
 /// Marks the (sub)task starting at `line` in `file` done (`[x]`), after
 /// verifying it's a todo task that satisfies every completion rule (see
 /// [`rules::check_completable`]) — the same checks `agile task done`
-/// enforces via an address. Returns the node's title on success.
+/// enforces via an address, including the E013 "unauthorized completion"
+/// check against `identity`. Returns the node's title on success.
 ///
 /// `items` must already be the parsed contents of `file` (the caller is
 /// responsible for parsing — this function neither reads nor re-parses the
@@ -521,6 +532,7 @@ pub fn mark_node_done(
     items: &[FileItem],
     line: usize,
     config: &Config,
+    identity: &ResolvedIdentity,
 ) -> Result<String, MarkDoneError> {
     let node = rules::find_node_by_line(items, line).ok_or(MarkDoneError::NotFound)?;
 
@@ -528,7 +540,7 @@ pub fn mark_node_done(
         return Err(MarkDoneError::NotTodo(node.title().to_string()));
     }
 
-    let issues = rules::check_completable(items, node, config);
+    let issues = rules::check_completable(items, node, config, identity);
     if !issues.is_empty() {
         return Err(MarkDoneError::RuleViolations(issues));
     }

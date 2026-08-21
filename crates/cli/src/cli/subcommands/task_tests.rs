@@ -93,7 +93,7 @@ fn mark_node_done_marks_a_todo_task_and_returns_its_title() {
     let items = parse_file(&file);
     let config = Config::default();
 
-    let result = mark_node_done(&file, &items, 1, &config);
+    let result = mark_node_done(&file, &items, 1, &config, &ResolvedIdentity::Unrecognized);
     assert_eq!(result.as_deref(), Ok("a simple task"));
 
     let written = std::fs::read_to_string(&file).unwrap();
@@ -110,7 +110,7 @@ fn mark_node_done_marks_a_nested_subtask() {
     let items = parse_file(&file);
     let config = Config::default();
 
-    let result = mark_node_done(&file, &items, 2, &config);
+    let result = mark_node_done(&file, &items, 2, &config, &ResolvedIdentity::Unrecognized);
     assert_eq!(result.as_deref(), Ok("a subtask"));
 
     let written = std::fs::read_to_string(&file).unwrap();
@@ -132,7 +132,7 @@ fn mark_node_done_rejects_a_task_that_is_already_done() {
     let items = parse_file(&file);
     let config = Config::default();
 
-    match mark_node_done(&file, &items, 1, &config) {
+    match mark_node_done(&file, &items, 1, &config, &ResolvedIdentity::Unrecognized) {
         Err(MarkDoneError::NotTodo(title)) => assert_eq!(title, "already done"),
         other => panic!("expected NotTodo, got {other:?}"),
     }
@@ -150,7 +150,7 @@ fn mark_node_done_rejects_a_task_with_incomplete_required_children() {
     let items = parse_file(&file);
     let config = Config::default();
 
-    match mark_node_done(&file, &items, 1, &config) {
+    match mark_node_done(&file, &items, 1, &config, &ResolvedIdentity::Unrecognized) {
         Err(MarkDoneError::RuleViolations(issues)) => assert!(!issues.is_empty()),
         other => panic!("expected RuleViolations, got {other:?}"),
     }
@@ -171,7 +171,7 @@ fn mark_node_done_rejects_out_of_order_subtask_completion() {
 
     // Line 3 is "2. second step" — its lower-ordered sibling (line 2) is
     // still todo, so completing it out of order must be rejected.
-    match mark_node_done(&file, &items, 3, &config) {
+    match mark_node_done(&file, &items, 3, &config, &ResolvedIdentity::Unrecognized) {
         Err(MarkDoneError::RuleViolations(issues)) => assert!(!issues.is_empty()),
         other => panic!("expected RuleViolations, got {other:?}"),
     }
@@ -190,7 +190,7 @@ fn mark_node_done_allows_in_order_subtask_completion() {
     let items = parse_file(&file);
     let config = Config::default();
 
-    let result = mark_node_done(&file, &items, 2, &config);
+    let result = mark_node_done(&file, &items, 2, &config, &ResolvedIdentity::Unrecognized);
     assert_eq!(result.as_deref(), Ok("first step"));
 }
 
@@ -204,9 +204,89 @@ fn mark_node_done_returns_not_found_when_no_node_starts_at_that_line() {
     let config = Config::default();
 
     assert!(matches!(
-        mark_node_done(&file, &items, 99, &config),
+        mark_node_done(&file, &items, 99, &config, &ResolvedIdentity::Unrecognized),
         Err(MarkDoneError::NotFound)
     ));
+}
+
+fn config_with_users(users: &[&str]) -> Config {
+    Config {
+        users: users
+            .iter()
+            .map(|&n| {
+                (
+                    n.to_string(),
+                    crate::config::UserConfig {
+                        name: n.to_string(),
+                        git_emails: vec![],
+                        git_names: vec![],
+                    },
+                )
+            })
+            .collect(),
+        ..Config::default()
+    }
+}
+
+#[test]
+fn mark_node_done_rejects_completion_of_an_assigned_task_by_an_unrecognized_identity() {
+    let content = "\
+- [ ] fix bug @alice
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+    let config = config_with_users(&["alice", "bob"]);
+
+    match mark_node_done(&file, &items, 1, &config, &ResolvedIdentity::Unrecognized) {
+        Err(MarkDoneError::RuleViolations(issues)) => assert!(!issues.is_empty()),
+        other => panic!("expected RuleViolations, got {other:?}"),
+    }
+    // file must be untouched
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), content);
+}
+
+#[test]
+fn mark_node_done_rejects_completion_of_an_assigned_task_by_a_different_known_user() {
+    let content = "\
+- [ ] fix bug @alice
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+    let config = config_with_users(&["alice", "bob"]);
+    let identity = ResolvedIdentity::Known("bob".to_string());
+
+    match mark_node_done(&file, &items, 1, &config, &identity) {
+        Err(MarkDoneError::RuleViolations(issues)) => assert!(!issues.is_empty()),
+        other => panic!("expected RuleViolations, got {other:?}"),
+    }
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), content);
+}
+
+#[test]
+fn mark_node_done_allows_completion_of_an_assigned_task_by_the_assignee() {
+    let content = "\
+- [ ] fix bug @alice
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+    let config = config_with_users(&["alice", "bob"]);
+    let identity = ResolvedIdentity::Known("alice".to_string());
+
+    let result = mark_node_done(&file, &items, 1, &config, &identity);
+    assert_eq!(result.as_deref(), Ok("fix bug @alice"));
+}
+
+#[test]
+fn mark_node_done_allows_completion_of_an_unassigned_task_by_an_unrecognized_identity() {
+    let content = "\
+- [ ] fix bug
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+    let config = Config::default();
+
+    let result = mark_node_done(&file, &items, 1, &config, &ResolvedIdentity::Unrecognized);
+    assert_eq!(result.as_deref(), Ok("fix bug"));
 }
 
 #[test]

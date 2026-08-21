@@ -409,20 +409,34 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
 
 /// Checks whether marking `node` done right now would violate any
 /// completion-related rule: "incomplete children" (E004), "missing required
-/// subtasks" (E010), "cancelled required subtask not allowed" (E012), or —
-/// if `node` is an ordered subtask — "out-of-order completion" (E015).
+/// subtasks" (E010), "cancelled required subtask not allowed" (E012),
+/// "unauthorized completion" (E013, against `identity`) — or, if `node` is
+/// an ordered subtask — "out-of-order completion" (E015).
 ///
 /// `items` is the full parsed file `node` came from; it's only used to
 /// locate `node`'s siblings for the ordering check (see
 /// [`find_siblings_by_line`]) and is otherwise unused here.
 ///
-/// Used by `agile task done <address>` to validate a single addressed node
-/// in isolation, without running the full rule set over the rest of the
-/// project (which `task done` explicitly avoids for efficiency — see
-/// `doc/cli-structure.md`). Reuses the exact same rule logic as `agile
+/// `identity` is the resolved acting identity (see
+/// [`crate::checker::resolve_task_done_identity`]) used for the E013 check:
+/// unlike the git-diff-based `agile check`, which only ever *detects* an
+/// unauthorized completion after the fact, this rejects it *before* the
+/// write happens — so `node` never needs to have already been flipped to
+/// `[x]` for the check to apply.
+///
+/// Used by `agile task done <address>` (and the GUI's `mark_task_done`, via
+/// [`crate::cli::subcommands::task::mark_node_done`]) to validate a single
+/// addressed node in isolation, without running the full rule set over the
+/// rest of the project (which `task done` explicitly avoids for efficiency —
+/// see `doc/cli-structure.md`). Reuses the exact same rule logic as `agile
 /// check` so the two commands never disagree about what counts as a valid
 /// completion.
-pub fn check_completable(items: &[FileItem], node: NodeRef, config: &Config) -> Vec<Issue> {
+pub fn check_completable(
+    items: &[FileItem],
+    node: NodeRef,
+    config: &Config,
+    identity: &ResolvedIdentity,
+) -> Vec<Issue> {
     let mut issues =
         incomplete_parent::check_children_complete(node.children(), node.location(), node.indent());
     issues.extend(missing_required_subtasks::check_node(
@@ -433,7 +447,54 @@ pub fn check_completable(items: &[FileItem], node: NodeRef, config: &Config) -> 
         config,
     ));
     issues.extend(check_order_completable(items, node));
+    issues.extend(check_authorized_completable(node, config, identity));
     issues
+}
+
+/// The E013 half of [`check_completable`]: if `node` carries `@user`/`@group`
+/// assignment markers, checks whether `identity` is authorized to complete
+/// it — directly assigned, or a member of an assigned group (see
+/// [`unauthorized_completion::authorized_users`]) — and, if not, refuses the
+/// completion with the same "Unauthorized Completion" issue the git-diff-based
+/// `agile check`/E013 rule ([`unauthorized_completion::unauthorized_completion`])
+/// would otherwise only catch after the fact. Nodes with no assignment
+/// markers at all are never flagged — unassigned tasks stay open to anyone,
+/// matching E013's own philosophy.
+fn check_authorized_completable(
+    node: NodeRef,
+    config: &Config,
+    identity: &ResolvedIdentity,
+) -> Vec<Issue> {
+    let names = unauthorized_completion::assignment_names(node.markers());
+    if names.is_empty() {
+        return Vec::new();
+    }
+    let authorized = unauthorized_completion::authorized_users(&names, config);
+    let is_authorized = match identity {
+        ResolvedIdentity::Known(user) => authorized.iter().any(|a| a == user),
+        ResolvedIdentity::Unrecognized => false,
+    };
+    if is_authorized {
+        return Vec::new();
+    }
+    vec![Issue {
+        location: node.location().clone(),
+        code: ErrorCode::UnauthorizedCompletion,
+        message: format!(
+            "Task marked done by an unauthorized user; only {} may complete it",
+            authorized
+                .iter()
+                .map(|a| format!("\"{a}\""))
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+        column: node.indent() + 1,
+        help: Some(
+            "Only assigned users (or members of an assigned group) should mark this task done."
+                .to_string(),
+        ),
+        data: Some(IssueData::UnauthorizedCompletion { authorized }),
+    }]
 }
 
 /// The E015 half of [`check_completable`]: if `node` is an ordered subtask,

@@ -116,6 +116,33 @@ pub fn resolve_cli_identity(
     }
 }
 
+/// Resolves the acting identity for `agile task done`'s (and the GUI's
+/// `mark_task_done`'s) E013 authorization check ([`rules::check_completable`]).
+///
+/// Unlike [`resolve_cli_identity`] (used by `--mine`, which needs a
+/// *definite* identity to filter by and so hard-fails when none can be
+/// found), this never fails: when no git identity can be determined at all
+/// (not a git repo, or `git config user.email`/`user.name` both unset — and
+/// no `identity_override`), it resolves to [`ResolvedIdentity::Unrecognized`]
+/// instead of erroring — the same value used when a determined identity
+/// simply doesn't match any `[Users.X]` entry. Either way, this only ever
+/// makes an *assigned* task's completion unauthorized; unassigned tasks are
+/// completable regardless (see [`rules::unauthorized_completion`]), so a
+/// command that just wants to enforce assignment (rather than filter by
+/// identity like `--mine` does) should never need to hard-fail here.
+pub fn resolve_task_done_identity(
+    root: &Path,
+    config: &Config,
+    identity_override: Option<&str>,
+) -> ResolvedIdentity {
+    match resolve_repo_identity(root, config, identity_override) {
+        IdentityResolution::Determined(identity) => identity,
+        IdentityResolution::NotAGitRepo | IdentityResolution::NoGitIdentity => {
+            ResolvedIdentity::Unrecognized
+        }
+    }
+}
+
 /// Like [`check_authorization`], but also returns the reason the check was
 /// skipped (if it was), so callers can decide how to surface that (or, in
 /// tests, assert on it directly) instead of only inferring it from an empty

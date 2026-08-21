@@ -405,12 +405,17 @@ pub async fn shutdown_server() -> Result<(), ServerFnError> {
 /// Marks the task or subtask identified by `path` (relative to the project
 /// root, as returned in a [`TaskView`]) and `line` done.
 ///
-/// Reuses exactly the same core logic (and completion rules) as `agile task
-/// done` — see [`mdagile::cli::subcommands::task::mark_node_done`] — so a
-/// task that the CLI would refuse to complete (e.g. incomplete required
-/// children) is refused here too, with the same reasons.
+/// Reuses exactly the same core logic (and completion rules, including the
+/// E013 "unauthorized completion" check) as `agile task done` — see
+/// [`mdagile::cli::subcommands::task::mark_node_done`] — so a task that the
+/// CLI would refuse to complete (e.g. incomplete required children, or an
+/// assigned task completed by the wrong identity) is refused here too, with
+/// the same reasons. The acting identity is the live git identity of the
+/// project root (see [`mdagile::checker::resolve_task_done_identity`]) —
+/// there's no `--as` equivalent in the GUI.
 #[server]
 pub async fn mark_task_done(path: String, line: usize) -> Result<(), ServerFnError> {
+    use mdagile::checker::resolve_task_done_identity;
     use mdagile::cli::common::{find_task_files, parse_file};
     use mdagile::cli::subcommands::task::{mark_node_done, MarkDoneError};
 
@@ -431,8 +436,9 @@ pub async fn mark_task_done(path: String, line: usize) -> Result<(), ServerFnErr
     let config = mdagile::config::Config::load(&root)
         .map_err(|e| ServerFnError::new(format!("could not load config: {e}")))?;
     let items = parse_file(&file);
+    let identity = resolve_task_done_identity(&root, &config, None);
 
-    match mark_node_done(&file, &items, line, &config) {
+    match mark_node_done(&file, &items, line, &config, &identity) {
         Ok(_title) => Ok(()),
         Err(MarkDoneError::NotFound) => Err(ServerFnError::new(
             "task changed on disk — please refresh and try again",
