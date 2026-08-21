@@ -592,25 +592,6 @@ body {
     padding: 24px;
 }
 
-.switch-project-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 4000;
-}
-
-.switch-project-panel {
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-    padding: 20px 24px;
-    min-width: 360px;
-    max-width: 90vw;
-}
-
 .switch-project-input-row {
     display: flex;
     gap: 8px;
@@ -674,16 +655,12 @@ body {
     margin: 8px 0 0;
 }
 
-.switch-project-close {
+/* The "‹ Back" button in the "Switch project" sub-view, returning to the
+   app menu's main view within the same modal (see `AppMenuView`). Reuses
+   `.app-menu-item`'s sizing/hover but is right-aligned and set apart with
+   a top margin, since it's a navigation action rather than one of the
+   main menu's own options. */
+.app-menu-back {
     margin-top: 16px;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.08);
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.switch-project-close:hover {
-    background: rgba(0, 0, 0, 0.16);
+    text-align: center;
 }
