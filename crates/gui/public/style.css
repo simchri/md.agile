@@ -17,7 +17,6 @@
     --menu-spacing-sm: 8px;
     --menu-spacing-md: 16px;
     --menu-spacing-lg: 24px;
-    --menu-indent: 4px;
     --menu-color-text: #222;
     --menu-color-text-muted: #555;
     --menu-color-border: rgba(0, 0, 0, 0.15);
@@ -563,7 +562,6 @@ body {
     border-radius: 8px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
     padding: var(--menu-spacing-lg);
-    padding-left: calc(var(--menu-spacing-lg) + var(--menu-indent));
     position: relative;
     cursor: default;
     color: var(--menu-color-text);
