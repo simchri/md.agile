@@ -107,13 +107,15 @@ Milestone-related commands are split by concern:
 The `milestones` (alias `milestone`) command allows you to inspect milestones' current state:
 
 ```bash
-$ agile milestones --list --next
-1 0.8 alpha            12/20 (60%)
-2 Release of MVP :)     3/21 (14%)
-3 Release of v2.0       0/34 (0%)
-4 Product generation 2  0/50 (0%)
+$ agile milestones
+1 0.8 alpha            12 / 20 60%
+2 Release of MVP :)     3 / 21 14%
+3 Release of v2.0       0 / 34 0%
+4 Product generation 2  0 / 50 0%
 ```
 The flag `--next` limits output to future milestones, i.e. milestones that appear after the first incomplete task in the backlog.
+
+The flag `--count` shows data based on top-level task counts instead of task weight (default).
 
 You can inspect one milestone's current state in more detail by providing its rank (as provided by `agile milestones --list [--next]`), e.g.
 ```bash
@@ -122,9 +124,12 @@ milestone: Release of MVP :)
 next rank: 1
 total rank: 5
 tasks since last milestone: 21
-to do: 18
-done: 3
-percentage done: 14%
+tasks to do: 18
+tasks done: 3
+tasks percentage done: 15.6%
+weight to do: 23.33
+weight done: 6
+weight percentage done: 15.6%
 ```
 
 (c.f. also `agile milestones --help`)
