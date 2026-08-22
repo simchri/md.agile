@@ -4,9 +4,10 @@
 //! history/velocity/ETA math lives here — see `report.rs`/`velocity.rs`
 //! for that side of milestone reporting.
 
+use super::report::walk_milestone_boundaries;
 use super::velocity::weight_for_depth;
-use crate::cli::common::find_task_files;
-use crate::parser::{self, FileItem, Status, Subtask, Task};
+use crate::parser::{self, Subtask};
+use std::cell::RefCell;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,10 +57,10 @@ struct SpanAccumulator {
 }
 
 impl SpanAccumulator {
-    fn add_task(&mut self, task: &Task) {
+    fn add_task(&mut self, task: &parser::Task) {
         self.total_top_level += 1;
         self.total_weight += 1.0;
-        if is_closed(&task.status) {
+        if super::report::is_closed_status(&task.status) {
             self.done_top_level += 1;
             self.done_weight += 1.0;
         }
@@ -70,7 +71,7 @@ impl SpanAccumulator {
         for child in children {
             let weight = weight_for_depth(depth);
             self.total_weight += weight;
-            if is_closed(&child.status) {
+            if super::report::is_closed_status(&child.status) {
                 self.done_weight += weight;
             }
             self.add_subtasks(&child.children, depth + 1);
@@ -89,18 +90,6 @@ impl SpanAccumulator {
     }
 }
 
-fn is_closed(status: &Status) -> bool {
-    matches!(status, Status::Done | Status::Cancelled)
-}
-
-fn task_subtree_complete(task: &Task) -> bool {
-    is_closed(&task.status) && task.children.iter().all(subtask_subtree_complete)
-}
-
-fn subtask_subtree_complete(subtask: &Subtask) -> bool {
-    is_closed(&subtask.status) && subtask.children.iter().all(subtask_subtree_complete)
-}
-
 /// Returns stats for every *future* milestone (those after the first
 /// incomplete top-level task in the backlog), in backlog order, ranked
 /// starting at 1 for the next milestone to be reached. Each milestone's
@@ -108,35 +97,24 @@ fn subtask_subtree_complete(subtask: &Subtask) -> bool {
 /// start of the backlog for the first one) — always accumulated in full
 /// regardless of when the span turned out to contain the first incomplete
 /// task, so already-done tasks earlier in a future milestone's own span
-/// still count toward its totals.
+/// still count toward its totals. "Future" here matches
+/// [`super::report::walk_milestone_boundaries`], the shared boundary logic
+/// also used by `agile when`.
 pub fn collect_future_milestone_stats(root: &Path) -> Vec<MilestoneStats> {
-    let mut seen_incomplete_task = false;
-    let mut current = SpanAccumulator::default();
+    let current = RefCell::new(SpanAccumulator::default());
     let mut stats = Vec::new();
 
-    for path in find_task_files(root) {
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        let items = parser::parse(&content, path);
-        for item in items {
-            match item {
-                FileItem::Task(task) => {
-                    if !seen_incomplete_task && !task_subtree_complete(&task) {
-                        seen_incomplete_task = true;
-                    }
-                    current.add_task(&task);
-                }
-                FileItem::Milestone(m) => {
-                    if seen_incomplete_task {
-                        let rank = stats.len() + 1;
-                        stats.push(current.finish(rank, m.name));
-                    }
-                    current = SpanAccumulator::default();
-                }
+    walk_milestone_boundaries(
+        root,
+        |task, _is_future| current.borrow_mut().add_task(task),
+        |name, is_future| {
+            let span = current.replace(SpanAccumulator::default());
+            if is_future {
+                let rank = stats.len() + 1;
+                stats.push(span.finish(rank, name.to_string()));
             }
-        }
-    }
+        },
+    );
     stats
 }
 

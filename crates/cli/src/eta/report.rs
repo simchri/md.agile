@@ -58,13 +58,19 @@ fn render_when_line(name: &str, eta: Option<EtaEstimate>, today_unix_days: Optio
     format!("{span:<10}{name}\n")
 }
 
-/// Returns the names of all *future* milestones, in backlog order, i.e. the
-/// milestones that appear after the first incomplete task in the backlog
-/// (matching `agile milestones --list --next`'s semantics). Milestones that
-/// only have completed tasks above them have already been reached and are
-/// skipped.
-fn future_milestone_names(root: &Path) -> Vec<String> {
-    let mut milestones = Vec::new();
+/// Walks every task and milestone across all `.agile.md` files in backlog
+/// order, invoking `on_task`/`on_milestone` as each is encountered. Both
+/// callbacks receive whether the first incomplete top-level task has been
+/// seen *so far* ("future" boundary state), so a milestone is "future" iff
+/// its callback fires with `true` — i.e. it appears after the first
+/// incomplete task in the backlog. This is the single source of truth for
+/// what counts as a "future" milestone, shared by `agile when` (this
+/// module) and `agile milestones` (`milestone_stats.rs`).
+pub(super) fn walk_milestone_boundaries(
+    root: &Path,
+    mut on_task: impl FnMut(&parser::Task, bool),
+    mut on_milestone: impl FnMut(&str, bool),
+) {
     let mut seen_incomplete_task = false;
     for path in find_task_files(root) {
         let Ok(content) = std::fs::read_to_string(&path) else {
@@ -77,15 +83,29 @@ fn future_milestone_names(root: &Path) -> Vec<String> {
                     if !seen_incomplete_task && !task_subtree_complete(&task) {
                         seen_incomplete_task = true;
                     }
+                    on_task(&task, seen_incomplete_task);
                 }
                 FileItem::Milestone(m) => {
-                    if seen_incomplete_task {
-                        milestones.push(m.name);
-                    }
+                    on_milestone(&m.name, seen_incomplete_task);
                 }
             }
         }
     }
+}
+
+/// Returns the names of all *future* milestones, in backlog order. See
+/// [`walk_milestone_boundaries`] for what counts as "future".
+fn future_milestone_names(root: &Path) -> Vec<String> {
+    let mut milestones = Vec::new();
+    walk_milestone_boundaries(
+        root,
+        |_task, _is_future| {},
+        |name, is_future| {
+            if is_future {
+                milestones.push(name.to_string());
+            }
+        },
+    );
     milestones
 }
 
@@ -97,7 +117,7 @@ pub(super) fn milestone_name_for_rank(root: &Path, milestone_rank: usize) -> Opt
         .nth(milestone_rank - 1)
 }
 
-fn is_closed_status(status: &Status) -> bool {
+pub(super) fn is_closed_status(status: &Status) -> bool {
     matches!(status, Status::Done | Status::Cancelled)
 }
 
