@@ -113,11 +113,11 @@ $ agile milestones
 3 Release of v2.0       0 / 34 0%
 4 Product generation 2  0 / 50 0%
 ```
-The flag `--next` limits output to future milestones, i.e. milestones that appear after the first incomplete task in the backlog.
+`agile milestones` lists every milestone in the project, reached and future alike, in backlog order (rank 1..N).
 
 The flag `--count` shows data based on top-level task counts instead of task weight (default).
 
-You can inspect one milestone's current state in more detail by providing its rank (as provided by `agile milestones --list [--next]`), e.g.
+You can inspect one milestone's current state in more detail by providing its rank (as provided by `agile milestones`), e.g.
 ```bash
 $ agile milestones --next 2
 milestone: Release of MVP :)
@@ -146,7 +146,7 @@ $ agile when
 2 years   Product generation 2
 ```
 
-You can inspect one milestone's ETA in more detail by providing its rank (as provided by `agile milestones --list [--next]`), e.g. 
+You can inspect one milestone's ETA in more detail by providing its rank (as provided by `agile milestones`), e.g. 
 ```bash
 $ agile when --next 2
 milestone: Release of MVP :)
