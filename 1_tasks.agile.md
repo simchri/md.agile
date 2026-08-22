@@ -843,6 +843,8 @@ Markers to identify a task e.g. <<the bug fixing task>> (check to not conflict w
 
 - [ ] parameters for agile.md.toml to override defaults ETA algorithm parameters. NO COMMAND LINE OPTIONS TO DO THE SAME - THIS CAN ONLY BE DONE THROUGH A VERSIONED CHANGE
 
+- [ ] `--assume-creep [creep]` `--assume-velocity [velcity]` -- override velocity  / creep for ETA calculations and plot. The fitted line is then replaced with a line that goes through the "today" point and has the respective slope. Allows e.g. to calculate ETA under the assumption of 0 further scope creep.
+
 #MILESTONE: Further milestone and ETA improvements
 
 
