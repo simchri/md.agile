@@ -123,8 +123,6 @@ You can inspect one milestone's current state in more detail by providing its ra
 ```bash
 $ agile milestones --next 2
 milestone: Release of MVP :)
-next rank: 1
-total rank: 5
 tasks since last milestone: 21
 tasks to do: 18
 tasks done: 3
