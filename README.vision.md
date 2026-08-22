@@ -115,6 +115,8 @@ $ agile milestones
 ```
 `agile milestones` lists future milestones only — those that appear after the first incomplete task in the backlog — in backlog order, numbered by rank (1..N) starting from the next milestone to be reached. This is also the primary way to look up a milestone's rank for `--next <rank>` (here and in `agile when`).
 
+Percentages are always rounded down (floored) to the nearest whole percent, so `100%` is only ever shown once every task in scope is actually complete.
+
 The flag `--count` shows data based on top-level task counts instead of task weight (default).
 
 You can inspect one milestone's current state in more detail by providing its rank (as provided by `agile milestones`), e.g.
@@ -126,10 +128,10 @@ total rank: 5
 tasks since last milestone: 21
 tasks to do: 18
 tasks done: 3
-tasks percentage done: 15.6%
+tasks percentage done: 15%
 weight to do: 23.33
 weight done: 6
-weight percentage done: 15.6%
+weight percentage done: 15%
 ```
 
 (c.f. also `agile milestones --help`)
