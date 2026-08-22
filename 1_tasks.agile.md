@@ -677,8 +677,10 @@
 
 - [x] #bug the `.app-menu`'s `z-index: 100` (from the fix above) tied with `TaskCard`'s dynamic "front" z-index (`z_index: 100` in `main.rs`, applied when a card is hovered/dragged to the front — see `current_front`/`front_index`), and since cards render after `AppMenu` in the DOM, an equal z-index let the raised card win the tie and cover the menu button/fade. Raised `.app-menu` to `z-index: 500`, comfortably above any front-raised card's `100` while staying below modal backdrops/modals (1000+), so a hovered/dragged card can never appear above the menu's background element. Purely a z-index/CSS change; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
+- [x] Implemented `agile milestones` (alias `milestone`): a git-independent current-state milestone command, split from `agile when`'s time-estimation-only responsibility per the updated README.vision.md. Bare `agile milestones` lists every *future* milestone (those after the first incomplete top-level task) in backlog order, ranked from 1, with done/total weighted counts and a floored percentage (`100%` only once fully done); `--count` swaps to top-level task counts instead of weight; `--next <rank>` shows a detail breakdown (both task-count and weight to-do/done/percentage) for one future milestone instead of the list, and errors (exit 1) for an out-of-range rank. Prints "no milestones" when there are no future milestones. New modules: `eta::milestone_stats` (span accumulation: top-level task=1 weight, subtask depth n => 1/n, reset at each milestone marker, only emitted once the span has been reached "in the future") and `eta::milestone_report` (list/detail text rendering + weight-formatting helper), wired up via `Command::Milestones` in `crates/cli/src/cli/mod.rs` and `subcommands::milestones::run`. Added unit tests for both new `eta` modules and an acceptance test suite (`tests/acceptance/milestones.rs`) covering the list, `--count`, `--next` detail, out-of-range errors, the `milestone` alias, reached-milestone skipping, and the `--next`/`--count` conflict. All 928 tests pass; GUI web target still builds.
+
 - [ ] ETA continued
-  - [ ] Add `agile milestone` / `agile milestones` listing command (current-state only: rank, name, done/total counts, percentage) with `--next` filtering semantics (future milestones = after first incomplete task)
+  - [x] Add `agile milestone` / `agile milestones` listing command (current-state only: rank, name, done/total counts, percentage) with `--next` filtering semantics (future milestones = after first incomplete task)
     - [x] `milestone(s)` is a separate subcommand from `when`: `milestones` reports current-state listing/counts/percentages only (no estimation); `when` handles all estimation (ETA, ETA date, velocity). README.vision.md updated accordingly.
     - [x] the `milstones` mention was just a typo, no CLI compatibility/alias needed
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
@@ -690,7 +692,7 @@
     - [ ] ?
     - [x] cancelled tasks: count as neither "total" nor "done" (are removed from "total")
     - [ ] ?
-    - [ ] ? reached (past) milestones: are they still listed at all without `--next`, or only future ones ever show?
+    - [x] reached (past) milestones: `agile milestones` only ever shows future ones (no boolean flag) — decided and implemented; `agile when`'s own list mode still needs to confirm/align with this
   - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
   - [ ] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
   - [ ] Implement vision-aligned task counting for ETA that includes property-required subtasks, including short-form implied subtasks once short-forms are supported

@@ -12,6 +12,8 @@ pub mod helpers;
 mod history;
 #[path = "acceptance/lsp.rs"]
 mod lsp;
+#[path = "acceptance/milestones.rs"]
+mod milestones;
 #[path = "acceptance/task.rs"]
 mod task;
 #[path = "acceptance/when.rs"]

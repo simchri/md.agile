@@ -4,5 +4,6 @@ pub mod check;
 pub mod default;
 pub mod history;
 pub mod list;
+pub mod milestones;
 pub mod task;
 pub mod when;

@@ -209,6 +209,21 @@ pub enum Command {
         next: Option<usize>,
     },
 
+    /// Current-state milestone listing (no time estimation — see `when`)
+    #[command(visible_alias = "milestone")]
+    Milestones {
+        /// Show detail for the Nth future milestone rank (as listed by the
+        /// bare `agile milestones`) instead of the summary list.
+        #[arg(long, value_name = "RANK")]
+        next: Option<usize>,
+
+        /// Show top-level task counts instead of task weight (the default).
+        ///
+        /// Only valid without `--next` (the detail view always shows both).
+        #[arg(long, conflicts_with = "next")]
+        count: bool,
+    },
+
     /// Show currently closed tasks with completion date when known
     History,
 }
@@ -441,6 +456,9 @@ pub fn run() {
         }
         Some(Command::History) => {
             subcommands::history::run(root);
+        }
+        Some(Command::Milestones { next, count }) => {
+            subcommands::milestones::run(root, next, count);
         }
     }
 }

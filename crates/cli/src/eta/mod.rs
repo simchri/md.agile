@@ -14,6 +14,9 @@
 //! - [`report`] — the bare `agile when` list and `--velocity` text reports
 //! - [`date_utils`] — shared unix-days/calendar-date conversions
 //! - [`trend_geometry`] — shared trend-line-to-line-segment geometry
+//! - [`milestone_stats`] — git-independent current-state milestone stats,
+//!   used by `agile milestones`
+//! - [`milestone_report`] — `agile milestones`' list/detail text reports
 
 mod chart_common;
 mod chart_html;
@@ -23,6 +26,8 @@ mod data_dump;
 mod date_utils;
 mod eta_math;
 mod eta_text;
+mod milestone_report;
+mod milestone_stats;
 mod plot_data;
 mod report;
 mod trend;
@@ -32,6 +37,7 @@ mod velocity;
 pub use chart_html::write_todo_done_plot_html;
 pub use chart_terminal::render_todo_done_plot;
 pub use data_dump::render_todo_done_data;
+pub use milestone_report::{build_milestone_detail_report, build_milestones_list_report};
 pub use plot_data::{
     DEFAULT_EXTRA, TodoDonePlot, TodoDonePlotPoint, build_todo_done_plot, restrict_to_window_days,
 };
