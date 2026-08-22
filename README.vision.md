@@ -150,8 +150,6 @@ You can inspect one milestone's ETA in more detail by providing its rank (as pro
 ```bash
 $ agile when --next 2
 milestone: Release of MVP :)
-next rank: 1
-total rank: 5
 ETA: 3 weeks
 ETA date: 2026-05-04
 tasks since last milestone: 21
