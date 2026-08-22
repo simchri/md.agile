@@ -678,9 +678,9 @@
 - [x] #bug the `.app-menu`'s `z-index: 100` (from the fix above) tied with `TaskCard`'s dynamic "front" z-index (`z_index: 100` in `main.rs`, applied when a card is hovered/dragged to the front — see `current_front`/`front_index`), and since cards render after `AppMenu` in the DOM, an equal z-index let the raised card win the tie and cover the menu button/fade. Raised `.app-menu` to `z-index: 500`, comfortably above any front-raised card's `100` while staying below modal backdrops/modals (1000+), so a hovered/dragged card can never appear above the menu's background element. Purely a z-index/CSS change; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
 
 - [ ] ETA continued
-  - [ ] Add `agile milestone` / `agile milestones` (incl. vision spelling compatibility for `milstones`) listing command with rank output and `--next` filtering semantics (future milestones = after first incomplete task)
-    - [ ] ? is `milestone(s)` a separate subcommand from `when`, or just an alias/wrapper around `when --next <rank>` detail mode?
-    - [ ] ? does the `milstones` vision-typo compatibility apply only to docs, or must the CLI actually accept/parse `milstones` too?
+  - [ ] Add `agile milestone` / `agile milestones` listing command (current-state only: rank, name, done/total counts, percentage) with `--next` filtering semantics (future milestones = after first incomplete task)
+    - [x] `milestone(s)` is a separate subcommand from `when`: `milestones` reports current-state listing/counts/percentages only (no estimation); `when` handles all estimation (ETA, ETA date, velocity). README.vision.md updated accordingly.
+    - [x] the `milstones` mention was just a typo, no CLI compatibility/alias needed
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
   - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
   - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
