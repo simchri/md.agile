@@ -489,7 +489,7 @@
 
 - [x] Added a `--no-markup` flag to `agile task next`: disables the ANSI bold/color rendering of the next-eligible line, instead marking it with a plain-text `" <=="` suffix. Threaded a new `no_markup: bool` parameter through the render call chain (`common.rs`'s `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf`/`render_node_as_root_highlighting_next_leaf`/`render_subtask_highlighting_next_leaf`/`push_node_line`, and `task.rs`'s `run_next`/`render_resolved`); `next_n_tasks`/`next_task` (a separate public API not wired to this flag) keeps its unconditional bolding behavior unchanged. Renamed `next_bold_highlighting.rs` to `next_eligibility.rs` (already about eligibility, not bolding display), refactored its tests to use `--no-markup` for simpler plain-text assertions, and kept exactly one dedicated test (`bolds_the_next_eligible_line_by_default`) covering the default ANSI-bold rendering. All 885 tests pass; GUI target still builds.
 
-- [ ] Milestones: ETA / time estimation. 
+- [x] Milestones: ETA / time estimation. 
   The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
   - [x] Implement `agile when --velocity` first: compute and print current velocity estimate as a standalone subcommand output (later extensible with error margins)
