@@ -1632,8 +1632,18 @@ fn when_next_rank_shows_detail_breakdown() {
         stdout.contains("tasks since last milestone: 4"),
         "stdout: {stdout:?}"
     );
-    assert!(stdout.contains("to do: 2"), "stdout: {stdout:?}");
-    assert!(stdout.contains("done: 2"), "stdout: {stdout:?}");
+    assert!(stdout.contains("tasks to do: 2"), "stdout: {stdout:?}");
+    assert!(stdout.contains("tasks done: 2"), "stdout: {stdout:?}");
+    assert!(
+        stdout.contains("tasks percentage done: 50%"),
+        "stdout: {stdout:?}"
+    );
+    assert!(stdout.contains("weight to do: 2"), "stdout: {stdout:?}");
+    assert!(stdout.contains("weight done: 2"), "stdout: {stdout:?}");
+    assert!(
+        stdout.contains("weight percentage done: 50%"),
+        "stdout: {stdout:?}"
+    );
 }
 
 #[test]

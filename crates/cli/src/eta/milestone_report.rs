@@ -136,7 +136,7 @@ fn render_milestone_detail_report(stats: &MilestoneStats) -> String {
 /// Formats a weight value rounded to 1 decimal place, trimming a trailing
 /// `0` (and the `.` itself if the result is a whole number) so `6.0`
 /// prints as `6` rather than `6.0`.
-fn format_weight(value: f64) -> String {
+pub(super) fn format_weight(value: f64) -> String {
     let rounded = (value * 10.0).round() / 10.0;
     let mut s = format!("{rounded:.1}");
     if s.contains('.') {

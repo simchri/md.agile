@@ -452,8 +452,12 @@ milestone: Release of MVP :)
 ETA: 3 weeks
 ETA date: 2026-05-04
 tasks since last milestone: 21
-to do: 18
-done: 3
+tasks to do: 18
+tasks done: 3
+tasks percentage done: 15%
+weight to do: 23.3
+weight done: 6
+weight percentage done: 15%
 ```
 
 Estimation is based on a recency weighted linear fit for both the "total" and "done" tasks (using task weights). ETA is simply the point where the extrapolated trend lines intersect. You can get a visualization with the `--plot` flag. There are options for ascii art terminal output and html.

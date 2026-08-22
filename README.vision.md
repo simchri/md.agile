@@ -155,8 +155,12 @@ milestone: Release of MVP :)
 ETA: 3 weeks
 ETA date: 2026-05-04
 tasks since last milestone: 21
-to do: 18
-done: 3
+tasks to do: 18
+tasks done: 3
+tasks percentage done: 15%
+weight to do: 23.3
+weight done: 6
+weight percentage done: 15%
 ```
 
 

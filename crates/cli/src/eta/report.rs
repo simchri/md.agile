@@ -31,7 +31,7 @@ pub fn build_when_report(root: &Path, algorithm: TrendFitAlgorithm) -> Result<St
 }
 
 /// Builds the `agile when --next <rank>` detail report: the milestone's
-/// name, ETA span, ETA date, and task counts (total, to do, done) since the
+/// name, ETA span, ETA date, and task/weight breakdowns since the
 /// previous milestone. Errors if not a git repo or if no future milestone
 /// has that rank.
 pub fn build_when_detail_report(
@@ -49,6 +49,7 @@ pub fn build_when_detail_report(
         .and_then(|plot| eta_for_plot(&plot, today, algorithm));
 
     let tasks_todo = stats.total_top_level - stats.done_top_level;
+    let weight_todo = stats.total_weight - stats.done_weight;
     let (eta_str, eta_date_str) = match (eta, today) {
         (Some(est), Some(t)) => {
             let span = eta_span(Some(est), Some(t)).unwrap_or_else(|| "unknown".to_string());
@@ -65,9 +66,22 @@ pub fn build_when_detail_report(
          ETA: {}\n\
          ETA date: {}\n\
          tasks since last milestone: {}\n\
-         to do: {}\n\
-         done: {}\n",
-        stats.name, eta_str, eta_date_str, stats.total_top_level, tasks_todo, stats.done_top_level,
+         tasks to do: {}\n\
+         tasks done: {}\n\
+         tasks percentage done: {}%\n\
+         weight to do: {}\n\
+         weight done: {}\n\
+         weight percentage done: {}%\n",
+        stats.name,
+        eta_str,
+        eta_date_str,
+        stats.total_top_level,
+        tasks_todo,
+        stats.done_top_level,
+        stats.percentage_count(),
+        super::milestone_report::format_weight(weight_todo),
+        super::milestone_report::format_weight(stats.done_weight),
+        stats.percentage_weight(),
     ))
 }
 
