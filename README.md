@@ -416,7 +416,7 @@ $ agile milestones
 3 Release of v2.0       0 / 34 0%
 4 Product generation 2  0 / 50 0%
 ```
-`agile milestones` lists future milestones only — those that appear after the first incomplete task in the backlog — in backlog order, numbered by rank (1..N) starting from the next milestone to be reached. This is also the primary way to look up a milestone's rank for `--next <rank>` (here and in `agile when`). Rank, name, done-count, and percentage columns are padded to line up across all rows; names longer than 20 characters are shortened with a trailing `…` so they can't throw off that alignment. Percentages are always rounded down (floored) to the nearest whole percent, so `100%` is only ever shown once every task in scope is actually complete. Weight values are rounded to at most one decimal place (trailing zero trimmed).
+`agile milestones` lists future milestones only — those that appear after the first incomplete task in the backlog — in backlog order, numbered by rank (1..N) starting from the next milestone to be reached. This is also the primary way to look up a milestone's rank for `--next <rank>` (here and in `agile when`). Rank, name, done-count, and percentage columns are padded to line up across all rows; names longer than 40 characters are shortened with a trailing `…` so they can't throw off that alignment. Percentages are always rounded down (floored) to the nearest whole percent, so `100%` is only ever shown once every task in scope is actually complete. Weight values are rounded to at most one decimal place (trailing zero trimmed).
 
 The flag `--count` shows data based on top-level task counts instead of task weight (the default).
 

@@ -685,6 +685,8 @@
 
 - [x] rounded `agile milestones`' weight output (`format_weight`) to at most 1 decimal place instead of 2 (e.g. `23.333...` -> `23.3` rather than `23.33`), and added padding for the total and percentage columns as well (in addition to the previous rank/name/done padding), so every column lines up across all rows regardless of digit count in any of them. Updated unit tests (`format_weight`, list-padding tests) and the acceptance/README/vision-doc examples accordingly. All 934 tests pass.
 
+- [x] doubled `agile milestones`' list name-truncation limit (`MAX_NAME_LEN`) from 20 to 40 characters, giving milestone names roughly twice as much room before being shortened with a trailing `…`. Updated the truncation acceptance/unit test expectations and README.md/README.vision.md's "longer than N characters" wording accordingly. All 934 tests pass.
+
 - [ ] ETA continued
   - [x] Add `agile milestone` / `agile milestones` listing command (current-state only: rank, name, done/total counts, percentage) with `--next` filtering semantics (future milestones = after first incomplete task)
     - [x] `milestone(s)` is a separate subcommand from `when`: `milestones` reports current-state listing/counts/percentages only (no estimation); `when` handles all estimation (ETA, ETA date, velocity). README.vision.md updated accordingly.

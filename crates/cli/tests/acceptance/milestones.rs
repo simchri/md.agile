@@ -208,7 +208,10 @@ fn milestones_truncates_long_names_with_ellipsis() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert_eq!(stdout, "1 this milestone name… 0 / 1 0%\n");
+    assert_eq!(
+        stdout,
+        "1 this milestone name is way too long to … 0 / 1 0%\n"
+    );
 }
 
 #[test]

@@ -133,7 +133,7 @@ fn list_report_truncates_long_milestone_names_with_ellipsis() {
 
     let out = build_milestones_list_report(dir.path(), false);
 
-    assert_eq!(out, "1 this milestone name… 0 / 1 0%\n");
+    assert_eq!(out, "1 this milestone name is way too long to … 0 / 1 0%\n");
 }
 
 #[test]

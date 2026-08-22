@@ -9,7 +9,7 @@ use std::path::Path;
 /// Milestone names are truncated to this many characters (visible, i.e. not
 /// counting the trailing `…`) in the `agile milestones` list, so a single
 /// long name can't throw off the alignment of every other row.
-const MAX_NAME_LEN: usize = 20;
+const MAX_NAME_LEN: usize = 40;
 
 /// Builds the bare `agile milestones` list: one line per future milestone,
 /// in backlog order, ranked starting at 1. Shows "no milestones" if there
