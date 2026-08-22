@@ -445,6 +445,17 @@ $ agile when
 ```
 Alone, `agile when` calculates the ETA for all future milestones and lists them in order as they appear in your backlog (which by design is the same as ordering by ETA). The time unit is weeks for ETAs below 8 weeks, years from 3 years and higher, months otherwise.
 
+You can inspect one milestone's ETA in more detail by providing its rank (as provided by `agile milestones`), e.g.
+```bash
+$ agile when --next 2
+milestone: Release of MVP :)
+ETA: 3 weeks
+ETA date: 2026-05-04
+tasks since last milestone: 21
+to do: 18
+done: 3
+```
+
 Estimation is based on a recency weighted linear fit for both the "total" and "done" tasks (using task weights). ETA is simply the point where the extrapolated trend lines intersect. You can get a visualization with the `--plot` flag. There are options for ascii art terminal output and html.
 
 (In your terminal this output will come with color ;))
