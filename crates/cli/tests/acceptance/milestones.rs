@@ -28,8 +28,8 @@ fn milestones_lists_future_milestones_with_weighted_counts_by_default() {
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
     let expected = "\
-1 alpha                 2 / 3 66%
-2 beta                  0 / 1.5 0%
+1 alpha 2 / 3 66%
+2 beta  0 / 1.5 0%
 ";
     assert_eq!(stdout, expected);
 }
@@ -56,7 +56,7 @@ fn milestones_count_flag_shows_top_level_task_counts_instead_of_weight() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert_eq!(stdout, "1 alpha                 1 / 2 50%\n");
+    assert_eq!(stdout, "1 alpha 1 / 2 50%\n");
 }
 
 #[test]
@@ -185,7 +185,30 @@ fn milestone_alias_behaves_identically_to_milestones() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert_eq!(stdout, "1 alpha                 0 / 1 0%\n");
+    assert_eq!(stdout, "1 alpha 0 / 1 0%\n");
+}
+
+#[test]
+fn milestones_truncates_long_names_with_ellipsis() {
+    // Arrange
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: this milestone name is way too long to display in full
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    // Act
+    let out = run_agile(dir.path(), &["milestones"]);
+
+    // Assert
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert_eq!(stdout, "1 this milestone name… 0 / 1 0%\n");
 }
 
 #[test]

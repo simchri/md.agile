@@ -28,7 +28,7 @@ fn list_report_shows_weighted_counts_and_floored_percentage_by_default() {
 
     let out = build_milestones_list_report(dir.path(), false);
 
-    assert_eq!(out, "1 alpha                 2 / 3 66%\n");
+    assert_eq!(out, "1 alpha 2 / 3 66%\n");
 }
 
 #[test]
@@ -47,8 +47,8 @@ fn list_report_shows_top_level_task_counts_with_count_flag() {
     let weighted = build_milestones_list_report(dir.path(), false);
     let counted = build_milestones_list_report(dir.path(), true);
 
-    assert_eq!(weighted, "1 alpha                 1 / 2.5 40%\n");
-    assert_eq!(counted, "1 alpha                 1 / 2 50%\n");
+    assert_eq!(weighted, "1 alpha 1 / 2.5 40%\n");
+    assert_eq!(counted, "1 alpha 1 / 2 50%\n");
 }
 
 #[test]
@@ -64,10 +64,68 @@ fn list_report_includes_every_future_milestone_in_backlog_order() {
 
     let out = build_milestones_list_report(dir.path(), false);
 
-    assert_eq!(
-        out,
-        "1 alpha                 0 / 1 0%\n2 beta                  0 / 1 0%\n"
-    );
+    assert_eq!(out, "1 alpha 0 / 1 0%\n2 beta  0 / 1 0%\n");
+}
+
+#[test]
+fn list_report_pads_names_and_done_counts_to_the_widest_column() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: a
+- [x] task b1
+- [x] task b2
+- [x] task b3
+- [x] task b4
+- [x] task b5
+- [x] task b6
+- [x] task b7
+- [x] task b8
+- [x] task b9
+- [x] task b10
+- [ ] task b11
+#MILESTONE: beta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = build_milestones_list_report(dir.path(), true);
+
+    // Name column widens to fit "beta" (4 chars, wider than "a"), and the
+    // done column widens to fit "10" (2 digits) so " / " stays aligned.
+    let expected = "\
+1 a     0 / 1 0%
+2 beta 10 / 11 90%
+";
+    assert_eq!(out, expected);
+}
+
+#[test]
+fn list_report_truncates_long_milestone_names_with_ellipsis() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: this milestone name is way too long to display in full
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = build_milestones_list_report(dir.path(), false);
+
+    assert_eq!(out, "1 this milestone name… 0 / 1 0%\n");
+}
+
+#[test]
+fn truncate_name_leaves_short_names_untouched() {
+    assert_eq!(truncate_name("alpha", 20), "alpha");
+    assert_eq!(truncate_name(&"a".repeat(20), 20), "a".repeat(20));
+}
+
+#[test]
+fn truncate_name_shortens_long_names_with_ellipsis() {
+    let name = "a".repeat(25);
+    let truncated = truncate_name(&name, 20);
+
+    assert_eq!(truncated, format!("{}…", "a".repeat(19)));
+    assert_eq!(truncated.chars().count(), 20);
 }
 
 #[test]
