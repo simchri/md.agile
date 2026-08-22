@@ -28,8 +28,8 @@ fn milestones_lists_future_milestones_with_weighted_counts_by_default() {
     );
     let stdout = String::from_utf8(out.stdout).unwrap();
     let expected = "\
-1 alpha 2 / 3 66%
-2 beta  0 / 1.5 0%
+1 alpha 2 /   3 66%
+2 beta  0 / 1.5  0%
 ";
     assert_eq!(stdout, expected);
 }

@@ -90,11 +90,34 @@ fn list_report_pads_names_and_done_counts_to_the_widest_column() {
 
     let out = build_milestones_list_report(dir.path(), true);
 
-    // Name column widens to fit "beta" (4 chars, wider than "a"), and the
-    // done column widens to fit "10" (2 digits) so " / " stays aligned.
+    // Name column widens to fit "beta" (4 chars, wider than "a"), the done
+    // and total columns widen to fit "10"/"11" (2 digits) so " / " stays
+    // aligned, and the percentage column widens to fit "90" (2 digits).
     let expected = "\
-1 a     0 / 1 0%
+1 a     0 /  1  0%
 2 beta 10 / 11 90%
+";
+    assert_eq!(out, expected);
+}
+
+#[test]
+fn list_report_pads_percentage_column_to_the_widest_value() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+- [x] task b
+#MILESTONE: beta
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = build_milestones_list_report(dir.path(), false);
+
+    // alpha: 0% (1 digit), beta: 100% (3 digits) -> percentage column
+    // widens to 3 so both rows' '%' line up.
+    let expected = "\
+1 alpha 0 / 1   0%
+2 beta  1 / 1 100%
 ";
     assert_eq!(out, expected);
 }
@@ -172,9 +195,9 @@ fn detail_report_errors_for_out_of_range_rank() {
 }
 
 #[test]
-fn format_weight_strips_trailing_zeros_but_keeps_two_decimals_otherwise() {
+fn format_weight_strips_trailing_zero_but_keeps_one_decimal_otherwise() {
     assert_eq!(format_weight(6.0), "6");
     assert_eq!(format_weight(0.0), "0");
-    assert_eq!(format_weight(23.333_333), "23.33");
+    assert_eq!(format_weight(23.333_333), "23.3");
     assert_eq!(format_weight(1.5), "1.5");
 }

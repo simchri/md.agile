@@ -683,6 +683,8 @@
 
 - [x] `agile milestones`' list output now pads its rank, name, and done-count columns to the widest value actually present in that particular report (rather than a fixed width), so columns stay aligned regardless of how many digits a rank/count needs. Milestone names longer than 20 characters are shortened with a trailing `…` so a single long name can no longer throw off the alignment of every other row. Updated `eta::milestone_report`'s rendering, its unit tests (new coverage for multi-row width computation and name truncation), the acceptance tests' hardcoded expected output, and README.md/README.vision.md's examples/description accordingly. All 933 tests pass.
 
+- [x] rounded `agile milestones`' weight output (`format_weight`) to at most 1 decimal place instead of 2 (e.g. `23.333...` -> `23.3` rather than `23.33`), and added padding for the total and percentage columns as well (in addition to the previous rank/name/done padding), so every column lines up across all rows regardless of digit count in any of them. Updated unit tests (`format_weight`, list-padding tests) and the acceptance/README/vision-doc examples accordingly. All 934 tests pass.
+
 - [ ] ETA continued
   - [x] Add `agile milestone` / `agile milestones` listing command (current-state only: rank, name, done/total counts, percentage) with `--next` filtering semantics (future milestones = after first incomplete task)
     - [x] `milestone(s)` is a separate subcommand from `when`: `milestones` reports current-state listing/counts/percentages only (no estimation); `when` handles all estimation (ETA, ETA date, velocity). README.vision.md updated accordingly.

@@ -15,8 +15,8 @@ const MAX_NAME_LEN: usize = 20;
 /// in backlog order, ranked starting at 1. Shows "no milestones" if there
 /// are none. `by_count` selects top-level task counts (`--count`) instead
 /// of the default weighted counts. Columns are padded to line up across all
-/// rows (rank, name, and done count), and long names are shortened with a
-/// trailing `…` so they can't break that alignment.
+/// rows (rank, name, done count, and percentage), and long names are
+/// shortened with a trailing `…` so they can't break that alignment.
 pub fn build_milestones_list_report(root: &Path, by_count: bool) -> String {
     let stats = milestone_stats::collect_future_milestone_stats(root);
     if stats.is_empty() {
@@ -35,9 +35,9 @@ pub fn build_milestone_detail_report(root: &Path, rank: usize) -> Result<String,
 }
 
 /// Renders every `agile milestones` list line, with rank, (possibly
-/// shortened) name, and done count padded to line up across all rows —
-/// based on the widest value in each column for this particular report, not
-/// a fixed width, so short lists stay compact.
+/// shortened) name, done count, total, and percentage padded to line up
+/// across all rows — based on the widest value in each column for this
+/// particular report, not a fixed width, so short lists stay compact.
 fn render_milestone_list_lines(stats: &[MilestoneStats], by_count: bool) -> String {
     let rank_width = stats
         .iter()
@@ -72,6 +72,16 @@ fn render_milestone_list_lines(stats: &[MilestoneStats], by_count: bool) -> Stri
         .map(|(done, ..)| done.len())
         .max()
         .unwrap_or(0);
+    let total_width = counts
+        .iter()
+        .map(|(_, total, _)| total.len())
+        .max()
+        .unwrap_or(0);
+    let pct_width = counts
+        .iter()
+        .map(|(.., pct)| pct.to_string().len())
+        .max()
+        .unwrap_or(0);
 
     stats
         .iter()
@@ -80,7 +90,7 @@ fn render_milestone_list_lines(stats: &[MilestoneStats], by_count: bool) -> Stri
         .map(|((s, name), (done, total, pct))| {
             let rank = s.rank;
             format!(
-                "{rank:>rank_width$} {name:<name_width$} {done:>done_width$} / {total} {pct}%\n"
+                "{rank:>rank_width$} {name:<name_width$} {done:>done_width$} / {total:>total_width$} {pct:>pct_width$}%\n"
             )
         })
         .collect()
@@ -123,12 +133,12 @@ fn render_milestone_detail_report(stats: &MilestoneStats) -> String {
     )
 }
 
-/// Formats a weight value rounded to 2 decimal places, trimming trailing
-/// zeros (and a trailing `.` if the result is a whole number) so `6.0`
-/// prints as `6` rather than `6.00`.
+/// Formats a weight value rounded to 1 decimal place, trimming a trailing
+/// `0` (and the `.` itself if the result is a whole number) so `6.0`
+/// prints as `6` rather than `6.0`.
 fn format_weight(value: f64) -> String {
-    let rounded = (value * 100.0).round() / 100.0;
-    let mut s = format!("{rounded:.2}");
+    let rounded = (value * 10.0).round() / 10.0;
+    let mut s = format!("{rounded:.1}");
     if s.contains('.') {
         while s.ends_with('0') {
             s.pop();
