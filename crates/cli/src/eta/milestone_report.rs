@@ -108,21 +108,22 @@ fn truncate_name(name: &str, max_len: usize) -> String {
     format!("{truncated}…")
 }
 
-/// Renders the `agile milestones --next <rank>` detail block: both the
-/// task-count and weight breakdowns since the previous milestone.
-fn render_milestone_detail_report(stats: &MilestoneStats) -> String {
+/// Renders the shared task/weight breakdown lines (since the previous
+/// milestone) used by both `agile milestones --next <rank>` and `agile when
+/// --next <rank>` detail reports — everything after each report's own
+/// leading lines (`milestone: ...` for both, plus `ETA:`/`ETA date:` for
+/// `agile when`).
+pub(super) fn render_stats_breakdown(stats: &MilestoneStats) -> String {
     let tasks_todo = stats.total_top_level - stats.done_top_level;
     let weight_todo = stats.total_weight - stats.done_weight;
     format!(
-        "milestone: {}\n\
-         tasks since last milestone: {}\n\
+        "tasks since last milestone: {}\n\
          tasks to do: {}\n\
          tasks done: {}\n\
          tasks percentage done: {}%\n\
          weight to do: {}\n\
          weight done: {}\n\
          weight percentage done: {}%\n",
-        stats.name,
         stats.total_top_level,
         tasks_todo,
         stats.done_top_level,
@@ -130,6 +131,16 @@ fn render_milestone_detail_report(stats: &MilestoneStats) -> String {
         format_weight(weight_todo),
         format_weight(stats.done_weight),
         stats.percentage_weight(),
+    )
+}
+
+/// Renders the `agile milestones --next <rank>` detail block: both the
+/// task-count and weight breakdowns since the previous milestone.
+fn render_milestone_detail_report(stats: &MilestoneStats) -> String {
+    format!(
+        "milestone: {}\n{}",
+        stats.name,
+        render_stats_breakdown(stats)
     )
 }
 

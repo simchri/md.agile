@@ -48,8 +48,6 @@ pub fn build_when_detail_report(
         .ok()
         .and_then(|plot| eta_for_plot(&plot, today, algorithm));
 
-    let tasks_todo = stats.total_top_level - stats.done_top_level;
-    let weight_todo = stats.total_weight - stats.done_weight;
     let (eta_str, eta_date_str) = match (eta, today) {
         (Some(est), Some(t)) => {
             let span = eta_span(Some(est), Some(t)).unwrap_or_else(|| "unknown".to_string());
@@ -65,23 +63,11 @@ pub fn build_when_detail_report(
         "milestone: {}\n\
          ETA: {}\n\
          ETA date: {}\n\
-         tasks since last milestone: {}\n\
-         tasks to do: {}\n\
-         tasks done: {}\n\
-         tasks percentage done: {}%\n\
-         weight to do: {}\n\
-         weight done: {}\n\
-         weight percentage done: {}%\n",
+         {}",
         stats.name,
         eta_str,
         eta_date_str,
-        stats.total_top_level,
-        tasks_todo,
-        stats.done_top_level,
-        stats.percentage_count(),
-        super::milestone_report::format_weight(weight_todo),
-        super::milestone_report::format_weight(stats.done_weight),
-        stats.percentage_weight(),
+        super::milestone_report::render_stats_breakdown(&stats),
     ))
 }
 

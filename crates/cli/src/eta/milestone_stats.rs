@@ -68,14 +68,13 @@ impl SpanAccumulator {
     }
 
     fn add_subtasks(&mut self, children: &[Subtask], depth: usize) {
-        for child in children {
-            let weight = weight_for_depth(depth);
+        super::velocity::walk_subtasks(children, depth, &mut |d, child| {
+            let weight = weight_for_depth(d);
             self.total_weight += weight;
             if super::report::is_closed_status(&child.status) {
                 self.done_weight += weight;
             }
-            self.add_subtasks(&child.children, depth + 1);
-        }
+        });
     }
 
     fn finish(self, rank: usize, name: String) -> MilestoneStats {

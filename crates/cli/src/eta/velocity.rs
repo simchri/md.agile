@@ -263,6 +263,22 @@ pub(crate) fn weight_for_depth(depth: usize) -> f64 {
     1.0 / (depth as f64)
 }
 
+/// Walks `children` recursively, depth-first, invoking `on_node` for every
+/// subtask at any depth with its weight-relevant `depth` (see
+/// [`weight_for_depth`]). Shared by every caller that needs to accumulate
+/// weighted totals over a task's subtree (e.g. `plot_data`'s worktree point,
+/// `milestone_stats`' span accumulator) without duplicating the recursion.
+pub(super) fn walk_subtasks(
+    children: &[parser::Subtask],
+    depth: usize,
+    on_node: &mut impl FnMut(usize, &parser::Subtask),
+) {
+    for child in children {
+        on_node(depth, child);
+        walk_subtasks(&child.children, depth + 1, on_node);
+    }
+}
+
 fn fallback_signature(node: &FlatNode) -> FallbackSignature {
     FallbackSignature {
         depth: node.depth,

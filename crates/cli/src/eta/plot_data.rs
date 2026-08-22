@@ -171,23 +171,15 @@ fn accumulate_subtasks(
     done_weight_wt: &mut f64,
     done_count_t: &mut usize,
 ) {
-    for child in children {
-        let w = weight_for_depth(depth);
+    super::velocity::walk_subtasks(children, depth, &mut |d, child| {
+        let w = weight_for_depth(d);
         *total_weight_wt += w;
         *total_count_t += 1;
         if matches!(child.status, Status::Done | Status::Cancelled) {
             *done_weight_wt += w;
             *done_count_t += 1;
         }
-        accumulate_subtasks(
-            &child.children,
-            depth + 1,
-            total_weight_wt,
-            total_count_t,
-            done_weight_wt,
-            done_count_t,
-        );
-    }
+    });
 }
 
 /// Purely a chart's x-axis geometry: computed from whatever point series is
