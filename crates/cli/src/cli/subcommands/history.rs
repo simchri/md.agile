@@ -32,9 +32,13 @@ pub fn run(root: &Path) {
     print!("{out}");
 }
 
+/// Width of the date column, matching the length of a "YYYY-MM-DD" date so
+/// that "unknown" entries pad out to the same column as dated entries.
+const DATE_COLUMN_WIDTH: usize = 10;
+
 fn render_history_line(date: &str, node: &StatusTransition) -> String {
     format!(
-        "{date} {}- {} {}\n",
+        "{date:<DATE_COLUMN_WIDTH$} {}- {} {}\n",
         " ".repeat(node.indent),
         status_marker(&node.new_status),
         node.title

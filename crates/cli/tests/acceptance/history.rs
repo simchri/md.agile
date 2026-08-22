@@ -87,7 +87,10 @@ fn history_shows_closed_tasks_with_dates_and_unknown_when_not_determinable() {
         stdout.contains("2026-07-12 - [-] baz"),
         "stdout: {stdout:?}"
     );
-    assert!(stdout.contains("unknown - [x] qux"), "stdout: {stdout:?}");
+    assert!(
+        stdout.contains("unknown    - [x] qux"),
+        "stdout: {stdout:?}"
+    );
 }
 
 #[test]
