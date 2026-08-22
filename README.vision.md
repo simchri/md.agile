@@ -102,7 +102,7 @@ short = "feat_"
 The `milestone` (alias `milestones`) command allows you to manage milestones:
 
 ```bash
-$ agile milstones --list --next
+$ agile milestones --list --next
 1 0.8 alpha
 2 Release of MVP :)
 3 Release of v2.0
