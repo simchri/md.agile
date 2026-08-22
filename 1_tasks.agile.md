@@ -687,12 +687,14 @@
 
 - [x] doubled `agile milestones`' list name-truncation limit (`MAX_NAME_LEN`) from 20 to 40 characters, giving milestone names roughly twice as much room before being shortened with a trailing `…`. Updated the truncation acceptance/unit test expectations and README.md/README.vision.md's "longer than N characters" wording accordingly. All 934 tests pass.
 
+- [x] Implemented `agile when --next <rank>` detail mode: renders the milestone name, ETA span, ETA date, tasks since last milestone, to do, and done task counts per README.vision.md. Reuses `milestone_stats_for_rank` for span task counts and `build_todo_done_plot`/`eta_for_plot` for ETA projection. Errors (exit code 1) when run outside a git repository or with an out-of-range milestone rank. Added unit tests in `crates/cli/src/eta/report_tests.rs` and acceptance tests in `crates/cli/tests/acceptance/when.rs`. All 939 tests pass; GUI web target builds.
+
 - [ ] ETA continued
   - [x] Add `agile milestone` / `agile milestones` listing command (current-state only: rank, name, done/total counts, percentage) with `--next` filtering semantics (future milestones = after first incomplete task)
     - [x] `milestone(s)` is a separate subcommand from `when`: `milestones` reports current-state listing/counts/percentages only (no estimation); `when` handles all estimation (ETA, ETA date, velocity). README.vision.md updated accordingly.
     - [x] the `milstones` mention was just a typo, no CLI compatibility/alias needed
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
-  - [ ] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
+  - [x] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
   - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
     - [x] no milestones: print "no milestones" exit 0
     - [x] no git history / not a git repo: print "no history, can not compute velocity data" exit 1

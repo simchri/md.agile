@@ -1580,3 +1580,96 @@ fn when_plot_errors_for_milestone_never_committed() {
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("does not exist"), "stderr: {stderr:?}");
 }
+
+#[test]
+fn when_next_rank_shows_detail_breakdown() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 0", "2026-07-10T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [ ] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 1", "2026-07-11T12:00:00Z");
+
+    let file_content = "\
+- [x] task a
+- [x] task b
+- [ ] task c
+- [ ] task d
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "day 2", "2026-07-12T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--next", "1"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("milestone: alpha"), "stdout: {stdout:?}");
+    assert!(stdout.contains("ETA:"), "stdout: {stdout:?}");
+    assert!(stdout.contains("ETA date:"), "stdout: {stdout:?}");
+    assert!(
+        stdout.contains("tasks since last milestone: 4"),
+        "stdout: {stdout:?}"
+    );
+    assert!(stdout.contains("to do: 2"), "stdout: {stdout:?}");
+    assert!(stdout.contains("done: 2"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn when_next_rank_out_of_range_errors_with_nonzero_exit() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "initial", "2026-07-10T12:00:00Z");
+
+    let out = run_agile(dir.path(), &["when", "--next", "5"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(
+        stderr.contains("milestone rank 5 does not exist"),
+        "stderr: {stderr:?}"
+    );
+}
+
+#[test]
+fn when_next_rank_requires_a_git_repository() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["when", "--next", "1"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("git repository"), "stderr: {stderr:?}");
+}

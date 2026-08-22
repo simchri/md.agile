@@ -30,6 +30,47 @@ pub fn build_when_report(root: &Path, algorithm: TrendFitAlgorithm) -> Result<St
     Ok(out)
 }
 
+/// Builds the `agile when --next <rank>` detail report: the milestone's
+/// name, ETA span, ETA date, and task counts (total, to do, done) since the
+/// previous milestone. Errors if not a git repo or if no future milestone
+/// has that rank.
+pub fn build_when_detail_report(
+    root: &Path,
+    rank: usize,
+    algorithm: TrendFitAlgorithm,
+) -> Result<String, String> {
+    require_git_repo(root)?;
+    let stats = super::milestone_stats::milestone_stats_for_rank(root, rank)
+        .ok_or_else(|| format!("milestone rank {rank} does not exist"))?;
+
+    let today = super::date_utils::today_unix_days();
+    let eta = build_todo_done_plot(root, rank)
+        .ok()
+        .and_then(|plot| eta_for_plot(&plot, today, algorithm));
+
+    let tasks_todo = stats.total_top_level - stats.done_top_level;
+    let (eta_str, eta_date_str) = match (eta, today) {
+        (Some(est), Some(t)) => {
+            let span = eta_span(Some(est), Some(t)).unwrap_or_else(|| "unknown".to_string());
+            let date = super::date_utils::date_from_unix_days(est.unix_days)
+                .map(|d| d.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+            (span, date)
+        }
+        _ => ("unknown".to_string(), "unknown".to_string()),
+    };
+
+    Ok(format!(
+        "milestone: {}\n\
+         ETA: {}\n\
+         ETA date: {}\n\
+         tasks since last milestone: {}\n\
+         to do: {}\n\
+         done: {}\n",
+        stats.name, eta_str, eta_date_str, stats.total_top_level, tasks_todo, stats.done_top_level,
+    ))
+}
+
 /// Renders the "velocity: ..." / "creep: ..." text block shown for
 /// `agile when --velocity`. Labels are left-padded and units/numbers are
 /// aligned so the numeric value is always the last column on each line;

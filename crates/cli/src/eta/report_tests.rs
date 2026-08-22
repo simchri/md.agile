@@ -64,3 +64,35 @@ fn render_velocity_text_shows_unknown_for_both_when_neither_resolves() {
     let out = render_velocity_text(estimate);
     assert_eq!(out, "velocity: unknown\ncreep:    unknown\n");
 }
+
+#[test]
+fn detail_report_errors_when_not_a_git_repository() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let err =
+        build_when_detail_report(dir.path(), 1, TrendFitAlgorithm::ExponentialDecay).unwrap_err();
+    assert!(err.contains("git repository"));
+}
+
+#[test]
+fn detail_report_errors_for_out_of_range_rank() {
+    let dir = tempdir().unwrap();
+    let _ = std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(dir.path())
+        .status();
+    let file_content = "\
+- [ ] task a
+#MILESTONE: alpha
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let err =
+        build_when_detail_report(dir.path(), 5, TrendFitAlgorithm::ExponentialDecay).unwrap_err();
+    assert_eq!(err, "milestone rank 5 does not exist");
+}

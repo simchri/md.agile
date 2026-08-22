@@ -78,11 +78,15 @@ pub fn run(
         return;
     }
 
-    if next.is_some() {
-        log::error!(
-            "`agile when --next <rank>` (detail mode, without --plot/--data/--velocity) is not implemented yet"
-        );
-        std::process::exit(1);
+    if let Some(rank) = next {
+        match eta::build_when_detail_report(root, rank, algorithm) {
+            Ok(report) => print!("{report}"),
+            Err(msg) => {
+                log::error!("{msg}");
+                std::process::exit(1);
+            }
+        }
+        return;
     }
 
     match eta::build_when_report(root, algorithm) {

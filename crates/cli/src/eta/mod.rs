@@ -41,7 +41,7 @@ pub use milestone_report::{build_milestone_detail_report, build_milestones_list_
 pub use plot_data::{
     DEFAULT_EXTRA, TodoDonePlot, TodoDonePlotPoint, build_todo_done_plot, restrict_to_window_days,
 };
-pub use report::{build_when_report, render_velocity_text};
+pub use report::{build_when_detail_report, build_when_report, render_velocity_text};
 pub use trend::TrendFitAlgorithm;
 pub(crate) use velocity::weight_for_depth;
 pub use velocity::{
