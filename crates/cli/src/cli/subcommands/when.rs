@@ -11,10 +11,11 @@ use std::path::Path;
 /// [--next <rank>] [--last <days>]` (same default), plus `--data` to show
 /// the same underlying data as a raw table of task counts, and `--html`
 /// to write a self-contained HTML/SVG chart file instead of printing to
-/// the terminal. `--last` restricts the plotted-point history the same
-/// way for all three modes (`--velocity`/`--plot`/`--data`) — it's
-/// meaningless (and rejected) without one of them. With no flags, lists
-/// the ETA time span for every future milestone, in backlog order.
+/// the terminal. `--last` restricts the historical data used for the
+/// ETA/velocity calculation the same way in every mode, including the
+/// bare list and `--next <rank>` detail modes (no `--velocity`/`--plot`/
+/// `--data` required). With no flags, lists the ETA time span for every
+/// future milestone, in backlog order.
 #[allow(clippy::too_many_arguments)]
 pub fn run(
     root: &Path,
@@ -30,13 +31,6 @@ pub fn run(
     last_days: Option<u32>,
     algorithm: TrendFitAlgorithm,
 ) {
-    if last_days.is_some() && !velocity && !plot && !data {
-        log::error!(
-            "`--last` restricts the plotted-point history, so it requires `--velocity`, `--plot`, or `--data`"
-        );
-        std::process::exit(1);
-    }
-
     if plot || data {
         let rank = next.unwrap_or(1);
         let mut plot = match eta::build_todo_done_plot(root, rank) {
@@ -79,7 +73,7 @@ pub fn run(
     }
 
     if let Some(rank) = next {
-        match eta::build_when_detail_report(root, rank, algorithm) {
+        match eta::build_when_detail_report(root, rank, algorithm, last_days) {
             Ok(report) => print!("{report}"),
             Err(msg) => {
                 log::error!("{msg}");
@@ -89,7 +83,7 @@ pub fn run(
         return;
     }
 
-    match eta::build_when_report(root, algorithm) {
+    match eta::build_when_report(root, algorithm, last_days) {
         Ok(report) => print!("{report}"),
         Err(msg) => {
             log::error!("{msg}");

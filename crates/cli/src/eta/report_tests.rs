@@ -74,8 +74,8 @@ fn detail_report_errors_when_not_a_git_repository() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
-    let err =
-        build_when_detail_report(dir.path(), 1, TrendFitAlgorithm::ExponentialDecay).unwrap_err();
+    let err = build_when_detail_report(dir.path(), 1, TrendFitAlgorithm::ExponentialDecay, None)
+        .unwrap_err();
     assert!(err.contains("git repository"));
 }
 
@@ -92,7 +92,7 @@ fn detail_report_errors_for_out_of_range_rank() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
-    let err =
-        build_when_detail_report(dir.path(), 5, TrendFitAlgorithm::ExponentialDecay).unwrap_err();
+    let err = build_when_detail_report(dir.path(), 5, TrendFitAlgorithm::ExponentialDecay, None)
+        .unwrap_err();
     assert_eq!(err, "milestone rank 5 does not exist");
 }

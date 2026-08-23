@@ -740,24 +740,103 @@ fn when_velocity_errors_when_there_is_no_future_milestone() {
 }
 
 #[test]
-fn when_last_requires_a_display_mode() {
-    // `--last` restricts the plotted-point window, so it's meaningless
-    // without a mode that consumes that window (`--velocity`, `--plot`,
-    // or `--data`); bare `agile when --last N` (the future-milestones list
-    // mode) has nothing to restrict.
+fn when_bare_last_no_longer_requires_a_display_mode() {
+    // `--last` used to be rejected without `--velocity`/`--plot`/`--data`;
+    // it now also restricts the ETA trend-line fit for the bare
+    // future-milestones list mode (and `--next <rank>` detail mode).
     let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
     let file_content = "\
 - [ ] one task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(
+        dir.path(),
+        "initial",
+        &git_date_from_unix_secs(unix_ts_days_ago(0)),
+    );
 
     let out = run_agile(dir.path(), &["when", "--last", "2"]);
 
-    assert!(!out.status.success());
-    let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(
-        stderr.contains("--velocity") && stderr.contains("--plot") && stderr.contains("--data"),
-        "expected error mentioning --velocity/--plot/--data, stderr: {stderr:?}"
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn when_next_rank_last_no_longer_requires_a_display_mode() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+    let file_content = "\
+- [ ] task a
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(
+        dir.path(),
+        "initial",
+        &git_date_from_unix_secs(unix_ts_days_ago(0)),
+    );
+
+    let out = run_agile(dir.path(), &["when", "--next", "1", "--last", "5"]);
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("milestone: eol"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn when_bare_last_restricts_the_eta_trend_line_fit() {
+    // Arrange: a milestone whose done-trend only converges with the
+    // 6-day-old data point included -- `--last 5` should drop that point
+    // and make the ETA unresolvable, where the unwindowed report resolves
+    // it.
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let t_old = git_date_from_unix_secs(unix_ts_days_ago(6));
+    let t_recent = git_date_from_unix_secs(unix_ts_days_ago(3));
+
+    let file_content = "\
+- [ ] keep milestone future
+- [ ] task a
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "old", &t_old);
+
+    let file_content = "\
+- [ ] keep milestone future
+- [x] task a
+#MILESTONE: eol
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+    commit_all_at(dir.path(), "recent", &t_recent);
+
+    // Act
+    let full_out = run_agile(dir.path(), &["when"]);
+    let windowed_out = run_agile(dir.path(), &["when", "--last", "5"]);
+
+    // Assert
+    assert!(full_out.status.success());
+    assert!(windowed_out.status.success());
+    let full_stdout = String::from_utf8(full_out.stdout).unwrap();
+    let windowed_stdout = String::from_utf8(windowed_out.stdout).unwrap();
+    assert_ne!(
+        full_stdout, windowed_stdout,
+        "expected --last 5 to change the bare list's ETA output"
     );
 }
 

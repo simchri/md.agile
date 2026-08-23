@@ -711,6 +711,7 @@
     - [-] ? what is "a defined window" — fixed day count, whole milestone history, or something else (and does it match the `--last` window used elsewhere)?
   - [x] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
   - [ ] Update / review CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
+  - [x] allow usage of `--last` with `agile when` (no --plot or --velocity).
 
 
 #MILESTONE: Milestones & ETA

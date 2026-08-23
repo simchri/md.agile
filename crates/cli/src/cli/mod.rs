@@ -105,13 +105,13 @@ pub enum Command {
         #[arg(long, conflicts_with_all = ["velocity", "plot"])]
         data: bool,
 
-        /// Restrict the plotted-point history to the last N days (defaults
-        /// to the milestone's whole history when omitted): with
-        /// `--velocity`, restricts the fitted trend line's input window;
-        /// with `--plot`/`--data` (and `--html`), restricts which points
-        /// are shown/fitted.
-        ///
-        /// Only valid with `--velocity`, `--plot`, or `--data`.
+        /// Restrict the historical data used for ETA/velocity calculations
+        /// to the last N days (defaults to the milestone's whole history
+        /// when omitted): with `--velocity`, restricts the fitted trend
+        /// line's input window; with `--plot`/`--data` (and `--html`),
+        /// restricts which points are shown/fitted; without either (the
+        /// bare list, or `--next <rank>` detail mode), restricts the same
+        /// way for the ETA trend-line fit.
         #[arg(
             long,
             value_name = "DAYS",

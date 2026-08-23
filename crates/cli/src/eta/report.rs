@@ -15,16 +15,24 @@ use std::path::Path;
 /// milestone (see [`future_milestone_names`]), one per line, in backlog
 /// order — matching README.vision.md's list-mode output. A milestone whose
 /// ETA can't be computed (e.g. not committed yet, or no convergent trend)
-/// shows "unknown" instead of a span.
-pub fn build_when_report(root: &Path, algorithm: TrendFitAlgorithm) -> Result<String, String> {
+/// shows "unknown" instead of a span. `last_days`, when given, restricts the
+/// historical data fed into each milestone's ETA trend-line fit to the last
+/// N days, the same way it does for `--plot`/`--velocity`/`--data` (see
+/// [`super::plot_data::restrict_to_window_days`]).
+pub fn build_when_report(
+    root: &Path,
+    algorithm: TrendFitAlgorithm,
+    last_days: Option<u32>,
+) -> Result<String, String> {
     require_git_repo(root)?;
     let today = super::date_utils::today_unix_days();
     let mut out = String::new();
     for (index, name) in future_milestone_names(root).into_iter().enumerate() {
         let rank = index + 1;
-        let eta = build_todo_done_plot(root, rank)
-            .ok()
-            .and_then(|plot| eta_for_plot(&plot, today, algorithm));
+        let eta = build_todo_done_plot(root, rank).ok().and_then(|mut plot| {
+            super::plot_data::restrict_to_window_days(&mut plot, last_days);
+            eta_for_plot(&plot, today, algorithm)
+        });
         out.push_str(&render_when_line(&name, eta, today));
     }
     Ok(out)
@@ -33,20 +41,25 @@ pub fn build_when_report(root: &Path, algorithm: TrendFitAlgorithm) -> Result<St
 /// Builds the `agile when --next <rank>` detail report: the milestone's
 /// name, ETA span, ETA date, and task/weight breakdowns since the
 /// previous milestone. Errors if not a git repo or if no future milestone
-/// has that rank.
+/// has that rank. `last_days` restricts the ETA trend-line fit's input
+/// window, same as [`build_when_report`] — it has no effect on the
+/// task/weight breakdown, which is always computed over the milestone's
+/// full span since the previous one.
 pub fn build_when_detail_report(
     root: &Path,
     rank: usize,
     algorithm: TrendFitAlgorithm,
+    last_days: Option<u32>,
 ) -> Result<String, String> {
     require_git_repo(root)?;
     let stats = super::milestone_stats::milestone_stats_for_rank(root, rank)
         .ok_or_else(|| format!("milestone rank {rank} does not exist"))?;
 
     let today = super::date_utils::today_unix_days();
-    let eta = build_todo_done_plot(root, rank)
-        .ok()
-        .and_then(|plot| eta_for_plot(&plot, today, algorithm));
+    let eta = build_todo_done_plot(root, rank).ok().and_then(|mut plot| {
+        super::plot_data::restrict_to_window_days(&mut plot, last_days);
+        eta_for_plot(&plot, today, algorithm)
+    });
 
     let (eta_str, eta_date_str) = match (eta, today) {
         (Some(est), Some(t)) => {
