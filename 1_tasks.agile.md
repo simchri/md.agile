@@ -704,12 +704,13 @@
     - [-] ?
     - [x] reached (past) milestones: `agile milestones` only ever shows future ones (no boolean flag) — decided and implemented; `agile when`'s own list mode still needs to confirm/align with this
   - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
-  - [ ] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
-  - [ ] Implement vision-aligned task counting for ETA that includes property-required subtasks, including short-form implied subtasks once short-forms are supported
-  - [ ] Implement velocity estimation from git history as weighted completions/day over a defined window, reusing existing git access patterns
-    - [ ] ? what is "a defined window" — fixed day count, whole milestone history, or something else (and does it match the `--last` window used elsewhere)?
-  - [ ] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
-  - [ ] Update CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
+  - [x] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
+  - [-] Implement vision-aligned task counting for ETA that includes property-required subtasks, including short-form implied subtasks once short-forms are supported
+    short forms not yet supported
+  - [-] Implement velocity estimation from git history as weighted completions/day over a defined window, reusing existing git access patterns
+    - [-] ? what is "a defined window" — fixed day count, whole milestone history, or something else (and does it match the `--last` window used elsewhere)?
+  - [x] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
+  - [ ] Update / review CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
 
 
 #MILESTONE: Milestones & ETA
