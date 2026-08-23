@@ -695,13 +695,13 @@
     - [x] the `milstones` mention was just a typo, no CLI compatibility/alias needed
   - [x] Add `agile when` list mode aligned to vision: ETA output for all milestones in backlog order, with unit thresholds `< 8 weeks => weeks`, `>= 3 years => years`, otherwise months
   - [x] Add `agile when --next <rank>` detail mode (milestone name, next/total rank, ETA + ETA date, tasks-since-previous-milestone counts with todo/done split)
-  - [ ] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
+  - [x] Decide unresolved `agile when` behavior for edge-cases not fully specified in vision (no milestones, no git history/velocity, zero velocity, reached milestones visibility, cancelled-task handling, output/exit semantics)
     - [x] no milestones: print "no milestones" exit 0
     - [x] no git history / not a git repo: print "no history, can not compute velocity data" exit 1
     - [x] zero velocity: No special handling
-    - [ ] ?
+    - [-] ?
     - [x] cancelled tasks: count as neither "total" nor "done" (are removed from "total")
-    - [ ] ?
+    - [-] ?
     - [x] reached (past) milestones: `agile milestones` only ever shows future ones (no boolean flag) — decided and implemented; `agile when`'s own list mode still needs to confirm/align with this
   - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
   - [ ] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
