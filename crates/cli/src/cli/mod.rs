@@ -88,7 +88,7 @@ pub enum Command {
     /// With no flags, lists the ETA time span for every future milestone (in
     /// backlog order), one per line: `<span>   <milestone name>`.
     When {
-        /// Show the current velocity estimate (done-trend slope, weighted/day)
+        /// Show the current velocity and creep estimates, i.e. slopes of trend lines.
         #[arg(long)]
         velocity: bool,
 
@@ -98,20 +98,14 @@ pub enum Command {
         #[arg(long, conflicts_with_all = ["velocity", "data"])]
         plot: bool,
 
-        /// Show the raw plot data (task counts and weights, no trend line
-        /// fitting) as a table, one row per historical data point.
+        /// Output raw plot data points
         ///
         /// Defaults to `--next 1` (the next milestone) when `--next` is not given.
         #[arg(long, conflicts_with_all = ["velocity", "plot"])]
         data: bool,
 
         /// Restrict the historical data used for ETA/velocity calculations
-        /// to the last N days (defaults to the milestone's whole history
-        /// when omitted): with `--velocity`, restricts the fitted trend
-        /// line's input window; with `--plot`/`--data` (and `--html`),
-        /// restricts which points are shown/fitted; without either (the
-        /// bare list, or `--next <rank>` detail mode), restricts the same
-        /// way for the ETA trend-line fit.
+        /// and plotting to given number of days before the milestones
         #[arg(
             long,
             value_name = "DAYS",
@@ -119,12 +113,10 @@ pub enum Command {
         )]
         last: Option<u32>,
 
-        /// Factor multiplying the plotted x-axis range to determine how far
-        /// past the last data point the chart extends (and, in turn, how
-        /// far the trend lines are drawn); the y-axis always stretches to
-        /// include whatever the trend lines reach within that window.
+        /// Extrapolate graph by given factor. Use to visualize trend
+        /// lines beyond the range of recorded data (beyond today).
         /// Defaults to `1.3` (30% past the last data point, relative to
-        /// the full historical span) when omitted.
+        /// the full historical span).
         ///
         /// Only valid with `--plot`.
         #[arg(
@@ -136,11 +128,7 @@ pub enum Command {
         )]
         extra: f64,
 
-        /// Render the plot using only 7-bit ASCII characters (`o`, `@`,
-        /// `O`, `0`, `Q`), for terminals without Unicode/Braille support.
-        /// Resolution is significantly lower than the default chart; color
-        /// is still used where supported, with the ASCII symbols as a
-        /// fallback differentiator between the four data lines.
+        /// Render the plot using only 7-bit ASCII characters, use for terminals without Unicode/Braille support
         ///
         /// Only valid with `--plot`. Conflicts with `--html`.
         #[arg(long, requires = "plot", conflicts_with_all = ["data", "html"])]
@@ -198,13 +186,7 @@ pub enum Command {
         #[arg(long, conflicts_with_all = ["fit_algo_linear", "fit_algo_recent", "data"])]
         fit_algo_decay: bool,
 
-        /// Select the Nth milestone rank.
-        ///
-        /// With `--plot`/`--data`/`--velocity`, selects which milestone
-        /// boundary to scope the plot/table/velocity trend lines to
-        /// (defaults to `1`, the next milestone). Alone (detail mode, not
-        /// yet implemented), it will select which milestone to report on in
-        /// detail — see README.vision.md.
+        /// Select the Nth uncompleted milestone
         #[arg(long, value_name = "RANK")]
         next: Option<usize>,
     },
