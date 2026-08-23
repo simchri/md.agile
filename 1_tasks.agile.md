@@ -762,7 +762,7 @@
   - [x] #bug printing mandatory subtasks with the "" syntax drops appended properties and assignements in the output
   - [x] --no-col or no-markup flag: Allows all tests to ignore bolding, color etc. This does not need to be tested, but the output pollutes assertions everywhere
 
-- [ ] review expected assignment behavior, e.g. md.agile/crates/cli/tests/acceptance/task/next_eligibility.rs:376:31
+- [x] review expected assignment behavior, e.g. md.agile/crates/cli/tests/acceptance/task/next_eligibility.rs:376:31
 
 - [ ] Revisit the quote-adjacency escaping rule (`is_marker_quote` in `parser/mod.rs`) in more detail: today a single leading quote before `\#`/`\@` suppresses marker recognition. Consider: requiring the term to be fully quoted (`"\@alice"`) instead of just quote-adjacent; whether the existing `\\#`/`\\@` backslash-escape already makes this rule unnecessary; or using single ticks (`'`) as the literal/escaping convention instead.
   - [x] Implemented: retained exactly two escaping mechanisms — `\` before `\#`/`\@` (unchanged), and single ticks fully surrounding a term (`'\@something'`, opening AND closing tick both required — a lone tick no longer suppresses, e.g. `weird'\#feat` is a real marker). Double quotes now have no escaping effect at all (`"\@alice"`/`"\#feat"` are real markers); `"` is still used unrelatedly for the property-required-subtask quoting convention. Renamed `is_marker_quote` to `is_marker_tick` in `parser/mod.rs`; mirrored in `lsp/goto_definition.rs`. Tests updated/added in `parser/tests.rs` and `goto_definition.rs`.
