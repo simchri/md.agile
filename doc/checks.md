@@ -61,3 +61,15 @@ These checks also apply to mandatory subtasks required by a property, when
 the property's `subtasks` config bakes an order number prefix into the required
 string (e.g. `subtasks = ["1. dev implementation", "2. dev documentation"]`).
 
+## Milestones
+
+`#MILESTONE: name` headers (see [README.md](../README.md) "Milestones and ETA
+to Milestone") are checked project-wide across every `*.agile.md` file, not
+just within a single file.
+
+| Code | Name | Description |
+|------|------|-------------|
+| E017 | Duplicate milestone name | Two milestones (anywhere in the project) use the same name. Milestone names must be unique across the whole project. |
+| E018 | Missing milestone name | A `#MILESTONE` header has no name (e.g. bare `#MILESTONE` or `#MILESTONE:`). A milestone name must be provided. |
+
+

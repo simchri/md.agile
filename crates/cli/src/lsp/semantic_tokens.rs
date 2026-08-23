@@ -51,7 +51,7 @@ pub fn build_tokens(items: &[FileItem]) -> Vec<SemanticToken> {
                 // Highlight the `#MILESTONE` keyword on the header line.
                 // The token always starts at column 0 of the (trimmed) line.
                 raw.push(RawToken {
-                    line: (m.line - 1) as u32,
+                    line: (m.location.line - 1) as u32,
                     character: 0,
                     length: MILESTONE_TOKEN_LEN,
                     token_type: KEYWORD,

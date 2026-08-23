@@ -115,7 +115,7 @@ fn file_items_interleave_tasks_and_milestones() {
         }),
         FileItem::Milestone(Milestone {
             name: "Release of MVP".to_string(),
-            line: 3,
+            location: loc(3),
         }),
         FileItem::Task(Task {
             location: loc(5),
@@ -431,6 +431,31 @@ fn milestone_tag_with_punctuation_boundary_is_still_recognized() {
     let items = p(input);
     assert_eq!(items.len(), 1);
     assert!(matches!(&items[0], FileItem::Milestone(m) if m.name == "Release"));
+}
+
+#[test]
+fn bare_milestone_tag_with_no_name_is_still_recognized_with_an_empty_name() {
+    // "A milestone name must be provided" (README.md) is enforced as a lint
+    // (E018, `rules::missing_milestone_name`), not silently dropped by the
+    // parser -- so a nameless `#MILESTONE`/`#MILESTONE:` must still produce a
+    // `FileItem::Milestone` (with an empty name) for the rule to flag,
+    // rather than falling through as ordinary ignored prose.
+    let input = "\
+#MILESTONE
+";
+    let items = p(input);
+    assert_eq!(items.len(), 1);
+    assert!(matches!(&items[0], FileItem::Milestone(m) if m.name.is_empty()));
+}
+
+#[test]
+fn bare_milestone_tag_with_colon_and_no_name_is_still_recognized_with_an_empty_name() {
+    let input = "\
+#MILESTONE:
+";
+    let items = p(input);
+    assert_eq!(items.len(), 1);
+    assert!(matches!(&items[0], FileItem::Milestone(m) if m.name.is_empty()));
 }
 
 #[test]

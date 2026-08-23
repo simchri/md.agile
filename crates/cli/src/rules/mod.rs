@@ -11,6 +11,7 @@
 mod empty_title;
 mod incomplete_parent;
 mod invalid_box;
+mod invalid_milestone;
 mod invalid_order;
 mod missing_required_subtasks;
 mod missing_space_after_box;
@@ -26,6 +27,7 @@ mod wrong_indentation;
 pub use empty_title::empty_title;
 pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
+pub use invalid_milestone::invalid_milestone;
 pub use invalid_order::invalid_order;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
@@ -73,6 +75,10 @@ pub enum ErrorCode {
     OutOfOrderCompletion,
     /// E016: Task/subtask has no title text after the status box (and markers, if any)
     EmptyTitle,
+    /// E017: Two milestones (anywhere in the project) share the same name
+    DuplicateMilestoneName,
+    /// E018: A `#MILESTONE` header has no name
+    MissingMilestoneName,
 }
 
 impl ErrorCode {
@@ -96,6 +102,8 @@ impl ErrorCode {
             ErrorCode::DuplicateOrderNumber => "E014",
             ErrorCode::OutOfOrderCompletion => "E015",
             ErrorCode::EmptyTitle => "E016",
+            ErrorCode::DuplicateMilestoneName => "E017",
+            ErrorCode::MissingMilestoneName => "E018",
         }
     }
 }
@@ -127,6 +135,8 @@ impl std::str::FromStr for ErrorCode {
             "E014" => ErrorCode::DuplicateOrderNumber,
             "E015" => ErrorCode::OutOfOrderCompletion,
             "E016" => ErrorCode::EmptyTitle,
+            "E017" => ErrorCode::DuplicateMilestoneName,
+            "E018" => ErrorCode::MissingMilestoneName,
             _ => return Err(()),
         })
     }
@@ -394,6 +404,7 @@ pub fn check_config_independent(items: &[FileItem]) -> Vec<Issue> {
     issues.extend(uppercase_x(items));
     issues.extend(invalid_order(items));
     issues.extend(empty_title(items));
+    issues.extend(invalid_milestone(items));
     issues
 }
 

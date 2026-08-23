@@ -703,7 +703,7 @@
     - [x] cancelled tasks: count as neither "total" nor "done" (are removed from "total")
     - [-] ?
     - [x] reached (past) milestones: `agile milestones` only ever shows future ones (no boolean flag) — decided and implemented; `agile when`'s own list mode still needs to confirm/align with this
-  - [ ] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
+  - [x] Add milestone validation rule(s): enforce project-wide unique milestone names (and keep parser/validation behavior aligned with README.vision.md milestone requirements)
   - [x] Implement ETA domain module (`eta`) with weighted milestone stats per span and remaining-work math (task=1, subtask depth n => 1/n), reusable by both list and detail modes
   - [-] Implement vision-aligned task counting for ETA that includes property-required subtasks, including short-form implied subtasks once short-forms are supported
     short forms not yet supported

@@ -244,8 +244,17 @@ pub struct Task {
 // Vec<FileItem> is the natural representation -- no separate index needed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Milestone {
+    // Empty when `#MILESTONE` is used with no name at all (e.g. bare
+    // `#MILESTONE` or `#MILESTONE:`) -- still recognised as a milestone
+    // header (rather than falling through as ordinary prose) so
+    // `rules::missing_milestone_name` can flag it: README.md requires "a
+    // milestone name must be provided".
     pub name: String,
-    pub line: usize, // 1-based source line of the #MILESTONE: header
+    // Carries the source file path (unlike a bare `line: usize`) so
+    // cross-file rules -- e.g. `rules::duplicate_milestone_name`, which
+    // compares milestones across the whole project -- can report a proper
+    // per-file location for each occurrence.
+    pub location: Location,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -338,7 +347,10 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             flush_stack(&mut stack, &mut items);
             items.push(FileItem::Milestone(Milestone {
                 name,
-                line: line_no,
+                location: Location {
+                    path: path.clone(),
+                    line: line_no,
+                },
             }));
             prev_was_blank = false;
             continue;
@@ -550,6 +562,13 @@ fn parse_task_line(line: &str) -> Option<(usize, usize, Status, String, Vec<Pars
 
 // Recognises a standalone `#MILESTONE: name` line and returns the name.
 // The punctuation immediately after `#MILESTONE` is ignored per the spec.
+//
+// Returns `Some(String::new())` for a bare `#MILESTONE`/`#MILESTONE:` with no
+// name following it -- still recognised as a milestone header rather than
+// falling through as ordinary prose, so `rules::missing_milestone_name` (E018)
+// can flag the empty name per README.md's "a milestone name must be
+// provided". Only the glued-suffix case below (`#MILESTONEfoo`) is treated as
+// not a milestone line at all.
 fn parse_milestone_name(line: &str) -> Option<String> {
     let rest = line.trim().strip_prefix("#MILESTONE")?;
     // Require a non-alphanumeric boundary right after the tag, so that e.g.
@@ -560,9 +579,6 @@ fn parse_milestone_name(line: &str) -> Option<String> {
     }
     // Skip any leading non-alphanumeric chars (e.g. ": ")
     let name = rest.trim_start_matches(|c: char| !c.is_alphanumeric() && c != '(');
-    if name.is_empty() {
-        return None;
-    }
     Some(name.trim_end().to_string())
 }
 
