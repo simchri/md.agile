@@ -189,6 +189,135 @@ pub(crate) fn render_subtask_as_root_highlighting_next_leaf(
     write_aligned_lines(&lines, out);
 }
 
+/// Same as [`render_task_highlighting_next_leaf`], but for `agile task
+/// previous`: instead of bolding the first actionable `Todo` leaf, it bolds
+/// the *last* node in document order that is [`rules::is_previous_task`] —
+/// the most recently completed unit of work in the printed subtree. Since
+/// closed work can appear at multiple levels/positions at once (e.g. two
+/// independently-done sibling subtasks), this requires seeing the whole
+/// subtree before deciding which single line to mark, unlike the next-leaf
+/// case which can mark greedily as it walks.
+pub(crate) fn render_task_highlighting_previous_leaf(
+    task: &parser::Task,
+    include_body: bool,
+    no_markup: bool,
+    root_number: &str,
+    out: &mut String,
+) {
+    let mut nodes = Vec::new();
+    collect_node_positions(
+        NodeRef::Task(task),
+        &task.children,
+        root_number,
+        0,
+        &mut nodes,
+    );
+    let highlight_index = nodes
+        .iter()
+        .rposition(|(node, _, _)| rules::is_previous_task(*node));
+    let mut lines = Vec::new();
+    for (i, (node, number, depth)) in nodes.iter().enumerate() {
+        lines.push(TreeLine::Numbered(
+            number.clone(),
+            node_line_content_plain(*node, no_markup, *depth, Some(i) == highlight_index),
+        ));
+        if include_body {
+            collect_body_lines(node.body(), &mut lines);
+        }
+    }
+    write_aligned_lines(&lines, out);
+}
+
+/// Same as [`render_task_highlighting_previous_leaf`], but for a subtask
+/// addressed directly as its own root (mirrors
+/// [`render_subtask_as_root_highlighting_next_leaf`]).
+pub(crate) fn render_subtask_as_root_highlighting_previous_leaf(
+    sub: &parser::Subtask,
+    include_body: bool,
+    no_markup: bool,
+    root_number: &str,
+    out: &mut String,
+) {
+    let mut nodes = Vec::new();
+    collect_node_positions(
+        NodeRef::Subtask(sub),
+        &sub.children,
+        root_number,
+        0,
+        &mut nodes,
+    );
+    let highlight_index = nodes
+        .iter()
+        .rposition(|(node, _, _)| rules::is_previous_task(*node));
+    let mut lines = Vec::new();
+    for (i, (node, number, depth)) in nodes.iter().enumerate() {
+        lines.push(TreeLine::Numbered(
+            number.clone(),
+            node_line_content_plain(*node, no_markup, *depth, Some(i) == highlight_index),
+        ));
+        if include_body {
+            collect_body_lines(node.body(), &mut lines);
+        }
+    }
+    write_aligned_lines(&lines, out);
+}
+
+/// Walks `node`'s own subtree (`node` itself, then `children` recursively)
+/// in document order, collecting `(NodeRef, dotted number, depth)` for
+/// every node — the same traversal/numbering [`collect_node_lines_highlighting_next_leaf`]
+/// performs, but gathered up front instead of rendered incrementally, so
+/// [`render_task_highlighting_previous_leaf`] can decide which single node
+/// to highlight only after seeing the whole subtree.
+fn collect_node_positions<'a>(
+    node: NodeRef<'a>,
+    children: &'a [parser::Subtask],
+    number: &str,
+    depth: usize,
+    out: &mut Vec<(NodeRef<'a>, String, usize)>,
+) {
+    out.push((node, number.to_string(), depth));
+    for (i, child) in children.iter().enumerate() {
+        let child_number = format!("{number}.{}", i + 1);
+        collect_node_positions(
+            NodeRef::Subtask(child),
+            &child.children,
+            &child_number,
+            depth + 1,
+            out,
+        );
+    }
+}
+
+/// Builds one `[<status>] <title>` line (indented by `depth * 2` spaces) for
+/// `agile task previous`'s rendering, marking it via `highlight` (decided by
+/// the caller — see [`render_task_highlighting_previous_leaf`]) instead of
+/// computing eligibility itself.
+fn node_line_content_plain(
+    node: NodeRef,
+    no_markup: bool,
+    depth: usize,
+    highlight: bool,
+) -> String {
+    let mut content = String::new();
+    for _ in 0..depth {
+        content.push_str("  ");
+    }
+    if highlight && !no_markup {
+        content.push_str(crate::formatter::BOLD);
+    }
+    content.push_str(status_marker(node.status()));
+    content.push(' ');
+    content.push_str(node.title());
+    if highlight {
+        if no_markup {
+            content.push_str(" <==");
+        } else {
+            content.push_str(crate::formatter::RESET);
+        }
+    }
+    content
+}
+
 fn render_node_as_root(
     status: &parser::Status,
     title: &str,

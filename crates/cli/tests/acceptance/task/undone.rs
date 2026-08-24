@@ -66,7 +66,7 @@ fn task_undone_refuses_a_subtask_that_is_still_todo() {
 }
 
 #[test]
-fn task_undone_cannot_reach_an_already_fully_done_top_level_task() {
+fn task_undone_reaches_an_already_fully_done_top_level_task() {
     let dir = tempdir().unwrap();
     let content = "\
 - [x] already fully done task
@@ -74,17 +74,21 @@ fn task_undone_cannot_reach_an_already_fully_done_top_level_task() {
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 
-    // Address `1` selects the 1st *incomplete* top-level task ("still open
-    // task"), same as `agile task done` — the already-done top-level task
-    // is never counted, so there's no address that reaches it. This is an
-    // accepted, intentional limitation: `undone` is for correcting a
-    // mistakenly-completed subtask while its parent is still open, not for
-    // reopening a whole completed top-level task.
+    // Address `1` now uses the "reverse rank" candidacy shared with `agile
+    // task previous`: the 1st top-level task counting back from the most
+    // recently touched one with any closed work in it. "already fully done
+    // task" is the only (and therefore most recent) such task, so it's
+    // reachable as address `1` — reopening a whole completed top-level
+    // task is no longer an unsupported case.
     let out = run_agile(dir.path(), &["task", "undone", "1"]);
 
-    assert!(!out.status.success());
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let new_content = fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap();
-    assert_eq!(new_content, content);
+    let expected = "\
+- [ ] already fully done task
+- [ ] still open task
+";
+    assert_eq!(new_content, expected);
 }
 
 #[test]

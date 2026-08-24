@@ -319,3 +319,94 @@ fn identity_filtering_still_applies_to_the_all_resolved_fallback() {
         Some((&bob, &config))
     ));
 }
+
+// ── is_previous_task / has_closed_work ─────────────────────────────────────
+
+#[test]
+fn todo_leaf_is_not_a_previous_task() {
+    let items = p("- [ ] a task\n");
+    let task = first_task(&items);
+    assert!(!is_previous_task(NodeRef::Task(task)));
+}
+
+#[test]
+fn done_leaf_is_a_previous_task() {
+    let items = p("- [x] a task\n");
+    let task = first_task(&items);
+    assert!(is_previous_task(NodeRef::Task(task)));
+}
+
+#[test]
+fn cancelled_leaf_is_a_previous_task() {
+    let items = p("- [-] a task\n");
+    let task = first_task(&items);
+    assert!(is_previous_task(NodeRef::Task(task)));
+}
+
+#[test]
+fn done_task_with_still_incomplete_child_is_not_a_previous_task() {
+    // Can't normally happen (a parent can't be marked done while a child is
+    // still open per the completion rules), but is_previous_task should
+    // still reflect "nothing left below" precisely rather than assuming it.
+    let input = "\
+- [x] parent
+  - [ ] child
+";
+    let items = p(input);
+    let task = first_task(&items);
+    assert!(!is_previous_task(NodeRef::Task(task)));
+}
+
+#[test]
+fn done_task_whose_children_are_all_resolved_is_a_previous_task() {
+    let input = "\
+- [x] parent
+  - [x] child one
+  - [-] child two
+";
+    let items = p(input);
+    let task = first_task(&items);
+    assert!(is_previous_task(NodeRef::Task(task)));
+}
+
+#[test]
+fn todo_task_with_no_closed_descendants_has_no_closed_work() {
+    let input = "\
+- [ ] parent
+  - [ ] child
+";
+    let items = p(input);
+    let task = first_task(&items);
+    assert!(!has_closed_work(NodeRef::Task(task)));
+}
+
+#[test]
+fn fully_done_task_has_closed_work() {
+    let items = p("- [x] a task\n");
+    let task = first_task(&items);
+    assert!(has_closed_work(NodeRef::Task(task)));
+}
+
+#[test]
+fn partially_done_task_has_closed_work() {
+    let input = "\
+- [ ] parent
+  - [x] done child
+  - [ ] open child
+";
+    let items = p(input);
+    let task = first_task(&items);
+    assert!(has_closed_work(NodeRef::Task(task)));
+}
+
+#[test]
+fn deeply_nested_closed_descendant_counts_as_closed_work() {
+    let input = "\
+- [ ] parent
+  - [ ] mid
+    - [x] grandchild done
+";
+    let items = p(input);
+    let task = first_task(&items);
+    assert!(has_closed_work(NodeRef::Task(task)));
+}

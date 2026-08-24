@@ -32,7 +32,7 @@ pub use invalid_milestone::invalid_milestone;
 pub use invalid_order::invalid_order;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
-pub use next_task::{is_eligible_for, is_next_task};
+pub use next_task::{has_closed_work, is_eligible_for, is_next_task, is_previous_task};
 pub use orphaned_subtask::orphaned_subtask;
 pub use unauthorized_completion::unauthorized_completion;
 pub use undefined_assignment::undefined_assignment;

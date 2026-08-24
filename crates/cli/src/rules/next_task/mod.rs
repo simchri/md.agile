@@ -125,6 +125,32 @@ pub fn is_next_task(
 /// either in that case.
 ///
 /// Used by `agile task next --mine` and `agile task list --mine`.
+/// Returns whether `node` is a "previous" candidate — the mirror image of
+/// [`is_next_task`] for `agile task previous`'s highlighting: it is itself
+/// already resolved (`Done`/`Cancelled`) and [`has_no_remaining_descendant_work`],
+/// i.e. it's the last concrete unit of completed work in its own subtree,
+/// whether or not it's a literal childless leaf. Unlike [`is_next_task`],
+/// this ignores ordering and assignment entirely — undoing/reviewing past
+/// work isn't gated by either.
+pub fn is_previous_task(node: NodeRef) -> bool {
+    matches!(node.status(), Status::Done | Status::Cancelled)
+        && has_no_remaining_descendant_work(node)
+}
+
+/// Returns whether `node` itself, or any descendant of it, is `Done` or
+/// `Cancelled` — i.e. `node` has *some* completed work in its subtree, even
+/// if not all of it. This is the "reverse rank" candidacy rule used by
+/// `agile task previous`/the generalized `agile task undone`: a top-level
+/// task counts as a candidate the moment any part of it has been touched,
+/// not just once it's fully done.
+pub fn has_closed_work(node: NodeRef) -> bool {
+    matches!(node.status(), Status::Done | Status::Cancelled)
+        || node
+            .children()
+            .iter()
+            .any(|child| has_closed_work(NodeRef::Subtask(child)))
+}
+
 pub fn is_eligible_for(node: NodeRef, identity: &ResolvedIdentity, config: &Config) -> bool {
     if !is_eligible_by_own_markers(node.markers(), identity, config) {
         return false;

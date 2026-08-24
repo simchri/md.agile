@@ -13,7 +13,7 @@ pub struct Location {
 
 // ── Status ────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Status {
     Todo,
     Done,

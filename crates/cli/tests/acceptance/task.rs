@@ -6,5 +6,7 @@ mod list;
 mod next;
 #[path = "task/next_eligibility.rs"]
 mod next_eligibility;
+#[path = "task/previous.rs"]
+mod previous;
 #[path = "task/undone.rs"]
 mod undone;

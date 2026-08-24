@@ -328,6 +328,35 @@ pub enum TaskAction {
         /// Dotted address, e.g. `2` or `1.3`.
         address: String,
     },
+
+    /// Show the most recently completed task(s)
+    ///
+    /// The mirror image of `agile task next`: walks *closed* top-level
+    /// tasks (any with `Done`/`Cancelled` work in them — including
+    /// partially-completed ones) in reverse priority order, so the most
+    /// recently touched top-level task is address `1`, the one before that
+    /// `2`, and so on. With no arguments, shows just that single most
+    /// recent one, including its full subtree — exactly the address scheme
+    /// `agile task undone` now accepts, including whole fully-done
+    /// top-level tasks.
+    #[command(visible_alias = "prev")]
+    Previous {
+        /// A plain count (e.g. `3`, meaning "3rd most recently touched
+        /// top-level task") or a dotted address (e.g. `1.2`) to show one
+        /// specific (sub)task by position, using the same reverse-rank
+        /// numbering as with no address. Omit to show just the single most
+        /// recently touched top-level task.
+        address: Option<String>,
+
+        /// Also show each (sub)task's body text alongside its title
+        #[arg(long)]
+        full: bool,
+
+        /// Disable ANSI bold/color output. The most recently completed line
+        /// is instead marked by appending " <==" to it in plain text.
+        #[arg(long)]
+        no_markup: bool,
+    },
 }
 
 /// Parses CLI arguments and dispatches to the matching subcommand.
@@ -402,6 +431,16 @@ pub fn run() {
             action: TaskAction::Undone { address },
         }) => {
             subcommands::task::run_undone(root, &config, &address);
+        }
+        Some(Command::Task {
+            action:
+                TaskAction::Previous {
+                    address,
+                    full,
+                    no_markup,
+                },
+        }) => {
+            subcommands::task::run_previous(root, &config, address.as_deref(), full, no_markup);
         }
         Some(Command::Check { r#as, base }) => {
             subcommands::check::run(root, &config, r#as.as_deref(), base.as_deref());

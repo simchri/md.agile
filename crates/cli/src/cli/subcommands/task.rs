@@ -3,7 +3,8 @@
 use crate::checker;
 use crate::cli::common::{
     find_task_files, parse_file, render_subtask_as_root_highlighting_next_leaf,
-    render_task_highlighting_next_leaf,
+    render_subtask_as_root_highlighting_previous_leaf, render_task_highlighting_next_leaf,
+    render_task_highlighting_previous_leaf,
 };
 use crate::config::Config;
 use crate::formatter;
@@ -93,7 +94,7 @@ pub fn run_next(
         &resolve_parts,
         config,
         identity.as_ref(),
-        Status::Todo,
+        TopLevelFilter::Status(Status::Todo),
     ) {
         Ok(resolved) => print!(
             "{}",
@@ -114,6 +115,75 @@ pub fn run_next(
             // No address was given at all: there simply being no matching
             // task right now (e.g. everything done/cancelled) is not an
             // error condition, so print nothing and exit 0.
+        }
+    }
+}
+
+/// `agile task previous [ADDRESS]` entry point.
+///
+/// The mirror image of `agile task next`, walking *closed* top-level tasks
+/// instead: `ADDRESS`'s first segment selects the Nth top-level task
+/// counting back from the most recently touched one (see
+/// [`TopLevelFilter::ClosedWorkReversed`]) — a top-level task counts the
+/// moment it or any descendant is `Done`/`Cancelled`, so a partially
+/// completed task counts too, not just a fully done one. Every subsequent
+/// dotted segment descends into direct children exactly like `agile task
+/// next`/`done`. With no address at all, this defaults to address `1` (the
+/// single most recently touched top-level task) — and, like `agile task
+/// next`, finding no match here (nothing closed at all yet) is not an
+/// error: it just prints nothing.
+///
+/// The printed subtree is always the *whole* addressed top-level task (or
+/// subtask), full tree descent, with dotted addresses computed in normal
+/// forward document order from there — exactly like `agile task next`'s
+/// output shape — except the highlighted line is the *last* node in
+/// document order that [`rules::is_previous_task`] (the most recently
+/// completed concrete unit of work), not the first actionable one.
+///
+/// `full` additionally prints each (sub)task's body lines. `no_markup`
+/// disables ANSI bold/color escapes, marking the highlighted line with
+/// `" <=="` instead.
+pub fn run_previous(
+    root: &Path,
+    config: &Config,
+    address: Option<&str>,
+    full: bool,
+    no_markup: bool,
+) {
+    let parts = match address.map(parse_address) {
+        None => None,
+        Some(Some(parts)) => Some(parts),
+        Some(None) => {
+            log::error!(
+                "invalid task address {:?} — expected a number or dotted address like `1.2`",
+                address.unwrap()
+            );
+            std::process::exit(1);
+        }
+    };
+
+    let explicit_address = parts.is_some();
+    let resolve_parts = parts.unwrap_or_else(|| vec![1]);
+
+    match resolve_address(
+        root,
+        &resolve_parts,
+        config,
+        None,
+        TopLevelFilter::ClosedWorkReversed,
+    ) {
+        Ok(resolved) => print!(
+            "{}",
+            render_resolved_previous(&resolved, full, no_markup, &format_address(&resolve_parts))
+        ),
+        Err(e) => {
+            if explicit_address {
+                log::error!("{e}");
+                std::process::exit(1);
+            }
+            // No address was given at all: there simply being no closed
+            // task yet is not an error condition, so print nothing and exit
+            // 0, mirroring `agile task next`'s behavior.
         }
     }
 }
@@ -147,7 +217,13 @@ pub fn run_done(root: &Path, config: &Config, address: &str, as_user: Option<&st
         }
     };
 
-    let resolved = match resolve_address(root, &parts, config, None, Status::Todo) {
+    let resolved = match resolve_address(
+        root,
+        &parts,
+        config,
+        None,
+        TopLevelFilter::Status(Status::Todo),
+    ) {
         Ok(resolved) => resolved,
         Err(e) => {
             log::error!("{e}");
@@ -188,17 +264,14 @@ pub fn run_done(root: &Path, config: &Config, address: &str, as_user: Option<&st
 /// a done task can always be un-done regardless of its parent's or
 /// children's state.
 ///
-/// `address` uses *exactly* the same resolution as `agile task done`'s
-/// address (see [`resolve_address`]): the first segment selects the Nth
-/// still-incomplete top-level task, and every subsequent segment selects
-/// the Nth direct child (any status) from there. This is intentional: this
-/// command exists to correct a mistakenly-completed *subtask* while its
-/// parent is still open, not to reopen an already fully-completed
-/// top-level task — a top-level task that's itself done is consequently
-/// unreachable by this address (there's no number that resolves to it),
-/// which is an accepted limitation, not a bug. Reopening a whole completed
-/// top-level task is expected to need a different, dedicated command if
-/// it's ever added.
+/// `address` uses the same "reverse rank" resolution as `agile task
+/// previous` (see [`TopLevelFilter::ClosedWorkReversed`]): the first segment
+/// selects the Nth top-level task counting back from the last one with any
+/// closed (`Done`/`Cancelled`) work in it — so a whole already fully-done
+/// top-level task is reachable this way (as address `1` if it's the most
+/// recently touched one), not just a still-open subtask of an otherwise
+/// incomplete parent. Every subsequent segment selects the Nth direct child
+/// (any status) from there, exactly like `agile task done`.
 pub fn run_undone(root: &Path, config: &Config, address: &str) {
     let parts = match parse_address(address) {
         Some(parts) => parts,
@@ -210,7 +283,13 @@ pub fn run_undone(root: &Path, config: &Config, address: &str) {
         }
     };
 
-    let resolved = match resolve_address(root, &parts, config, None, Status::Todo) {
+    let resolved = match resolve_address(
+        root,
+        &parts,
+        config,
+        None,
+        TopLevelFilter::ClosedWorkReversed,
+    ) {
         Ok(resolved) => resolved,
         Err(e) => {
             log::error!("{e}");
@@ -354,13 +433,32 @@ impl ResolvedAddress {
     }
 }
 
+/// The rule deciding which top-level tasks count as candidates for a
+/// resolved address's first segment, and in which order they're numbered.
+/// See [`resolve_address`].
+#[derive(Clone, Copy)]
+pub(crate) enum TopLevelFilter {
+    /// A top-level task counts iff its own status equals the given
+    /// [`Status`], numbered in normal document/priority order (address `1`
+    /// is the *first* matching task). Used by `agile task next`/`done`/the
+    /// original `agile task undone` behavior (all pass [`Status::Todo`]).
+    Status(Status),
+    /// A top-level task counts iff [`rules::has_closed_work`] holds for it
+    /// (itself or any descendant is `Done`/`Cancelled`), numbered in
+    /// *reverse* document/priority order — address `1` is the *last*
+    /// matching task. This is the "reverse rank" candidacy used by
+    /// `agile task previous` and the generalized `agile task undone`.
+    ClosedWorkReversed,
+}
+
 /// Resolves a parsed address (see [`parse_address`]) to a concrete
 /// (sub)task.
 ///
-/// `parts[0]` selects the Nth top-level task whose status is
-/// `target_status` (1-based, across all task files in priority order). Each
-/// subsequent `parts[i]` selects the Nth direct child (1-based, document
-/// order, any status) of the node selected by the previous segment.
+/// `parts[0]` selects the Nth top-level task that counts as a candidate per
+/// `filter` (1-based, across all task files, in the order `filter`
+/// prescribes). Each subsequent `parts[i]` selects the Nth direct child
+/// (1-based, document order, any status) of the node selected by the
+/// previous segment.
 ///
 /// If `eligible_for` is `Some`, top-level candidates are further restricted
 /// to ones [`rules::is_eligible_for`] that identity (unassigned, or assigned
@@ -369,70 +467,124 @@ impl ResolvedAddress {
 /// pass an identity, since an address there always names one exact task
 /// regardless of who it's assigned to.
 ///
-/// Files are parsed one at a time and scanning stops as soon as the
-/// addressed top-level task is found — later files are never even read —
-/// so this stays cheap regardless of how many task files a project has.
+/// For [`TopLevelFilter::Status`], files are parsed one at a time and
+/// scanning stops as soon as the addressed top-level task is found — later
+/// files are never even read — so this stays cheap regardless of how many
+/// task files a project has. [`TopLevelFilter::ClosedWorkReversed`] needs
+/// every candidate up front to number them in reverse, so it parses all
+/// task files unconditionally.
 pub(crate) fn resolve_address(
     root: &Path,
     parts: &[usize],
     config: &Config,
     eligible_for: Option<&ResolvedIdentity>,
-    target_status: Status,
+    filter: TopLevelFilter,
 ) -> Result<ResolvedAddress, String> {
     let Some((&first, rest)) = parts.split_first() else {
         return Err("empty task address".to_string());
     };
 
-    let mut matching_count = 0usize;
-    for file in find_task_files(root) {
-        let items = parse_file(&file);
-        for (idx, item) in items.iter().enumerate() {
-            let FileItem::Task(task) = item else {
-                continue;
-            };
-            if task.status != target_status {
-                continue;
-            }
-            if let Some(identity) = eligible_for {
-                if !rules::is_eligible_for(NodeRef::Task(task), identity, config) {
-                    continue;
-                }
-            }
-            matching_count += 1;
-            if matching_count != first {
-                continue;
-            }
+    let matches_filter = |task: &crate::parser::Task| -> bool {
+        match filter {
+            TopLevelFilter::Status(target_status) => task.status == target_status,
+            TopLevelFilter::ClosedWorkReversed => rules::has_closed_work(NodeRef::Task(task)),
+        }
+    };
 
-            let mut children: &[Subtask] = &task.children;
-            let mut child_indices = Vec::with_capacity(rest.len());
-            for &part in rest {
-                if part > children.len() {
-                    return Err(format!(
-                        "no such task: address {} has no child #{part} at that level (only {} there)",
-                        format_address(parts),
-                        children.len()
-                    ));
-                }
-                child_indices.push(part - 1);
-                children = &children[part - 1].children;
+    let finish = |file: PathBuf,
+                  items: Vec<FileItem>,
+                  idx: usize,
+                  rest: &[usize]|
+     -> Result<ResolvedAddress, String> {
+        let task = match &items[idx] {
+            FileItem::Task(t) => t,
+            _ => unreachable!("idx always points at a FileItem::Task"),
+        };
+        let mut children: &[Subtask] = &task.children;
+        let mut child_indices = Vec::with_capacity(rest.len());
+        for &part in rest {
+            if part > children.len() {
+                return Err(format!(
+                    "no such task: address {} has no child #{part} at that level (only {} there)",
+                    format_address(parts),
+                    children.len()
+                ));
             }
-            return Ok(ResolvedAddress {
-                file,
-                items,
-                task_index: idx,
-                child_indices,
-            });
+            child_indices.push(part - 1);
+            children = &children[part - 1].children;
+        }
+        Ok(ResolvedAddress {
+            file,
+            items,
+            task_index: idx,
+            child_indices,
+        })
+    };
+
+    match filter {
+        TopLevelFilter::Status(target_status) => {
+            let mut matching_count = 0usize;
+            for file in find_task_files(root) {
+                let items = parse_file(&file);
+                for (idx, item) in items.iter().enumerate() {
+                    let FileItem::Task(task) = item else {
+                        continue;
+                    };
+                    if !matches_filter(task) {
+                        continue;
+                    }
+                    if let Some(identity) = eligible_for {
+                        if !rules::is_eligible_for(NodeRef::Task(task), identity, config) {
+                            continue;
+                        }
+                    }
+                    matching_count += 1;
+                    if matching_count != first {
+                        continue;
+                    }
+                    return finish(file, items, idx, rest);
+                }
+            }
+            let status_word = match target_status {
+                Status::Todo => "incomplete",
+                Status::Done => "done",
+                Status::Cancelled => "cancelled",
+            };
+            Err(format!(
+                "no such task: address {} starts at {status_word} top-level task #{first}, but only {matching_count} matching {status_word} top-level task(s) exist",
+                format_address(parts)
+            ))
+        }
+        TopLevelFilter::ClosedWorkReversed => {
+            let mut candidates: Vec<(PathBuf, Vec<FileItem>, usize)> = Vec::new();
+            for file in find_task_files(root) {
+                let items = parse_file(&file);
+                for (idx, item) in items.iter().enumerate() {
+                    let FileItem::Task(task) = item else {
+                        continue;
+                    };
+                    if !matches_filter(task) {
+                        continue;
+                    }
+                    if let Some(identity) = eligible_for {
+                        if !rules::is_eligible_for(NodeRef::Task(task), identity, config) {
+                            continue;
+                        }
+                    }
+                    candidates.push((file.clone(), items.clone(), idx));
+                }
+            }
+            let total = candidates.len();
+            if first > total || first == 0 {
+                return Err(format!(
+                    "no such task: address {} starts at closed top-level task #{first}, but only {total} matching closed top-level task(s) exist",
+                    format_address(parts)
+                ));
+            }
+            let (file, items, idx) = candidates.into_iter().nth(total - first).unwrap();
+            finish(file, items, idx, rest)
         }
     }
-    let status_word = match target_status {
-        Status::Todo => "incomplete",
-        Status::Done => "done",
-        Status::Cancelled => "cancelled",
-    };
-    Err(format!(
-        "no such task: address {} starts at {status_word} top-level task #{first}, but only {matching_count} matching {status_word} top-level task(s) exist",
-        format_address(parts)
-    ))
 }
 
 fn format_address(parts: &[usize]) -> String {
@@ -482,6 +634,32 @@ fn render_resolved(
             sub,
             full,
             identity,
+            no_markup,
+            root_number,
+            &mut out,
+        ),
+    }
+    out
+}
+
+/// Same as [`render_resolved`], but for `agile task previous` — highlights
+/// the last [`rules::is_previous_task`] node instead of the first
+/// [`rules::is_next_task`] one, and never filters by identity (see
+/// [`crate::cli::common::render_task_highlighting_previous_leaf`]).
+fn render_resolved_previous(
+    resolved: &ResolvedAddress,
+    full: bool,
+    no_markup: bool,
+    root_number: &str,
+) -> String {
+    let mut out = String::new();
+    match resolved.node_ref() {
+        NodeRef::Task(task) => {
+            render_task_highlighting_previous_leaf(task, full, no_markup, root_number, &mut out)
+        }
+        NodeRef::Subtask(sub) => render_subtask_as_root_highlighting_previous_leaf(
+            sub,
+            full,
             no_markup,
             root_number,
             &mut out,
