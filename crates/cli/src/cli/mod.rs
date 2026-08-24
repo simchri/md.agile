@@ -208,45 +208,6 @@ pub enum Command {
 
 #[derive(Subcommand)]
 pub enum TaskAction {
-    /// List tasks in priority order
-    ///
-    /// Without arguments, prints every incomplete (`[ ]`) top-level task
-    /// from all *.agile.md files in priority order, each with its full
-    /// subtask tree. Each task is shown with its status marker ([ ] todo,
-    /// [x] done, [-] cancelled) and subtasks indented by two spaces per
-    /// level.
-    List {
-        /// A 1-based, inclusive range over the top-level tasks that would
-        /// otherwise be shown (respecting `--all`/`--mine`), e.g. `2:4`
-        /// shows the 2nd through 4th such tasks (each with its own
-        /// subtree). Takes precedence over `--next`/`--last` if given.
-        range: Option<String>,
-
-        /// Show only the first COUNT entries
-        #[arg(short = 'n', long, value_name = "COUNT")]
-        next: Option<usize>,
-
-        /// Show only the last COUNT entries
-        #[arg(long, value_name = "COUNT")]
-        last: Option<usize>,
-
-        /// Show all tasks including done and cancelled
-        #[arg(short = 'a', long)]
-        all: bool,
-
-        /// Only list top-level tasks that are unassigned or assigned to me
-        /// (directly or via a group) — same eligibility rule as the E013
-        /// assignment/completion check and `agile task next --mine`.
-        #[arg(long)]
-        mine: bool,
-
-        /// Resolve `--mine` as this literal `[Users.X]` config key instead
-        /// of the git identity from `git config user.email`/`user.name`.
-        /// Implies `--mine` even when `--mine` isn't given.
-        #[arg(long, value_name = "USER")]
-        r#as: Option<String>,
-    },
-
     /// Show the next highest-priority incomplete task(s)
     ///
     /// With no arguments, returns the first incomplete ([ ]) top-level task
@@ -288,6 +249,35 @@ pub enum TaskAction {
         no_markup: bool,
     },
 
+    /// Show the most recently completed task(s)
+    ///
+    /// The mirror image of `agile task next`: walks *closed* top-level
+    /// tasks (any with `Done`/`Cancelled` work in them — including
+    /// partially-completed ones) in reverse priority order, so the most
+    /// recently touched top-level task is address `1`, the one before that
+    /// `2`, and so on. With no arguments, shows just that single most
+    /// recent one, including its full subtree — exactly the address scheme
+    /// `agile task undone` now accepts, including whole fully-done
+    /// top-level tasks.
+    #[command(visible_alias = "prev")]
+    Previous {
+        /// A plain count (e.g. `3`, meaning "3rd most recently touched
+        /// top-level task") or a dotted address (e.g. `1.2`) to show one
+        /// specific (sub)task by position, using the same reverse-rank
+        /// numbering as with no address. Omit to show just the single most
+        /// recently touched top-level task.
+        address: Option<String>,
+
+        /// Also show each (sub)task's body text alongside its title
+        #[arg(long)]
+        full: bool,
+
+        /// Disable ANSI bold/color output. The most recently completed line
+        /// is instead marked by appending " <==" to it in plain text.
+        #[arg(long)]
+        no_markup: bool,
+    },
+
     /// Mark the (sub)task at ADDRESS done
     ///
     /// ADDRESS uses the same scheme as `agile task next`'s dotted address:
@@ -316,46 +306,55 @@ pub enum TaskAction {
     ///
     /// The inverse of `agile task done`: always succeeds if the addressed
     /// node is currently done (`[x]`) — there are no completion rules to
-    /// satisfy in reverse. ADDRESS uses *exactly* the same scheme as
-    /// `agile task done`: `2` for the 2nd still-incomplete top-level task,
-    /// or `1.3` for its 3rd direct child (any status). This is meant for
-    /// correcting a mistakenly-completed subtask while its parent task is
-    /// still open — a top-level task that is itself already fully done is
-    /// consequently unreachable by this address, since only incomplete
-    /// top-level tasks are counted; reopening a whole completed task isn't
-    /// supported here (a dedicated command may be added for that later).
+    /// satisfy in reverse. ADDRESS uses the same "reverse rank" resolution
+    /// as `agile task previous`: the first segment selects the Nth
+    /// top-level task counting back from the last one with any closed
+    /// (`Done`/`Cancelled`) work in it — so a whole already fully-done
+    /// top-level task is reachable this way, not just a still-open subtask
+    /// of an otherwise incomplete parent. Every subsequent segment selects
+    /// the Nth direct child (any status) from there.
     Undone {
         /// Dotted address, e.g. `2` or `1.3`.
         address: String,
     },
 
-    /// Show the most recently completed task(s)
+    /// List tasks in priority order
     ///
-    /// The mirror image of `agile task next`: walks *closed* top-level
-    /// tasks (any with `Done`/`Cancelled` work in them — including
-    /// partially-completed ones) in reverse priority order, so the most
-    /// recently touched top-level task is address `1`, the one before that
-    /// `2`, and so on. With no arguments, shows just that single most
-    /// recent one, including its full subtree — exactly the address scheme
-    /// `agile task undone` now accepts, including whole fully-done
-    /// top-level tasks.
-    #[command(visible_alias = "prev")]
-    Previous {
-        /// A plain count (e.g. `3`, meaning "3rd most recently touched
-        /// top-level task") or a dotted address (e.g. `1.2`) to show one
-        /// specific (sub)task by position, using the same reverse-rank
-        /// numbering as with no address. Omit to show just the single most
-        /// recently touched top-level task.
-        address: Option<String>,
+    /// Without arguments, prints every incomplete (`[ ]`) top-level task
+    /// from all *.agile.md files in priority order, each with its full
+    /// subtask tree. Each task is shown with its status marker ([ ] todo,
+    /// [x] done, [-] cancelled) and subtasks indented by two spaces per
+    /// level.
+    List {
+        /// A 1-based, inclusive range over the top-level tasks that would
+        /// otherwise be shown (respecting `--all`/`--mine`), e.g. `2:4`
+        /// shows the 2nd through 4th such tasks (each with its own
+        /// subtree). Takes precedence over `--next`/`--last` if given.
+        range: Option<String>,
 
-        /// Also show each (sub)task's body text alongside its title
-        #[arg(long)]
-        full: bool,
+        /// Show only the first COUNT entries
+        #[arg(short = 'n', long, value_name = "COUNT")]
+        next: Option<usize>,
 
-        /// Disable ANSI bold/color output. The most recently completed line
-        /// is instead marked by appending " <==" to it in plain text.
+        /// Show only the last COUNT entries
+        #[arg(long, value_name = "COUNT")]
+        last: Option<usize>,
+
+        /// Show all tasks including done and cancelled
+        #[arg(short = 'a', long)]
+        all: bool,
+
+        /// Only list top-level tasks that are unassigned or assigned to me
+        /// (directly or via a group) — same eligibility rule as the E013
+        /// assignment/completion check and `agile task next --mine`.
         #[arg(long)]
-        no_markup: bool,
+        mine: bool,
+
+        /// Resolve `--mine` as this literal `[Users.X]` config key instead
+        /// of the git identity from `git config user.email`/`user.name`.
+        /// Implies `--mine` even when `--mine` isn't given.
+        #[arg(long, value_name = "USER")]
+        r#as: Option<String>,
     },
 }
 
