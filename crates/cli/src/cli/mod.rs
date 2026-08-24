@@ -21,10 +21,6 @@ pub mod subcommands;
     long_about = "\
 Plain-text, version-controlled task management.
 
-Reads all *.agile.md files found anywhere under the current directory.
-Files are prioritised by their path relative to the project root, so
-tasks/50_current/001.agile.md outranks tasks/60_backlog/001.agile.md.
-
 Run without a subcommand to open the next task in $VISUAL / $EDITOR."
 )]
 pub struct Cli {
