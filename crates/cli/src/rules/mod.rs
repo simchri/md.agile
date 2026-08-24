@@ -15,6 +15,7 @@ mod invalid_milestone;
 mod invalid_order;
 mod missing_required_subtasks;
 mod missing_space_after_box;
+mod next_task;
 mod orphaned_subtask;
 mod unauthorized_completion;
 mod undefined_assignment;
@@ -31,6 +32,7 @@ pub use invalid_milestone::invalid_milestone;
 pub use invalid_order::invalid_order;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
+pub use next_task::{is_eligible_for, is_next_task};
 pub use orphaned_subtask::orphaned_subtask;
 pub use unauthorized_completion::unauthorized_completion;
 pub use undefined_assignment::undefined_assignment;
@@ -538,106 +540,6 @@ fn check_order_completable(items: &[FileItem], node: NodeRef) -> Vec<Issue> {
         }]
     } else {
         Vec::new()
-    }
-}
-
-/// Returns whether `node`'s own ordering makes it currently unactionable
-/// among `siblings`: it carries an [`Order::Ordered`] value and a
-/// lower-ordered sibling is still incomplete (not `Done`/`Cancelled`). See
-/// [`invalid_order::blocked_by_incomplete_lower_order`], the same check used
-/// for E015 "ordered task completed out of order".
-fn is_order_blocked(node: NodeRef, siblings: &[Subtask]) -> bool {
-    matches!(
-        node.order(),
-        Some(Order::Ordered(order_number))
-            if invalid_order::blocked_by_incomplete_lower_order(siblings, *order_number)
-    )
-}
-
-/// Returns whether `identity` is eligible to work on `node`: `true` if the
-/// node carries no `@user`/`@group` assignment markers at all (unassigned
-/// tasks are open to anyone, mirroring the E013 `unauthorized_completion`
-/// philosophy that assignment never restricts *unassigned* tasks), or if
-/// `identity` is directly assigned or a member of an assigned group.
-///
-/// An explicit assignment on `node` itself is checked *first* and, if it
-/// excludes `identity`, blocks the whole subtree — assigning a parent or
-/// mid-level task claims everything beneath it, so an unassigned descendant
-/// under an explicitly-assigned ancestor is not up for grabs.
-///
-/// Otherwise, if `node` has been broken down into subtasks, eligibility is
-/// recursive: `node` is eligible if at least one actionable (`Todo`, not
-/// `Done`/`Cancelled`, not order-blocked — see [`is_order_blocked`]) child is
-/// eligible. This means a node with no assignment of its own can still be
-/// reported ineligible overall if every actionable child underneath it has
-/// been assigned to someone else — there's nothing left for `identity` to
-/// actually do there. `#OPT` children still count towards eligibility like
-/// any other child.
-///
-/// Used by `agile task next --mine`.
-pub fn is_eligible_for(node: NodeRef, identity: &ResolvedIdentity, config: &Config) -> bool {
-    if !is_eligible_by_own_markers(node.markers(), identity, config) {
-        return false;
-    }
-    let children = node.children();
-    if children.is_empty() {
-        return true;
-    }
-    children.iter().any(|child| {
-        child.status == Status::Todo
-            && !is_order_blocked(NodeRef::Subtask(child), children)
-            && is_eligible_for(NodeRef::Subtask(child), identity, config)
-    })
-}
-
-/// The single source of truth for "is `node` the next actionable leaf" —
-/// the concern shared by every command that highlights or selects the next
-/// piece of work: `agile task next`'s bolding walk, and `agile task
-/// next --mine`/`list`'s task-level filtering both ultimately reduce to this
-/// same question for the leaves they consider.
-///
-/// A node qualifies when all of the following hold:
-/// - it's a leaf (`node.children()` is empty) — only leaves are ever
-///   "the next task to work on"; a node broken down into subtasks is worked
-///   on *through* its children, not directly;
-/// - its status is [`Status::Todo`] (not already `Done`/`Cancelled`);
-/// - it isn't [`is_order_blocked`] by an incomplete lower-ordered sibling
-///   within `siblings` (the sibling slice `node` was found in — see
-///   [`NodeRef::children`] on the parent);
-/// - if `identity` is `Some((identity, config))`, it's also
-///   [`is_eligible_for`] that identity — unassigned, or assigned to
-///   `identity` (directly or via group membership). Pass `None` for the
-///   unconditional case (no `--mine`/`--as`), where any leaf qualifies
-///   regardless of assignment.
-pub fn is_next_eligible_leaf(
-    node: NodeRef,
-    siblings: &[Subtask],
-    identity: Option<(&ResolvedIdentity, &Config)>,
-) -> bool {
-    node.children().is_empty()
-        && *node.status() == Status::Todo
-        && !is_order_blocked(node, siblings)
-        && identity
-            .map(|(identity, config)| is_eligible_for(node, identity, config))
-            .unwrap_or(true)
-}
-
-/// Returns whether `identity` is eligible for a single node based solely on
-/// its own assignment markers (no recursion into children) — the base case
-/// for [`is_eligible_for`].
-fn is_eligible_by_own_markers(
-    markers: &[Marker],
-    identity: &ResolvedIdentity,
-    config: &Config,
-) -> bool {
-    let names = unauthorized_completion::assignment_names(markers);
-    if names.is_empty() {
-        return true;
-    }
-    let authorized = unauthorized_completion::authorized_users(&names, config);
-    match identity {
-        ResolvedIdentity::Known(user) => authorized.iter().any(|a| a == user),
-        ResolvedIdentity::Unrecognized => false,
     }
 }
 

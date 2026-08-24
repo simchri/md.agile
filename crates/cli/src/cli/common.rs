@@ -308,7 +308,7 @@ fn render_subtask(sub: &parser::Subtask, depth: usize, out: &mut String) {
 /// same `identity` eligibility restriction, and prints body lines when
 /// `include_body` is true. `siblings` is the slice `sub` was found in
 /// (its parent's children), needed to check whether `sub` is order-blocked
-/// — see [`rules::is_next_eligible_leaf`]. `number` is `sub`'s own dotted
+/// — see [`rules::is_next_task`]. `number` is `sub`'s own dotted
 /// task address; its children continue from there (see
 /// [`collect_node_lines_highlighting_next_leaf`]).
 fn collect_subtask_lines_highlighting_next_leaf(
@@ -363,7 +363,7 @@ fn collect_body_lines(body: &[String], lines: &mut Vec<TreeLine>) {
 
 /// Builds one `[<status>] <title>` line (indented by `depth * 2` spaces),
 /// marking it as the concrete "next" actionable line — the first one seen
-/// so far (`*found` not yet set) for which [`rules::is_next_eligible_leaf`]
+/// so far (`*found` not yet set) for which [`rules::is_next_task`]
 /// is true; see that function for the full definition of what makes a line
 /// "next" — via ANSI bold escapes, or, if `no_markup` is true, by appending
 /// `" <=="` to the plain-text line instead (no ANSI escapes at all).
@@ -384,7 +384,7 @@ fn node_line_content(
     }
     let status = node.status();
     let title = node.title();
-    let is_next = !*found && rules::is_next_eligible_leaf(node, siblings, identity);
+    let is_next = !*found && rules::is_next_task(node, siblings, identity);
     if is_next {
         *found = true;
     }

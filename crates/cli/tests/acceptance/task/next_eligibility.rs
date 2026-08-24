@@ -106,6 +106,81 @@ fn skips_non_leaf_todo_nodes() {
 }
 
 #[test]
+fn marks_a_todo_node_whose_children_are_all_resolved_even_though_it_has_children() {
+    // A `Todo` node with children is not skipped when none of those
+    // children remain actionable (all done/cancelled) - there's nothing
+    // left below it to delegate to, so it becomes the next task itself,
+    // same as a literal leaf would. Eligibility is not restricted to
+    // literal leaves - see the module doc on `rules::next_task`.
+
+    // Arrange
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] parent task with only resolved children
+  - [x] done subtask
+  - [-] cancelled subtask
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    // Act
+    let stdout = stdout_of(dir.path(), &["task", "next", "--no-markup"]);
+
+    // Assert
+    let expected = "\
+1   [ ] parent task with only resolved children <==
+1.1   [x] done subtask
+1.2   [-] cancelled subtask
+";
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn mine_selects_the_same_top_level_task_as_without_mine_when_its_children_are_all_resolved() {
+    // Regression test for the reported bug: `agile task next --mine` used
+    // to silently skip past a `Todo` top-level task whose children were all
+    // already done/cancelled (eligibility was leaf-only, so a non-leaf
+    // `Todo` node with no remaining actionable child was never considered
+    // eligible), instead surfacing a *different*, later top-level task -
+    // even though plain `agile task next` (no `--mine`) correctly picked
+    // the first one, since it only checks the top-level task's own status.
+    // Both must now agree: eligibility applies uniformly at every level,
+    // not just to literal leaves.
+
+    // Arrange
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] first task, all children already resolved
+  - [x] done subtask
+  - [-] cancelled subtask
+- [ ] second task, still has an actionable leaf
+  - [ ] an actual leaf
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    // Act
+    let without_mine = stdout_of(dir.path(), &["task", "next", "--no-markup"]);
+    let with_mine = stdout_of(dir.path(), &["task", "next", "--mine", "--no-markup"]);
+
+    // Assert
+    let expected = "\
+1   [ ] first task, all children already resolved <==
+1.1   [x] done subtask
+1.2   [-] cancelled subtask
+";
+    assert_eq!(without_mine, expected);
+    assert_eq!(with_mine, expected);
+}
+
+#[test]
 fn marks_nothing_when_no_todo_leaf_exists() {
     // Arrange
     let dir = tempdir().unwrap();
