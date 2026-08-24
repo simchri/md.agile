@@ -710,11 +710,19 @@
   - [-] Implement velocity estimation from git history as weighted completions/day over a defined window, reusing existing git access patterns
     - [-] ? what is "a defined window" — fixed day count, whole milestone history, or something else (and does it match the `--last` window used elsewhere)?
   - [x] Add tests for `agile when`: unit tests for weight/projection math, integration tests for CLI output, and rule tests for milestone uniqueness
-  - [ ] Update / review CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
+  - [x] Update / review CLI/help/docs for milestone and ETA commands (`milestone(s)`, `when`) and their ranking/threshold/detail semantics
   - [x] allow usage of `--last` with `agile when` (no --plot or --velocity).
 
 
 #MILESTONE: Milestones & ETA
+
+- [ ] foo
+  - [x] bar
+
+
+- [x] number the tasks in output of `agile task next` with their rank -- allows easier use of `task done`
+- [ ] `task undone` ergonomics -- how to get the addresses?
+  - [ ] some subtask
 
 - [ ] BUG (c.f. below)
 
@@ -728,6 +736,28 @@ $ agile task next 4
   [ ] Note tooltip ideas and send to Christine
 ```
 next task should be "Proper definition of .."
+
+
+- [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`) 
+- [ ] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`) 
+- [ ] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`) 
+
+- [ ] in `agile task --help` re-order the output as follows: 
+
+current:
+  list    List tasks in priority order
+  next    Show the next highest-priority incomplete task(s) [aliases: show]
+  done    Mark the (sub)task at ADDRESS done
+  undone  Revert the (sub)task at ADDRESS back to todo
+  help    Print this message or the help of the given subcommand(s)
+
+new:
+  next    Show the next highest-priority incomplete task [aliases: show]
+  done    Mark the (sub)task at ADDRESS done
+  undone  Revert the (sub)task at ADDRESS back to todo
+  list    List tasks in priority order
+  help    Print this message or the help of the given subcommand(s)
+#MILESTONE: Improved cli interface "task"
 
 ## CLI Fixes / Interface rework
 - [ ] task (mark) done compatibility with --mine (normal workflow, list tasks with --mine, then potentially mark done -- need this arg here too)
