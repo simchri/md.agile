@@ -2,7 +2,7 @@
 # Demo script: drives tasks across the md.agile GUI board.
 #
 # Usage:
-#   ./scripts/demo.sh [mode]
+#   ./scripts/gui-board-demo.sh [mode]
 #
 # Modes:
 #   overtake  (default) — few cards, shows collision and overtake

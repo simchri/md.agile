@@ -33,9 +33,9 @@ Then connect to the served page (usually `http://127.0.0.1:8080/`) in your brows
 Test scripts, to simulate card movement, using a temporary directory with fake tasks:
 
 ```sh
-./scripts/demo.sh 
+./scripts/gui-board-demo.sh 
 # or
-./scripts/demo.sh many
+./scripts/gui-board-demo.sh many
 ```
 
 Hacky install for gui:
