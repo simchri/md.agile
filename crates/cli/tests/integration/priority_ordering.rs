@@ -63,7 +63,7 @@ fn next_task_comes_from_current_not_backlog() {
     fs::write(tasks.join("b_backlog.agile.md"), backlog).unwrap();
     fs::write(tasks.join("c_inbox.agile.md"), inbox).unwrap();
 
-    let expected = format!("{BOLD}[ ] current task one{RESET}\n");
+    let expected = format!("1 {BOLD}[ ] current task one{RESET}\n");
     let items = parse_files(&find_task_files(dir.path()));
     assert_eq!(next_task(&items), expected);
 }
@@ -84,7 +84,7 @@ fn next_task_falls_through_to_backlog_when_current_is_done() {
     fs::write(tasks.join("b_backlog.agile.md"), backlog).unwrap();
     fs::write(tasks.join("c_inbox.agile.md"), inbox).unwrap();
 
-    let expected = format!("{BOLD}[ ] backlog task one{RESET}\n");
+    let expected = format!("1 {BOLD}[ ] backlog task one{RESET}\n");
     let items = parse_files(&find_task_files(dir.path()));
     assert_eq!(next_task(&items), expected);
 }

@@ -49,7 +49,7 @@ fn marks_the_only_todo_leaf() {
 
     // Assert
     let expected = "\
-[ ] parent task <==
+1 [ ] parent task <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -71,10 +71,10 @@ fn marks_first_todo_leaf_in_document_order() {
 
     // Assert
     let expected = "\
-[ ] parent task
-  [x] already done subtask
-  [ ] first todo leaf <==
-  [ ] second todo leaf
+1   [ ] parent task
+1.1   [x] already done subtask
+1.2   [ ] first todo leaf <==
+1.3   [ ] second todo leaf
 ";
     assert_eq!(stdout, expected);
 }
@@ -98,9 +98,9 @@ fn skips_non_leaf_todo_nodes() {
 
     // Assert
     let expected = "\
-[ ] parent task
-  [ ] mid-level subtask with children
-    [ ] actual leaf <==
+1     [ ] parent task
+1.1     [ ] mid-level subtask with children
+1.1.1     [ ] actual leaf <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -140,9 +140,9 @@ fn marks_within_dotted_addressed_subtask_subtree() {
 
     // Assert
     let expected = "\
-[ ] addressed subtask
-  [x] already done grandchild
-  [ ] next leaf <==
+1.1   [ ] addressed subtask
+1.1.1   [x] already done grandchild
+1.1.2   [ ] next leaf <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -164,10 +164,10 @@ fn includes_body_when_full_flag_given() {
 
     // Assert
     let expected = "\
-[ ] parent task
-  some body text
-  [ ] leaf with a body <==
-    leaf body line
+1   [ ] parent task
+      some body text
+1.1   [ ] leaf with a body <==
+        leaf body line
 ";
     assert_eq!(stdout, expected);
 }
@@ -187,7 +187,7 @@ fn omits_body_by_default() {
 
     // Assert
     let expected = "\
-[ ] parent task <==
+1 [ ] parent task <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -223,9 +223,9 @@ git_emails = [\"bob@example.com\"]
 
     // Assert
     let expected = "\
-[ ] parent task
-  [ ] leaf assigned to bob @bob
-  [ ] leaf eligible for alice <==
+1   [ ] parent task
+1.1   [ ] leaf assigned to bob @bob
+1.2   [ ] leaf eligible for alice <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -335,9 +335,9 @@ git_emails = [\"bob@example.com\"]
 
     // Assert
     let expected = "\
-[ ] parent task
-  [x] first step @bob
-  [ ] second step @alice <==
+1   [ ] parent task
+1.1   [x] first step @bob
+1.2   [ ] second step @alice <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -364,9 +364,9 @@ fn without_identity_still_marks_blocked_ordered_leaf_unconditionally() {
 
     // Assert
     let expected = "\
-[ ] parent task
-  [ ] first step @bob <==
-  [ ] second step @alice
+1   [ ] parent task
+1.1   [ ] first step @bob <==
+1.2   [ ] second step @alice
 ";
     assert_eq!(stdout, expected);
 }
@@ -389,8 +389,8 @@ fn marks_unconditionally_without_mine_or_as() {
 
     // Assert
     let expected = "\
-[ ] parent task
-  [ ] leaf assigned to bob @bob <==
+1   [ ] parent task
+1.1   [ ] leaf assigned to bob @bob <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -428,11 +428,11 @@ git_emails = [\"alice@example.com\"]
 
     // Assert
     let expected = "\
-[ ] VER-161 System Test Image Installation and Smoke Test #systemtest
-  [x] 1. write draft
-  [ ] 2. assign review @Gini <==
-  [ ] 3. implement feedback
-  [ ] 4. approved
+1   [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
+1.1   [x] 1. write draft
+1.2   [ ] 2. assign review @Gini <==
+1.3   [ ] 3. implement feedback
+1.4   [ ] 4. approved
 ";
     assert_eq!(stdout, expected);
 }
@@ -471,11 +471,11 @@ git_emails = [\"alice@example.com\"]
 
     // Assert
     let expected = "\
-[ ] VER-161 System Test Image Installation and Smoke Test #systemtest
-  [x] 1. write draft
-  [ ] 2. assign review @Gini <==
-  [ ] 3. implement feedback
-  [ ] 4. approved
+1   [ ] VER-161 System Test Image Installation and Smoke Test #systemtest
+1.1   [x] 1. write draft
+1.2   [ ] 2. assign review @Gini <==
+1.3   [ ] 3. implement feedback
+1.4   [ ] 4. approved
 ";
     assert_eq!(stdout, expected);
 }
@@ -573,10 +573,10 @@ git_emails = [\"bob@example.com\"]
 
     // Assert
     let expected = "\
-[ ] parent task
-  [ ] first step @bob
-  [ ] blocked step @alice
-  [ ] separate unordered step @alice <==
+1   [ ] parent task
+1.1   [ ] first step @bob
+1.2   [ ] blocked step @alice
+1.3   [ ] separate unordered step @alice <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -602,10 +602,10 @@ fn bolds_the_next_eligible_line_by_default() {
     // Assert
     let expected = format!(
         "\
-[ ] parent task
-  [x] already done subtask
-  {BOLD}[ ] first todo leaf{RESET}
-  [ ] second todo leaf
+1   [ ] parent task
+1.1   [x] already done subtask
+1.2   {BOLD}[ ] first todo leaf{RESET}
+1.3   [ ] second todo leaf
 "
     );
     assert_eq!(stdout, expected);

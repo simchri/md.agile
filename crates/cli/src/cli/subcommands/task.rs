@@ -97,7 +97,14 @@ pub fn run_next(
     ) {
         Ok(resolved) => print!(
             "{}",
-            render_resolved(&resolved, full, identity.as_ref(), config, no_markup)
+            render_resolved(
+                &resolved,
+                full,
+                identity.as_ref(),
+                config,
+                no_markup,
+                &format_address(&resolve_parts),
+            )
         ),
         Err(e) => {
             if explicit_address {
@@ -265,11 +272,13 @@ fn next_n_tasks(
                     continue;
                 }
             }
+            let number = (found + 1).to_string();
             render_task_highlighting_next_leaf(
                 task,
                 include_body,
                 identity.map(|identity| (identity, config)),
                 false,
+                &number,
                 &mut out,
             );
             found += 1;
@@ -443,7 +452,11 @@ fn format_address(parts: &[usize]) -> String {
 /// [`rules::is_eligible_for`]); otherwise the first `Todo` leaf is marked
 /// unconditionally. Normally the marked line is bolded (ANSI escapes); if
 /// `no_markup` is true, it's instead marked by appending `" <=="` in
-/// plain text.
+/// plain text. `root_number` is the dotted address that was resolved to
+/// reach `resolved` (e.g. `"1"` for the default address, `"1.2"` for an
+/// explicit dotted address) — printed as the root's own number, with its
+/// descendants numbered from there (see
+/// [`render_task_highlighting_next_leaf`]).
 ///
 /// [`render_task`]: crate::cli::common::render_task
 fn render_resolved(
@@ -452,16 +465,27 @@ fn render_resolved(
     identity: Option<&ResolvedIdentity>,
     config: &Config,
     no_markup: bool,
+    root_number: &str,
 ) -> String {
     let mut out = String::new();
     let identity = identity.map(|identity| (identity, config));
     match resolved.node_ref() {
-        NodeRef::Task(task) => {
-            render_task_highlighting_next_leaf(task, full, identity, no_markup, &mut out)
-        }
-        NodeRef::Subtask(sub) => {
-            render_subtask_as_root_highlighting_next_leaf(sub, full, identity, no_markup, &mut out)
-        }
+        NodeRef::Task(task) => render_task_highlighting_next_leaf(
+            task,
+            full,
+            identity,
+            no_markup,
+            root_number,
+            &mut out,
+        ),
+        NodeRef::Subtask(sub) => render_subtask_as_root_highlighting_next_leaf(
+            sub,
+            full,
+            identity,
+            no_markup,
+            root_number,
+            &mut out,
+        ),
     }
     out
 }

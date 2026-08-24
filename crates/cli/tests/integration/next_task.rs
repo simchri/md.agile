@@ -42,8 +42,9 @@ fn next_task_skips_done_and_returns_first_todo() {
   - [ ] pending subtask
 - [ ] another task
 ";
-    let expected =
-        format!("[ ] the next task\n  [x] done subtask\n  {BOLD}[ ] pending subtask{RESET}\n");
+    let expected = format!(
+        "1   [ ] the next task\n1.1   [x] done subtask\n1.2   {BOLD}[ ] pending subtask{RESET}\n"
+    );
     assert_eq!(next_task(&p(input)), expected);
 }
 
@@ -63,6 +64,6 @@ fn next_task_skips_cancelled() {
 - [-] cancelled task
 - [ ] actual next task
 ";
-    let expected = format!("{BOLD}[ ] actual next task{RESET}\n");
+    let expected = format!("1 {BOLD}[ ] actual next task{RESET}\n");
     assert_eq!(next_task(&p(input)), expected);
 }
