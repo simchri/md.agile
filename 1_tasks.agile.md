@@ -722,9 +722,15 @@
 
 - [x] number the tasks in output of `agile task next` with their rank -- allows easier use of `task done`
 - [ ] `task undone` ergonomics -- how to get the addresses?
-  - [ ] some subtask
+  - [ ] add the command `agile task latest` (alias: show-done) 
+    "latest    Show the latest completed task [aliases: show-done]"
+    Shows latest completed task(s). This includes the completed subtasks of partially completed tasks
+    Output addresses behave just like rank addresses, but count in reverse, the latest completed task is "1", the one before that "2" etc.
+  - [ ] add the command `agile task undone`:
+    "undone  Revert the (sub)task at ADDRESS back to todo"
+    ADDRESS here is the address as provided by `.. last`
 
-- [ ] BUG (c.f. below)
+- [x] BUG (c.f. below)
 
 ```
 $ agile task next 4
