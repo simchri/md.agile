@@ -716,8 +716,23 @@
 
 #MILESTONE: Milestones & ETA
 
-## CLI Fixes
+- [ ] BUG (c.f. below)
+
+```
+$ agile task next 4
+[ ] Bug workflow
+  [ ] @Simon: Proper definition of "Not Applicable" in new bug workflow
+    [x] proposed to christine
+    [x] implemented
+  [ ] @Simon CSV transfer to matrix normal format <==
+  [ ] Note tooltip ideas and send to Christine
+```
+next task should be "Proper definition of .."
+
+## CLI Fixes / Interface rework
 - [ ] task (mark) done compatibility with --mine (normal workflow, list tasks with --mine, then potentially mark done -- need this arg here too)
+- [ ] generally rethink and test how "task next" interacts with "task done" addresses and such
+- [ ] consider: displaying addresses next to tasks
 
 ## Misc App Menu improvements
 
