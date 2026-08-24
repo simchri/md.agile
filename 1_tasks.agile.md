@@ -730,6 +730,8 @@
     "undone  Revert the (sub)task at ADDRESS back to todo"
     ADDRESS here is the address as provided by `.. last`
 
+- [x] Implemented `agile task previous` (alias `prev`): the linguistic/behavioral mirror of `agile task next`, walking closed top-level tasks (any with `Done`/`Cancelled` work in them, including partially-completed ones) in reverse priority order — the most recently touched top-level task is address `1`. Prints the full subtree exactly like `agile task next` does, highlighting the last node in document order with no remaining undone descendant work. Generalized `agile task undone`'s address resolution (new `TopLevelFilter` enum in `resolve_address`) to accept this same "reverse rank" candidate set, so it can now reach whole already-fully-done top-level tasks too, not just still-open subtasks of an open parent. This addresses the `task undone` ergonomics gap noted just above.
+
 - [x] BUG (c.f. below)
 
 ```
@@ -751,18 +753,21 @@ next task should be "Proper definition of .."
 - [ ] in `agile task --help` re-order the output as follows: 
 
 current:
-  list    List tasks in priority order
-  next    Show the next highest-priority incomplete task(s) [aliases: show]
-  done    Mark the (sub)task at ADDRESS done
-  undone  Revert the (sub)task at ADDRESS back to todo
-  help    Print this message or the help of the given subcommand(s)
+  list      List tasks in priority order
+  next      Show the next highest-priority incomplete task(s) [aliases: show]
+  done      Mark the (sub)task at ADDRESS done
+  undone    Revert the (sub)task at ADDRESS back to todo
+  previous  Show the most recently completed task(s) [aliases: prev]
+  help      Print this message or the help of the given subcommand(s)
 
 new:
-  next    Show the next highest-priority incomplete task [aliases: show]
-  done    Mark the (sub)task at ADDRESS done
-  undone  Revert the (sub)task at ADDRESS back to todo
-  list    List tasks in priority order
-  help    Print this message or the help of the given subcommand(s)
+  next      Show the next highest-priority incomplete task(s) [aliases: show]
+  previous  Show the most recently completed task(s) [aliases: prev]
+  done      Mark the (sub)task at ADDRESS done
+  undone    Revert the (sub)task at ADDRESS back to todo
+  list      List tasks in priority order
+  help      Print this message or the help of the given subcommand(s)
+
 #MILESTONE: Improved cli interface "task"
 
 ## CLI Fixes / Interface rework
