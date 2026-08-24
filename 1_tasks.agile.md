@@ -784,6 +784,9 @@
 - [ ] indicator for prio 1,2,3 tasks - e.g. semi transparent book-mark like long sticky note with '#1' etc. at the bottom
 - [ ] indicator for milestones
 
+- [ ] markdown support
+  - [ ] support basic markdown rendering in tasks titles & bodies (e.g. ~~crossed out~~)
+
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
 - [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
