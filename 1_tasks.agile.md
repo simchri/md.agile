@@ -716,6 +716,9 @@
 
 #MILESTONE: Milestones & ETA
 
+## CLI Fixes
+- [ ] task (mark) done compatibility with --mine (normal workflow, list tasks with --mine, then potentially mark done -- need this arg here too)
+
 ## Misc App Menu improvements
 
 - [x] the app menu's dropdown (`.app-menu-dropdown`, opened via the "≡" button) was a tiny cramped list, out of proportion with the rest of the GUI's modal-style dialogs. Replaced it with a full modal matching the task modal's look: `.app-menu-backdrop` (fixed, full-viewport, dark overlay, click-to-close) behind a centered `.app-menu-modal` panel (white, rounded, `×` close button top-right via `.app-menu-modal-close`, mirroring `.modal-close`). Menu items ("🔀 Switch project…", "🛑 Close") are prefixed with a suitable emoji for a quicker visual anchor, and rendered at a larger, more spaced-out size (`.app-menu-item`: `font-size: 18px`, `padding: 16px 20px`) than the old dropdown. Given `z-index: 5000` — deliberately the highest in the app (above `.switch-project-overlay`'s `4000` and the task modal's `1000`) — since the menu must be reachable and stay on top even while a task modal is already open. Purely CSS/markup; no new unit tests apply. All 903 tests still pass; GUI web target still builds.
@@ -798,6 +801,8 @@
   - [ ] Add LSP section to README.md
   - [ ] Provide troubleshooting guide
 
+
+
 ## Archiving, multiple files
 - [ ] File structure for large projects & archiving:
   - [ ] `agile init --large` — scaffold the `tasks/00_archive`, `50_current`, `60_backlog`, `80_inbox` directory structure
@@ -822,6 +827,8 @@
 - [ ] "go to" next my open task
 
 - [ ] LSP for the config file
+
+- [ ] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
 
 ## Events
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
