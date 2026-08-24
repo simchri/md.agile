@@ -872,6 +872,11 @@ Markers to identify a task e.g. <<the bug fixing task>> (check to not conflict w
 
 - [ ] `--assume-creep [creep]` `--assume-velocity [velcity]` -- override velocity  / creep for ETA calculations and plot. The fitted line is then replaced with a line that goes through the "today" point and has the respective slope. Allows e.g. to calculate ETA under the assumption of 0 further scope creep.
 
+## Strict Checks
+Think more about restriction of bad actions, e.g. sweeping tasks under the rag, marking things done for other people etc.
+
+- [ ] disallow modification of tasks assigned to someone else
+
 #MILESTONE: Further milestone and ETA improvements
 
 
