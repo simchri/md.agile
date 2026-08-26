@@ -717,7 +717,7 @@
 #MILESTONE: Milestones & ETA
 
 - [ ] foo
-  - [x] bar
+  - [ ] bar
 
 
 - [x] number the tasks in output of `agile task next` with their rank -- allows easier use of `task done`
