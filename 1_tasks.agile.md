@@ -689,7 +689,7 @@
 
 - [x] Implemented `agile when --next <rank>` detail mode: renders the milestone name, ETA span, ETA date, and the full task-count and weight breakdown (tasks since last milestone, tasks to do/done/percentage, and weight to do/done/percentage) per README.vision.md. Reuses `milestone_stats_for_rank` for span stats and `build_todo_done_plot`/`eta_for_plot` for ETA projection. Errors (exit code 1) when run outside a git repository or with an out-of-range milestone rank. Added unit tests in `crates/cli/src/eta/report_tests.rs` and acceptance tests in `crates/cli/tests/acceptance/when.rs`. All 939 tests pass; GUI web target builds.
 
-- [ ] ETA continued
+- [x] ETA continued
   - [x] Add `agile milestone` / `agile milestones` listing command (current-state only: rank, name, done/total counts, percentage) with `--next` filtering semantics (future milestones = after first incomplete task)
     - [x] `milestone(s)` is a separate subcommand from `when`: `milestones` reports current-state listing/counts/percentages only (no estimation); `when` handles all estimation (ETA, ETA date, velocity). README.vision.md updated accordingly.
     - [x] the `milstones` mention was just a typo, no CLI compatibility/alias needed
