@@ -299,3 +299,64 @@ fn stop_running_instance_terminates_a_live_instance_of_this_binary() {
     // `stop_running_instance` just sent.
     let _ = child.wait();
 }
+
+/// Reads back the calling thread's own kernel `comm` name via
+/// `prctl(PR_GET_NAME)` — the read-side counterpart of [`set_process_name`],
+/// used here instead of `/proc/self/comm` because `comm` is per-thread and
+/// `/proc/self` resolves to the process's main thread, which need not be
+/// the thread a test actually runs on under `cargo test`'s thread pool.
+/// Round-tripping through `prctl` directly keeps the set/get pair on the
+/// same thread, avoiding that mismatch.
+fn get_process_name() -> String {
+    let mut buf = [0u8; MAX_COMM_LEN + 1];
+    let ret = unsafe {
+        libc::prctl(
+            libc::PR_GET_NAME,
+            buf.as_mut_ptr() as libc::c_ulong,
+            0,
+            0,
+            0,
+        )
+    };
+    assert_eq!(ret, 0, "prctl(PR_GET_NAME) failed");
+    std::ffi::CStr::from_bytes_until_nul(&buf)
+        .expect("comm buffer should be NUL-terminated")
+        .to_str()
+        .expect("comm should be valid UTF-8")
+        .to_string()
+}
+
+#[test]
+fn set_process_name_sets_the_kernel_comm_field() {
+    let name = "test-comm-xyz"; // 13 bytes — well under the 15-byte cap
+    set_process_name(name);
+
+    assert_eq!(get_process_name(), name);
+}
+
+#[test]
+fn set_process_name_truncates_names_longer_than_task_comm_len() {
+    let long = "this-name-is-definitely-too-long-for-comm";
+    set_process_name(long);
+
+    let read_back = get_process_name();
+    assert_eq!(read_back, &long[..MAX_COMM_LEN]);
+    assert_eq!(read_back.len(), MAX_COMM_LEN);
+}
+
+#[test]
+fn set_process_name_truncates_on_a_char_boundary() {
+    // 16 bytes total, with a 3-byte UTF-8 character ('é' is 2 bytes; use a
+    // multi-byte char straddling the 15-byte cut point) so a naive byte-index
+    // truncation at exactly `MAX_COMM_LEN` would split it and panic/corrupt.
+    let name = "aaaaaaaaaaaaaaé"; // 14 ASCII 'a's + 1 two-byte char = 16 bytes
+    assert_eq!(name.len(), 16);
+
+    // Should not panic, and should truncate to the last full char boundary
+    // at or before MAX_COMM_LEN.
+    set_process_name(name);
+
+    let read_back = get_process_name();
+    assert!(read_back.len() <= MAX_COMM_LEN);
+    assert!(name.starts_with(&read_back));
+}

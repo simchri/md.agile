@@ -29,6 +29,14 @@ fn main() {
 
     #[cfg(feature = "server")]
     {
+        // Fix the process's kernel-visible name (`ps -o comm=`, `top`,
+        // `pgrep -x`, `/proc/<pid>/comm`) — without this it shows up only as
+        // the anonymous `server` (dx's fullstack build artifact name),
+        // regardless of what the installed binary file or the desktop
+        // launcher's wrapper script happen to name/exec it as. See
+        // `lock::set_process_name` for details.
+        lock::set_process_name("mdagile-gui");
+
         let args: Vec<String> = std::env::args().collect();
         if lock::is_stop_command(&args) {
             info!("`agilegui stop` invoked; attempting to stop any running instance");

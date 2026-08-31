@@ -744,6 +744,8 @@ next task should be "Proper definition of .."
 - [x] #bug task eligibility: Ordered tasks with subtasks: A subtask of a later ordered task is considered eligible, even though precondition tasks are not yet done! Expected: The subtasks are only unlocked, when all previous major tasks are done
   - [x] show the ordering in the output of "agile task next"
 
+- [x] the desktop-launched GUI process showed up in `ps -aux` as the anonymous `./server` (dx's fullstack bundler artifact name, `exec`'d verbatim by `agilegui-wrapper.sh`), with nothing tying it back to mdagile-gui — fixed by setting the kernel-visible process name (`prctl(PR_SET_NAME)`, `lock::set_process_name`) to `mdagile-gui` early in `main()`, independent of how the installed binary/wrapper name/exec it
+
 - [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`) 
 - [ ] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`) 
 - [ ] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`) 
