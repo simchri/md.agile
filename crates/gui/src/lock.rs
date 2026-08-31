@@ -168,51 +168,6 @@ pub fn send_sigterm(pid: u32) -> std::io::Result<()> {
     }
 }
 
-/// Maximum length of the Linux kernel `comm` field, excluding the NUL
-/// terminator (`TASK_COMM_LEN` is 16 bytes, one of which is the terminator).
-const MAX_COMM_LEN: usize = 15;
-
-/// Sets this (calling) thread's kernel-visible process name — what shows up
-/// in `ps -o comm=`, `top`, `htop`, `pgrep -x`, and `/proc/<pid>/comm` — via
-/// `prctl(PR_SET_NAME, ...)`.
-///
-/// This exists because the packaged desktop launcher's `exec ./server` (see
-/// `agilegui-wrapper.sh`) leaves the process visible only as the anonymous
-/// `server` (the literal name dx's fullstack bundler gives its build
-/// artifact, independent of this crate's actual name) — nothing in `ps aux`
-/// ties it back to mdagile-gui. Calling this once, early in `main`, fixes
-/// that at the source, regardless of what the executable file or wrapper
-/// around it happens to be named.
-///
-/// `name` is truncated to [`MAX_COMM_LEN`] bytes (on a char boundary, so it
-/// never splits a multi-byte UTF-8 sequence) if longer, since the kernel
-/// would otherwise reject or itself truncate it. Failure — e.g. `name`
-/// containing an interior NUL byte, or the `prctl` call itself erroring — is
-/// silently ignored: this is a cosmetic aid for process listings, never
-/// worth failing startup over.
-pub fn set_process_name(name: &str) {
-    let mut end = name.len();
-    if end > MAX_COMM_LEN {
-        end = MAX_COMM_LEN;
-        while end > 0 && !name.is_char_boundary(end) {
-            end -= 1;
-        }
-    }
-    let Ok(c_name) = std::ffi::CString::new(&name[..end]) else {
-        warn!("set_process_name: {name:?} contains an interior NUL byte; leaving name unchanged");
-        return;
-    };
-    // SAFETY: `c_name` is a valid, NUL-terminated C string kept alive for
-    // the duration of this call; `PR_SET_NAME` only reads it.
-    let ret = unsafe { libc::prctl(libc::PR_SET_NAME, c_name.as_ptr() as libc::c_ulong, 0, 0, 0) };
-    if ret != 0 {
-        warn!(
-            "prctl(PR_SET_NAME, {name:?}) failed: {}",
-            std::io::Error::last_os_error()
-        );
-    }
-}
-
 /// How long to wait, after sending `SIGTERM`, for the process to actually
 /// exit before giving up and reporting it as still running.
 const STOP_WAIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
