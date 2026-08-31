@@ -716,10 +716,6 @@
 
 #MILESTONE: Milestones & ETA
 
-- [ ] foo
-  - [ ] bar
-
-
 - [x] number the tasks in output of `agile task next` with their rank -- allows easier use of `task done`
 - [ ] `task undone` ergonomics -- how to get the addresses?
   - [ ] add the command `agile task latest` (alias: show-done) 
