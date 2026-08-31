@@ -15,6 +15,7 @@ mod server;
 #[cfg(not(target_arch = "wasm32"))]
 mod settings;
 mod slots;
+mod title_highlight;
 
 use card_positioning::{
     backlog_position_style, card_position_from_px, card_top_left_px, done_position_style,
@@ -22,6 +23,7 @@ use card_positioning::{
 };
 use dioxus::prelude::ServerFnError;
 use server::TaskView;
+use title_highlight::{tokenize_title, TitleToken};
 
 fn main() {
     init_logger();
@@ -206,6 +208,28 @@ fn format_server_error(error: &ServerFnError) -> String {
     match error {
         ServerFnError::ServerError { message, .. } => message.clone(),
         other => other.to_string(),
+    }
+}
+
+/// Renders a task/subtask title with its order prefix and `#`/`@` markers
+/// highlighted inline, instead of as plain text alongside a separate
+/// order badge / marker pill row (which would show the same information
+/// twice — see `title_highlight` for why). Used by every place a title is
+/// displayed: the task card, `SubtaskItem`, and the task detail modal.
+fn highlighted_title(title: &str, order: Option<u32>, markers: &[String]) -> Element {
+    let tokens = tokenize_title(title, order, markers);
+    rsx! {
+        for token in tokens {
+            match token {
+                TitleToken::Plain(text) => rsx! { "{text}" },
+                TitleToken::Order(text) => rsx! {
+                    span { class: "title-order", "{text}" }
+                },
+                TitleToken::Marker(text) => rsx! {
+                    span { class: "title-marker", "{text}" }
+                },
+            }
+        }
     }
 }
 
@@ -669,14 +693,9 @@ fn TaskCard(
             },
             div { class: "{markers_style}",
                 span { class: status_class(&task.status), {status_box(&task.status)} }
-                span { class: "{title_style}", "{task.title}" }
-            }
-
-            if !task.markers.is_empty() {
-                div { class: "{markers_style}",
-                    for marker in &task.markers {
-                        span { class: "marker", "{marker}" }
-                    }
+                span {
+                    class: "{title_style}",
+                    {highlighted_title(&task.title, task.order, &task.markers)}
                 }
             }
 
@@ -730,16 +749,9 @@ fn SubtaskItem(
                 },
                 {status_box(&task.status)}
             }
-            if let Some(order) = task.order {
-                span { class: "subtask-order", "{order}." }
-            }
-            span { class: "subtask-title", "{task.title}" }
-            if !task.markers.is_empty() {
-                span { class: "subtask-markers",
-                    for marker in &task.markers {
-                        span { class: "marker", "{marker}" }
-                    }
-                }
+            span {
+                class: "subtask-title",
+                {highlighted_title(&task.title, task.order, &task.markers)}
             }
             if show_body && !task.body.is_empty() {
                 div { class: "subtask-body",
@@ -879,14 +891,9 @@ fn TaskModal(
                         },
                         {status_box(&task.status)}
                     }
-                    h1 { class: "modal-task-title", "{task.title}" }
-                }
-
-                if !task.markers.is_empty() {
-                    div { class: "modal-markers",
-                        for marker in &task.markers {
-                            span { class: "marker", "{marker}" }
-                        }
+                    h1 {
+                        class: "modal-task-title",
+                        {highlighted_title(&task.title, task.order, &task.markers)}
                     }
                 }
 

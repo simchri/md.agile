@@ -744,6 +744,8 @@ next task should be "Proper definition of .."
 - [x] #bug task eligibility: Ordered tasks with subtasks: A subtask of a later ordered task is considered eligible, even though precondition tasks are not yet done! Expected: The subtasks are only unlocked, when all previous major tasks are done
   - [x] show the ordering in the output of "agile task next"
 
+- [x] GUI: title now contains the ordering number and property/assignment markers as literal text (matching CLI output); replace the separate order-badge/marker-pill rendering in the task card, subtask list, and task modal with unified inline highlighting of those substrings within the title text itself
+
 - [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`) 
 - [ ] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`) 
 - [ ] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`) 

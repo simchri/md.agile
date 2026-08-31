@@ -114,21 +114,35 @@ body {
     line-height: 1.3;
 }
 
+/* Inline title highlighting for the leading "N. " order prefix and any
+   `#`/`@` markers, both of which the parser keeps as literal text within
+   the title itself (see `title_highlight`). Shared across every place a
+   title is rendered — the task card, `SubtaskItem`, and the task detail
+   modal — each of which sets its own `font-size` on the surrounding title
+   element, so sizes here are relative (`em`) to inherit and scale with it,
+   rather than fixed pixel values tuned for just one context. */
+.title-order {
+    font-family: monospace;
+    font-weight: bold;
+    color: #888;
+    margin-right: 0.2em;
+}
+
+.title-marker {
+    background: rgba(0, 0, 0, 0.08);
+    padding: 0 0.35em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.85em;
+    color: #555;
+}
+
 .task-card-markers {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
     margin-bottom: 4px;
     flex-shrink: 0;
-}
-
-.task-card-markers .marker {
-    background: rgba(0, 0, 0, 0.08);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-size: 10px;
-    color: #555;
-    font-family: monospace;
 }
 
 .task-card-body {
@@ -159,13 +173,6 @@ body {
     color: #555;
 }
 
-.subtask-order {
-    font-family: monospace;
-    margin-right: 3px;
-    color: #888;
-    font-weight: bold;
-}
-
 .subtask-title {
     color: #333;
 }
@@ -191,20 +198,6 @@ body {
 
 .status-cancelled {
     color: #cc7777;
-}
-
-.subtask-markers {
-    margin-left: 4px;
-}
-
-.subtask-markers .marker {
-    background: rgba(0, 0, 0, 0.06);
-    padding: 0 4px;
-    border-radius: 2px;
-    font-size: 9.5px;
-    color: #666;
-    font-family: monospace;
-    margin-left: 2px;
 }
 
 .subtask-children {
@@ -327,22 +320,6 @@ body {
     line-height: 1.25;
 }
 
-.modal-markers {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 16px;
-}
-
-.modal-markers .marker {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    color: #444;
-    font-family: monospace;
-}
-
 .modal-body {
     margin-bottom: 20px;
     font-size: 14px;
@@ -363,10 +340,6 @@ body {
 
 .modal-children .subtask-status {
     font-size: 13px;
-}
-
-.modal-children .subtask-markers .marker {
-    font-size: 11px;
 }
 
 .modal-children .subtask-children {
