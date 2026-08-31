@@ -74,6 +74,76 @@ pub fn tokenize_title(title: &str, order: Option<u32>, markers: &[String]) -> Ve
     tokens
 }
 
+/// Returns `true` for the characters that end a marker name — a relaxed,
+/// client-side approximation of the parser's own boundary rule (see
+/// `mdagile::parser::is_marker_boundary`, which isn't reachable here since
+/// this module must also compile for the wasm32 client, where the
+/// `mdagile` crate isn't available).
+fn is_marker_boundary(c: char) -> bool {
+    c.is_whitespace() || matches!(c, '(' | ')' | '[' | ']' | '{' | '}' | '\'' | '"')
+}
+
+/// Trailing punctuation trimmed off the end of a scanned marker name, same
+/// set the parser strips (see `mdagile::parser::MARKER_TRAILING_PUNCT`).
+const MARKER_TRAILING_PUNCT: [char; 4] = [':', ';', ',', '.'];
+
+/// Splits arbitrary free-form `text` (e.g. a task's body lines) into a
+/// sequence of [`TitleToken`]s, self-detecting any `#`/`@` markers within it
+/// rather than relying on a pre-computed marker list — unlike
+/// [`tokenize_title`], body text has no such list available, since the
+/// parser only extracts markers from title lines.
+///
+/// This is a relaxed approximation of the parser's real marker grammar
+/// (whitespace/bracket-delimited names, common trailing punctuation
+/// trimmed), without its escape (`\#`) or tick-wrap (`'#literal'`) rules —
+/// acceptable here since those are rare in prose body text, and any
+/// mismatch just leaves a would-be marker unstyled rather than losing text.
+pub fn tokenize_text(text: &str) -> Vec<TitleToken> {
+    let mut tokens = Vec::new();
+    let mut rest = text;
+
+    loop {
+        let Some(start) = rest.find(['#', '@']) else {
+            push_plain(&mut tokens, rest);
+            break;
+        };
+
+        let (before, from_sigil) = rest.split_at(start);
+        let name_start = from_sigil.char_indices().nth(1).map(|(i, _)| i);
+        let Some(name_start) = name_start else {
+            // Sigil is the very last character — nothing follows it, so
+            // it can't be a marker name; treat the rest as plain text.
+            push_plain(&mut tokens, rest);
+            break;
+        };
+
+        let name_end = from_sigil[name_start..]
+            .find(is_marker_boundary)
+            .map(|i| name_start + i)
+            .unwrap_or(from_sigil.len());
+        let raw_name = &from_sigil[name_start..name_end];
+        let trimmed_end = raw_name.trim_end_matches(MARKER_TRAILING_PUNCT.as_slice());
+
+        if trimmed_end.is_empty() {
+            // No usable name after the sigil (e.g. a bare "#" or "@" or
+            // one immediately followed by punctuation) — not a marker;
+            // keep scanning right after the sigil so it isn't matched
+            // again in an infinite loop.
+            push_plain(&mut tokens, before);
+            push_plain(&mut tokens, &from_sigil[..name_start]);
+            rest = &from_sigil[name_start..];
+            continue;
+        }
+
+        let marker_end = name_start + trimmed_end.len();
+        push_plain(&mut tokens, before);
+        tokens.push(TitleToken::Marker(from_sigil[..marker_end].to_string()));
+        rest = &from_sigil[marker_end..];
+    }
+
+    tokens
+}
+
 /// Appends `text` to `tokens` as plain text, merging into a trailing
 /// [`TitleToken::Plain`] if there is one, instead of creating an adjacent
 /// duplicate — keeps the token sequence minimal and predictable. Does

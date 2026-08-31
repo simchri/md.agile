@@ -124,3 +124,93 @@ fn empty_marker_string_is_skipped() {
     let tokens = tokenize_title("first step", None, &["".to_string()]);
     assert_eq!(tokens, vec![TitleToken::Plain("first step".to_string())]);
 }
+
+#[test]
+fn tokenize_text_plain_text_with_no_markers_is_a_single_plain_token() {
+    let tokens = tokenize_text("just a body line, nothing special");
+    assert_eq!(
+        tokens,
+        vec![TitleToken::Plain(
+            "just a body line, nothing special".to_string()
+        )]
+    );
+}
+
+#[test]
+fn tokenize_text_empty_text_produces_no_tokens() {
+    assert_eq!(tokenize_text(""), vec![]);
+}
+
+#[test]
+fn tokenize_text_finds_hash_and_at_markers_anywhere() {
+    let tokens = tokenize_text("see #bug and ping @alice about it");
+    assert_eq!(
+        tokens,
+        vec![
+            TitleToken::Plain("see ".to_string()),
+            TitleToken::Marker("#bug".to_string()),
+            TitleToken::Plain(" and ping ".to_string()),
+            TitleToken::Marker("@alice".to_string()),
+            TitleToken::Plain(" about it".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn tokenize_text_marker_at_start_and_end_produce_no_stray_empty_plain_tokens() {
+    let tokens = tokenize_text("#bug needs @alice");
+    assert_eq!(
+        tokens,
+        vec![
+            TitleToken::Marker("#bug".to_string()),
+            TitleToken::Plain(" needs ".to_string()),
+            TitleToken::Marker("@alice".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn tokenize_text_strips_trailing_punctuation_from_marker_name() {
+    let tokens = tokenize_text("ping @alice, then #bug.");
+    assert_eq!(
+        tokens,
+        vec![
+            TitleToken::Plain("ping ".to_string()),
+            TitleToken::Marker("@alice".to_string()),
+            TitleToken::Plain(", then ".to_string()),
+            TitleToken::Marker("#bug".to_string()),
+            TitleToken::Plain(".".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn tokenize_text_bare_sigil_with_no_name_is_left_as_plain_text() {
+    let tokens = tokenize_text("cost is # 5 dollars @ noon");
+    assert_eq!(
+        tokens,
+        vec![TitleToken::Plain("cost is # 5 dollars @ noon".to_string())]
+    );
+}
+
+#[test]
+fn tokenize_text_sigil_as_final_character_is_left_as_plain_text() {
+    let tokens = tokenize_text("trailing hash #");
+    assert_eq!(
+        tokens,
+        vec![TitleToken::Plain("trailing hash #".to_string())]
+    );
+}
+
+#[test]
+fn tokenize_text_marker_bounded_by_brackets_is_recognized() {
+    let tokens = tokenize_text("blocked by (#bug) right now");
+    assert_eq!(
+        tokens,
+        vec![
+            TitleToken::Plain("blocked by (".to_string()),
+            TitleToken::Marker("#bug".to_string()),
+            TitleToken::Plain(") right now".to_string()),
+        ]
+    );
+}

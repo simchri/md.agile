@@ -23,7 +23,7 @@ use card_positioning::{
 };
 use dioxus::prelude::ServerFnError;
 use server::TaskView;
-use title_highlight::{tokenize_title, TitleToken};
+use title_highlight::{tokenize_text, tokenize_title, TitleToken};
 
 fn main() {
     init_logger();
@@ -217,7 +217,23 @@ fn format_server_error(error: &ServerFnError) -> String {
 /// twice — see `title_highlight` for why). Used by every place a title is
 /// displayed: the task card, `SubtaskItem`, and the task detail modal.
 fn highlighted_title(title: &str, order: Option<u32>, markers: &[String]) -> Element {
-    let tokens = tokenize_title(title, order, markers);
+    render_title_tokens(tokenize_title(title, order, markers))
+}
+
+/// Renders a single line of free-form task/subtask body text with any
+/// `#`/`@` markers it contains highlighted inline, the same way
+/// [`highlighted_title`] highlights a title. Unlike titles, body text has
+/// no server-supplied marker list to work from, so markers are detected
+/// directly from the text itself (see `title_highlight::tokenize_text`).
+fn highlighted_text(text: &str) -> Element {
+    render_title_tokens(tokenize_text(text))
+}
+
+/// Shared rendering for a token sequence produced by either
+/// [`tokenize_title`] or [`tokenize_text`] — both use the same
+/// `TitleToken` shapes, so titles and body text get identical highlight
+/// styling.
+fn render_title_tokens(tokens: Vec<TitleToken>) -> Element {
     rsx! {
         for token in tokens {
             match token {
@@ -702,7 +718,7 @@ fn TaskCard(
             if !task.body.is_empty() {
                 div { class: "task-card-body",
                     for line in &task.body {
-                        div { "{line}" }
+                        div { {highlighted_text(line)} }
                     }
                 }
             }
@@ -756,7 +772,7 @@ fn SubtaskItem(
             if show_body && !task.body.is_empty() {
                 div { class: "subtask-body",
                     for line in &task.body {
-                        div { "{line}" }
+                        div { {highlighted_text(line)} }
                     }
                 }
             }
@@ -900,7 +916,7 @@ fn TaskModal(
                 if !task.body.is_empty() {
                     div { class: "modal-body",
                         for line in &task.body {
-                            div { "{line}" }
+                            div { {highlighted_text(line)} }
                         }
                     }
                 }
