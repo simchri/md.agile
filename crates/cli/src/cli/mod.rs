@@ -249,16 +249,9 @@ pub enum TaskAction {
         no_markup: bool,
     },
 
-    /// Show the most recently completed task(s)
+    /// Show the last completed (sub-) task by priority
     ///
-    /// The mirror image of `agile task next`: walks *closed* top-level
-    /// tasks (any with `Done`/`Cancelled` work in them — including
-    /// partially-completed ones) in reverse priority order, so the most
-    /// recently touched top-level task is address `1`, the one before that
-    /// `2`, and so on. With no arguments, shows just that single most
-    /// recent one, including its full subtree — exactly the address scheme
-    /// `agile task undone` now accepts, including whole fully-done
-    /// top-level tasks.
+    /// display addesses for use with `agile task undone`
     #[command(visible_alias = "prev")]
     Previous {
         /// A plain count (e.g. `3`, meaning "3rd most recently touched
