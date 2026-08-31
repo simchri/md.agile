@@ -411,8 +411,8 @@ git_emails = [\"bob@example.com\"]
     // Assert
     let expected = "\
 1   [ ] parent task
-1.1   [x] first step @bob
-1.2   [ ] second step @alice <==
+1.1   [x] 1. first step @bob
+1.2   [ ] 2. second step @alice <==
 ";
     assert_eq!(stdout, expected);
 }
@@ -440,8 +440,8 @@ fn without_identity_still_marks_blocked_ordered_leaf_unconditionally() {
     // Assert
     let expected = "\
 1   [ ] parent task
-1.1   [ ] first step @bob <==
-1.2   [ ] second step @alice
+1.1   [ ] 1. first step @bob <==
+1.2   [ ] 2. second step @alice
 ";
     assert_eq!(stdout, expected);
 }
@@ -649,8 +649,8 @@ git_emails = [\"bob@example.com\"]
     // Assert
     let expected = "\
 1   [ ] parent task
-1.1   [ ] first step @bob
-1.2   [ ] blocked step @alice
+1.1   [ ] 1. first step @bob
+1.2   [ ] 2. blocked step @alice
 1.3   [ ] separate unordered step @alice <==
 ";
     assert_eq!(stdout, expected);

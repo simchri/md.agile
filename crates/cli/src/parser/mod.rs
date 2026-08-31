@@ -368,24 +368,22 @@ pub fn parse(input: &str, path: PathBuf) -> Vec<FileItem> {
             // baked inside the quotes (e.g. `"1. dev implementation"`, per
             // README.vision.md "Ordered Tasks via Properties"), and the
             // leading `"` would otherwise make `parse_order_prefix` fail to
-            // recognise the digit run. For `Custom` subtasks the order prefix
-            // is still consumed (stripped from the title, as before); for
-            // `PropertyRequired` subtasks it is only *detected*, not
-            // consumed — `raw_title` must stay byte-identical to the
-            // property's configured subtask string (order prefix included)
-            // so E010/E012 matching keeps working unchanged.
+            // recognise the digit run.
             let (kind, unquoted, trailing_markers_src) = parse_subtask_kind(&rest);
             // Byte offset within the original title text where the trailing
             // marker suffix (if any) begins — needed to re-anchor its
             // markers' columns once parsed separately below.
             let trailing_offset = rest.len() - trailing_markers_src.len();
-            let (order, rest) = match kind {
-                SubtaskKind::Custom => parse_order_prefix(unquoted),
-                SubtaskKind::PropertyRequired => {
-                    let (order, _) = parse_order_prefix(unquoted);
-                    (order, unquoted)
-                }
-            };
+            // The order prefix is only *detected* into `order`, never
+            // consumed from the title text — like `#`/`@` markers, it stays
+            // inline in the displayed title (see `parse_markers`) so it's
+            // still visible wherever the title is rendered, e.g. `agile task
+            // next`. For `PropertyRequired` subtasks this also keeps
+            // `raw_title` byte-identical to the property's configured
+            // subtask string (order prefix included), so E010/E012 matching
+            // keeps working unchanged.
+            let (order, _) = parse_order_prefix(unquoted);
+            let rest = unquoted;
             let raw_title = match kind {
                 SubtaskKind::PropertyRequired => Some(rest.to_string()),
                 SubtaskKind::Custom => None,
@@ -582,7 +580,11 @@ fn parse_milestone_name(line: &str) -> Option<String> {
     Some(name.trim_end().to_string())
 }
 
-// Strips a leading order number ("1. ") and returns the order and remaining text.
+// Detects a leading order number ("1. ") and returns the order plus the
+// text with it stripped. Callers only use the stripped remainder to detect
+// *whether* an order prefix was present — the prefix itself is kept in the
+// displayed title by the caller (see the call site in the main parse loop),
+// mirroring how `#`/`@` markers are kept inline instead of stripped.
 fn parse_order_prefix(title: &str) -> (Order, &str) {
     let bytes = title.as_bytes();
     let mut i = 0;

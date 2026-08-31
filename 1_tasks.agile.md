@@ -742,7 +742,7 @@ $ agile task next 4
 next task should be "Proper definition of .."
 
 - [ ] #bug task eligibility: Ordered tasks with subtasks: A subtask of a later ordered task is considered eligible, even though precondition tasks are not yet done! Expected: The subtasks are only unlocked, when all previous major tasks are done
-  - [ ] show the ordering in the output of "agile task next"
+  - [x] show the ordering in the output of "agile task next"
 
 - [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`) 
 - [ ] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`) 

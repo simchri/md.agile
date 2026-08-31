@@ -191,7 +191,8 @@ fn mark_node_done_allows_in_order_subtask_completion() {
     let config = Config::default();
 
     let result = mark_node_done(&file, &items, 2, &config, &ResolvedIdentity::Unrecognized);
-    assert_eq!(result.as_deref(), Ok("first step"));
+    // The "1. " order prefix stays inline in the title, like `#`/`@` markers.
+    assert_eq!(result.as_deref(), Ok("1. first step"));
 }
 
 #[test]

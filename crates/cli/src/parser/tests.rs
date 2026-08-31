@@ -302,7 +302,10 @@ fn parse_ordered_subtask() {
     let items = p(input);
     let children = &task(&items, 0).children;
     assert_eq!(children[0].order, Order::Ordered(1));
-    assert_eq!(children[0].title, "first step");
+    // The "N. " prefix stays inline in the displayed title — like `#`/`@`
+    // markers, it's detected into `Order` but not stripped out — so it's
+    // still visible wherever the title is rendered, e.g. `agile task next`.
+    assert_eq!(children[0].title, "1. first step");
     assert_eq!(children[1].order, Order::Ordered(2));
 }
 
@@ -842,9 +845,12 @@ fn property_required_subtask_with_order_prefix_keeps_full_raw_title_for_config_m
 }
 
 #[test]
-fn custom_subtask_order_prefix_stripping_is_unaffected_by_property_required_fix() {
-    // Regression guard: Custom (unquoted) ranked subtasks must keep stripping
-    // the "N. " prefix out of the displayed title, exactly as before.
+fn custom_subtask_order_prefix_is_kept_inline_like_markers() {
+    // The "N. " prefix on a Custom (unquoted) ranked subtask is detected into
+    // `Order` but no longer stripped out of the displayed title — mirroring
+    // how `#`/`@` markers are kept inline instead of stripped, so the
+    // ordering is still visible wherever the title is rendered (e.g. `agile
+    // task next`).
     let input = "\
 - [ ] parent
   - [ ] 1. add performance UI test
@@ -853,5 +859,5 @@ fn custom_subtask_order_prefix_stripping_is_unaffected_by_property_required_fix(
     let sub = &task(&items, 0).children[0];
     assert_eq!(sub.kind, SubtaskKind::Custom);
     assert_eq!(sub.order, Order::Ordered(1));
-    assert_eq!(sub.title, "add performance UI test");
+    assert_eq!(sub.title, "1. add performance UI test");
 }
