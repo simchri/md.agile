@@ -747,7 +747,7 @@ next task should be "Proper definition of .."
 - [x] GUI: title now contains the ordering number and property/assignment markers as literal text (matching CLI output); replace the separate order-badge/marker-pill rendering in the task card, subtask list, and task modal with unified inline highlighting of those substrings within the title text itself
 - [x] GUI: extend the inline property/assignment marker highlighting from titles to task and subtask body text, self-detecting markers directly within each body line (since body text has no server-supplied marker list like titles do)
 
-- [ ] `agile task next --mine / --as [@person]` should show tasks according to eligibility as before, but the numbering in front of each task should be as for the output without `--mine / --as`. Propose a name for this numbering / address! Add this to the glossary, ensure it is not conflicting with others. The background: This numbering is used to mark tasks "done". The "done" subcommand always consumes this specific address, it should not change depending on the parameters to "next"
+- [x] `agile task next --mine / --as [@person]` should show tasks according to eligibility as before, but the numbering in front of each task should be as for the output without `--mine / --as`. Propose a name for this numbering / address! Add this to the glossary, ensure it is not conflicting with others. The background: This numbering is used to mark tasks "done". The "done" subcommand always consumes this specific address, it should not change depending on the parameters to "next"
 
 - [ ] clarify "rank" vs. "task address" terminology:
   "rank" is the same as "task address":

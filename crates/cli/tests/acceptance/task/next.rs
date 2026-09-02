@@ -251,6 +251,55 @@ git_emails = [\"bob@example.com\"]
 }
 
 #[test]
+fn task_next_mine_prints_the_task_address_not_the_eligible_only_position() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    git(dir.path(), &["config", "user.email", "alice@example.com"]);
+    git(dir.path(), &["config", "user.name", "Alice"]);
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    // Eligible tasks (unassigned or alice's), in order: "unassigned task"
+    // (#1 eligible), "alice's task" (#2 eligible, but #3 among ALL
+    // top-level Todo tasks) — bob's task is 2nd overall but not eligible.
+    let content = "\
+- [ ] unassigned task
+- [ ] bob's task @bob
+- [ ] alice's task @alice
+- [ ] another unassigned task
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+
+    // `next 2 --mine` selects the 2nd *eligible* task ("alice's task"), but
+    // must print its Task Address (3, its position among all top-level
+    // Todo tasks) — not "2" (its position among eligible tasks only) —
+    // so that `done <that number>` (without `--mine`) resolves to the
+    // exact same task.
+    let out = run_agile(dir.path(), &["task", "next", "2", "--mine"]);
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("alice's task"), "stdout: {stdout:?}");
+    assert!(
+        stdout.trim_start().starts_with("3 "),
+        "expected the printed address to be the task's overall position (3), got: {stdout:?}"
+    );
+
+    let out = run_agile(dir.path(), &["task", "done", "3"]);
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(
+        stdout.contains("alice's task"),
+        "`done 3` should mark the exact same task `next 2 --mine` printed, stdout: {stdout:?}"
+    );
+}
+
+#[test]
 fn task_next_mine_with_dotted_address_is_rejected() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

@@ -96,17 +96,20 @@ pub fn run_next(
         identity.as_ref(),
         TopLevelFilter::Status(Status::Todo),
     ) {
-        Ok(resolved) => print!(
-            "{}",
-            render_resolved(
-                &resolved,
-                full,
-                identity.as_ref(),
-                config,
-                no_markup,
-                &format_address(&resolve_parts),
+        Ok(resolved) => {
+            let displayed_address = resolved.task_address(&resolve_parts[1..]);
+            print!(
+                "{}",
+                render_resolved(
+                    &resolved,
+                    full,
+                    identity.as_ref(),
+                    config,
+                    no_markup,
+                    &displayed_address,
+                )
             )
-        ),
+        }
         Err(e) => {
             if explicit_address {
                 log::error!("{e}");
@@ -415,6 +418,20 @@ pub(crate) struct ResolvedAddress {
     items: Vec<FileItem>,
     task_index: usize,
     child_indices: Vec<usize>,
+    /// The resolved node's own **Task Address** — its 1-based position
+    /// counting *every* top-level task matching [`TopLevelFilter`]
+    /// (`Status`/`ClosedWorkReversed`), regardless of any `eligible_for`
+    /// identity filter. This is deliberately *not* the same as the `first`
+    /// segment passed in to [`resolve_address`] when an identity filter is
+    /// active: `first` there instead counts only *eligible* candidates
+    /// (`--mine`'s "Nth task I could work on"), so the two numbers diverge
+    /// whenever an ineligible task is skipped along the way. Callers that
+    /// print or otherwise expose a task's address (e.g. `agile task next`)
+    /// must use this field, not `first` — it's the one number that always
+    /// names the same task regardless of `--mine`/`--as`, matching what
+    /// `agile task done <N>` (never identity-filtered) actually consumes.
+    /// See the "Task Address" glossary entry.
+    top_level_address: usize,
 }
 
 impl ResolvedAddress {
@@ -430,6 +447,20 @@ impl ResolvedAddress {
             node = NodeRef::Subtask(&children[idx]);
         }
         node
+    }
+
+    /// Returns the full dotted **Task Address** for the resolved node —
+    /// [`Self::top_level_address`] as the first segment, followed by the
+    /// same child segments the caller originally requested (children are
+    /// never identity-filtered, so those never diverge from what was
+    /// asked for).
+    pub(crate) fn task_address(&self, requested_child_parts: &[usize]) -> String {
+        format_address(
+            std::iter::once(self.top_level_address)
+                .chain(requested_child_parts.iter().copied())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
     }
 }
 
@@ -494,7 +525,8 @@ pub(crate) fn resolve_address(
     let finish = |file: PathBuf,
                   items: Vec<FileItem>,
                   idx: usize,
-                  rest: &[usize]|
+                  rest: &[usize],
+                  top_level_address: usize|
      -> Result<ResolvedAddress, String> {
         let task = match &items[idx] {
             FileItem::Task(t) => t,
@@ -518,12 +550,18 @@ pub(crate) fn resolve_address(
             items,
             task_index: idx,
             child_indices,
+            top_level_address,
         })
     };
 
     match filter {
         TopLevelFilter::Status(target_status) => {
-            let mut matching_count = 0usize;
+            let mut eligible_count = 0usize;
+            // Counts every top-level task matching `target_status`,
+            // regardless of `eligible_for` — this is a task's stable Task
+            // Address, unaffected by `--mine`/`--as` (see
+            // `ResolvedAddress::top_level_address`).
+            let mut unfiltered_position = 0usize;
             for file in find_task_files(root) {
                 let items = parse_file(&file);
                 for (idx, item) in items.iter().enumerate() {
@@ -533,16 +571,17 @@ pub(crate) fn resolve_address(
                     if !matches_filter(task) {
                         continue;
                     }
+                    unfiltered_position += 1;
                     if let Some(identity) = eligible_for {
                         if !rules::is_eligible_for(NodeRef::Task(task), identity, config) {
                             continue;
                         }
                     }
-                    matching_count += 1;
-                    if matching_count != first {
+                    eligible_count += 1;
+                    if eligible_count != first {
                         continue;
                     }
-                    return finish(file, items, idx, rest);
+                    return finish(file, items, idx, rest, unfiltered_position);
                 }
             }
             let status_word = match target_status {
@@ -551,12 +590,18 @@ pub(crate) fn resolve_address(
                 Status::Cancelled => "cancelled",
             };
             Err(format!(
-                "no such task: address {} starts at {status_word} top-level task #{first}, but only {matching_count} matching {status_word} top-level task(s) exist",
+                "no such task: address {} starts at {status_word} top-level task #{first}, but only {eligible_count} matching {status_word} top-level task(s) exist",
                 format_address(parts)
             ))
         }
         TopLevelFilter::ClosedWorkReversed => {
-            let mut candidates: Vec<(PathBuf, Vec<FileItem>, usize)> = Vec::new();
+            // Collected in forward document order first so each candidate's
+            // stable Task Address (`top_level_address`, its reverse
+            // position counting *all* matches regardless of eligibility)
+            // can be computed from `total`/its forward index below, before
+            // eligibility filtering narrows down which ones `first` can
+            // actually select.
+            let mut candidates: Vec<(PathBuf, Vec<FileItem>, usize, bool)> = Vec::new();
             for file in find_task_files(root) {
                 let items = parse_file(&file);
                 for (idx, item) in items.iter().enumerate() {
@@ -566,23 +611,39 @@ pub(crate) fn resolve_address(
                     if !matches_filter(task) {
                         continue;
                     }
-                    if let Some(identity) = eligible_for {
-                        if !rules::is_eligible_for(NodeRef::Task(task), identity, config) {
-                            continue;
-                        }
-                    }
-                    candidates.push((file.clone(), items.clone(), idx));
+                    let eligible = eligible_for.is_none_or(|identity| {
+                        rules::is_eligible_for(NodeRef::Task(task), identity, config)
+                    });
+                    candidates.push((file.clone(), items.clone(), idx, eligible));
                 }
             }
             let total = candidates.len();
-            if first > total || first == 0 {
+            let eligible_total = candidates.iter().filter(|(.., eligible)| *eligible).count();
+            if first > eligible_total || first == 0 {
                 return Err(format!(
-                    "no such task: address {} starts at closed top-level task #{first}, but only {total} matching closed top-level task(s) exist",
+                    "no such task: address {} starts at closed top-level task #{first}, but only {eligible_total} matching closed top-level task(s) exist",
                     format_address(parts)
                 ));
             }
-            let (file, items, idx) = candidates.into_iter().nth(total - first).unwrap();
-            finish(file, items, idx, rest)
+            // Walk candidates in reverse document order (address `1` is the
+            // most recently touched one), counting off `first` eligible
+            // ones; `top_level_address` is the candidate's own reverse
+            // position among *all* candidates, eligible or not.
+            let mut eligible_seen = 0usize;
+            for (forward_idx, (file, items, idx, eligible)) in
+                candidates.into_iter().enumerate().rev()
+            {
+                if !eligible {
+                    continue;
+                }
+                eligible_seen += 1;
+                if eligible_seen != first {
+                    continue;
+                }
+                let top_level_address = total - forward_idx;
+                return finish(file, items, idx, rest, top_level_address);
+            }
+            unreachable!("first <= eligible_total was already checked above");
         }
     }
 }
