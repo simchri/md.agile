@@ -757,6 +757,15 @@ next task should be "Proper definition of .."
   - subtask rank is given as follows:
   - a subtask of a not fully done top-level task always has a rank, regardless of whether it is to-do, done or cancelled.
   - subtask rank is simply the "hierarchical" indexing of subtasks: first subtask of first ranked task is "1.1", second subtask is "1.2" etc., recursively.   
+  - __rank / task address__ is what is shown by `agile task next`
+  "reverse rank", i.e. "reverse address":
+  - The last __partially__ done top-level task has reverse rank / reverse address "1" (the most "recently" (not in temporal sense, but as of prio!) partially completed task)
+  - The previous partially / or fully done top-level task has reverse rank / reverse address "2" etc.
+  - subtask reverse rank is handled analogous to subtask rank.
+  - __reverse rank / reverse task address__ is what is shown by `agile task previous`
+  Some consequences:
+  - tasks and subtasks can potentially have both "rank" and "reverse rank"!
+
   
 
 - [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`) 
