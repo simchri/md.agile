@@ -44,10 +44,7 @@ fn is_eligible_by_own_markers(
         return true;
     }
     let authorized = unauthorized_completion::authorized_users(&names, config);
-    match identity {
-        ResolvedIdentity::Known(user) => authorized.iter().any(|a| a == user),
-        ResolvedIdentity::Unrecognized => false,
-    }
+    unauthorized_completion::is_authorized_user(&authorized, identity)
 }
 
 /// Returns whether every descendant of `node` (not `node` itself) is

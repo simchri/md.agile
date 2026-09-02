@@ -483,10 +483,7 @@ fn check_authorized_completable(
         return Vec::new();
     }
     let authorized = unauthorized_completion::authorized_users(&names, config);
-    let is_authorized = match identity {
-        ResolvedIdentity::Known(user) => authorized.iter().any(|a| a == user),
-        ResolvedIdentity::Unrecognized => false,
-    };
+    let is_authorized = unauthorized_completion::is_authorized_user(&authorized, identity);
     if is_authorized {
         return Vec::new();
     }

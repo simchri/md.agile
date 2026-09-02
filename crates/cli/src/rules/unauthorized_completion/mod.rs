@@ -108,6 +108,26 @@ pub(crate) fn authorized_users(names: &[&str], config: &Config) -> Vec<String> {
     authorized
 }
 
+/// Returns whether `identity` is one of the concrete `[Users.X]` keys in
+/// `authorized` (see [`authorized_users`]). `identity ==
+/// ResolvedIdentity::Unrecognized` (an identity was determined but doesn't
+/// match any configured user) is always unauthorized, regardless of
+/// `authorized`'s contents — the caller must not call this at all if it
+/// wants a full skip (e.g. when no identity could be determined
+/// whatsoever). The single shared predicate behind E013's own check
+/// ([`unauthorized_completion`]), the LSP/CLI live "would this completion
+/// violate E013" pre-check ([`crate::rules::check_authorized_completable`]),
+/// and `--mine`/`--as` task eligibility
+/// ([`crate::rules::next_task::is_eligible_by_own_markers`]) — all three
+/// reduce to this same "is this identity one of the authorized users"
+/// question, just applied to different `authorized` sets or moments.
+pub(crate) fn is_authorized_user(authorized: &[String], identity: &ResolvedIdentity) -> bool {
+    match identity {
+        ResolvedIdentity::Known(user) => authorized.iter().any(|a| a == user),
+        ResolvedIdentity::Unrecognized => false,
+    }
+}
+
 /// Compares the `old` (HEAD, `None` if no committed version exists) and `new`
 /// (working copy) versions of a file's parsed items, flagging every task/subtask
 /// that transitioned to `[x]` without `identity` being authorized.
@@ -156,10 +176,7 @@ pub fn unauthorized_completion(
             continue;
         }
         let authorized = authorized_users(&names, config);
-        let is_authorized = match identity {
-            ResolvedIdentity::Known(user) => authorized.iter().any(|a| a == user),
-            ResolvedIdentity::Unrecognized => false,
-        };
+        let is_authorized = is_authorized_user(&authorized, identity);
         if is_authorized {
             continue;
         }
