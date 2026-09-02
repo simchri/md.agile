@@ -256,7 +256,7 @@ pub enum TaskAction {
     Previous {
         /// A plain count (e.g. `3`, meaning "3rd most recently touched
         /// top-level task") or a dotted address (e.g. `1.2`) to show one
-        /// specific (sub)task by position, using the same reverse-rank
+        /// specific (sub)task by position, using the same reverse rank
         /// numbering as with no address. Omit to show just the single most
         /// recently touched top-level task.
         address: Option<String>,

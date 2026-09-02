@@ -418,8 +418,8 @@ pub(crate) struct ResolvedAddress {
     items: Vec<FileItem>,
     task_index: usize,
     child_indices: Vec<usize>,
-    /// The resolved node's own **Task Address** — its 1-based position
-    /// counting *every* top-level task matching [`TopLevelFilter`]
+    /// The resolved node's own **Rank** (its Task Address) — its 1-based
+    /// position counting *every* top-level task matching [`TopLevelFilter`]
     /// (`Status`/`ClosedWorkReversed`), regardless of any `eligible_for`
     /// identity filter. This is deliberately *not* the same as the `first`
     /// segment passed in to [`resolve_address`] when an identity filter is
@@ -430,7 +430,7 @@ pub(crate) struct ResolvedAddress {
     /// must use this field, not `first` — it's the one number that always
     /// names the same task regardless of `--mine`/`--as`, matching what
     /// `agile task done <N>` (never identity-filtered) actually consumes.
-    /// See the "Task Address" glossary entry.
+    /// See the "Rank" glossary entry.
     top_level_address: usize,
 }
 
@@ -449,12 +449,13 @@ impl ResolvedAddress {
         node
     }
 
-    /// Returns the full dotted **Task Address** for the resolved node —
+    /// Returns the full dotted rank/address for the resolved node —
     /// [`Self::top_level_address`] as the first segment, followed by the
     /// same child segments the caller originally requested (children are
     /// never identity-filtered, so those never diverge from what was
     /// asked for).
     pub(crate) fn task_address(&self, requested_child_parts: &[usize]) -> String {
+
         format_address(
             std::iter::once(self.top_level_address)
                 .chain(requested_child_parts.iter().copied())
