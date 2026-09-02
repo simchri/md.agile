@@ -749,6 +749,8 @@ next task should be "Proper definition of .."
 
 - [ ] `agile task next --mine / --as [@person]` should show tasks according to eligibility as before, but the numbering in front of each task should be as for the output without `--mine / --as`. Propose a name for this numbering / address! Add this to the glossary, ensure it is not conflicting with others. The background: This numbering is used to mark tasks "done". The "done" subcommand always consumes this specific address, it should not change depending on the parameters to "next"
 
+- [ ] clarify "rank" vs. "task address" terminology
+
 - [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`) 
 - [ ] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`) 
 - [ ] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`) 
