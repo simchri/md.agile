@@ -97,7 +97,7 @@ pub fn run_next(
         TopLevelFilter::Status(Status::Todo),
     ) {
         Ok(resolved) => {
-            let displayed_address = resolved.task_address(&resolve_parts[1..]);
+            let displayed_rank = resolved.rank_address(&resolve_parts[1..]);
             print!(
                 "{}",
                 render_resolved(
@@ -106,7 +106,7 @@ pub fn run_next(
                     identity.as_ref(),
                     config,
                     no_markup,
-                    &displayed_address,
+                    &displayed_rank,
                 )
             )
         }
@@ -431,7 +431,7 @@ pub(crate) struct ResolvedAddress {
     /// names the same task regardless of `--mine`/`--as`, matching what
     /// `agile task done <N>` (never identity-filtered) actually consumes.
     /// See the "Rank" glossary entry.
-    top_level_address: usize,
+    top_level_rank: usize,
 }
 
 impl ResolvedAddress {
@@ -450,14 +450,13 @@ impl ResolvedAddress {
     }
 
     /// Returns the full dotted rank/address for the resolved node —
-    /// [`Self::top_level_address`] as the first segment, followed by the
+    /// [`Self::top_level_rank`] as the first segment, followed by the
     /// same child segments the caller originally requested (children are
     /// never identity-filtered, so those never diverge from what was
     /// asked for).
-    pub(crate) fn task_address(&self, requested_child_parts: &[usize]) -> String {
-
+    pub(crate) fn rank_address(&self, requested_child_parts: &[usize]) -> String {
         format_address(
-            std::iter::once(self.top_level_address)
+            std::iter::once(self.top_level_rank)
                 .chain(requested_child_parts.iter().copied())
                 .collect::<Vec<_>>()
                 .as_slice(),
@@ -527,7 +526,7 @@ pub(crate) fn resolve_address(
                   items: Vec<FileItem>,
                   idx: usize,
                   rest: &[usize],
-                  top_level_address: usize|
+                  top_level_rank: usize|
      -> Result<ResolvedAddress, String> {
         let task = match &items[idx] {
             FileItem::Task(t) => t,
@@ -551,7 +550,7 @@ pub(crate) fn resolve_address(
             items,
             task_index: idx,
             child_indices,
-            top_level_address,
+            top_level_rank,
         })
     };
 
@@ -559,9 +558,9 @@ pub(crate) fn resolve_address(
         TopLevelFilter::Status(target_status) => {
             let mut eligible_count = 0usize;
             // Counts every top-level task matching `target_status`,
-            // regardless of `eligible_for` — this is a task's stable Task
-            // Address, unaffected by `--mine`/`--as` (see
-            // `ResolvedAddress::top_level_address`).
+            // regardless of `eligible_for` — this is a task's stable rank,
+            // unaffected by `--mine`/`--as` (see
+            // `ResolvedAddress::top_level_rank`).
             let mut unfiltered_position = 0usize;
             for file in find_task_files(root) {
                 let items = parse_file(&file);
@@ -597,7 +596,7 @@ pub(crate) fn resolve_address(
         }
         TopLevelFilter::ClosedWorkReversed => {
             // Collected in forward document order first so each candidate's
-            // stable Task Address (`top_level_address`, its reverse
+            // stable reverse rank (`top_level_rank`, its reverse
             // position counting *all* matches regardless of eligibility)
             // can be computed from `total`/its forward index below, before
             // eligibility filtering narrows down which ones `first` can
@@ -628,7 +627,7 @@ pub(crate) fn resolve_address(
             }
             // Walk candidates in reverse document order (address `1` is the
             // most recently touched one), counting off `first` eligible
-            // ones; `top_level_address` is the candidate's own reverse
+            // ones; `top_level_rank` is the candidate's own reverse
             // position among *all* candidates, eligible or not.
             let mut eligible_seen = 0usize;
             for (forward_idx, (file, items, idx, eligible)) in
@@ -641,8 +640,8 @@ pub(crate) fn resolve_address(
                 if eligible_seen != first {
                     continue;
                 }
-                let top_level_address = total - forward_idx;
-                return finish(file, items, idx, rest, top_level_address);
+                let top_level_rank = total - forward_idx;
+                return finish(file, items, idx, rest, top_level_rank);
             }
             unreachable!("first <= eligible_total was already checked above");
         }
