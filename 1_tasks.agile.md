@@ -849,6 +849,7 @@ new:
   - [x] Implemented: retained exactly two escaping mechanisms — `\` before `\#`/`\@` (unchanged), and single ticks fully surrounding a term (`'\@something'`, opening AND closing tick both required — a lone tick no longer suppresses, e.g. `weird'\#feat` is a real marker). Double quotes now have no escaping effect at all (`"\@alice"`/`"\#feat"` are real markers); `"` is still used unrelatedly for the property-required-subtask quoting convention. Renamed `is_marker_quote` to `is_marker_tick` in `parser/mod.rs`; mirrored in `lsp/goto_definition.rs`. Tests updated/added in `parser/tests.rs` and `goto_definition.rs`.
   - [x] task '@foobarbazasome' '#some'
   - [ ] ignore anything inside of code quotes, i.e. ``
+    - [ ] #bug: currently inconsistent ignore rules between the lsp and agile check, agile check recognizes insisde ticks, but lsp doesn't (it seems, maybe different versions - investigate and fix)
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
