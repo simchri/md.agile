@@ -191,7 +191,7 @@ pub fn run_previous(
     }
 }
 
-/// `agile task done ADDRESS` entry point.
+/// `agile task done [ADDRESS]` entry point.
 ///
 /// Resolves `address` (see [`parse_address`]) to a single (sub)task, checks
 /// that marking it done wouldn't violate the "incomplete children" (E004),
@@ -202,29 +202,79 @@ pub fn run_previous(
 /// the node isn't actually completable yet, or if it isn't a todo task to
 /// begin with.
 ///
+/// With no `address` at all, this behaves like `agile task next` with no
+/// address (optionally filtered by `mine`/`as_user`, exactly like `next
+/// --mine`/`--as`): it resolves to the single next eligible top-level task
+/// and marks *that* one done, instead of requiring the caller to look it up
+/// with `next` first and pass its rank back in as an explicit address.
+/// `mine` is a hard error when combined with an explicit `address`, since an
+/// explicit address already names one exact task regardless of assignment.
+///
 /// The acting identity for the E013 check is resolved via
 /// [`checker::resolve_task_done_identity`]: `as_user` (from `--as`) if
 /// given, otherwise the live git identity of `root`. Unlike `--mine`, an
 /// unresolvable identity (not a git repo, or no git identity configured)
 /// never aborts the command outright — it's simply treated as unauthorized
 /// for any *assigned* task, exactly like a git identity that doesn't match
-/// any `[Users.X]` entry. Unassigned tasks are unaffected either way.
-pub fn run_done(root: &Path, config: &Config, address: &str, as_user: Option<&str>) {
-    let parts = match parse_address(address) {
-        Some(parts) => parts,
-        None => {
+/// any `[Users.X]` entry. Unassigned tasks are unaffected either way. When
+/// `mine`/`as_user` select the task (no explicit address), the *same*
+/// resolved identity is reused for this E013 check too, instead of
+/// resolving it a second time — `--mine`'s selection already required a
+/// definite identity (it hard-fails otherwise), so there's no distinct
+/// "lenient" identity to fall back to here.
+pub fn run_done(
+    root: &Path,
+    config: &Config,
+    address: Option<&str>,
+    mine: bool,
+    as_user: Option<&str>,
+) {
+    // Unlike `agile task next`, `--as` here doubles as a plain E013-identity
+    // override even when an explicit address is given (see doc comment
+    // above) — so it must not unconditionally imply `--mine` the way it
+    // does for `next`. Only treat `--as` as implying `--mine` when there's
+    // no explicit address to conflict with, i.e. when it can only mean
+    // "select and complete *my* next eligible task as this identity".
+    let mine = mine || (as_user.is_some() && address.is_none());
+
+    if mine && address.is_some() {
+        log::error!(
+            "`--mine` cannot be combined with an explicit address (an explicit address already names one exact task)"
+        );
+        std::process::exit(1);
+    }
+
+    let parts = match address.map(parse_address) {
+        None => None,
+        Some(Some(parts)) => Some(parts),
+        Some(None) => {
             log::error!(
-                "invalid task address {address:?} — expected a number or dotted address like `1.2`"
+                "invalid task address {:?} — expected a number or dotted address like `1.2`",
+                address.unwrap()
             );
             std::process::exit(1);
         }
     };
 
+    let mine_identity = if mine {
+        match checker::resolve_cli_identity(root, config, as_user) {
+            Ok(identity) => Some(identity),
+            Err(e) => {
+                log::error!("{e}");
+                std::process::exit(1);
+            }
+        }
+    } else {
+        None
+    };
+
+    let resolve_parts = parts.clone().unwrap_or_else(|| vec![1]);
+
     let resolved = match resolve_address(
         root,
-        &parts,
+        &resolve_parts,
         config,
-        None,
+        mine_identity.as_ref(),
         TopLevelFilter::Status(Status::Todo),
     ) {
         Ok(resolved) => resolved,
@@ -234,12 +284,14 @@ pub fn run_done(root: &Path, config: &Config, address: &str, as_user: Option<&st
         }
     };
 
-    let identity = checker::resolve_task_done_identity(root, config, as_user);
+    let identity =
+        mine_identity.unwrap_or_else(|| checker::resolve_task_done_identity(root, config, as_user));
     let line = resolved.node_ref().location().line;
+    let display_address = format_address(&resolve_parts);
     match mark_node_done(&resolved.file, &resolved.items, line, config, &identity) {
         Ok(title) => println!("done: {title}"),
         Err(MarkDoneError::NotTodo(title)) => {
-            log::error!("task {address:?} ({title}) is not a todo task");
+            log::error!("task {display_address:?} ({title}) is not a todo task");
             std::process::exit(1);
         }
         Err(MarkDoneError::RuleViolations(issues)) => {

@@ -766,9 +766,9 @@ next task should be "Proper definition of .."
   Some consequences:
   - tasks and subtasks can potentially have both "rank" and "reverse rank"!
 
-- [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`)
-- [ ] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`)
-- [ ] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`)
+- [x] `agile task done [NO ADDRESS!]` should mark the next elligible (sub-) task done (the one that would have been shown with `agile task next`)
+- [x] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`)
+- [x] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`)
 
 - [ ] in `agile task --help` re-order the output as follows:
 

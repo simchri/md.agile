@@ -233,3 +233,134 @@ fn task_done_allows_completing_an_unassigned_task_outside_a_git_repo() {
 
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
 }
+
+#[test]
+fn task_done_with_no_address_marks_the_first_incomplete_top_level_task() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] first task
+- [ ] second task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done"]);
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let expected = "\
+- [x] first task
+- [ ] second task
+";
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        expected
+    );
+}
+
+#[test]
+fn task_done_mine_marks_the_next_eligible_task_assigned_to_me() {
+    let dir = tempdir().unwrap();
+    init_repo(dir.path(), "alice@example.com", "Alice");
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    // The 1st top-level task is assigned to bob, not eligible for alice, so
+    // `--mine` must skip it and complete the 2nd one instead — while still
+    // being the same task `agile task next --mine` would have shown.
+    let file_content = "\
+- [ ] fix bug @bob
+- [ ] write docs @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "--mine"]);
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let expected = "\
+- [ ] fix bug @bob
+- [x] write docs @alice
+";
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        expected
+    );
+}
+
+#[test]
+fn task_done_as_someone_marks_that_persons_next_eligible_task() {
+    let dir = tempdir().unwrap();
+    // Local git identity is "bob", but `--as alice` selects and completes
+    // alice's next eligible task instead of bob's.
+    init_repo(dir.path(), "bob@example.com", "Bob");
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] fix bug @bob
+- [ ] write docs @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "--as", "alice"]);
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let expected = "\
+- [ ] fix bug @bob
+- [x] write docs @alice
+";
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        expected
+    );
+}
+
+#[test]
+fn task_done_mine_cannot_be_combined_with_an_explicit_address() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] fix bug
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "1", "--mine"]);
+
+    assert!(!out.status.success());
+    // file must be untouched
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        file_content
+    );
+}
+
+#[test]
+fn task_done_with_no_address_and_no_eligible_task_is_an_error() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [x] already done
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done"]);
+
+    // Unlike `agile task next` (which prints nothing and exits 0 when
+    // nothing incomplete is left to show), `agile task done` must actually
+    // write something to succeed — with nothing eligible to mark done,
+    // there's nothing meaningful it could report as "done: ...", so this
+    // fails clearly instead of silently no-op-succeeding.
+    assert!(!out.status.success());
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        file_content
+    );
+}

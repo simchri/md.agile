@@ -282,15 +282,30 @@ pub enum TaskAction {
     /// completion of a task assigned to someone else (E013). Only reads/
     /// writes the one file the addressed task lives in — it doesn't
     /// re-validate the rest of the project.
+    ///
+    /// With no ADDRESS at all, marks the next eligible (sub)task done — the
+    /// same one `agile task next` (with the same `--mine`/`--as`, if given)
+    /// would have shown.
     Done {
-        /// Dotted address, e.g. `2` or `1.3`.
-        address: String,
+        /// Dotted address, e.g. `2` or `1.3`. Omit to mark the next eligible
+        /// task done (see `agile task next`).
+        address: Option<String>,
 
-        /// Override the identity used for the E013 assignment/completion
-        /// check instead of the live git identity — a literal `[Users.X]`
-        /// config key (e.g. `--as alice`), not a git name/email. A key that
-        /// doesn't match any configured user is always treated as
-        /// unauthorized for assigned tasks (never silently skipped).
+        /// Only consider unassigned tasks, or ones assigned to me directly
+        /// or via a group — the same eligibility rule as `agile task next
+        /// --mine`. Only valid with no ADDRESS (a given address already
+        /// names one exact task regardless of assignment).
+        #[arg(long)]
+        mine: bool,
+
+        /// Resolve `--mine` as this literal `[Users.X]` config key instead
+        /// of the git identity from `git config user.email`/`user.name`, or
+        /// (combined with an explicit ADDRESS) just override the identity
+        /// used for the E013 assignment/completion check on that one task.
+        /// With no ADDRESS, `--as` alone implies `--mine`, selecting and
+        /// completing that user's next eligible task. A key that doesn't
+        /// match any configured user is always treated as unauthorized for
+        /// assigned tasks (never silently skipped).
         #[arg(long, value_name = "USER")]
         r#as: Option<String>,
     },
@@ -415,9 +430,14 @@ pub fn run() {
             );
         }
         Some(Command::Task {
-            action: TaskAction::Done { address, r#as },
+            action:
+                TaskAction::Done {
+                    address,
+                    mine,
+                    r#as,
+                },
         }) => {
-            subcommands::task::run_done(root, &config, &address, r#as.as_deref());
+            subcommands::task::run_done(root, &config, address.as_deref(), mine, r#as.as_deref());
         }
         Some(Command::Task {
             action: TaskAction::Undone { address },
