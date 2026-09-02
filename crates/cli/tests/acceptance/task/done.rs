@@ -257,6 +257,37 @@ fn task_done_with_no_address_marks_the_first_incomplete_top_level_task() {
 }
 
 #[test]
+fn task_done_with_no_address_marks_the_nested_next_actionable_subtask_not_the_parent() {
+    let dir = tempdir().unwrap();
+    // The regression this reproduces: `agile task done` with no address
+    // used to always mark the *top-level* task itself, ignoring that it
+    // has been broken down into subtasks — instead it must mark the same
+    // concrete (sub)task `agile task next` would have highlighted, which
+    // here is the still-incomplete `subtask two`, nested two levels deep.
+    let file_content = "\
+- [ ] parent task
+  - [x] subtask one
+  - [ ] subtask two
+    - [ ] grandchild
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done"]);
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let expected = "\
+- [ ] parent task
+  - [x] subtask one
+  - [ ] subtask two
+    - [x] grandchild
+";
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        expected
+    );
+}
+
+#[test]
 fn task_done_mine_marks_the_next_eligible_task_assigned_to_me() {
     let dir = tempdir().unwrap();
     init_repo(dir.path(), "alice@example.com", "Alice");

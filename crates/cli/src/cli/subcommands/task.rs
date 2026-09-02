@@ -284,10 +284,25 @@ pub fn run_done(
         }
     };
 
+    let display_address = format_address(&resolve_parts);
+
+    // With an explicit address, mark exactly the named node, whatever it
+    // is — that's the whole point of a dotted address. With no address at
+    // all, `resolved` only pins down the *top-level* task; the actual next
+    // actionable unit (what `agile task next` would have highlighted) may
+    // be nested arbitrarily deep beneath it, so descend to find it.
+    let line = if parts.is_some() {
+        resolved.node_ref().location().line
+    } else {
+        let identity_pair = mine_identity.as_ref().map(|identity| (identity, config));
+        let no_siblings: &[Subtask] = &[];
+        let target = find_next_actionable(resolved.node_ref(), no_siblings, identity_pair)
+            .unwrap_or_else(|| resolved.node_ref());
+        target.location().line
+    };
+
     let identity =
         mine_identity.unwrap_or_else(|| checker::resolve_task_done_identity(root, config, as_user));
-    let line = resolved.node_ref().location().line;
-    let display_address = format_address(&resolve_parts);
     match mark_node_done(&resolved.file, &resolved.items, line, config, &identity) {
         Ok(title) => println!("done: {title}"),
         Err(MarkDoneError::NotTodo(title)) => {
@@ -701,6 +716,42 @@ pub(crate) fn resolve_address(
             unreachable!("first <= eligible_total was already checked above");
         }
     }
+}
+
+/// Descends from `node` (already known not order-blocked among `siblings`)
+/// to the actual next actionable (sub)task in document order — mirroring
+/// the same walk [`render_task_highlighting_next_leaf`]'s bolding performs,
+/// but returning the found node instead of a rendered line.
+///
+/// [`rules::is_next_task`] already requires
+/// [`rules::has_no_remaining_descendant_work`] to hold for a node to
+/// qualify itself, so whenever `node` doesn't qualify but is otherwise a
+/// todo task, the actual next actionable unit is *somewhere* among its
+/// children (recursively) — never `node` itself. Checks `node` first, then
+/// its children in document order, matching [`rules::is_next_task`]'s own
+/// "first qualifying node in document order" semantics.
+///
+/// Used by `agile task done` with no explicit address: unlike an explicit
+/// dotted address (which always names one exact node, parent or leaf,
+/// regardless of remaining descendant work), the *implicit* "next eligible
+/// task" must resolve to the same concrete (sub)task `agile task next`
+/// would have highlighted — which may be nested arbitrarily deep under the
+/// selected top-level task, not the top-level task itself.
+fn find_next_actionable<'a>(
+    node: NodeRef<'a>,
+    siblings: &'a [Subtask],
+    identity: Option<(&ResolvedIdentity, &Config)>,
+) -> Option<NodeRef<'a>> {
+    if rules::is_next_task(node, siblings, identity) {
+        return Some(node);
+    }
+    let children = node.children();
+    for child in children {
+        if let Some(found) = find_next_actionable(NodeRef::Subtask(child), children, identity) {
+            return Some(found);
+        }
+    }
+    None
 }
 
 fn format_address(parts: &[usize]) -> String {
