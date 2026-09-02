@@ -405,7 +405,7 @@
 - [x] command: `agile task next 2.2` show the first sub-subtask of the second task etc.
 - [x] command: `agile task done 2.2` mark the respective task as done, unless this violates any rules on completion of tasks (e.g. subtasks not complete) - then show the error message instead. Efficient implementation, avoid checking the whole project.
 - [x] command: `agile task next --mine` show the next task eligible.
-  Eligbility --> same rules as for assignment / completion validation 
+  Eligbility --> same rules as for assignment / completion validation
 - [x] #bug `agile task next --mine`/eligibility ignored subtask ordering: a `Todo` leaf assigned to the identity was reported eligible/bolded even while a lower-ordered, incomplete sibling (assigned to someone else, or unassigned) still blocked it from actually being worked on. Fixed `rules::is_eligible_for` to exclude ordered children still blocked by `invalid_order::blocked_by_incomplete_lower_order`, matching the same order-blocking semantics already used for E015. Added acceptance tests in `crates/cli/tests/acceptance/task/next_bold_highlighting.rs` covering: an eligible-but-order-blocked leaf under `--mine` (bolds nothing until the blocker completes), the unconditional (no `--mine`/`--as`) case which is unaffected by order-blocking, and an `--as` identity skipped past an order-blocked, differently-assigned leaf in the VER-161 quoted/ordered-subtasks scenario.
 - [x] Refactored the "next eligible leaf" concern into a single named function, `rules::is_next_eligible_leaf(node, siblings, identity)`, reused by both the leaf-bolding render walk (`crates/cli/src/cli/common.rs`) and (indirectly, via `rules::is_eligible_for`) task-level `--mine` filtering. This fixed a second latent bug the same refactor exposed: the render walk previously called `rules::is_eligible_for` directly on each candidate leaf, which — for a leaf with no children — never re-derived whether *that specific leaf* was order-blocked by its own siblings (order-blocking was only ever applied when a parent recursed over its children). So a leaf nominally assigned to the identity but order-blocked could still get wrongly bolded even when a later, unblocked sibling was the real next actionable line. Added an acceptance test for this exact scenario (`mine_does_not_bold_an_order_blocked_leaf_assigned_to_identity_even_when_a_later_unordered_sibling_is_the_real_eligible_one`).
 
@@ -489,8 +489,8 @@
 
 - [x] Added a `--no-markup` flag to `agile task next`: disables the ANSI bold/color rendering of the next-eligible line, instead marking it with a plain-text `" <=="` suffix. Threaded a new `no_markup: bool` parameter through the render call chain (`common.rs`'s `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf`/`render_node_as_root_highlighting_next_leaf`/`render_subtask_highlighting_next_leaf`/`push_node_line`, and `task.rs`'s `run_next`/`render_resolved`); `next_n_tasks`/`next_task` (a separate public API not wired to this flag) keeps its unconditional bolding behavior unchanged. Renamed `next_bold_highlighting.rs` to `next_eligibility.rs` (already about eligibility, not bolding display), refactored its tests to use `--no-markup` for simpler plain-text assertions, and kept exactly one dedicated test (`bolds_the_next_eligible_line_by_default`) covering the default ANSI-bold rendering. All 885 tests pass; GUI target still builds.
 
-- [x] Milestones: ETA / time estimation. 
-  The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command, 
+- [x] Milestones: ETA / time estimation.
+  The MILESTONE special marker is parsed (divides tasks into milestone groups) and syntax-highlighted, but there's no `agile when` command,
   no average-time-per-task estimation, and no task-weight system (subtask weight = 1/nesting-level, used only for ETA math) implemented at all.
   - [x] Implement `agile when --velocity` first: compute and print current velocity estimate as a standalone subcommand output (later extensible with error margins)
   - [x] improvements to agile when:
@@ -504,7 +504,7 @@
     2024-04-23 - [-] baz
     ```
 
-- [x] History Cache: to prepare for upcoming features build a cached history of tasks 
+- [x] History Cache: to prepare for upcoming features build a cached history of tasks
   one entry per commit. Store:
   - commit hash
   - commit date
@@ -524,22 +524,22 @@
 - [x] to-do vs total plot: Over time show total and completed tasks by weight (until a given milestone)
 
 - [x] sample script mode for dir with messy "total" tasks - number of total tasks globaly increases, but with significant noise
-- [x] sample script mode for dir with messy "done" tasks 
-- [x] sample script mode for dir with messy "done" + "total" tasks 
+- [x] sample script mode for dir with messy "done" tasks
+- [x] sample script mode for dir with messy "done" + "total" tasks
 
 - [x] trendlines in plot - basic linear
-  - [x] basics 
+  - [x] basics
   - [x] improved legend
   - [x] testing script
   - [x] proper date legend
 
 - [x] perf / cache overhaul
   - [x] retain only lifecycle cache
-    stores: 
+    stores:
     - Each task and subtask with a unique ID
     - parent if applicable (sub tasks only)
-    - all transitions of that task with 
-    - .. commit hash 
+    - all transitions of that task with
+    - .. commit hash
     - .. date
     - transitions are any movements to the following states:
     - .. (re-) open
@@ -548,7 +548,7 @@
     - .. deleted (task removed from list)
     - .. change of rank (of parent task) (store previous and new rank)
   - [x] in lifecycle cache also store milestones:
-    - stores all transitions of that milestone: 
+    - stores all transitions of that milestone:
     - .. change of rank (the rank of a milestone is the rank of the task just before the milestone)
 
 - [x] rebuild "to-do vs total" plot on top of the lifecycle cache
@@ -577,7 +577,7 @@
 - [x] improved installation & launch procedure for GUI
   - [x] normally installed with packages like other bins
   - [x] one click launch to view
-    Options: 
+    Options:
     - [-] #OPT native build
     - [x] #OPT keep browser architecture, but add some form of launcher script
       - [x] launcher script
@@ -627,7 +627,7 @@
 
 - [x] renamed quantity-bearing variables in `eta/mod.rs` (task weights, counts, velocity/creep, slope/intercept) to carry their unit as a suffix (`_t`, `_wt`, `_wtpd`, `_wtpw`); documented the convention in doc/architecture.md.
 
-- [x] holy cow -- fixed damn bug in chart plots! 
+- [x] holy cow -- fixed damn bug in chart plots!
   Cause: sonnet picked up a bug from a library, duplicated it in our code. (when lines defined by two points are rendered, the lib incorrectly applies clipping of trend line endpoints to the graph canvas -- this obviously leads to incorrect lines!)
 
 - [x] renamed `--fit` to `--extra <FACTOR>` (default `1.3`): now always multiplies the plotted x-axis range to extend the chart past the last data point (replacing the old fixed `+range/3` extension and the on/off fit toggle); the y-axis always stretches to include the trend lines within that window.
@@ -637,7 +637,7 @@
 - [x] remove: md.agile/crates/cli/examples/braille_line.rs:1:1
 
 - [x] extensions to testing script
-  - [x] edge case scenarios, 
+  - [x] edge case scenarios,
     - [x] e.g. no convergence
     - [-] other milestone than latest
     - [-] done milestone
@@ -652,17 +652,17 @@
 - [x] trendlines in plot - recency weighted linear
 
 
-- [x] non-terminal plots 
+- [x] non-terminal plots
   - [-] SVG
   - [x] html
 
-- [x] "velocity" is the slope of the (weighted) linear trend 
+- [x] "velocity" is the slope of the (weighted) linear trend
 
 - [x] more aggressive recency weighted algorithm
 
 - [x] made the exponential-decay recency-weighted algorithm the new default `agile when` trend fit (was linear-rank `RecencyWeighted`); `--fit-algo-linear` and `--fit-algo-recent` remain selectable to opt back into OLS or the linear-rank fit respectively. Updated acceptance tests whose expected velocity numbers changed under the new default, with comments explaining the new values.
 
-- [x] #bug fix behavior of `--last` N with `--plot` 
+- [x] #bug fix behavior of `--last` N with `--plot`
 - [x] #bug `agile task done`/GUI board could complete a task assigned to someone else: `agile task done`/`mark_node_done` never ran the E013 "unauthorized completion" check (only "incomplete children"/E010/E015), unlike the git-diff-based `agile check`. Added `rules::check_completable`'s E013 half (`check_authorized_completable`, reusing `unauthorized_completion::{assignment_names, authorized_users}`) and threaded a `ResolvedIdentity` through it, `mark_node_done`, and `agile task done`'s new `--as USER` flag (mirroring `next`/`list`). Added `checker::resolve_task_done_identity`, which — unlike `resolve_cli_identity` used by `--mine` — never hard-fails when no git identity can be determined; it resolves to `Unrecognized` instead, so unassigned tasks stay completable while assigned ones require a real match. The GUI's `mark_task_done` now resolves the live git identity of the project root the same way and passes it through, so the board is subject to the exact same authorization check as the CLI. Added unit tests in `task_tests.rs` and acceptance tests in `task/done.rs` (assigned-to-someone-else refusal, assignee success, `--as` override, unassigned-outside-git success). All 900 tests pass; GUI web target still builds.
 
 - [x] #bug GUI board snackbar showed the raw `ServerFnError` `Display` output for a failed `mark_task_done`/`mark_task_undone`/`switch_project` call, prefixed with noisy wrapper text (`"error running server function: ... (details: ...)"`) around the already-human-readable message. Added a `format_server_error` helper in `main.rs` that extracts the plain `message` from the `ServerFnError::ServerError` variant (which is what every server fn's own error path produces via `ServerFnError::new(...)`), falling back to the full `Display` output for the rarer non-`ServerError` variants (network/(de)serialization failures) that don't carry a separate plain message. Used at all three snackbar call sites. Added unit tests in `main_tests.rs`. All 902 tests pass; GUI web target still builds.
@@ -718,7 +718,7 @@
 
 - [x] number the tasks in output of `agile task next` with their rank -- allows easier use of `task done`
 - [x] `task undone` ergonomics -- how to get the addresses?
-  - [x] add the command `agile task previous` (alias: prev) 
+  - [x] add the command `agile task previous` (alias: prev)
     "previous    Show the last completed task by priority [aliases: prev]"
     Shows latest completed task(s). This includes the completed subtasks of partially completed tasks
     Output addresses behave just like rank addresses, but count in reverse, the latest completed task is "1", the one before that "2" etc.
@@ -751,12 +751,12 @@ next task should be "Proper definition of .."
 
 - [ ] clarify "rank" vs. "task address" terminology:
   "rank" is the same as "task address":
-  - When reading a task file (or the virtual file, built from aggregating task files) from top to bottom, the first not-fully done top-level task has rank / address "1". (the hightest-prio task) 
+  - When reading a task file (or the virtual file, built from aggregating task files) from top to bottom, the first not-fully done top-level task has rank / address "1". (the hightest-prio task)
   - The next not fully top-level task has rank 2 etc.
   - for tasks that are fully done, rank is not defined (they have no rank)
   - subtask rank is given as follows:
   - a subtask of a not fully done top-level task always has a rank, regardless of whether it is to-do, done or cancelled.
-  - subtask rank is simply the "hierarchical" indexing of subtasks: first subtask of first ranked task is "1.1", second subtask is "1.2" etc., recursively.   
+  - subtask rank is simply the "hierarchical" indexing of subtasks: first subtask of first ranked task is "1.1", second subtask is "1.2" etc., recursively.
   - __rank / task address__ is what is shown by `agile task next`
   "reverse rank", i.e. "reverse address":
   - The last __partially__ done top-level task has reverse rank / reverse address "1" (the most "recently" (not in temporal sense, but as of prio!) partially completed task)
@@ -766,11 +766,11 @@ next task should be "Proper definition of .."
   Some consequences:
   - tasks and subtasks can potentially have both "rank" and "reverse rank"!
 
-- [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`) 
-- [ ] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`) 
-- [ ] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`) 
+- [ ] `agile task done [NO ADDRESS!]` should mark the next elligible task done (the one that would have been shown with `agile task next`)
+- [ ] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`)
+- [ ] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`)
 
-- [ ] in `agile task --help` re-order the output as follows: 
+- [ ] in `agile task --help` re-order the output as follows:
 
 current:
   list      List tasks in priority order
@@ -830,7 +830,7 @@ new:
   - [x] #bug the list in md.agile/0_dummy_tasks.agile.md:1:19 currently shows a task where each subtask is not eligible to me (because assigned to alice). however "agile task next --mine" still shows the top level (unassigned) task to me. I would expect that this is not eligble.
     - [x] Fixed: `rules::is_eligible_for` is now recursive - a task/subtask with children is eligible only if at least one actionable (`Todo`) leaf descendant is eligible (own markers, or unassigned). '#OPT' leaves still count; `Done`/`Cancelled` leaves don't. A childless node still falls back to its own markers as before.
 
-- [x] improvement of output of `agile task next`: 
+- [x] improvement of output of `agile task next`:
   - [x] make next eligible task bold
     - [x] Implemented in `cli/common.rs`: `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf` walk the tree, bolding (ANSI `\x1b[1m`/`\x1b[0m`, see `formatter::BOLD`/`RESET`) the first `Todo` *leaf* (a node with no children) in document order — the concrete next actionable task, even nested under already-done siblings/ancestors.
     - [x] Bugfix: when `--mine`/`--as` is given, the bolded leaf must be one *eligible* for the resolved identity (`rules::is_eligible_for`), not just the first `Todo` leaf regardless of assignment — leaves assigned to someone else are skipped over. Without `--mine`/`--as` (no identity resolved), the old unconditional first-`Todo`-leaf bolding is unchanged. Threaded via a new `identity: Option<(&ResolvedIdentity, &Config)>` parameter through `render_task_highlighting_next_leaf`/`render_subtask_as_root_highlighting_next_leaf`/`render_node_as_root_highlighting_next_leaf`/`render_subtask_highlighting_next_leaf`/`push_node_line`.
@@ -847,7 +847,7 @@ new:
 
 - [ ] Revisit the quote-adjacency escaping rule (`is_marker_quote` in `parser/mod.rs`) in more detail: today a single leading quote before `\#`/`\@` suppresses marker recognition. Consider: requiring the term to be fully quoted (`"\@alice"`) instead of just quote-adjacent; whether the existing `\\#`/`\\@` backslash-escape already makes this rule unnecessary; or using single ticks (`'`) as the literal/escaping convention instead.
   - [x] Implemented: retained exactly two escaping mechanisms — `\` before `\#`/`\@` (unchanged), and single ticks fully surrounding a term (`'\@something'`, opening AND closing tick both required — a lone tick no longer suppresses, e.g. `weird'\#feat` is a real marker). Double quotes now have no escaping effect at all (`"\@alice"`/`"\#feat"` are real markers); `"` is still used unrelatedly for the property-required-subtask quoting convention. Renamed `is_marker_quote` to `is_marker_tick` in `parser/mod.rs`; mirrored in `lsp/goto_definition.rs`. Tests updated/added in `parser/tests.rs` and `goto_definition.rs`.
-  - [x] task '@foobarbazasome' '#some' 
+  - [x] task '@foobarbazasome' '#some'
   - [ ] ignore anything inside of code quotes, i.e. ``
 
 ### Short Forms
@@ -916,14 +916,14 @@ Markers to identify a task e.g. <<the bug fixing task>> (check to not conflict w
 
 ## Further milestone and ETA improvements
 
-- [ ] trend algo sensitivity to data concentration: Many entries over a few days can potentially influence the fit massively compared to isolated entries. Investigate and fix e.g. with regularizing sampling as a pre-processing step. 
+- [ ] trend algo sensitivity to data concentration: Many entries over a few days can potentially influence the fit massively compared to isolated entries. Investigate and fix e.g. with regularizing sampling as a pre-processing step.
 
 - [ ] trendlines in plot - with uncertainty regions
   - [ ] display uncertainty
   - [ ] refuse to display ETA if uncertainty to high
 
 - [ ] uncertainty via roll forward
-- [ ] animate roll forward - illustrate uncertainty 
+- [ ] animate roll forward - illustrate uncertainty
   - [ ] params
     - [ ] window  - time in pct backwards from current that is animated
     - [ ] steps - number of steps in that window
