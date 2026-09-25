@@ -122,6 +122,21 @@ impl LspSession {
         self.send(&req.to_string());
         self.read_response(id)
     }
+
+    /// Send a `textDocument/implementation` request and return the response.
+    pub fn goto_implementation(&mut self, uri: &str, id: u64, line: u64, character: u64) -> Value {
+        let req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "textDocument/implementation",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": line, "character": character }
+            }
+        });
+        self.send(&req.to_string());
+        self.read_response(id)
+    }
 }
 
 /// Format a filesystem path as a `file://` URI.

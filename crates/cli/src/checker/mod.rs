@@ -202,6 +202,20 @@ pub fn check_authorization_for_document(
     unauthorized_completion_for_file(root, path, &new_items, config, &identity, "HEAD")
 }
 
+/// Resolves the live git identity for editor-integration features (e.g. the
+/// LSP's "jump to my task" actions), reusing the same [`resolve_repo_identity`]
+/// logic as [`check_authorization_for_document`]. Returns `None` if `root`
+/// isn't a git repo or no git identity can be determined — there's no
+/// terminal to warn on in the editor-integration path, so callers should
+/// treat `None` as "the feature can't act on 'my' tasks right now" rather
+/// than an error.
+pub fn resolve_editor_identity(root: &Path, config: &Config) -> Option<ResolvedIdentity> {
+    match resolve_repo_identity(root, config, None) {
+        IdentityResolution::Determined(identity) => Some(identity),
+        IdentityResolution::NotAGitRepo | IdentityResolution::NoGitIdentity => None,
+    }
+}
+
 /// The outcome of resolving the acting identity for the E013 check: either a
 /// usable identity, or one of the two distinct reasons the check must be
 /// skipped instead.

@@ -858,9 +858,9 @@ new:
 
 ## More LSP features
 - [ ] LSP jump to tasks
-  - [ ] Standard LSP requests
+  - [x] Standard LSP requests
     - [x] `textDocument/declaration` (e.g. `gD` / `Shift+F12`): jump to highest-priority open task in workspace/file
-    - [ ] `textDocument/implementation` (e.g. `gi` / `Ctrl+F12`): jump to my highest-priority open task (eligible to me)
+    - [x] `textDocument/implementation` (e.g. `gi` / `Ctrl+F12`): jump to my highest-priority open task (eligible to me)
   - [ ] Custom workspace commands via `workspace/executeCommand`
     - [ ] `mdagile.jump.highestPriorityOpen`: jump to highest-priority open task
     - [ ] `mdagile.jump.highestPriorityMy`: jump to my highest-priority open task (eligible to me)

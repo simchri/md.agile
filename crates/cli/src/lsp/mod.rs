@@ -14,18 +14,22 @@ use goto_definition::{
     assignment_name_at_position, find_assignment_line_in_config, find_property_line_in_config,
     property_name_at_position,
 };
-use jump::{find_highest_priority_open_task_in_workspace, highest_priority_open_task_line};
+use jump::{
+    find_highest_priority_open_task_in_workspace, find_my_highest_priority_open_task_in_workspace,
+    highest_priority_open_task_line, my_highest_priority_open_task_line,
+};
 use quickfix::build_quickfixes;
 use semantic_tokens::{TOKEN_TYPES, build_tokens};
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use log::info;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::request::{GotoImplementationParams, GotoImplementationResponse};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
@@ -59,15 +63,19 @@ struct Backend {
 }
 
 impl Backend {
-    async fn validate(&self, uri: Url, text: &str, version: Option<i32>) {
-        let path = uri
-            .to_file_path()
-            .unwrap_or_else(|_| PathBuf::from(uri.path()));
-        let config_path = self.resolve_config_path(&uri).await;
-        let (config, config_load_failed) = match &config_path {
+    /// Loads the `mdagile.toml`/`.mdagile.toml` config governing `path`
+    /// (reporting/clearing the config-error notification as a side effect —
+    /// see [`Self::report_config_error`]), falling back to an empty
+    /// [`Config::default`] if no config file is found or it fails to parse.
+    /// Returns `(config, config_load_failed)`; `config_load_failed` is `true`
+    /// only when a config file exists but fails to load, so callers can tell
+    /// "no config" apart from "broken config" (the placeholder default isn't
+    /// a trustworthy "no properties/users declared" config in the latter
+    /// case).
+    async fn load_config(&self, config_path: Option<&Path>, path: &Path) -> (Config, bool) {
+        match config_path {
             Some(config_path) => {
-                let load_result =
-                    Config::load(config_path.parent().unwrap_or(config_path.as_path()));
+                let load_result = Config::load(config_path.parent().unwrap_or(config_path));
                 match load_result {
                     Ok(c) => {
                         self.clear_config_error().await;
@@ -87,7 +95,39 @@ impl Backend {
                 self.clear_config_error().await;
                 (Config::default(), false)
             }
+        }
+    }
+
+    /// The shared "jump to task" shape behind `goto_declaration` and
+    /// `goto_implementation`: try `workspace_finder` across all task files
+    /// under the project root first (if a root is known), then fall back to
+    /// `doc_finder` on the currently open document. Returns the target
+    /// `(uri, 0_based_line)`, or `None` if neither search finds a task.
+    async fn jump_target(
+        &self,
+        uri: &Url,
+        workspace_finder: impl Fn(&Path) -> Option<(PathBuf, u32)>,
+        doc_finder: impl Fn(&str) -> Option<u32>,
+    ) -> Option<(Url, u32)> {
+        let target = if let Some(root) = self.root.read().await.as_ref() {
+            workspace_finder(root)
+                .and_then(|(path, line)| Url::from_file_path(path).ok().map(|u| (u, line)))
+        } else {
+            None
         };
+        if let Some(t) = target {
+            return Some(t);
+        }
+        let doc_text = self.docs.read().await.get(uri)?.clone();
+        doc_finder(&doc_text).map(|line| (uri.clone(), line))
+    }
+
+    async fn validate(&self, uri: Url, text: &str, version: Option<i32>) {
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let config_path = self.resolve_config_path(&uri).await;
+        let (config, config_load_failed) = self.load_config(config_path.as_deref(), &path).await;
         let items = parser::parse(text, path.clone());
         // If mdagile.toml failed to load, `config` above is just an empty
         // placeholder, not a real "no properties/users declared" config —
@@ -201,6 +241,19 @@ impl Backend {
     }
 }
 
+/// A zero-width [`Location`] at the start of `line` in `uri` — the target of
+/// every "jump to task" LSP action, since tasks aren't given a meaningful
+/// end position.
+fn location_at_line(uri: Url, line: u32) -> Location {
+    Location {
+        uri,
+        range: Range {
+            start: Position { line, character: 0 },
+            end: Position { line, character: 0 },
+        },
+    }
+}
+
 /// A synthetic diagnostic (not tied to a specific line of the document) that
 /// surfaces a broken `mdagile.toml`/`.mdagile.toml` load. Placed at the top
 /// of whichever document is being validated, since there's no
@@ -290,6 +343,7 @@ impl LanguageServer for Backend {
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
+                implementation_provider: Some(ImplementationProviderCapability::Simple(true)),
                 semantic_tokens_provider: Some(
                     SemanticTokensServerCapabilities::SemanticTokensOptions(
                         SemanticTokensOptions {
@@ -496,38 +550,57 @@ impl LanguageServer for Backend {
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = &params.text_document_position_params.text_document.uri;
 
-        // Try to find the highest-priority open task in workspace files if root is available.
-        let target = if let Some(root) = self.root.read().await.as_ref() {
-            find_highest_priority_open_task_in_workspace(root)
-                .and_then(|(path, line)| Url::from_file_path(path).ok().map(|u| (u, line)))
-        } else {
-            None
+        let Some((target_uri, line)) = self
+            .jump_target(
+                uri,
+                |root| find_highest_priority_open_task_in_workspace(root),
+                highest_priority_open_task_line,
+            )
+            .await
+        else {
+            return Ok(None);
         };
 
-        // Fall back to scanning the currently open document.
-        let (target_uri, line) = match target {
-            Some(t) => t,
-            None => {
-                let doc_text = match self.docs.read().await.get(uri) {
-                    Some(t) => t.clone(),
-                    None => return Ok(None),
-                };
-                match highest_priority_open_task_line(&doc_text) {
-                    Some(line) => (uri.clone(), line),
-                    None => return Ok(None),
-                }
-            }
+        Ok(Some(GotoDefinitionResponse::Scalar(location_at_line(
+            target_uri, line,
+        ))))
+    }
+
+    async fn goto_implementation(
+        &self,
+        params: GotoImplementationParams,
+    ) -> Result<Option<GotoImplementationResponse>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+
+        let root = self.root.read().await.clone();
+        let Some(root) = root else {
+            // "My" tasks require a git identity, which in turn requires a
+            // known project root to run git commands from.
+            return Ok(None);
+        };
+        let config_path = self.resolve_config_path(uri).await;
+        let (config, _) = self.load_config(config_path.as_deref(), &path).await;
+        let Some(identity) = checker::resolve_editor_identity(&root, &config) else {
+            return Ok(None);
         };
 
-        let location = Location {
-            uri: target_uri,
-            range: Range {
-                start: Position { line, character: 0 },
-                end: Position { line, character: 0 },
-            },
+        let Some((target_uri, line)) = self
+            .jump_target(
+                uri,
+                |root| find_my_highest_priority_open_task_in_workspace(root, &identity, &config),
+                |doc_text| my_highest_priority_open_task_line(doc_text, &identity, &config),
+            )
+            .await
+        else {
+            return Ok(None);
         };
 
-        Ok(Some(GotoDefinitionResponse::Scalar(location)))
+        Ok(Some(GotoImplementationResponse::Scalar(location_at_line(
+            target_uri, line,
+        ))))
     }
 }
 

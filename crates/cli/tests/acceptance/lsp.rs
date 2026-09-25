@@ -10,6 +10,8 @@ mod e013;
 mod goto_declaration;
 #[path = "lsp/goto_definition.rs"]
 mod goto_definition;
+#[path = "lsp/goto_implementation.rs"]
+mod goto_implementation;
 #[path = "lsp/helpers.rs"]
 pub mod helpers;
 #[path = "lsp/lifecycle.rs"]
