@@ -791,9 +791,10 @@ new:
 #MILESTONE: Improved cli interface "task"
 
 ## CLI Fixes / Interface rework
-- [ ] task (mark) done compatibility with --mine (normal workflow, list tasks with --mine, then potentially mark done -- need this arg here too)
+- [x] task (mark) done compatibility with --mine (normal workflow, list tasks with --mine, then potentially mark done -- need this arg here too)
+  currently only '--mine' alone works, can not be combined with an offset like 'agile task next --mine 3'
 - [ ] generally rethink and test how "task next" interacts with "task done" addresses and such
-- [ ] consider: displaying addresses next to tasks
+- [x] consider: displaying addresses next to tasks
 
 ## Misc App Menu improvements
 
