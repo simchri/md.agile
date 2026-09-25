@@ -857,9 +857,17 @@ new:
     - [x] #bug: currently inconsistent ignore rules between the lsp and agile check, agile check recognizes insisde ticks, but lsp doesn't (it seems, maybe different versions - investigate and fix)
 
 ## More LSP features
-- [ ] "go to" next open task
-- [ ] "go to" next my open task
-  ...
+- [ ] LSP jump to tasks
+  - [ ] Standard LSP requests
+    - [ ] `textDocument/declaration` (e.g. `gD` / `Shift+F12`): jump to highest-priority open task in workspace/file
+    - [ ] `textDocument/implementation` (e.g. `gi` / `Ctrl+F12`): jump to my highest-priority open task (eligible to me)
+  - [ ] Custom workspace commands via `workspace/executeCommand`
+    - [ ] `mdagile.jump.highestPriorityOpen`: jump to highest-priority open task
+    - [ ] `mdagile.jump.highestPriorityMy`: jump to my highest-priority open task (eligible to me)
+    - [ ] `mdagile.jump.nextOpen`: jump to next open task after cursor position
+    - [ ] `mdagile.jump.previousOpen`: jump to previous open task before cursor position
+    - [ ] `mdagile.jump.nextMy`: jump to next open task eligible to me after cursor position
+    - [ ] `mdagile.jump.previousMy`: jump to previous open task eligible to me before cursor position
 
 - [ ] hover
   - [ ] textDocument/hover — show property definitions
