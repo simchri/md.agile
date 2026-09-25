@@ -856,8 +856,6 @@ new:
   - [x] ignore anything inside of code quotes, i.e. ``
     - [x] #bug: currently inconsistent ignore rules between the lsp and agile check, agile check recognizes insisde ticks, but lsp doesn't (it seems, maybe different versions - investigate and fix)
 
-### Short Forms
-- [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
 
 ## GUI 2.0
 - [ ] backlog view in GUI
@@ -875,6 +873,9 @@ new:
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
 - [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
+
+### Short Forms
+- [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
 
 ## LSP documentation
 - [ ] LSP Phase 3: IDE Integration
