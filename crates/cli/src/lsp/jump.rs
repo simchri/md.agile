@@ -16,13 +16,17 @@ pub fn highest_priority_open_task_line(doc_text: &str) -> Option<u32> {
 /// Find the highest-priority open task across all task files under `root`,
 /// returning `(path, 0_based_line)`.
 pub fn find_highest_priority_open_task_in_workspace(root: &Path) -> Option<(PathBuf, u32)> {
-    crate::cli::common::find_task_files(root).into_iter().find_map(|path| {
-        let items = crate::cli::common::parse_file(&path);
-        items.into_iter().find_map(|item| match item {
-            FileItem::Task(t) if t.status == Status::Todo => Some((path.clone(), (t.location.line - 1) as u32)),
-            _ => None,
+    crate::cli::common::find_task_files(root)
+        .into_iter()
+        .find_map(|path| {
+            let items = crate::cli::common::parse_file(&path);
+            items.into_iter().find_map(|item| match item {
+                FileItem::Task(t) if t.status == Status::Todo => {
+                    Some((path.clone(), (t.location.line - 1) as u32))
+                }
+                _ => None,
+            })
         })
-    })
 }
 
 #[cfg(test)]

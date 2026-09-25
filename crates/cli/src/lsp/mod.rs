@@ -498,9 +498,8 @@ impl LanguageServer for Backend {
 
         // Try to find the highest-priority open task in workspace files if root is available.
         let target = if let Some(root) = self.root.read().await.as_ref() {
-            find_highest_priority_open_task_in_workspace(root).and_then(|(path, line)| {
-                Url::from_file_path(path).ok().map(|u| (u, line))
-            })
+            find_highest_priority_open_task_in_workspace(root)
+                .and_then(|(path, line)| Url::from_file_path(path).ok().map(|u| (u, line)))
         } else {
             None
         };
