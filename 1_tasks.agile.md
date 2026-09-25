@@ -856,6 +856,34 @@ new:
   - [x] ignore anything inside of code quotes, i.e. ``
     - [x] #bug: currently inconsistent ignore rules between the lsp and agile check, agile check recognizes insisde ticks, but lsp doesn't (it seems, maybe different versions - investigate and fix)
 
+## LSP documentation
+- [ ] LSP Phase 3: IDE Integration
+  - [ ] Document VS Code setup (.vscode/settings.json)
+  - [ ] Document Vim/Neovim setup (init.lua example)
+  - [ ] Add LSP section to README.md
+  - [ ] Provide troubleshooting guide
+
+## More LSP features
+- [ ] LSP Phase 4: Enhanced Features (Optional)
+  - [ ] textDocument/hover — show property definitions
+    - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
+    - [ ] idem '@assignments' relevant, e.g. for groups
+  - [ ] textDocument/completion — suggest properties, users, groups
+- [ ] "go to" next open task
+- [ ] "go to" next my open task
+
+- [ ] LSP for the config file
+
+- [ ] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
+
+#MILESTONE: Improved LSP
+
+## Neighbor Tasks / Branch Properties / Workflows
+- [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
+- [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
+
+#MILESTONE: Branch Properties V1
+
 
 ## GUI 2.0
 - [ ] backlog view in GUI
@@ -870,21 +898,10 @@ new:
 - [ ] markdown support
   - [ ] support basic markdown rendering in tasks titles & bodies (e.g. ~~crossed out~~)
 
-## Neighbor Tasks / Branch Properties / Workflows
-- [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
-- [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
+#MILESTONE: GUI 2.0
 
 ### Short Forms
 - [ ] Property short forms: a `short` key in a `[Properties.X]` config entry (see README.vision.md "Property Short Forms"), allowing a task to carry a lightweight marker (subtasks not required yet) while still blocking completion until the full property replaces it. Not present in the config schema at all yet.
-
-## LSP documentation
-- [ ] LSP Phase 3: IDE Integration
-  - [ ] Document VS Code setup (.vscode/settings.json)
-  - [ ] Document Vim/Neovim setup (init.lua example)
-  - [ ] Add LSP section to README.md
-  - [ ] Provide troubleshooting guide
-
-
 
 ## Archiving, multiple files
 - [ ] File structure for large projects & archiving:
@@ -900,18 +917,6 @@ new:
 - [ ] `agile task undone` cannot reopen an already fully-done top-level task (only a done subtask under a still-open parent) — its address only counts still-incomplete top-level tasks, same as `agile task done`, so a done top-level task is never reachable by number. Needs a dedicated way to reopen a whole completed top-level task (e.g. a separate addressing scheme/command), if that's ever wanted.
 - [ ] move tasks up / down in prio list
 
-## More LSP features
-- [ ] LSP Phase 4: Enhanced Features (Optional)
-  - [ ] textDocument/hover — show property definitions
-    - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
-    - [ ] idem '@assignments' relevant, e.g. for groups
-  - [ ] textDocument/completion — suggest properties, users, groups
-- [ ] "go to" next open task
-- [ ] "go to" next my open task
-
-- [ ] LSP for the config file
-
-- [ ] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
 
 ## Events
 - [ ] Think about "events" as a separate /parallel concept to tasks. Use: Appear on the board as a sort of blocker, indicating that tasks are not worked on (because the people are "blocked")
