@@ -137,6 +137,50 @@ impl LspSession {
         self.send(&req.to_string());
         self.read_response(id)
     }
+
+    /// Send a `workspace/executeCommand` request. The server implements the
+    /// `mdagile.jump.*` commands by issuing a `window/showDocument` request
+    /// back to the client before responding to the original request, so this
+    /// intercepts and acknowledges that request first (as a real client
+    /// would) and returns `(show_document_request, execute_command_response)`.
+    /// `show_document_request` is `Value::Null` if the command found no
+    /// target and never issued the request.
+    pub fn execute_command(
+        &mut self,
+        id: u64,
+        command: &str,
+        arguments: Vec<Value>,
+    ) -> (Value, Value) {
+        let req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "workspace/executeCommand",
+            "params": {
+                "command": command,
+                "arguments": arguments
+            }
+        });
+        self.send(&req.to_string());
+
+        loop {
+            let msg = read_lsp_response(&mut self.reader).expect("expected a message from server");
+            let v: Value = serde_json::from_str(&msg).expect("server sent invalid JSON");
+            if v["method"].as_str() == Some("window/showDocument") {
+                let show_document_id = v["id"].clone();
+                let ack = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": show_document_id,
+                    "result": { "success": true }
+                });
+                self.send(&ack.to_string());
+                let response = self.read_response(id);
+                return (v, response);
+            }
+            if v["id"] == id {
+                return (Value::Null, v);
+            }
+        }
+    }
 }
 
 /// Format a filesystem path as a `file://` URI.

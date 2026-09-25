@@ -14,5 +14,7 @@ mod goto_definition;
 mod goto_implementation;
 #[path = "lsp/helpers.rs"]
 pub mod helpers;
+#[path = "lsp/jump_commands.rs"]
+mod jump_commands;
 #[path = "lsp/lifecycle.rs"]
 mod lifecycle;

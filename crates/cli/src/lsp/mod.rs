@@ -16,7 +16,8 @@ use goto_definition::{
 };
 use jump::{
     find_highest_priority_open_task_in_workspace, find_my_highest_priority_open_task_in_workspace,
-    highest_priority_open_task_line, my_highest_priority_open_task_line,
+    highest_priority_open_task_line, my_highest_priority_open_task_line, next_my_open_task_after,
+    next_open_task_after, previous_my_open_task_before, previous_open_task_before,
 };
 use quickfix::build_quickfixes;
 use semantic_tokens::{TOKEN_TYPES, build_tokens};
@@ -27,6 +28,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use log::info;
+use serde_json::Value;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::request::{GotoImplementationParams, GotoImplementationResponse};
@@ -37,7 +39,7 @@ use crate::{
     checker,
     config::{Config, find_config_file_in, find_config_file_upwards},
     parser,
-    rules::Issue,
+    rules::{Issue, ResolvedIdentity},
 };
 
 struct Backend {
@@ -120,6 +122,133 @@ impl Backend {
         }
         let doc_text = self.docs.read().await.get(uri)?.clone();
         doc_finder(&doc_text).map(|line| (uri.clone(), line))
+    }
+
+    /// Resolves the config governing `uri` and the live git identity for
+    /// "my task" features, reusing [`Self::load_config`] and
+    /// [`checker::resolve_editor_identity`]. Returns `None` if no project
+    /// root is known, or if an identity can't be determined (see
+    /// [`checker::resolve_editor_identity`]) — both silent skip cases, since
+    /// there's no terminal to warn on in the editor-integration path.
+    async fn resolve_my_identity(
+        &self,
+        uri: &Url,
+        path: &Path,
+    ) -> Option<(Config, ResolvedIdentity)> {
+        let root = self.root.read().await.clone()?;
+        let config_path = self.resolve_config_path(uri).await;
+        let (config, _) = self.load_config(config_path.as_deref(), path).await;
+        let identity = checker::resolve_editor_identity(&root, &config)?;
+        Some((config, identity))
+    }
+
+    /// The shared logic behind `goto_declaration`/`goto_implementation` and
+    /// the `mdagile.jump.highestPriorityOpen`/`highestPriorityMy` commands:
+    /// finds the highest-priority open task, restricted to tasks eligible
+    /// for the caller's identity when `mine` is `true`. Returns the target
+    /// `(uri, 0_based_line)`, or `None` if no matching task is found (or, for
+    /// `mine`, if the caller's identity can't be resolved).
+    async fn highest_priority_target(&self, uri: &Url, mine: bool) -> Option<(Url, u32)> {
+        if !mine {
+            return self
+                .jump_target(
+                    uri,
+                    find_highest_priority_open_task_in_workspace,
+                    highest_priority_open_task_line,
+                )
+                .await;
+        }
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let (config, identity) = self.resolve_my_identity(uri, &path).await?;
+        self.jump_target(
+            uri,
+            |root| find_my_highest_priority_open_task_in_workspace(root, &identity, &config),
+            |doc_text| my_highest_priority_open_task_line(doc_text, &identity, &config),
+        )
+        .await
+    }
+
+    /// The shared logic behind the `mdagile.jump.nextOpen`/`previousOpen`/
+    /// `nextMy`/`previousMy` commands: finds the next/previous open task
+    /// relative to `current_line` in `current_path`, preferring the live
+    /// in-editor buffer for `current_path` (respecting unsaved edits, same
+    /// as [`Self::jump_target`]) over its on-disk content, restricted to
+    /// tasks eligible for the caller's identity when `mine` is `true`.
+    /// Returns the target `(uri, 0_based_line)`, or `None` if no matching
+    /// task is found (or, for `mine`, if the caller's identity can't be
+    /// resolved, or no project root is known at all).
+    async fn relative_target(
+        &self,
+        uri: &Url,
+        current_path: &Path,
+        current_line: u32,
+        direction: jump::Direction,
+        mine: bool,
+    ) -> Option<(Url, u32)> {
+        let root = self.root.read().await.clone()?;
+        let current_doc_text = self.docs.read().await.get(uri).cloned();
+        let (path, line) = if mine {
+            let (config, identity) = self.resolve_my_identity(uri, current_path).await?;
+            match direction {
+                jump::Direction::Next => next_my_open_task_after(
+                    &root,
+                    current_path,
+                    current_doc_text.as_deref(),
+                    current_line,
+                    &identity,
+                    &config,
+                ),
+                jump::Direction::Previous => previous_my_open_task_before(
+                    &root,
+                    current_path,
+                    current_doc_text.as_deref(),
+                    current_line,
+                    &identity,
+                    &config,
+                ),
+            }
+        } else {
+            match direction {
+                jump::Direction::Next => next_open_task_after(
+                    &root,
+                    current_path,
+                    current_doc_text.as_deref(),
+                    current_line,
+                ),
+                jump::Direction::Previous => previous_open_task_before(
+                    &root,
+                    current_path,
+                    current_doc_text.as_deref(),
+                    current_line,
+                ),
+            }
+        }?;
+        Url::from_file_path(path).ok().map(|u| (u, line))
+    }
+
+    /// Shows `target` (if any) via `window/showDocument`, taking editor
+    /// focus, and returns whether a target was found — the shared response
+    /// shape for every `mdagile.jump.*` command. Errors from the client
+    /// (e.g. a client that doesn't support `window/showDocument`) are
+    /// swallowed: the jump is best-effort, and the boolean return already
+    /// tells the caller whether a target existed.
+    async fn show_jump_target(&self, target: Option<(Url, u32)>) -> Result<Option<Value>> {
+        let Some((uri, line)) = target else {
+            return Ok(Some(Value::Bool(false)));
+        };
+        let selection = location_at_line(uri.clone(), line).range;
+        let _ = self
+            .client
+            .show_document(ShowDocumentParams {
+                uri,
+                external: Some(false),
+                take_focus: Some(true),
+                selection: Some(selection),
+            })
+            .await;
+        Ok(Some(Value::Bool(true)))
     }
 
     async fn validate(&self, uri: Url, text: &str, version: Option<i32>) {
@@ -329,6 +458,23 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
     }
 }
 
+/// The `mdagile.jump.*` custom command names advertised via
+/// `execute_command_provider` and dispatched by [`Backend::execute_command`].
+///
+/// Each command takes `arguments: [currentUri]` (the `highestPriority*`
+/// commands) or `arguments: [currentUri, currentLine]` (the `next*`/
+/// `previous*` commands, `currentLine` being the 0-based cursor line) and
+/// jumps by issuing a `window/showDocument` request to the client — there's
+/// no other client-visible way for a custom command to move the cursor.
+const JUMP_COMMANDS: &[&str] = &[
+    "mdagile.jump.highestPriorityOpen",
+    "mdagile.jump.highestPriorityMy",
+    "mdagile.jump.nextOpen",
+    "mdagile.jump.previousOpen",
+    "mdagile.jump.nextMy",
+    "mdagile.jump.previousMy",
+];
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
@@ -344,6 +490,10 @@ impl LanguageServer for Backend {
                 definition_provider: Some(OneOf::Left(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
                 implementation_provider: Some(ImplementationProviderCapability::Simple(true)),
+                execute_command_provider: Some(ExecuteCommandOptions {
+                    commands: JUMP_COMMANDS.iter().map(|s| s.to_string()).collect(),
+                    work_done_progress_options: Default::default(),
+                }),
                 semantic_tokens_provider: Some(
                     SemanticTokensServerCapabilities::SemanticTokensOptions(
                         SemanticTokensOptions {
@@ -550,14 +700,7 @@ impl LanguageServer for Backend {
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = &params.text_document_position_params.text_document.uri;
 
-        let Some((target_uri, line)) = self
-            .jump_target(
-                uri,
-                |root| find_highest_priority_open_task_in_workspace(root),
-                highest_priority_open_task_line,
-            )
-            .await
-        else {
+        let Some((target_uri, line)) = self.highest_priority_target(uri, false).await else {
             return Ok(None);
         };
 
@@ -571,36 +714,56 @@ impl LanguageServer for Backend {
         params: GotoImplementationParams,
     ) -> Result<Option<GotoImplementationResponse>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let path = uri
-            .to_file_path()
-            .unwrap_or_else(|_| PathBuf::from(uri.path()));
 
-        let root = self.root.read().await.clone();
-        let Some(root) = root else {
-            // "My" tasks require a git identity, which in turn requires a
-            // known project root to run git commands from.
-            return Ok(None);
-        };
-        let config_path = self.resolve_config_path(uri).await;
-        let (config, _) = self.load_config(config_path.as_deref(), &path).await;
-        let Some(identity) = checker::resolve_editor_identity(&root, &config) else {
-            return Ok(None);
-        };
-
-        let Some((target_uri, line)) = self
-            .jump_target(
-                uri,
-                |root| find_my_highest_priority_open_task_in_workspace(root, &identity, &config),
-                |doc_text| my_highest_priority_open_task_line(doc_text, &identity, &config),
-            )
-            .await
-        else {
+        let Some((target_uri, line)) = self.highest_priority_target(uri, true).await else {
             return Ok(None);
         };
 
         Ok(Some(GotoImplementationResponse::Scalar(location_at_line(
             target_uri, line,
         ))))
+    }
+
+    async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
+        // arguments[0] is always the requesting document's URI (as a
+        // string); the next*/previous* commands additionally take
+        // arguments[1], the 0-based cursor line.
+        let Some(uri) = params
+            .arguments
+            .first()
+            .and_then(|v| v.as_str())
+            .and_then(|s| Url::parse(s).ok())
+        else {
+            return Ok(Some(Value::Bool(false)));
+        };
+        let current_path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let current_line = params.arguments.get(1).and_then(|v| v.as_u64());
+
+        let target = match params.command.as_str() {
+            "mdagile.jump.highestPriorityOpen" => self.highest_priority_target(&uri, false).await,
+            "mdagile.jump.highestPriorityMy" => self.highest_priority_target(&uri, true).await,
+            "mdagile.jump.nextOpen"
+            | "mdagile.jump.nextMy"
+            | "mdagile.jump.previousOpen"
+            | "mdagile.jump.previousMy" => {
+                let Some(current_line) = current_line else {
+                    return Ok(Some(Value::Bool(false)));
+                };
+                let mine = params.command.ends_with("My");
+                let direction = if params.command.starts_with("mdagile.jump.next") {
+                    jump::Direction::Next
+                } else {
+                    jump::Direction::Previous
+                };
+                self.relative_target(&uri, &current_path, current_line as u32, direction, mine)
+                    .await
+            }
+            _ => return Err(tower_lsp::jsonrpc::Error::method_not_found()),
+        };
+
+        self.show_jump_target(target).await
     }
 }
 
