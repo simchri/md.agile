@@ -139,6 +139,18 @@ pub(crate) fn is_tick_wrapped(before_sigil: Option<char>, after_name: Option<cha
     before_sigil.is_some_and(is_marker_tick) && after_name.is_some_and(is_marker_tick)
 }
 
+/// Returns whether the character at `position` is inside an unmatched pair
+/// of backticks in `text`. Backticks delimit inline code spans, so markers
+/// inside those spans are prose rather than task metadata.
+pub(crate) fn is_in_code_span(text: &[char], position: usize) -> bool {
+    text[..position.min(text.len())]
+        .iter()
+        .filter(|&&c| c == '`')
+        .count()
+        % 2
+        == 1
+}
+
 /// Returns `true` if `c` is the escape character that, when immediately
 /// preceding a sigil, suppresses marker interpretation (`\#`, `\@`). The
 /// backslash itself is dropped from the reconstructed title; the sigil is
@@ -719,6 +731,7 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let bytes = title.as_bytes();
     let len = bytes.len();
     let mut i = 0;
+    let mut in_code_span = false;
     // Byte offset of the start of the next title fragment to keep.
     let mut title_keep_from = 0;
     // Fragments of the reconstructed plain title.
@@ -726,6 +739,15 @@ fn parse_markers(title: &str) -> (Vec<Marker>, String) {
 
     while i < len {
         let b = bytes[i];
+        if b == b'`' {
+            in_code_span = !in_code_span;
+            i += 1;
+            continue;
+        }
+        if in_code_span {
+            i += 1;
+            continue;
+        }
         if (b == b'#' || b == b'@') && i > 0 && is_marker_escape(bytes[i - 1] as char) {
             // Escaped sigil: keep text up to (but not including) the
             // backslash, then keep the literal sigil itself, and resume

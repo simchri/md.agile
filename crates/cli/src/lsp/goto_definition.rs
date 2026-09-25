@@ -3,7 +3,8 @@
 /// Both functions are free of I/O and async so they can be unit-tested
 /// without spinning up the full LSP server.
 use crate::parser::{
-    MARKER_TRAILING_PUNCT, SpecialMarker, is_marker_boundary, is_marker_escape, is_tick_wrapped,
+    MARKER_TRAILING_PUNCT, SpecialMarker, is_in_code_span, is_marker_boundary, is_marker_escape,
+    is_tick_wrapped,
 };
 
 // ── Shared cursor helper ──────────────────────────────────────────────────────
@@ -61,6 +62,10 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
         }
         found?
     };
+
+    if is_in_code_span(&chars, sigil_pos) {
+        return None;
+    }
 
     // Escape rule (mirrors parse_markers): a sigil immediately preceded by a
     // backslash (`\#`, `\@`) is treated as a literal character, not a marker.

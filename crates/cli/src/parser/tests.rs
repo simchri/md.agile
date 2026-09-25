@@ -759,6 +759,20 @@ fn marker_preceded_by_lone_unmatched_tick_is_still_detected() {
 }
 
 #[test]
+fn marker_inside_backtick_code_span_is_not_detected() {
+    let input = "\
+- [ ] explain `#feat @alice` in prose
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(
+        t.markers.is_empty(),
+        "expected no markers inside code span, got {:?}",
+        t.markers
+    );
+}
+
+#[test]
 fn backslash_escaped_hash_is_not_a_marker() {
     let input = "\
 - [ ] this is \\#not_a_property in prose

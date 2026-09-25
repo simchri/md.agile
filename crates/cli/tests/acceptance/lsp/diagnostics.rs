@@ -85,3 +85,25 @@ fn lsp_uses_root_uri_for_config_not_file_walk() {
         "expected no E008: server should use rootUri config, got: {diagnostics:?}"
     );
 }
+
+#[test]
+fn ignores_property_marker_inside_backtick_code_span() {
+    let dir = tempfile::tempdir().unwrap();
+    let uri = file_uri(&dir.path().join("tasks.agile.md"));
+    let mut session = LspSession::start();
+    let file_content = "\
+- [ ] explain `#undeclared` in the documentation
+";
+
+    session.open_document(&uri, file_content);
+
+    let notification = session.read_notification("textDocument/publishDiagnostics");
+    let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
+
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic["code"].as_str() == Some("E008")),
+        "expected no E008 for a marker inside a code span, got: {diagnostics:?}"
+    );
+}

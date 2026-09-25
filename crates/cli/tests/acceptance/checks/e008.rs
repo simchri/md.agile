@@ -66,3 +66,20 @@ fn undefined_property_without_config_file_is_also_flagged() {
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("E008"), "stdout: {stdout:?}");
 }
+
+#[test]
+fn ignores_property_marker_inside_backtick_code_span() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] explain `#undeclared` in the documentation
+";
+    fs::write(dir.path().join("a.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
