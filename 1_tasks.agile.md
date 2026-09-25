@@ -770,7 +770,7 @@ next task should be "Proper definition of .."
 - [x] `agile task done [NO ADDRESS!] --mine` should mark my next elligible task done (the one that would have been shown with `agile task next --mine`)
 - [x] `agile task done [NO ADDRESS!] --as SOMEONE` should mark someones next elligible task done (the one that would have been shown with `agile task next --as SOMEONE`)
 
-- [ ] in `agile task --help` re-order the output as follows:
+- [x] in `agile task --help` re-order the output as follows:
 
 current:
   list      List tasks in priority order
