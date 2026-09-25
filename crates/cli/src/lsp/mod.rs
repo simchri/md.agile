@@ -5,6 +5,7 @@
 //! and offers `quickfix` code actions for fixable diagnostics (E002/E003/E005).
 
 pub mod goto_definition;
+pub mod jump;
 pub mod logger;
 pub mod quickfix;
 pub mod semantic_tokens;
@@ -13,6 +14,7 @@ use goto_definition::{
     assignment_name_at_position, find_assignment_line_in_config, find_property_line_in_config,
     property_name_at_position,
 };
+use jump::{find_highest_priority_open_task_in_workspace, highest_priority_open_task_line};
 use quickfix::build_quickfixes;
 use semantic_tokens::{TOKEN_TYPES, build_tokens};
 
@@ -287,6 +289,7 @@ impl LanguageServer for Backend {
                 )),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
+                declaration_provider: Some(DeclarationCapability::Simple(true)),
                 semantic_tokens_provider: Some(
                     SemanticTokensServerCapabilities::SemanticTokensOptions(
                         SemanticTokensOptions {
@@ -478,6 +481,47 @@ impl LanguageServer for Backend {
 
         let location = Location {
             uri: config_uri,
+            range: Range {
+                start: Position { line, character: 0 },
+                end: Position { line, character: 0 },
+            },
+        };
+
+        Ok(Some(GotoDefinitionResponse::Scalar(location)))
+    }
+
+    async fn goto_declaration(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+
+        // Try to find the highest-priority open task in workspace files if root is available.
+        let target = if let Some(root) = self.root.read().await.as_ref() {
+            find_highest_priority_open_task_in_workspace(root).and_then(|(path, line)| {
+                Url::from_file_path(path).ok().map(|u| (u, line))
+            })
+        } else {
+            None
+        };
+
+        // Fall back to scanning the currently open document.
+        let (target_uri, line) = match target {
+            Some(t) => t,
+            None => {
+                let doc_text = match self.docs.read().await.get(uri) {
+                    Some(t) => t.clone(),
+                    None => return Ok(None),
+                };
+                match highest_priority_open_task_line(&doc_text) {
+                    Some(line) => (uri.clone(), line),
+                    None => return Ok(None),
+                }
+            }
+        };
+
+        let location = Location {
+            uri: target_uri,
             range: Range {
                 start: Position { line, character: 0 },
                 end: Position { line, character: 0 },

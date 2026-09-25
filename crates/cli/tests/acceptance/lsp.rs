@@ -6,6 +6,8 @@ mod config_error;
 mod diagnostics;
 #[path = "lsp/e013.rs"]
 mod e013;
+#[path = "lsp/goto_declaration.rs"]
+mod goto_declaration;
 #[path = "lsp/goto_definition.rs"]
 mod goto_definition;
 #[path = "lsp/helpers.rs"]
