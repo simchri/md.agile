@@ -793,7 +793,11 @@ new:
 ## CLI Fixes / Interface rework
 - [x] task (mark) done compatibility with --mine (normal workflow, list tasks with --mine, then potentially mark done -- need this arg here too)
   currently only '--mine' alone works, can not be combined with an offset like 'agile task next --mine 3'
-- [ ] generally rethink and test how "task next" interacts with "task done" addresses and such
+- [x] generally rethink and test how "task next" interacts with "task done" addresses and such
+  For now:
+  - detect the next eligible task with 'agile task next --mine'
+  - this shows you the task, with an address, e.g. '5.3'
+  - mark it done with                  'agile task done 5.3'
 - [x] consider: displaying addresses next to tasks
 
 ## Misc App Menu improvements
