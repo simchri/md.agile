@@ -856,27 +856,32 @@ new:
   - [x] ignore anything inside of code quotes, i.e. ``
     - [x] #bug: currently inconsistent ignore rules between the lsp and agile check, agile check recognizes insisde ticks, but lsp doesn't (it seems, maybe different versions - investigate and fix)
 
+## More LSP features
+- [ ] "go to" next open task
+- [ ] "go to" next my open task
+  ...
+
+- [ ] hover
+  - [ ] textDocument/hover — show property definitions
+    - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
+    - [ ] idem '@assignments' relevant, e.g. for groups
+
+- [ ] auto complete
+  - [ ] textDocument/completion — suggest properties, users, groups
+
+- [ ] LSP for the config file
+
+- [ ] additional LSP syntax highlighting
+  - [ ] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
+
 ## LSP documentation
-- [ ] LSP Phase 3: IDE Integration
+- [ ] LSP improved IDE Integration
   - [ ] Document VS Code setup (.vscode/settings.json)
   - [ ] Document Vim/Neovim setup (init.lua example)
   - [ ] Add LSP section to README.md
   - [ ] Provide troubleshooting guide
 
-## More LSP features
-- [ ] LSP Phase 4: Enhanced Features (Optional)
-  - [ ] textDocument/hover — show property definitions
-    - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
-    - [ ] idem '@assignments' relevant, e.g. for groups
-  - [ ] textDocument/completion — suggest properties, users, groups
-- [ ] "go to" next open task
-- [ ] "go to" next my open task
-
-- [ ] LSP for the config file
-
-- [ ] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
-
-#MILESTONE: Improved LSP
+#MILESTONE: LSP 2.0
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
