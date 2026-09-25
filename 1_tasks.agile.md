@@ -853,7 +853,7 @@ new:
 - [ ] Revisit the quote-adjacency escaping rule (`is_marker_quote` in `parser/mod.rs`) in more detail: today a single leading quote before `\#`/`\@` suppresses marker recognition. Consider: requiring the term to be fully quoted (`"\@alice"`) instead of just quote-adjacent; whether the existing `\\#`/`\\@` backslash-escape already makes this rule unnecessary; or using single ticks (`'`) as the literal/escaping convention instead.
   - [x] Implemented: retained exactly two escaping mechanisms — `\` before `\#`/`\@` (unchanged), and single ticks fully surrounding a term (`'\@something'`, opening AND closing tick both required — a lone tick no longer suppresses, e.g. `weird'\#feat` is a real marker). Double quotes now have no escaping effect at all (`"\@alice"`/`"\#feat"` are real markers); `"` is still used unrelatedly for the property-required-subtask quoting convention. Renamed `is_marker_quote` to `is_marker_tick` in `parser/mod.rs`; mirrored in `lsp/goto_definition.rs`. Tests updated/added in `parser/tests.rs` and `goto_definition.rs`.
   - [x] task '@foobarbazasome' '#some'
-  - [ ] ignore anything inside of code quotes, i.e. ``
+  - [x] ignore anything inside of code quotes, i.e. ``
     - [x] #bug: currently inconsistent ignore rules between the lsp and agile check, agile check recognizes insisde ticks, but lsp doesn't (it seems, maybe different versions - investigate and fix)
 
 ### Short Forms
