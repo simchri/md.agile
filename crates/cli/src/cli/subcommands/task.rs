@@ -296,7 +296,7 @@ pub fn run_done(
     } else {
         let identity_pair = mine_identity.as_ref().map(|identity| (identity, config));
         let no_siblings: &[Subtask] = &[];
-        let target = find_next_actionable(resolved.node_ref(), no_siblings, identity_pair)
+        let target = rules::find_next_actionable(resolved.node_ref(), no_siblings, identity_pair)
             .unwrap_or_else(|| resolved.node_ref());
         target.location().line
     };
@@ -716,42 +716,6 @@ pub(crate) fn resolve_address(
             unreachable!("first <= eligible_total was already checked above");
         }
     }
-}
-
-/// Descends from `node` (already known not order-blocked among `siblings`)
-/// to the actual next actionable (sub)task in document order — mirroring
-/// the same walk [`render_task_highlighting_next_leaf`]'s bolding performs,
-/// but returning the found node instead of a rendered line.
-///
-/// [`rules::is_next_task`] already requires
-/// [`rules::has_no_remaining_descendant_work`] to hold for a node to
-/// qualify itself, so whenever `node` doesn't qualify but is otherwise a
-/// todo task, the actual next actionable unit is *somewhere* among its
-/// children (recursively) — never `node` itself. Checks `node` first, then
-/// its children in document order, matching [`rules::is_next_task`]'s own
-/// "first qualifying node in document order" semantics.
-///
-/// Used by `agile task done` with no explicit address: unlike an explicit
-/// dotted address (which always names one exact node, parent or leaf,
-/// regardless of remaining descendant work), the *implicit* "next eligible
-/// task" must resolve to the same concrete (sub)task `agile task next`
-/// would have highlighted — which may be nested arbitrarily deep under the
-/// selected top-level task, not the top-level task itself.
-fn find_next_actionable<'a>(
-    node: NodeRef<'a>,
-    siblings: &'a [Subtask],
-    identity: Option<(&ResolvedIdentity, &Config)>,
-) -> Option<NodeRef<'a>> {
-    if rules::is_next_task(node, siblings, identity) {
-        return Some(node);
-    }
-    let children = node.children();
-    for child in children {
-        if let Some(found) = find_next_actionable(NodeRef::Subtask(child), children, identity) {
-            return Some(found);
-        }
-    }
-    None
 }
 
 fn format_address(parts: &[usize]) -> String {

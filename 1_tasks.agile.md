@@ -868,6 +868,7 @@ new:
     - [x] `mdagile.jump.previousOpen`: jump to previous open task before cursor position
     - [x] `mdagile.jump.nextMy`: jump to next open task eligible to me after cursor position
     - [x] `mdagile.jump.previousMy`: jump to previous open task eligible to me before cursor position
+  - [x] All jump actions (`textDocument/declaration`/`implementation`, `mdagile.jump.*`) now consider subtasks: they jump to the actual next actionable (sub)task (mirroring `rules::find_next_actionable`/`is_next_task`, the same logic `agile task next`/`done` use — respecting `#OPT` ordering and inherited assignment eligibility), not just top-level task lines
 
 - [ ] hover
   - [ ] textDocument/hover — show property definitions

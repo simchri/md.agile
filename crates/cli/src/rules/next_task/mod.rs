@@ -139,6 +139,43 @@ pub fn is_eligible_for(node: NodeRef, identity: &ResolvedIdentity, config: &Conf
     has_actionable_eligible_child || has_no_remaining_descendant_work(node)
 }
 
+/// Descends from `node` (already known not order-blocked among `siblings`)
+/// to the actual next actionable (sub)task in document order — mirroring
+/// the same walk `render_task_highlighting_next_leaf`'s bolding performs
+/// (see `cli::common`), but returning the found node instead of a rendered
+/// line.
+///
+/// [`is_next_task`] already requires [`has_no_remaining_descendant_work`] to
+/// hold for a node to qualify itself, so whenever `node` doesn't qualify but
+/// is otherwise a todo task, the actual next actionable unit is *somewhere*
+/// among its children (recursively) — never `node` itself. Checks `node`
+/// first, then its children in document order, matching [`is_next_task`]'s
+/// own "first qualifying node in document order" semantics.
+///
+/// Used by `agile task done` with no explicit address (see
+/// `cli::subcommands::task::run_done`) to descend from a selected top-level
+/// task to the actual next actionable unit it would have highlighted, and
+/// by the LSP's `mdagile.jump.*`/`textDocument/declaration`/
+/// `textDocument/implementation` actions (see `lsp::jump`) to jump straight
+/// to that same actionable (sub)task instead of always stopping at a
+/// top-level task's own line.
+pub fn find_next_actionable<'a>(
+    node: NodeRef<'a>,
+    siblings: &'a [Subtask],
+    identity: Option<(&ResolvedIdentity, &Config)>,
+) -> Option<NodeRef<'a>> {
+    if is_next_task(node, siblings, identity) {
+        return Some(node);
+    }
+    let children = node.children();
+    for child in children {
+        if let Some(found) = find_next_actionable(NodeRef::Subtask(child), children, identity) {
+            return Some(found);
+        }
+    }
+    None
+}
+
 /// Returns whether `node` is a "previous" candidate — the mirror image of
 /// [`is_next_task`] for `agile task previous`'s highlighting: it is itself
 /// already resolved (`Done`/`Cancelled`) and [`has_no_remaining_descendant_work`],

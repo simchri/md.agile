@@ -16,5 +16,7 @@ mod goto_implementation;
 pub mod helpers;
 #[path = "lsp/jump_commands.rs"]
 mod jump_commands;
+#[path = "lsp/jump_subtasks.rs"]
+mod jump_subtasks;
 #[path = "lsp/lifecycle.rs"]
 mod lifecycle;
