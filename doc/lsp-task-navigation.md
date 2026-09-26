@@ -63,21 +63,36 @@ vim.keymap.set("n", "gi", vim.lsp.buf.implementation, { buffer = bufnr })
 -- or "gI" (uppercase) - advantage: "i" always stays bound to "insert mode"
 ```
 
-The custom commands need to be dispatched via
-`vim.lsp.buf.execute_command`, passing the current buffer URI and (for
-`next*`/`previous*`) the 0-based cursor line:
+The custom commands need to be dispatched via `workspace/executeCommand`,
+passing the current buffer URI and (for `next*`/`previous*`) the 0-based
+cursor line. **Don't** use `vim.lsp.buf.execute_command()` for this: it
+broadcasts the request to *every* LSP client attached to the buffer, and
+other clients that also advertise `executeCommandProvider` (e.g. GitHub
+Copilot's language server) will receive the `mdagile.jump.*` command too,
+correctly reject it as unknown, and surface a noisy error notification on
+every jump. Look up the `agilels` client explicitly and call
+`client.request()` on it directly instead:
 
 ```lua
 local function mdagile_jump(command, with_line)
   return function()
     local bufnr = vim.api.nvim_get_current_buf()
+    -- vim.lsp.buf.execute_command() broadcasts to every client attached to
+    -- the buffer (e.g. copilot also advertises executeCommandProvider),
+    -- causing spurious "Unknown command" errors from other clients. Target
+    -- the agilels client directly instead.
+    local client = vim.lsp.get_clients({ bufnr = bufnr, name = "agilels" })[1]
+    if not client then
+      vim.notify("mdagile: no agilels client attached to this buffer", vim.log.levels.WARN)
+      return
+    end
     local uri = vim.uri_from_bufnr(bufnr)
     local args = { uri }
     if with_line then
       local line = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-based
       table.insert(args, line)
     end
-    vim.lsp.buf.execute_command({ command = command, arguments = args })
+    client.request("workspace/executeCommand", { command = command, arguments = args }, nil, bufnr)
   end
 end
 
