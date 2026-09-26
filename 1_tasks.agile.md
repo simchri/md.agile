@@ -884,9 +884,9 @@ new:
 
 ## LSP documentation
 - [ ] LSP improved IDE Integration
-  - [ ] Document VS Code setup (.vscode/settings.json)
-  - [ ] Document Vim/Neovim setup (init.lua example)
-  - [ ] Add LSP section to README.md
+  - [x] Document VS Code setup (.vscode/settings.json)
+  - [x] Document Vim/Neovim setup (init.lua example)
+  - [x] Add LSP section to README.md
   - [ ] Provide troubleshooting guide
 
 #MILESTONE: LSP 2.0

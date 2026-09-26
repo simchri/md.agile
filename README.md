@@ -130,7 +130,7 @@ Parses all `*.agile.md` files and reports validation issues. See [doc/checks.md]
 
 ## Language Server: `agilels`
 
-A minimal LSP server that offers real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/checks.md](doc/checks.md).
+A minimal LSP server that offers real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/checks.md](doc/checks.md). It also offers "jump to task" navigation (highest-priority task, next/previous open task) — see [doc/lsp-task-navigation.md](doc/lsp-task-navigation.md) for editor setup.
 
 ## GUI
 
