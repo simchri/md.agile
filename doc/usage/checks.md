@@ -25,7 +25,7 @@ quickfixes offered where possible.
 
 These validate `#property` and `@user`/`@group` markers against
 `mdagile.toml` (see [Configuration](config.md) and the marker syntax in
-[README.vision.md](../README.vision.md)).
+[README.vision.md](../../README.vision.md)).
 
 | Code | Name | Description |
 |------|------|-------------|
@@ -49,7 +49,7 @@ Validation](assignment-validation.md) for the full details.
 ## Ordered tasks
 
 Ordered subtasks (`- [ ] 1. do this`) establish an execution sequence among
-their direct siblings only — see [README.vision.md](../README.vision.md)
+their direct siblings only — see [README.vision.md](../../README.vision.md)
 "Ordered Tasks".
 
 | Code | Name | Description |
@@ -63,7 +63,7 @@ string (e.g. `subtasks = ["1. dev implementation", "2. dev documentation"]`).
 
 ## Milestones
 
-`#MILESTONE: name` headers (see [README.md](../README.md) "Milestones and ETA
+`#MILESTONE: name` headers (see [README.md](../../README.md) "Milestones and ETA
 to Milestone") are checked project-wide across every `*.agile.md` file, not
 just within a single file.
 

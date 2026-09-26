@@ -27,7 +27,7 @@ Formatting rules enforced via language server with quick fixes!
 
 ## Installation
 
-See [INSTALL.md](INSTALL.md)
+See [doc/installation/install.md](doc/installation/install.md)
 
 ## Basic Syntax
 
@@ -92,7 +92,7 @@ If you have multiple truly independent teams, each doing their own prioritizatio
 
 **No "High Priority" Markers**
 
-There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading. [Caveats ;)](doc/prioritization_with_properties.md)
+There are also no priority categories for tasks ( ~~!prio:high~~ ). There is only a global absolute priority ordering. Ultimately, if I see two tasks in front of me, even if both are "high prio", I still have to pick one of them to do first. There is no way around an absolute priority order. Priority "categories" are misleading. [Caveats ;)](doc/usage/prioritization_with_properties.md)
 
 ## CLI Tool: `agile`
 
@@ -126,11 +126,11 @@ agile task show 2.1    # Alias for `task next`; print one specific (sub)task by 
 ```bash
 agile check
 ```
-Parses all `*.agile.md` files and reports validation issues. See [doc/checks.md](doc/checks.md) for the full list of checks.
+Parses all `*.agile.md` files and reports validation issues. See [doc/usage/checks.md](doc/usage/checks.md) for the full list of checks.
 
 ## Language Server: `agilels`
 
-A minimal LSP server that offers real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/checks.md](doc/checks.md). It also offers "jump to task" navigation (highest-priority task, next/previous open task) — see [doc/lsp-task-navigation.md](doc/lsp-task-navigation.md) for editor setup.
+A minimal LSP server that offers real-time diagnostics as you edit, and offers quickfix code actions for fixable issues. Runs the same checks as `agile check` — see [doc/usage/checks.md](doc/usage/checks.md). It also offers "jump to task" navigation (highest-priority task, next/previous open task) — see [doc/usage/lsp_task_navigation.md](doc/usage/lsp_task_navigation.md), editor setup in [doc/installation/](doc/installation/).
 
 ## GUI
 
@@ -153,7 +153,7 @@ A task that is "done" is marked with a lowercase `x`; `-` marks a task as cancel
 - [ ] another top-level task
 ```
 
-Other content (headings, prose, etc.) is ignored, so you can freely mix notes into the same file. See [doc/checks.md](doc/checks.md) for the full list of formatting/marker rules `agile check` enforces.
+Other content (headings, prose, etc.) is ignored, so you can freely mix notes into the same file. See [doc/usage/checks.md](doc/usage/checks.md) for the full list of formatting/marker rules `agile check` enforces.
 
 ### Multiple Files
 

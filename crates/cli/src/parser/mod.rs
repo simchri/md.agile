@@ -615,7 +615,7 @@ fn parse_order_prefix(title: &str) -> (Order, &str) {
 // quotes are stripped and the inner text is returned. A run of marker-shaped
 // tokens (`#foo`, `@bar`) trailing *after* the closing quote — e.g.
 // `"PO review" @alice`, the dynamic per-instance assignment syntax from
-// doc/dynamic-assignment-mandatory-subtasks.md — is peeled off first so it
+// doc/development/dynamic_assignment_mandatory_subtasks.md — is peeled off first so it
 // doesn't prevent the quote-wrap from being recognised. The peeled-off
 // suffix is returned separately so the caller can parse it as ordinary
 // markers on the subtask, without it becoming part of the byte-exact

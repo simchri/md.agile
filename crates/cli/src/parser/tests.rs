@@ -340,7 +340,7 @@ fn parse_property_required_subtask_with_embedded_property_stores_raw_title() {
 #[test]
 fn parse_property_required_subtask_with_trailing_assignment_marker() {
     // Dynamic per-instance assignment (Option 1 from
-    // doc/dynamic-assignment-mandatory-subtasks.md): a marker placed *after*
+    // doc/development/dynamic_assignment_mandatory_subtasks.md): a marker placed *after*
     // the closing quote is an ordinary marker on the subtask, and does not
     // affect the byte-exact raw_title used for config matching. It's still
     // appended to the display `title`, though, so renderers show it inline

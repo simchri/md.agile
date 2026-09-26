@@ -1,10 +1,9 @@
-
 # Installation
 
 Project is not yet configured for easy convenient installation on all platforms. You can currently only install this project "from sources". Non-technical users may encounter some difficulties.
 
 1. To install the binaries (executables) pick **one** of the "Options" below.
-2. Then optionally, to use the language server, configure your text editor accordingly. In general, refer to your editor / IDEs documentation for instructions. An example is provided below for NeoVim.
+2. Then optionally, to use the language server, configure your text editor accordingly. See [neovim.md](neovim.md) or [vscode.md](vscode.md) for examples, or refer to your editor/IDE's documentation.
 
 ## Option 1 - Build from Source - Docker
 
@@ -57,50 +56,9 @@ Uninstall:
 
 ## Language Server Integration
 
-The steps above only make the executable files available on the host system. If you want to use the language server (the "IDE integration") for mdagile, you have to configure your IDE/editor accordingly.
+The steps above only make the executable files available on the host system. If you want to use the language server (the "IDE integration") for mdagile, you have to configure your IDE/editor accordingly. See:
 
-### Nvim
+- [neovim.md](neovim.md) — Neovim setup (server registration + jump-action keymaps)
+- [vscode.md](vscode.md) — VS Code setup
 
-Perform installation as described above (any option) and check that `agilels` binary is on your path (`whereis agilels`). Then add the config below.
-
-Nvim config example with lazy pkg manager (if you use a different package manager, adjust as needed):
-
-```lua
--- ~/.config/nvim/lua/plugins/lang-mdagile.lua
-
--- register the file extension ".agile.md" as both "markdown" and "agile" file type
--- this ensures both your usual markdown features and the ls are active
-vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
-  pattern = "*.agile.md",
-  callback = function()
-    vim.bo.filetype = "markdown.agile" -- combined file type: This is both "markdown" and "agile"
-  end,
-})
-
--- this block is necessary, because agilels is not in the standard lspconfig database
-require("lspconfig.configs").agilels = {
-  default_config = {
-    cmd = { "agilels" },
-    filetypes = { "markdown.agile" },
-    root_dir = function(fname)
-      return vim.fs.dirname(vim.fs.find({ ".git" }, { upward = true, path = fname })[1])
-    end,
-    settings = {},
-  },
-}
-
-return {
-  {
-    "neovim/nvim-lspconfig",
-    opts = {
-      servers = {
-        agilels = {
-          cmd = {
-            "agilels",
-          },
-        },
-      },
-    },
-  },
-}
-```
+For what the language server's "jump to task" navigation actions actually do, see [doc/usage/lsp_task_navigation.md](../usage/lsp_task_navigation.md).

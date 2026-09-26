@@ -1,7 +1,7 @@
 # Assignment / Completion Validation (E013)
 
 Ensures only assigned people can mark a task as done. This is a gentle
-nudge, not access control (see [MANIFESTO.md](../MANIFESTO.md)) — a user can
+nudge, not access control (see [MANIFESTO.md](../../MANIFESTO.md)) — a user can
 always bypass it by committing anyway.
 
 ## How it works

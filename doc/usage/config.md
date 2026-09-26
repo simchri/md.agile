@@ -30,7 +30,7 @@ members = ["alice", "bob"]
 ## `[Properties.X]`
 
 Declares a `#marker` usable on tasks (see the marker syntax in
-[README.vision.md](../README.vision.md)). Referencing an undeclared `#marker`
+[README.vision.md](../../README.vision.md)). Referencing an undeclared `#marker`
 on a task is [E008](checks.md).
 
 - `subtasks` — an ordered list of required subtask titles. A task carrying

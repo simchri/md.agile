@@ -92,7 +92,7 @@ Status markers used below (always at the start of the bullet):
   (the `mdagile` library crate's public CLI surface). The `crates/gui`
   binary (Dioxus board view) is a separate, non-CLI surface and isn't
   included here — flag if it should be.
-- **LSP feature surface** (diagnostics, hover, etc. — see `doc/config.md`
+- **LSP feature surface** (diagnostics, hover, etc. — see `doc/usage/config.md`
   and the "More LSP features" section of `tasks.agile.md`) is deliberately
   out of scope for this CLI-focused overview; it could get its own section
   if useful.

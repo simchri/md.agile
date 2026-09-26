@@ -443,7 +443,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
 /// [`crate::cli::subcommands::task::mark_node_done`]) to validate a single
 /// addressed node in isolation, without running the full rule set over the
 /// rest of the project (which `task done` explicitly avoids for efficiency —
-/// see `doc/cli-structure.md`). Reuses the exact same rule logic as `agile
+/// see `doc/development/cli_structure.md`). Reuses the exact same rule logic as `agile
 /// check` so the two commands never disagree about what counts as a valid
 /// completion.
 pub fn check_completable(
