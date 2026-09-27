@@ -2,8 +2,11 @@
 
 [Properties.feature]
 brief = "New end-user visible functionality of the product"
-description = "Not considered features are bugfixes, refactorings, and other internal changes. Features are usually requested by the product owner or the customer."
-subtasks = ["2. (feature) validation by programmer", "1. (feature) implementation"]
+description = "Not considered \"features\" are bugfixes, refactorings, and other internal changes. Features are usually requested by the product owner or the customer."
+subtasks = [
+  "1. (feature) implementation",
+  "2. (feature) validation by programmer",
+]
 
 [Properties.feat]
 
@@ -14,7 +17,12 @@ subtasks = ["bar", "baz"]
 subtasks_allow_cancel = [false, true]
 
 [Properties.feature2]
-subtasks = ["1. dev implementation", "2. dev documentation", "3. test", "4. developer #review"]
+subtasks = [
+  "1. dev implementation",
+  "2. dev documentation",
+  "3. test",
+  "4. developer #review",
+]
 
 [Users]
 
