@@ -17,6 +17,8 @@ fn config_with(names: &[&str]) -> Config {
                     n.to_string(),
                     PropertyConfig {
                         name: n.to_string(),
+                        brief: None,
+                        description: None,
                         subtasks: vec![],
                         subtasks_allow_cancel: vec![],
                     },

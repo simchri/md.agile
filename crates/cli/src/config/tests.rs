@@ -45,6 +45,33 @@ fn property_without_subtasks_has_empty_vec() {
 }
 
 #[test]
+fn property_brief_and_description_are_parsed() {
+    let input = "\
+[Properties.feature]
+brief = \"New end-user visible functionality of the product\"
+description = \"Not considered features are bugfixes, refactorings, and other internal changes.\"
+";
+    let config = Config::from_str(input).unwrap();
+    let prop = config.properties.get("feature").unwrap();
+    assert_eq!(
+        prop.brief.as_deref(),
+        Some("New end-user visible functionality of the product")
+    );
+    assert_eq!(
+        prop.description.as_deref(),
+        Some("Not considered features are bugfixes, refactorings, and other internal changes.")
+    );
+}
+
+#[test]
+fn property_without_brief_or_description_has_none() {
+    let config = Config::from_str("[Properties.bug]\n").unwrap();
+    let prop = config.properties.get("bug").unwrap();
+    assert_eq!(prop.brief, None);
+    assert_eq!(prop.description, None);
+}
+
+#[test]
 fn property_without_subtasks_allow_cancel_has_empty_vec() {
     let config = Config::from_str("[Properties.bug]\n").unwrap();
     let prop = config.properties.get("bug").unwrap();

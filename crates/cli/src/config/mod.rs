@@ -62,6 +62,8 @@ impl Default for GeneralConfig {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyConfig {
     pub name: String,
+    pub brief: Option<String>,
+    pub description: Option<String>,
     pub subtasks: Vec<String>,
     /// Parallel array to `subtasks`: if `subtasks_allow_cancel[i]` is `true`, the
     /// required subtask at `subtasks[i]` may be satisfied by cancelling it instead
@@ -166,6 +168,10 @@ impl From<toml::de::Error> for ConfigError {
 #[derive(serde::Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct RawPropertyConfig {
+    #[serde(default)]
+    brief: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
     #[serde(default)]
     subtasks: Vec<String>,
     #[serde(default)]
@@ -284,6 +290,8 @@ impl Config {
                     name.clone(),
                     PropertyConfig {
                         name,
+                        brief: raw_prop.brief,
+                        description: raw_prop.description,
                         subtasks: raw_prop.subtasks,
                         subtasks_allow_cancel: raw_prop.subtasks_allow_cancel,
                     },

@@ -10,6 +10,8 @@ used.
 [Properties]
 
 [Properties.feature]
+brief = "New end-user visible functionality of the product"
+description = "Not considered features are bugfixes, refactorings, and other internal changes. Features are usually requested by the product owner or the customer."
 subtasks = ["design", "implementation", "tests"]
 subtasks_allow_cancel = [false, false, true]
 
@@ -33,6 +35,9 @@ Declares a `#marker` usable on tasks (see the marker syntax in
 [README.vision.md](../../README.vision.md)). Referencing an undeclared `#marker`
 on a task is [E008](checks.md).
 
+- `brief` — optional short summary of the property.
+- `description` — optional longer explanation of the property. These texts are
+  available to editor integrations, such as language-server hover.
 - `subtasks` — an ordered list of required subtask titles. A task carrying
   this property must have a matching `- [ ] "title"` (quoted) subtask for
   each entry, or [E010](checks.md) is reported.

@@ -873,7 +873,13 @@ new:
 - [ ] hover
   - [ ] textDocument/hover — show property definitions
     - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
+      - [ ] Show a property's configured description and required subtasks when hovering over its marker
     - [ ] idem '@assignments' relevant, e.g. for groups
+      - [ ] Show whether an assignment refers to a user or group; for groups, include their members
+      - [ ] Explain that assignments affect task eligibility and who may complete a task
+    - [ ] Show built-in behavior for special markers such as '#OPT', '#MILESTONE', and #MDAGILE
+    - [ ] Explain that quoted required-subtask titles are reserved for subtasks required by a property, and identify the property when possible
+    - [ ] Prioritize config-backed information for properties and assignments, with built-in explanations for special markers
 
 - [ ] auto complete
   - [ ] textDocument/completion — suggest properties, users, groups
