@@ -37,10 +37,12 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::{
     checker,
-    config::{Config, find_config_file_in, find_config_file_upwards},
+    config::{CONFIG_FILE_NAMES, Config, find_config_file_in, find_config_file_upwards},
     parser,
     rules::{Issue, ResolvedIdentity},
 };
+
+mod hover;
 
 struct Backend {
     client: Client,
@@ -96,6 +98,46 @@ impl Backend {
                 );
                 self.clear_config_error().await;
                 (Config::default(), false)
+            }
+        }
+    }
+
+    /// Loads the document's config, preferring its live editor buffer when
+    /// the config file is open so hover reflects unsaved property metadata.
+    async fn load_config_for_hover(
+        &self,
+        config_path: Option<&Path>,
+        path: &Path,
+    ) -> (Config, bool) {
+        let Some(config_path) = config_path else {
+            return self.load_config(None, path).await;
+        };
+        let Some(config_uri) = Url::from_file_path(config_path).ok() else {
+            return self.load_config(Some(config_path), path).await;
+        };
+        let config_text = self.docs.read().await.get(&config_uri).cloned();
+        let Some(config_text) = config_text else {
+            return self.load_config(Some(config_path), path).await;
+        };
+
+        // Keep the normal conflicting-config error behavior even if one
+        // candidate file is already open in the editor.
+        let has_conflicting_file = CONFIG_FILE_NAMES
+            .iter()
+            .map(|name| config_path.parent().unwrap_or(config_path).join(name))
+            .any(|candidate| candidate != config_path && candidate.exists());
+        if has_conflicting_file {
+            return self.load_config(Some(config_path), path).await;
+        }
+
+        match Config::from_str(&config_text) {
+            Ok(config) => {
+                self.clear_config_error().await;
+                (config, false)
+            }
+            Err(error) => {
+                self.report_config_error(error.to_string()).await;
+                (Config::default(), true)
             }
         }
     }
@@ -488,6 +530,7 @@ impl LanguageServer for Backend {
                 )),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
                 implementation_provider: Some(ImplementationProviderCapability::Simple(true)),
                 execute_command_provider: Some(ExecuteCommandOptions {
@@ -627,6 +670,34 @@ impl LanguageServer for Backend {
     async fn shutdown(&self) -> Result<()> {
         info!("shutdown");
         Ok(())
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let position = params.text_document_position_params.position;
+        let uri = &params.text_document_position_params.text_document.uri;
+        let doc_text = match self.docs.read().await.get(uri) {
+            Some(text) => text.clone(),
+            None => return Ok(None),
+        };
+        let Some(name) = property_name_at_position(&doc_text, position.line, position.character)
+        else {
+            return Ok(None);
+        };
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let config_path = self.resolve_config_path(uri).await;
+        let (config, config_load_failed) = self
+            .load_config_for_hover(config_path.as_deref(), &path)
+            .await;
+        if config_load_failed {
+            return Ok(None);
+        }
+        let Some(property) = config.properties.get(&name) else {
+            return Ok(None);
+        };
+
+        Ok(hover::property_hover(&name, property))
     }
 
     async fn goto_definition(

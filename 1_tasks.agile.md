@@ -877,7 +877,7 @@ new:
       - [ ] documentation README.md for brief
       - [x] parse property "description"
       - [ ] documentation README.md for description
-      - [ ] Show a property's configured brief, description and required subtasks when hovering over its marker
+      - [x] Show a property's configured brief, description and required subtasks when hovering over its marker
     - [ ] idem '@assignments' relevant, e.g. for groups
       - [ ] Show whether an assignment refers to a user or group; for groups, include their members
       - [ ] Explain that assignments affect task eligibility and who may complete a task

@@ -108,6 +108,21 @@ impl LspSession {
         self.read_response(id)
     }
 
+    /// Send a `textDocument/hover` request and return the response.
+    pub fn hover(&mut self, uri: &str, id: u64, line: u64, character: u64) -> Value {
+        let req = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "textDocument/hover",
+            "params": {
+                "textDocument": { "uri": uri },
+                "position": { "line": line, "character": character }
+            }
+        });
+        self.send(&req.to_string());
+        self.read_response(id)
+    }
+
     /// Send a `textDocument/declaration` request and return the response.
     pub fn goto_declaration(&mut self, uri: &str, id: u64, line: u64, character: u64) -> Value {
         let req = serde_json::json!({

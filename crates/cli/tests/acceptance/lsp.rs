@@ -14,6 +14,8 @@ mod goto_definition;
 mod goto_implementation;
 #[path = "lsp/helpers.rs"]
 pub mod helpers;
+#[path = "lsp/hover.rs"]
+mod hover;
 #[path = "lsp/jump_commands.rs"]
 mod jump_commands;
 #[path = "lsp/jump_subtasks.rs"]
