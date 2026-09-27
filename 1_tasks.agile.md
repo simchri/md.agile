@@ -886,7 +886,13 @@ new:
       don't do. Fairly complicated for the provided value. After a short while users will understand "quoted properties" come from subtasks
 
 - [ ] auto complete
-  - [ ] textDocument/completion — suggest properties, users, groups
+  - [x] textDocument/completion — suggest properties
+  - [ ] textDocument/completion — suggest users
+  - [ ] textDocument/completion — suggest groups
+
+- [ ] brief and description for user groups
+  - [ ] display on hover
+  - [ ] display on auto-complete
 
 - [ ] LSP for the config file
 
