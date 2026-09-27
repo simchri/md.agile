@@ -139,3 +139,126 @@ fn lsp_hover_returns_null_when_property_has_no_hover_details() {
         "expected no hover for property without details, got: {response}"
     );
 }
+
+#[test]
+fn lsp_hover_explains_user_assignment() {
+    // Arrange
+    let config = "\
+[Users.alice]
+";
+    let file_content = "\
+- [ ] task @alice
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 0, 14);
+
+    // Assert
+    let contents = response["result"]["contents"]["value"]
+        .as_str()
+        .expect("expected assignment hover contents");
+
+    assert!(contents.contains("@alice"), "hover: {contents}");
+    assert!(contents.contains("user"), "hover: {contents}");
+    assert!(
+        contents.contains("eligible to work on this task"),
+        "hover: {contents}"
+    );
+    assert!(
+        contents.contains("may mark it complete"),
+        "hover: {contents}"
+    );
+}
+
+#[test]
+fn lsp_hover_shows_group_assignment_members() {
+    // Arrange
+    let config = "\
+[Users.alice]
+
+[Users.bob]
+
+[Groups.devs]
+members = [\"alice\", \"bob\"]
+";
+    let file_content = "\
+- [ ] task @devs
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 0, 13);
+
+    // Assert
+    let contents = response["result"]["contents"]["value"]
+        .as_str()
+        .expect("expected assignment hover contents");
+
+    assert!(contents.contains("@devs"), "hover: {contents}");
+    assert!(contents.contains("group"), "hover: {contents}");
+    assert!(contents.contains("alice"), "hover: {contents}");
+    assert!(contents.contains("bob"), "hover: {contents}");
+    assert!(
+        contents.contains("eligible to work on this task"),
+        "hover: {contents}"
+    );
+    assert!(
+        contents.contains("may mark it complete"),
+        "hover: {contents}"
+    );
+}
+
+#[test]
+fn lsp_hover_returns_null_for_unknown_assignment() {
+    // Arrange
+    let config = "";
+    let file_content = "\
+- [ ] task @unknown
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 0, 14);
+
+    // Assert
+    assert!(
+        response["result"].is_null(),
+        "expected no hover for unknown assignment, got: {response}"
+    );
+}
+
+#[test]
+fn lsp_hover_explains_assignment_matching_user_and_group() {
+    // Arrange
+    let config = "\
+[Users.alice]
+
+[Groups.alice]
+members = [\"bob\"]
+
+[Users.bob]
+";
+    let file_content = "\
+- [ ] task @alice
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 0, 14);
+
+    // Assert
+    let contents = response["result"]["contents"]["value"]
+        .as_str()
+        .expect("expected assignment hover contents");
+    assert!(contents.contains("both user `alice` and group `alice`"));
+    assert!(contents.contains("`bob`"));
+}

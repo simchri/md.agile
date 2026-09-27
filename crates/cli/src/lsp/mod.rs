@@ -679,10 +679,16 @@ impl LanguageServer for Backend {
             Some(text) => text.clone(),
             None => return Ok(None),
         };
-        let Some(name) = property_name_at_position(&doc_text, position.line, position.character)
-        else {
-            return Ok(None);
+        let property_name = property_name_at_position(&doc_text, position.line, position.character);
+        let assignment_name = if property_name.is_none() {
+            assignment_name_at_position(&doc_text, position.line, position.character)
+        } else {
+            None
         };
+        if property_name.is_none() && assignment_name.is_none() {
+            return Ok(None);
+        }
+
         let path = uri
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
@@ -693,11 +699,16 @@ impl LanguageServer for Backend {
         if config_load_failed {
             return Ok(None);
         }
-        let Some(property) = config.properties.get(&name) else {
-            return Ok(None);
+
+        let hover = match property_name {
+            Some(name) => config
+                .properties
+                .get(&name)
+                .and_then(|property| hover::property_hover(&name, property)),
+            None => assignment_name.and_then(|name| hover::assignment_hover(&name, &config)),
         };
 
-        Ok(hover::property_hover(&name, property))
+        Ok(hover)
     }
 
     async fn goto_definition(

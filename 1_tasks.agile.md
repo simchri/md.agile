@@ -878,9 +878,9 @@ new:
       - [x] parse property "description"
       - [ ] documentation README.md for description
       - [x] Show a property's configured brief, description and required subtasks when hovering over its marker
-    - [ ] idem '@assignments' relevant, e.g. for groups
-      - [ ] Show whether an assignment refers to a user or group; for groups, include their members
-      - [ ] Explain that assignments affect task eligibility and who may complete a task
+    - [x] idem '@assignments' relevant, e.g. for groups
+      - [x] Show whether an assignment refers to a user or group; for groups, include their members
+      - [x] Explain that assignments affect task eligibility and who may complete a task
     - [ ] Show built-in behavior for special markers such as '#OPT', '#MILESTONE', and #MDAGILE
     - [ ] Explain that quoted required-subtask titles are reserved for subtasks required by a property, and identify the property when possible
     - [ ] Prioritize config-backed information for properties and assignments, with built-in explanations for special markers
