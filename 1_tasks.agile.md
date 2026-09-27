@@ -887,8 +887,8 @@ new:
 
 - [ ] auto complete
   - [x] textDocument/completion — suggest properties
-  - [ ] textDocument/completion — suggest users
-  - [ ] textDocument/completion — suggest groups
+  - [x] textDocument/completion — suggest users
+  - [x] textDocument/completion — suggest groups
 
 - [ ] brief and description for user groups
   - [ ] display on hover

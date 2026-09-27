@@ -531,7 +531,7 @@ impl LanguageServer for Backend {
                 )),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec!["#".to_string()]),
+                    trigger_characters: Some(vec!["#".to_string(), "@".to_string()]),
                     ..CompletionOptions::default()
                 }),
                 definition_provider: Some(OneOf::Left(true)),
@@ -684,7 +684,8 @@ impl LanguageServer for Backend {
             Some(text) => text.clone(),
             None => return Ok(Some(CompletionResponse::Array(Vec::new()))),
         };
-        if completion::property_prefix_at_position(&doc_text, position).is_none() {
+        let marker = completion::marker_at_position(&doc_text, position);
+        if marker.is_none() {
             return Ok(Some(CompletionResponse::Array(Vec::new())));
         }
 
@@ -699,9 +700,11 @@ impl LanguageServer for Backend {
             return Ok(Some(CompletionResponse::Array(Vec::new())));
         }
 
-        Ok(completion::property_completions(
-            &doc_text, position, &config,
-        ))
+        Ok(match marker {
+            Some('#') => completion::property_completions(&doc_text, position, &config),
+            Some('@') => completion::assignment_completions(&doc_text, position, &config),
+            _ => None,
+        })
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {

@@ -94,6 +94,13 @@ pub(super) fn property_documentation(
 }
 
 pub(super) fn assignment_hover(name: &str, config: &Config) -> Option<Hover> {
+    Some(Hover {
+        contents: HoverContents::Markup(assignment_documentation(name, config)?),
+        range: None,
+    })
+}
+
+pub(super) fn assignment_documentation(name: &str, config: &Config) -> Option<MarkupContent> {
     let user = config.users.get(name);
     let group = config.groups.get(name);
     if user.is_none() && group.is_none() {
@@ -120,7 +127,10 @@ pub(super) fn assignment_hover(name: &str, config: &Config) -> Option<Hover> {
             .to_string(),
     );
 
-    Some(markdown_hover(sections.join("\n\n")))
+    Some(MarkupContent {
+        kind: MarkupKind::Markdown,
+        value: sections.join("\n\n"),
+    })
 }
 
 fn group_members_section(members: &[String]) -> String {

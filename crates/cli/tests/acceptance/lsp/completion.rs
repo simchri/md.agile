@@ -106,7 +106,7 @@ fn lsp_completion_returns_empty_outside_property_marker() {
 }
 
 #[test]
-fn lsp_initialize_advertises_hash_completion_trigger() {
+fn lsp_initialize_advertises_marker_completion_triggers() {
     // Arrange
     let mut session = LspSession::start_raw();
     send_lsp_message(
@@ -122,8 +122,123 @@ fn lsp_initialize_advertises_hash_completion_trigger() {
     // Assert
     assert_eq!(
         value["result"]["capabilities"]["completionProvider"]["triggerCharacters"],
-        serde_json::json!(["#"]),
+        serde_json::json!(["#", "@"]),
         "response: {response}"
+    );
+}
+
+#[test]
+fn lsp_completion_suggests_users_and_groups_with_hover_documentation() {
+    // Arrange
+    let config = "\
+[Users.alice]
+
+[Users.amy]
+
+[Groups.admins]
+members = [\"alice\", \"amy\"]
+
+[Groups.devs]
+members = [\"amy\"]
+";
+    let file_content = "\
+- [ ] task @a
+- [ ] task @admins
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.completion(&file_uri, 2, 0, 13);
+
+    // Assert
+    let items = response["result"].as_array().expect("completion items");
+    let labels: Vec<_> = items
+        .iter()
+        .map(|item| item["label"].as_str().unwrap())
+        .collect();
+    assert_eq!(labels, vec!["@admins", "@alice", "@amy"]);
+    assert_eq!(items[0]["kind"], 9);
+    assert_eq!(items[1]["kind"], 6);
+    for item in items {
+        assert_eq!(item["textEdit"]["newText"], item["label"]);
+        assert_eq!(item["textEdit"]["range"]["start"]["character"], 11);
+        assert_eq!(item["textEdit"]["range"]["end"]["character"], 13);
+        assert_eq!(item["documentation"]["kind"], "markdown");
+    }
+    let group_hover = session.hover(&file_uri, 3, 1, 12);
+    assert_eq!(items[0]["documentation"], group_hover["result"]["contents"]);
+    assert_eq!(
+        items[0]["documentation"]["value"],
+        "**@admins**\n\nAssigned to group `admins`.\n\n**Members:**\n\n- `alice`\n- `amy`\n\nAssignments determine who is eligible to work on this task and who may mark it complete."
+    );
+    assert_eq!(
+        items[1]["documentation"]["value"],
+        "**@alice**\n\nAssigned to user `alice`.\n\nAssignments determine who is eligible to work on this task and who may mark it complete."
+    );
+}
+
+#[test]
+fn lsp_completion_after_at_suggests_all_assignments_and_replaces_full_marker() {
+    // Arrange
+    let config = "\
+[Users.bob]
+
+[Groups.devs]
+members = [\"bob\"]
+";
+    let file_content = "\
+- [ ] task @devs
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.completion(&file_uri, 2, 0, 12);
+
+    // Assert
+    let items = response["result"].as_array().expect("completion items");
+    let labels: Vec<_> = items
+        .iter()
+        .map(|item| item["label"].as_str().unwrap())
+        .collect();
+    assert_eq!(labels, vec!["@bob", "@devs"]);
+    for item in items {
+        assert_eq!(item["textEdit"]["range"]["start"]["character"], 11);
+        assert_eq!(item["textEdit"]["range"]["end"]["character"], 16);
+    }
+}
+
+#[test]
+fn lsp_completion_deduplicates_user_and_group_with_same_name() {
+    // Arrange
+    let config = "\
+[Users.alice]
+
+[Groups.alice]
+members = [\"alice\"]
+";
+    let file_content = "\
+- [ ] task @al
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.completion(&file_uri, 2, 0, 14);
+
+    // Assert
+    let items = response["result"].as_array().expect("completion items");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["label"], "@alice");
+    assert!(
+        items[0]["documentation"]["value"]
+            .as_str()
+            .unwrap()
+            .contains("both user `alice` and group `alice`")
     );
 }
 

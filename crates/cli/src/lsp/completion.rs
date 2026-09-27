@@ -1,6 +1,7 @@
 use crate::config::Config;
-use crate::lsp::hover::property_documentation;
+use crate::lsp::hover::{assignment_documentation, property_documentation};
 use crate::parser::{MARKER_TRAILING_PUNCT, is_in_code_span, is_marker_boundary, is_marker_escape};
+use std::collections::BTreeSet;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionResponse, CompletionTextEdit, Documentation,
     Position, Range, TextEdit,
@@ -11,7 +12,7 @@ pub(super) fn property_completions(
     position: Position,
     config: &Config,
 ) -> Option<CompletionResponse> {
-    let (prefix, start, end) = property_prefix_at_position(text, position)?;
+    let (prefix, start, end) = marker_prefix_at_position(text, position, '#')?;
     let mut properties: Vec<_> = config
         .properties
         .iter()
@@ -46,9 +47,66 @@ pub(super) fn property_completions(
     ))
 }
 
-pub(super) fn property_prefix_at_position(
+pub(super) fn assignment_completions(
     text: &str,
     position: Position,
+    config: &Config,
+) -> Option<CompletionResponse> {
+    let (prefix, start, end) = marker_prefix_at_position(text, position, '@')?;
+    let names: BTreeSet<&String> = config
+        .users
+        .keys()
+        .chain(config.groups.keys())
+        .filter(|name| name.starts_with(&prefix))
+        .collect();
+
+    Some(CompletionResponse::Array(
+        names
+            .into_iter()
+            .map(|name| {
+                let kind = if config.users.contains_key(name) {
+                    CompletionItemKind::VARIABLE
+                } else {
+                    CompletionItemKind::MODULE
+                };
+                CompletionItem {
+                    label: format!("@{name}"),
+                    kind: Some(kind),
+                    documentation: assignment_documentation(name, config)
+                        .map(Documentation::MarkupContent),
+                    text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                        range: Range {
+                            start: Position {
+                                line: position.line,
+                                character: start,
+                            },
+                            end: Position {
+                                line: position.line,
+                                character: end,
+                            },
+                        },
+                        new_text: format!("@{name}"),
+                    })),
+                    ..CompletionItem::default()
+                }
+            })
+            .collect(),
+    ))
+}
+
+pub(super) fn marker_at_position(text: &str, position: Position) -> Option<char> {
+    for sigil in ['#', '@'] {
+        if marker_prefix_at_position(text, position, sigil).is_some() {
+            return Some(sigil);
+        }
+    }
+    None
+}
+
+fn marker_prefix_at_position(
+    text: &str,
+    position: Position,
+    sigil: char,
 ) -> Option<(String, u32, u32)> {
     let line = text.lines().nth(position.line as usize)?;
     let chars: Vec<char> = line.chars().collect();
@@ -59,27 +117,30 @@ pub(super) fn property_prefix_at_position(
         return None;
     }
 
-    let mut sigil = None;
+    let mut marker_start = None;
     for index in (title_start..=cursor.min(chars.len().saturating_sub(1))).rev() {
         if index < cursor && is_marker_boundary(chars[index]) {
             break;
         }
-        if chars[index] == '#' {
-            sigil = Some(index);
+        if chars[index] == sigil {
+            marker_start = Some(index);
             break;
         }
     }
-    let sigil = sigil?;
+    let marker_start = marker_start?;
 
-    if is_in_code_span(&chars, sigil)
-        || (sigil > 0 && is_marker_escape(chars[sigil - 1]))
-        || cursor < sigil + 1
+    if is_in_code_span(&chars, marker_start)
+        || (marker_start > 0 && is_marker_escape(chars[marker_start - 1]))
+        || cursor < marker_start + 1
     {
         return None;
     }
 
-    let before_sigil = sigil.checked_sub(1).and_then(|idx| chars.get(idx)).copied();
-    let mut marker_end = sigil + 1;
+    let before_sigil = marker_start
+        .checked_sub(1)
+        .and_then(|idx| chars.get(idx))
+        .copied();
+    let mut marker_end = marker_start + 1;
     while marker_end < chars.len() && !is_marker_boundary(chars[marker_end]) {
         marker_end += 1;
     }
@@ -88,19 +149,20 @@ pub(super) fn property_prefix_at_position(
         return None;
     }
 
-    let full_token: String = chars[sigil + 1..marker_end].iter().collect();
-    if ["OPT", "MILESTONE", "MDAGILE"].contains(&full_token.as_str())
-        || full_token.starts_with("MDAGILE.")
+    let full_token: String = chars[marker_start + 1..marker_end].iter().collect();
+    if sigil == '#'
+        && (["OPT", "MILESTONE", "MDAGILE"].contains(&full_token.as_str())
+            || full_token.starts_with("MDAGILE."))
     {
         return None;
     }
 
     let prefix_end = cursor.min(marker_end);
-    let prefix: String = chars[sigil + 1..prefix_end].iter().collect();
+    let prefix: String = chars[marker_start + 1..prefix_end].iter().collect();
     if prefix.is_empty() {
         return Some((
             prefix,
-            utf16_offset(&chars, sigil),
+            utf16_offset(&chars, marker_start),
             utf16_offset(&chars, marker_end),
         ));
     }
@@ -108,7 +170,7 @@ pub(super) fn property_prefix_at_position(
     let clean_prefix = prefix.trim_end_matches(|c: char| MARKER_TRAILING_PUNCT.contains(c));
     Some((
         clean_prefix.to_string(),
-        utf16_offset(&chars, sigil),
+        utf16_offset(&chars, marker_start),
         utf16_offset(&chars, marker_end),
     ))
 }
