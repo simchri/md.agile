@@ -20,17 +20,25 @@ subtasks = [\"design\", \"implementation\"]
 
     let response = session.hover(&file_uri, 2, 0, 10);
 
-    assert!(
-        response["result"]["contents"]["value"]
-            .as_str()
-            .is_some_and(|contents| {
-                contents.contains("New end-user visible functionality")
-                    && contents.contains("A customer-facing change.")
-                    && contents.contains("design")
-                    && contents.contains("implementation")
-            }),
-        "expected property details in hover response, got: {response}"
+    let contents = response["result"]["contents"]["value"]
+        .as_str()
+        .expect("expected Markdown hover contents");
+    assert_eq!(
+        contents,
+        "\
+**#feature**
+
+New end-user visible functionality
+
+A customer-facing change.
+
+**Required subtasks:**
+
+- design
+- implementation"
     );
+    assert!(!contents.contains("Brief:"));
+    assert!(!contents.contains("Description:"));
 }
 
 #[test]

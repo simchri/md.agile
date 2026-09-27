@@ -9,14 +9,14 @@ pub(super) fn property_hover(name: &str, property: &PropertyConfig) -> Option<Ho
         .as_deref()
         .filter(|text| !text.trim().is_empty())
     {
-        sections.push(format!("**Brief:**\n\n{brief}"));
+        sections.push(brief.to_string());
     }
     if let Some(description) = property
         .description
         .as_deref()
         .filter(|text| !text.trim().is_empty())
     {
-        sections.push(format!("**Description:**\n\n{description}"));
+        sections.push(description.to_string());
     }
     if !property.subtasks.is_empty() {
         let subtasks = property
