@@ -39,7 +39,11 @@ fn pluralize(n: i64, unit: &str) -> String {
 /// if either half is missing (meaning "unknown" to callers).
 pub(super) fn eta_span(eta: Option<EtaEstimate>, today_unix_days: Option<i64>) -> Option<String> {
     let (eta, today) = (eta?, today_unix_days?);
-    Some(format_days_as_span(eta.unix_days - today))
+    Some(if eta.within_day {
+        "today".to_string()
+    } else {
+        format_days_as_span(eta.unix_days - today)
+    })
 }
 
 /// Renders the "ETA: ..." / "ETA date: ..." text block shown after the plot.

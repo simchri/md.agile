@@ -5,7 +5,10 @@ use tempfile::tempdir;
 #[test]
 fn render_when_line_pads_span_before_milestone_name() {
     // unix_days = 10; "today" = 3, so 7 days remain -> "1 week".
-    let eta = EtaEstimate { unix_days: 10 };
+    let eta = EtaEstimate {
+        unix_days: 10,
+        within_day: false,
+    };
     let out = render_when_line("Release of MVP :)", Some(eta), Some(3));
     assert_eq!(out, "1 week    Release of MVP :)\n");
 }
@@ -14,6 +17,18 @@ fn render_when_line_pads_span_before_milestone_name() {
 fn render_when_line_shows_unknown_when_eta_is_unresolved() {
     let out = render_when_line("Release of MVP :)", None, Some(0));
     assert_eq!(out, "unknown   Release of MVP :)\n");
+}
+
+#[test]
+fn render_when_line_shows_today_for_subday_eta() {
+    let eta = EtaEstimate {
+        unix_days: 11,
+        within_day: true,
+    };
+    assert_eq!(
+        render_when_line("Release of MVP :)", Some(eta), Some(10)),
+        "today     Release of MVP :)\n"
+    );
 }
 
 #[test]

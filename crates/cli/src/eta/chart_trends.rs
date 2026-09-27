@@ -28,8 +28,8 @@ pub(super) struct PlotData {
 impl PlotData {
     /// Computes this chart's ETA (see [`compute_eta`]) from its fitted
     /// trend lines.
-    pub(super) fn eta(&self, today_unix_days: Option<i64>) -> Option<EtaEstimate> {
-        compute_eta(self.total_trend, self.done_trend, today_unix_days)
+    pub(super) fn eta(&self, now_unix_days: Option<f64>) -> Option<EtaEstimate> {
+        compute_eta(self.total_trend, self.done_trend, now_unix_days)
     }
 
     /// Computes the y-axis range (see [`compute_plot_y_range`]) shared by

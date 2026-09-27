@@ -25,13 +25,14 @@ pub fn build_when_report(
     last_days: Option<u32>,
 ) -> Result<String, String> {
     require_git_repo(root)?;
-    let today = super::date_utils::today_unix_days();
+    let now = super::date_utils::now_unix_days();
+    let today = now.map(|day| day.floor() as i64);
     let mut out = String::new();
     for (index, name) in future_milestone_names(root).into_iter().enumerate() {
         let rank = index + 1;
         let eta = build_todo_done_plot(root, rank).ok().and_then(|mut plot| {
             super::plot_data::restrict_to_window_days(&mut plot, last_days);
-            eta_for_plot(&plot, today, algorithm)
+            eta_for_plot(&plot, now, algorithm)
         });
         out.push_str(&render_when_line(&name, eta, today));
     }
@@ -55,10 +56,11 @@ pub fn build_when_detail_report(
     let stats = super::milestone_stats::milestone_stats_for_rank(root, rank)
         .ok_or_else(|| format!("milestone rank {rank} does not exist"))?;
 
-    let today = super::date_utils::today_unix_days();
+    let now = super::date_utils::now_unix_days();
+    let today = now.map(|day| day.floor() as i64);
     let eta = build_todo_done_plot(root, rank).ok().and_then(|mut plot| {
         super::plot_data::restrict_to_window_days(&mut plot, last_days);
-        eta_for_plot(&plot, today, algorithm)
+        eta_for_plot(&plot, now, algorithm)
     });
 
     let (eta_str, eta_date_str) = match (eta, today) {

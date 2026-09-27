@@ -11,24 +11,25 @@ use super::trend::{LinearTrend, TrendFitAlgorithm, compute_milestone_trends_with
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct EtaEstimate {
     pub(super) unix_days: i64,
+    pub(super) within_day: bool,
 }
 
 /// Computes a milestone's ETA (see [`compute_eta`]) directly from its plot
 /// data, deriving the trend lines the same way every other consumer does.
 pub(super) fn eta_for_plot(
     plot: &TodoDonePlot,
-    today_unix_days: Option<i64>,
+    now_unix_days: Option<f64>,
     algorithm: TrendFitAlgorithm,
 ) -> Option<EtaEstimate> {
     let (total_trend, done_trend) = compute_milestone_trends_with(plot, algorithm);
-    compute_eta(total_trend, done_trend, today_unix_days)
+    compute_eta(total_trend, done_trend, now_unix_days)
 }
 
 /// Computes the ETA to a milestone as the intersection of the total and done
 /// trend lines, expressed relative to their shared `anchor_x_d` (the
 /// calendar date that trend-line x = 0 maps to). Returns `None` when either
 /// trend line is missing, the lines are parallel (no single intersection),
-/// or the intersection falls on or before today (already reached, or
+/// or the intersection falls on or before now (already reached, or
 /// unknowable).
 ///
 /// This function is purely date/time math — it performs no string
@@ -36,7 +37,7 @@ pub(super) fn eta_for_plot(
 pub(super) fn compute_eta(
     total_trend: Option<LinearTrend>,
     done_trend: Option<LinearTrend>,
-    today_unix_days: Option<i64>,
+    now_unix_days: Option<f64>,
 ) -> Option<EtaEstimate> {
     let Some(total) = total_trend else {
         log::debug!("compute_eta: no total trend available -> None");
@@ -47,13 +48,13 @@ pub(super) fn compute_eta(
         return None;
     };
     let anchor = total.anchor_x_d;
-    let Some(today) = today_unix_days else {
-        log::debug!("compute_eta: no today_unix_days available -> None");
+    let Some(now) = now_unix_days else {
+        log::debug!("compute_eta: no now_unix_days available -> None");
         return None;
     };
 
     log::debug!(
-        "compute_eta: total_trend={total:?} done_trend={done:?} anchor_x_d={anchor} today_unix_days={today}"
+        "compute_eta: total_trend={total:?} done_trend={done:?} anchor_x_d={anchor} now_unix_days={now}"
     );
 
     let slope_diff = total.slope_wtpd - done.slope_wtpd;
@@ -62,20 +63,31 @@ pub(super) fn compute_eta(
         return None;
     }
     let x_intersect = (done.anchor_y_wt - total.anchor_y_wt) / slope_diff;
-    let unix_days = (anchor + x_intersect).round() as i64;
+    let intersection = anchor + x_intersect;
     log::debug!(
-        "compute_eta: slope_diff={slope_diff:.6} x_intersect={x_intersect:.3} (days since anchor) -> unix_days={unix_days}"
+        "compute_eta: slope_diff={slope_diff:.6} x_intersect={x_intersect:.3} (days since anchor) -> unix_days={intersection}"
     );
 
-    if unix_days <= today {
+    if !intersection.is_finite() || intersection <= now {
         log::debug!(
-            "compute_eta: intersection unix_days={unix_days} <= today={today} (already reached, or in the past) -> None"
+            "compute_eta: intersection unix_days={intersection} <= now={now} (already reached, or in the past) -> None"
         );
         return None;
     }
 
-    log::debug!("compute_eta: -> Some(EtaEstimate {{ unix_days: {unix_days} }})");
-    Some(EtaEstimate { unix_days })
+    let within_day = intersection - now < 1.0;
+    let unix_days = if within_day {
+        intersection.floor() as i64
+    } else {
+        intersection.round() as i64
+    };
+    log::debug!(
+        "compute_eta: -> Some(EtaEstimate {{ unix_days: {unix_days}, within_day: {within_day} }})"
+    );
+    Some(EtaEstimate {
+        unix_days,
+        within_day,
+    })
 }
 
 #[cfg(test)]

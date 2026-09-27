@@ -77,7 +77,8 @@ fn render_todo_done_plot_html(
     extra: f64,
     algorithm: TrendFitAlgorithm,
 ) -> String {
-    let today_unix_days = super::date_utils::today_unix_days();
+    let now_unix_days = super::date_utils::now_unix_days();
+    let today_unix_days = now_unix_days.map(|now| now.floor() as i64);
     let sampled = downsample_plot_points(&plot.points, MAX_CHART_POINTS);
     log::debug!(
         "render_todo_done_plot_html: downsampled {} points to {} for display",
@@ -100,7 +101,7 @@ fn render_todo_done_plot_html(
         done_trend,
     };
     let (ymin, ymax) = plot_data.y_range();
-    let eta = plot_data.eta(today_unix_days);
+    let eta = plot_data.eta(now_unix_days);
     log::debug!(
         "render_todo_done_plot_html: {} sampled points, x range=[{:.3}, {:.3}], y range=[{ymin:.3}, {ymax:.3}]",
         plot_data.sampled.len(),

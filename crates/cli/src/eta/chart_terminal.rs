@@ -94,7 +94,8 @@ pub fn render_todo_done_plot(
     color: bool,
     algorithm: TrendFitAlgorithm,
 ) -> String {
-    let today_unix_days = super::date_utils::today_unix_days();
+    let now_unix_days = super::date_utils::now_unix_days();
+    let today_unix_days = now_unix_days.map(|now| now.floor() as i64);
     let (total_trend, done_trend) = compute_milestone_trends_with(plot, algorithm);
     log::debug!("render_todo_done_plot: total_trend = {:?}", total_trend);
     log::debug!("render_todo_done_plot: done_trend = {:?}", done_trend);
@@ -139,7 +140,7 @@ pub fn render_todo_done_plot(
     }
     out.push_str("\n");
     out.push_str(&render_eta_text(
-        compute_eta(total_trend, done_trend, today_unix_days),
+        compute_eta(total_trend, done_trend, now_unix_days),
         today_unix_days,
     ));
     out

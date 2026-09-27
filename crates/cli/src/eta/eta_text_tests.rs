@@ -28,7 +28,10 @@ fn format_days_as_span_uses_years_from_three_years() {
 #[test]
 fn render_eta_text_shows_span_and_date_when_available() {
     // unix_days = 10; "today" = 3, so 7 days remain -> "1 week".
-    let eta = EtaEstimate { unix_days: 10 };
+    let eta = EtaEstimate {
+        unix_days: 10,
+        within_day: false,
+    };
     let out = render_eta_text(Some(eta), Some(3));
     assert_eq!(out, "ETA:      1 week\nETA date: 1970-01-11\n");
 }
@@ -41,7 +44,10 @@ fn render_eta_text_shows_unknown_when_no_eta() {
 
 #[test]
 fn render_eta_text_shows_unknown_when_today_is_unknown() {
-    let eta = EtaEstimate { unix_days: 10 };
+    let eta = EtaEstimate {
+        unix_days: 10,
+        within_day: false,
+    };
     let out = render_eta_text(Some(eta), None);
     assert_eq!(out, "ETA:      unknown\n");
 }

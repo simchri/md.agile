@@ -9,8 +9,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Returns today's calendar date, or `None` if the system clock is
 /// unavailable/invalid.
 pub(super) fn today_date() -> Option<NaiveDate> {
-    let unix_seconds = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs() as i64;
-    date_from_unix_days(unix_seconds.div_euclid(86_400))
+    date_from_unix_days(now_unix_days()?.floor() as i64)
+}
+
+/// Current UTC time as fractional days since the unix epoch.
+pub(super) fn now_unix_days() -> Option<f64> {
+    let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
+    Some(elapsed.as_secs_f64() / 86_400.0)
 }
 
 /// Converts a unix-days offset (days since the unix epoch) to a calendar

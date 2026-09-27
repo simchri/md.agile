@@ -517,7 +517,7 @@ done:   18 tasks  (weight 18.00)
 ETA:      3 months
 ETA date: 2026-11-10
 ```
-If the mathematical intersection point is in the past (or lines are perfectly parallel), the ETA will be "unknown". This happens when your "total" is growing faster than your "done" line, or in other words your scope creep is higher than your velocity. You have runaway scope and should probably put a lid on those feature requests ...
+If the mathematical intersection point is in the past (or lines are perfectly parallel), the ETA will be "unknown". An intersection less than 24 hours in the future shows "today"; the ETA date still shows the actual UTC calendar date, which can be tomorrow if the intersection crosses midnight. An unknown ETA can happen when your "total" is growing faster than your "done" line, or in other words your scope creep is higher than your velocity. You have runaway scope and should probably put a lid on those feature requests ...
 
 ### ETA - Task Weights
 
