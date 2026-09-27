@@ -1,7 +1,7 @@
 use crate::config::{Config, PropertyConfig};
 use crate::lsp::goto_definition::special_marker_at_position;
 use crate::lsp::marker::char_index_at_utf16;
-use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask, TASK_LINE_PREFIX_LEN, Task};
+use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask, TASK_LINE_PREFIX_LEN};
 use std::path::PathBuf;
 use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 
@@ -173,41 +173,45 @@ fn task_contains_marker_at(
     line_text: &str,
 ) -> bool {
     items.iter().any(|item| match item {
-        FileItem::Task(task) => task_contains_marker(task, line, character, &kind, line_text),
+        FileItem::Task(task) => node_contains_marker(
+            &task.markers,
+            &task.children,
+            task.location.line,
+            task.indent,
+            line,
+            character,
+            &kind,
+            line_text,
+        ),
         FileItem::Milestone(_) => false,
     })
 }
 
-fn task_contains_marker(
-    task: &Task,
+fn node_contains_marker(
+    markers: &[Marker],
+    children: &[Subtask],
+    location_line: usize,
+    indent: usize,
     line: u32,
     character: u32,
     kind: &SpecialMarkerKind,
     line_text: &str,
 ) -> bool {
-    let marker_found = task.location.line == line as usize + 1
-        && matches_special_marker(&task.markers, task.indent, character, kind, line_text);
+    let marker_found = location_line == line as usize + 1
+        && matches_special_marker(markers, indent, character, kind, line_text);
     marker_found
-        || task
-            .children
-            .iter()
-            .any(|child| subtask_contains_marker(child, line, character, kind, line_text))
-}
-
-fn subtask_contains_marker(
-    task: &Subtask,
-    line: u32,
-    character: u32,
-    kind: &SpecialMarkerKind,
-    line_text: &str,
-) -> bool {
-    let marker_found = task.location.line == line as usize + 1
-        && matches_special_marker(&task.markers, task.indent, character, kind, line_text);
-    marker_found
-        || task
-            .children
-            .iter()
-            .any(|child| subtask_contains_marker(child, line, character, kind, line_text))
+        || children.iter().any(|child| {
+            node_contains_marker(
+                &child.markers,
+                &child.children,
+                child.location.line,
+                child.indent,
+                line,
+                character,
+                kind,
+                line_text,
+            )
+        })
 }
 
 fn matches_special_marker(
@@ -228,6 +232,11 @@ fn matches_special_marker(
                 )
             })
         }
+
         _ => false,
     })
 }
+
+#[cfg(test)]
+#[path = "hover_tests.rs"]
+mod tests;
