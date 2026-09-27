@@ -1,6 +1,165 @@
 use super::helpers::{LspSession, file_uri, start_project_session};
 
 #[test]
+fn lsp_revalidates_when_disk_config_contents_change() {
+    // Arrange
+    let dir = tempfile::tempdir().unwrap();
+    let config_path = dir.path().join("mdagile.toml");
+    let mut file_content = "\
+[Properties.feature]
+";
+    std::fs::write(&config_path, file_content).unwrap();
+    file_content = "\
+- [ ] task #feature
+";
+    let uri = file_uri(&dir.path().join("tasks.agile.md"));
+    let root_uri = file_uri(dir.path());
+    let mut session = LspSession::start_with_root_uri(Some(&root_uri));
+    session.open_document(&uri, file_content);
+    let initial = session.read_notification("textDocument/publishDiagnostics");
+    assert!(
+        initial["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+
+    // Act
+    file_content = "\
+[Properties.other]
+";
+    std::fs::write(&config_path, file_content).unwrap();
+    let changed = session.read_notification("textDocument/publishDiagnostics");
+
+    // Assert
+    assert!(
+        changed["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["code"] == "E008")
+    );
+}
+
+#[test]
+fn lsp_revalidates_when_disk_config_is_created_and_removed_without_root() {
+    // Arrange
+    let dir = tempfile::tempdir().unwrap();
+    let config_path = dir.path().join("mdagile.toml");
+    let file_uri = file_uri(&dir.path().join("tasks.agile.md"));
+    let mut file_content = "\
+- [ ] task #feature
+";
+    let mut session = LspSession::start();
+    session.open_document(&file_uri, file_content);
+    let initial = session.read_notification("textDocument/publishDiagnostics");
+    assert!(
+        initial["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["code"] == "E008")
+    );
+
+    // Act
+    file_content = "\
+[Properties.feature]
+";
+    std::fs::write(&config_path, file_content).unwrap();
+    let added = session.read_notification("textDocument/publishDiagnostics");
+    std::fs::remove_file(&config_path).unwrap();
+    let removed = session.read_notification("textDocument/publishDiagnostics");
+
+    // Assert
+    assert!(
+        added["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        removed["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["code"] == "E008")
+    );
+}
+
+#[test]
+fn lsp_revalidates_when_disk_config_filename_switches() {
+    // Arrange
+    let dir = tempfile::tempdir().unwrap();
+    let first = dir.path().join("mdagile.toml");
+    let second = dir.path().join(".mdagile.toml");
+    let mut file_content = "\
+[Properties.feature]
+";
+    std::fs::write(&first, file_content).unwrap();
+    file_content = "\
+- [ ] task #feature #other
+";
+    let uri = file_uri(&dir.path().join("tasks.agile.md"));
+    let root_uri = file_uri(dir.path());
+    let mut session = LspSession::start_with_root_uri(Some(&root_uri));
+    session.open_document(&uri, file_content);
+    let initial = session.read_notification("textDocument/publishDiagnostics");
+    assert!(
+        initial["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["message"].as_str().unwrap().contains("#other"))
+    );
+
+    // Act
+    std::fs::remove_file(first).unwrap();
+    file_content = "\
+[Properties.other]
+";
+    std::fs::write(&second, file_content).unwrap();
+    let changed = session.read_notification("textDocument/publishDiagnostics");
+    session.send(
+        &serde_json::json!({
+            "jsonrpc": "2.0", "id": 2, "method": "textDocument/codeAction",
+            "params": {
+                "textDocument": {"uri": uri},
+                "range": {"start": {"line": 0, "character": 0},
+                          "end": {"line": 0, "character": 30}},
+                "context": {"diagnostics": []}
+            }
+        })
+        .to_string(),
+    );
+    let actions = session.read_response(2);
+
+    // Assert
+    let diagnostics = changed["params"]["diagnostics"].as_array().unwrap();
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d["message"].as_str().unwrap().contains("#feature")),
+        "{diagnostics:?}"
+    );
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d["message"].as_str().unwrap().contains("#other"))
+    );
+    let new_uri = file_uri(&second);
+    assert!(
+        actions["result"].as_array().unwrap().iter().any(|action| {
+            action["title"]
+                .as_str()
+                .unwrap_or("")
+                .contains("[Properties.feature]")
+                && action["edit"]["changes"][&new_uri].is_array()
+        }),
+        "{actions:?}"
+    );
+}
+
+#[test]
 fn lsp_diagnostics_follow_unsaved_config_and_report_invalid_changes() {
     // Arrange
     let config = "\

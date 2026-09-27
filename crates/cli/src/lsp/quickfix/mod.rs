@@ -123,24 +123,27 @@ fn issue_data(diagnostic: &Diagnostic) -> Option<IssueData> {
     serde_json::from_value(diagnostic.data.as_ref()?.clone()).ok()
 }
 
-/// Walk up from the directory of `uri` to find the nearest `mdagile.toml`
-/// or `.mdagile.toml`. Returns `None` if neither is found.
-fn find_toml_path(uri: &Url) -> Option<PathBuf> {
-    let file_path = uri.to_file_path().ok()?;
-    let dir = file_path.parent()?;
-    crate::config::find_config_file_upwards(dir)
-}
-
-/// Finds and reads the nearest `mdagile.toml`. Returns the resolved path and
-/// file contents, or `None` if no toml file is found or it cannot be read.
+/// Finds and reads the nearest config via the same discovery policy as the
+/// LSP server, but without open editor buffers (public quick fixes are
+/// disk-only). Broken and conflicting configs cannot produce actions.
 ///
 /// Callers that need both spelling corrections and add-to-toml actions should
 /// call this once and pass the results to [`build_spelling_corrections`] and
 /// [`build_add_to_toml`], avoiding multiple I/O round-trips.
 pub(super) fn read_toml(uri: &Url) -> Option<(PathBuf, String)> {
-    let path = find_toml_path(uri)?;
-    let content = std::fs::read_to_string(&path).ok()?;
-    Some((path, content))
+    let path = uri.to_file_path().ok()?;
+    let source = match super::config_source::resolve(None, &path, &HashMap::new()) {
+        Ok(source) => source?,
+        Err(error) => {
+            log::warn!("cannot load config for quick fixes: {error}");
+            return None;
+        }
+    };
+    if let Err(error) = crate::config::Config::from_str(&source.text) {
+        log::warn!("cannot load config for quick fixes: {error}");
+        return None;
+    }
+    Some((source.path, source.text))
 }
 
 pub(super) const MAX_EDIT_DISTANCE: usize = 2;

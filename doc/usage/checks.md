@@ -38,6 +38,9 @@ These validate `#property` and `@user`/`@group` markers against
 In the language server, definition lookup and spelling-correction suggestions
 use the same declarations from the current config, including unsaved edits and
 properties declared under a flat `[Properties]` section.
+Open config buffers take precedence over disk content. Changes to a config file
+on disk, including creation, removal, or switching between `mdagile.toml` and
+`.mdagile.toml`, refresh diagnostics for open task documents.
 
 ## Assignment / completion validation
 
@@ -75,4 +78,3 @@ just within a single file.
 |------|------|-------------|
 | E017 | Duplicate milestone name | Two milestones (anywhere in the project) use the same name. Milestone names must be unique across the whole project. |
 | E018 | Missing milestone name | A `#MILESTONE` header has no name (e.g. bare `#MILESTONE` or `#MILESTONE:`). A milestone name must be provided. |
-

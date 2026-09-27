@@ -10,6 +10,7 @@ pub mod logger;
 pub mod quickfix;
 pub mod semantic_tokens;
 
+use config_source::{Snapshot, Source};
 use declarations::{DeclarationIndex, Kind};
 use goto_definition::{assignment_name_at_position, property_name_at_position};
 use jump::{
@@ -22,7 +23,6 @@ use semantic_tokens::{TOKEN_TYPES, build_tokens};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use log::info;
 use serde_json::Value;
@@ -34,12 +34,13 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::{
     checker,
-    config::{CONFIG_FILE_NAMES, Config, ConfigError, find_config_file_in},
+    config::{CONFIG_FILE_NAMES, Config},
     parser,
     rules::{Issue, ResolvedIdentity},
 };
 
 mod completion;
+mod config_source;
 mod declarations;
 mod hover;
 mod marker;
@@ -54,8 +55,8 @@ struct Backend {
     /// server-side so code_action can look them up without relying on the
     /// client echoing the `data` field back (Neovim strips it).
     diagnostics: Arc<RwLock<HashMap<Url, Vec<Diagnostic>>>>,
-    /// Last known modification time of the config file (for polling).
-    config_mtime: Arc<RwLock<Option<SystemTime>>>,
+    /// Last resolved config source per open task document, for disk polling.
+    config_snapshots: Arc<RwLock<HashMap<Url, Snapshot>>>,
     /// The current config-load error message, if the last attempt to load
     /// `mdagile.toml`/`.mdagile.toml` failed (invalid TOML, conflicting
     /// config files, property/group/identity validation). `None` when the
@@ -69,37 +70,17 @@ struct Backend {
 impl Backend {
     async fn config_source(
         &self,
-        config_path: Option<&Path>,
-    ) -> std::result::Result<Option<(PathBuf, String)>, ConfigError> {
-        let Some(config_path) = config_path else {
-            return Ok(None);
-        };
-        let parent = config_path.parent().unwrap_or(config_path);
-        let paths = CONFIG_FILE_NAMES.map(|name| parent.join(name));
+        uri: &Url,
+    ) -> std::result::Result<Option<Source>, crate::config::ConfigError> {
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let root = self.root.read().await.clone();
         let docs = self.docs.read().await;
-        let exists = |path: &Path| {
-            path.exists()
-                || Url::from_file_path(path)
-                    .ok()
-                    .is_some_and(|uri| docs.contains_key(&uri))
-        };
-        if paths.iter().all(|path| exists(path)) {
-            return Err(ConfigError::ConflictingConfig { paths });
-        }
-        let text = if let Ok(uri) = Url::from_file_path(config_path) {
-            docs.get(&uri).cloned()
-        } else {
-            None
-        };
-        drop(docs);
-        let text = match text {
-            Some(text) => text,
-            None => std::fs::read_to_string(config_path)?,
-        };
-        Ok(Some((config_path.to_path_buf(), text)))
+        config_source::resolve(root.as_deref(), &path, &docs)
     }
 
-    /// Loads the `mdagile.toml`/`.mdagile.toml` config governing `path`,
+    /// Loads the `mdagile.toml`/`.mdagile.toml` config governing `uri`,
     /// preferring its live editor buffer (including a not-yet-saved file).
     /// Reports/clears the config-error notification as a side effect (see
     /// [`Self::report_config_error`]), falling back to an empty
@@ -109,21 +90,19 @@ impl Backend {
     /// "no config" apart from "broken config" (the placeholder default isn't
     /// a trustworthy "no properties/users declared" config in the latter
     /// case).
-    async fn load_config(&self, config_path: Option<&Path>, path: &Path) -> (Config, bool) {
-        let (config, failed, _) = self.load_config_with_source(config_path, path).await;
+    async fn load_config(&self, uri: &Url) -> (Config, bool) {
+        let (config, failed, _, _) = self.load_config_with_source(uri).await;
         (config, failed)
     }
 
-    async fn load_config_with_source(
-        &self,
-        config_path: Option<&Path>,
-        path: &Path,
-    ) -> (Config, bool, Option<(PathBuf, String)>) {
-        match self.config_source(config_path).await {
-            Ok(Some((config_path, text))) => match Config::from_str(&text) {
+    async fn load_config_with_source(&self, uri: &Url) -> (Config, bool, Option<Source>, Snapshot) {
+        let resolved = self.config_source(uri).await;
+        let state = config_source::snapshot(&resolved);
+        let result = match resolved {
+            Ok(Some(source)) => match Config::from_str(&source.text) {
                 Ok(c) => {
                     self.clear_config_error().await;
-                    (c, false, Some((config_path, text)))
+                    (c, false, Some(source))
                 }
                 Err(e) => {
                     self.report_config_error(e.to_string()).await;
@@ -133,7 +112,7 @@ impl Backend {
             Ok(None) => {
                 log::warn!(
                     "No config file found for {}. Falling back to empty config.",
-                    path.display()
+                    uri
                 );
                 self.clear_config_error().await;
                 (Config::default(), false, None)
@@ -142,7 +121,8 @@ impl Backend {
                 self.report_config_error(e.to_string()).await;
                 (Config::default(), true, None)
             }
-        }
+        };
+        (result.0, result.1, result.2, state)
     }
 
     /// Resolves the config governing `uri` and the live git identity for
@@ -151,14 +131,9 @@ impl Backend {
     /// root is known, or if an identity can't be determined (see
     /// [`checker::resolve_editor_identity`]) — both silent skip cases, since
     /// there's no terminal to warn on in the editor-integration path.
-    async fn resolve_my_identity(
-        &self,
-        uri: &Url,
-        path: &Path,
-    ) -> Option<(Config, ResolvedIdentity)> {
+    async fn resolve_my_identity(&self, uri: &Url) -> Option<(Config, ResolvedIdentity)> {
         let root = self.root.read().await.clone()?;
-        let config_path = self.resolve_config_path(uri).await;
-        let (config, failed) = self.load_config(config_path.as_deref(), path).await;
+        let (config, failed) = self.load_config(uri).await;
         if failed {
             return None;
         }
@@ -177,7 +152,7 @@ impl Backend {
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
         let mine_context = if mine {
-            Some(self.resolve_my_identity(uri, &path).await?)
+            Some(self.resolve_my_identity(uri).await?)
         } else {
             None
         };
@@ -198,8 +173,8 @@ impl Backend {
     /// The shared logic behind the `mdagile.jump.nextOpen`/`previousOpen`/
     /// `nextMy`/`previousMy` commands: finds the next/previous open task
     /// relative to `current_line` in `current_path`, preferring the live
-    /// in-editor buffer for `current_path` (respecting unsaved edits, same
-    /// as [`Self::jump_target`]) over its on-disk content, restricted to
+    /// in-editor buffer for `current_path` (respecting unsaved edits) over its
+    /// on-disk content, restricted to
     /// tasks eligible for the caller's identity when `mine` is `true`.
     /// Returns the target `(uri, 0_based_line)`, or `None` if no matching
     /// task is found (or, for `mine`, if the caller's identity can't be
@@ -215,7 +190,7 @@ impl Backend {
         let root = self.root.read().await.clone()?;
         let current_doc_text = self.docs.read().await.get(uri).cloned();
         let (path, line) = if mine {
-            let (config, identity) = self.resolve_my_identity(uri, current_path).await?;
+            let (config, identity) = self.resolve_my_identity(uri).await?;
             match direction {
                 jump::Direction::Next => next_my_open_task_after(
                     &root,
@@ -280,8 +255,11 @@ impl Backend {
         let path = uri
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
-        let config_path = self.resolve_config_path(&uri).await;
-        let (config, config_load_failed) = self.load_config(config_path.as_deref(), &path).await;
+        let (config, config_load_failed, source, state) = self.load_config_with_source(&uri).await;
+        self.config_snapshots
+            .write()
+            .await
+            .insert(uri.clone(), state);
         let items = parser::parse(text, path.clone());
         // If mdagile.toml failed to load, `config` above is just an empty
         // placeholder, not a real "no properties/users declared" config —
@@ -300,9 +278,9 @@ impl Backend {
         // workspace root if no config file was found. Also depends on
         // `[Users.X]`/`[Groups.X]` declarations, so it's skipped for the same
         // reason as the config-dependent rule checks above.
-        let git_root = config_path
+        let git_root = source
             .as_ref()
-            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+            .and_then(|source| source.path.parent().map(|p| p.to_path_buf()))
             .or(self.root.read().await.clone());
         if let (Some(root), false) = (git_root, config_load_failed) {
             issues.extend(checker::check_authorization_for_document(
@@ -350,69 +328,18 @@ impl Backend {
         *current = None;
     }
 
-    /// Resolve the config file path for the given document URI.
-    ///
-    /// This is the single source of truth for config discovery in the LSP server.
-    /// Uses the editor-supplied project root when set; otherwise walks up from
-    /// the document's directory. Open unsaved config buffers count as files.
-    async fn resolve_config_path(&self, uri: &Url) -> Option<PathBuf> {
-        let root = self.root.read().await;
-        if let Some(root) = root.as_ref() {
-            self.config_in_dir(root).await
-        } else {
-            let file_path = uri
-                .to_file_path()
-                .unwrap_or_else(|_| PathBuf::from(uri.path()));
-            let mut dir = file_path.parent();
-            while let Some(current) = dir {
-                if let Some(path) = self.config_in_dir(current).await {
-                    return Some(path);
-                }
-                dir = current.parent();
-            }
-            None
-        }
-    }
-
-    async fn config_in_dir(&self, dir: &Path) -> Option<PathBuf> {
-        let docs = self.docs.read().await;
-        CONFIG_FILE_NAMES
-            .iter()
-            .map(|name| dir.join(name))
-            .find(|path| {
-                path.exists()
-                    || Url::from_file_path(path)
-                        .ok()
-                        .is_some_and(|uri| docs.contains_key(&uri))
-            })
-    }
-
-    /// Check if config file has been modified since last check, and re-validate all docs if so.
+    /// Compare the editor-visible config source for each task document to the
+    /// source last used for its diagnostics, including creation/removal and
+    /// external edits. Validation refreshes the baseline after publishing.
     async fn check_config_changed(&self) {
-        let root = match self.root.read().await.as_ref() {
-            Some(r) => r.clone(),
-            None => return,
-        };
-
-        let config_path = match find_config_file_in(&root) {
-            Some(p) => p,
-            None => return,
-        };
-
-        let current_mtime = std::fs::metadata(&config_path)
-            .and_then(|m| m.modified())
-            .ok();
-
-        let mut last_mtime = self.config_mtime.write().await;
-        if current_mtime.is_some() && *last_mtime != current_mtime {
-            *last_mtime = current_mtime;
-
-            // Config changed, re-validate all open documents.
-            let docs = self.docs.read().await.clone();
-            for (uri, text) in docs {
-                if !Self::is_config_uri(&uri) {
-                    self.validate(uri, &text, None).await;
-                }
+        let docs = self.docs.read().await.clone();
+        for (uri, text) in docs {
+            if Self::is_config_uri(&uri) {
+                continue;
+            }
+            let state = config_source::snapshot(&self.config_source(&uri).await);
+            if self.config_snapshots.read().await.get(&uri) != Some(&state) {
+                self.validate(uri, &text, None).await;
             }
         }
     }
@@ -604,12 +531,12 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, "agilels ready")
             .await;
 
-        // Spawn a background task to poll the config file once per second.
+        // Poll the resolved source of each open task document once per second.
         let client = self.client.clone();
         let root = self.root.clone();
         let docs = self.docs.clone();
         let diagnostics = self.diagnostics.clone();
-        let config_mtime = self.config_mtime.clone();
+        let config_snapshots = self.config_snapshots.clone();
         let config_error = self.config_error.clone();
 
         tokio::spawn(async move {
@@ -621,7 +548,7 @@ impl LanguageServer for Backend {
                     root: root.clone(),
                     docs: docs.clone(),
                     diagnostics: diagnostics.clone(),
-                    config_mtime: config_mtime.clone(),
+                    config_snapshots: config_snapshots.clone(),
                     config_error: config_error.clone(),
                 };
                 backend.check_config_changed().await;
@@ -669,6 +596,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         self.docs.write().await.remove(&uri);
         self.diagnostics.write().await.remove(&uri);
+        self.config_snapshots.write().await.remove(&uri);
         self.client
             .publish_diagnostics(uri.clone(), vec![], None)
             .await;
@@ -693,14 +621,8 @@ impl LanguageServer for Backend {
             .unwrap_or_default();
         drop(stored);
 
-        let path = params
-            .text_document
-            .uri
-            .to_file_path()
-            .unwrap_or_else(|_| PathBuf::from(params.text_document.uri.path()));
-        let config_path = self.resolve_config_path(&params.text_document.uri).await;
-        let (_, config_load_failed, source) = self
-            .load_config_with_source(config_path.as_deref(), &path)
+        let (_, config_load_failed, source, _) = self
+            .load_config_with_source(&params.text_document.uri)
             .await;
         let actions: Vec<CodeActionOrCommand> = diags
             .iter()
@@ -719,7 +641,7 @@ impl LanguageServer for Backend {
                     &params.text_document.uri,
                     source
                         .as_ref()
-                        .map(|(path, text)| (path.as_path(), text.as_str())),
+                        .map(|source| (source.path.as_path(), source.text.as_str())),
                 )
             })
             .map(CodeActionOrCommand::CodeAction)
@@ -769,11 +691,7 @@ impl LanguageServer for Backend {
             return Ok(Some(CompletionResponse::Array(Vec::new())));
         }
 
-        let path = uri
-            .to_file_path()
-            .unwrap_or_else(|_| PathBuf::from(uri.path()));
-        let config_path = self.resolve_config_path(uri).await;
-        let (config, config_load_failed) = self.load_config(config_path.as_deref(), &path).await;
+        let (config, config_load_failed) = self.load_config(uri).await;
         if config_load_failed {
             return Ok(Some(CompletionResponse::Array(Vec::new())));
         }
@@ -807,11 +725,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         }
 
-        let path = uri
-            .to_file_path()
-            .unwrap_or_else(|_| PathBuf::from(uri.path()));
-        let config_path = self.resolve_config_path(uri).await;
-        let (config, config_load_failed) = self.load_config(config_path.as_deref(), &path).await;
+        let (config, config_load_failed) = self.load_config(uri).await;
         if config_load_failed {
             return Ok(None);
         }
@@ -849,31 +763,20 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        let config_path = match self.resolve_config_path(uri).await {
-            Some(p) => p,
-            None => return Ok(None),
-        };
-        let path = uri
-            .to_file_path()
-            .unwrap_or_else(|_| PathBuf::from(uri.path()));
-        let (_, failed, source) = self
-            .load_config_with_source(Some(&config_path), &path)
-            .await;
+        let (_, failed, source, _) = self.load_config_with_source(uri).await;
         if failed {
             return Ok(None);
         }
 
-        let config_uri = match Url::from_file_path(&config_path) {
+        let Some(source) = source else {
+            return Ok(None);
+        };
+        let config_uri = match Url::from_file_path(&source.path) {
             Ok(u) => u,
             Err(_) => return Ok(None),
         };
 
-        // Use the in-editor buffer if the config file is open (respects unsaved edits).
-        let Some((_, config_text)) = source else {
-            return Ok(None);
-        };
-
-        let index = match DeclarationIndex::parse(&config_text) {
+        let index = match DeclarationIndex::parse(&source.text) {
             Ok(index) => index,
             Err(error) => {
                 log::warn!("could not index config declarations: {error}");
@@ -987,7 +890,7 @@ pub fn run() -> std::io::Result<()> {
             root: Arc::new(RwLock::new(None)),
             docs: Arc::new(RwLock::new(HashMap::new())),
             diagnostics: Arc::new(RwLock::new(HashMap::new())),
-            config_mtime: Arc::new(RwLock::new(None)),
+            config_snapshots: Arc::new(RwLock::new(HashMap::new())),
             config_error: Arc::new(RwLock::new(None)),
         });
         Server::new(stdin, stdout, socket).serve(service).await;

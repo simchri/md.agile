@@ -3,6 +3,41 @@ use tempfile::TempDir;
 use tower_lsp::lsp_types::*;
 
 #[test]
+fn public_quickfix_does_not_use_conflicting_disk_config() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+    let file_content = "\
+[Properties.feature]
+";
+    std::fs::write(project_dir.join("mdagile.toml"), file_content).unwrap();
+    std::fs::write(project_dir.join(".mdagile.toml"), file_content).unwrap();
+    let uri = Url::from_file_path(project_dir.join("tasks.agile.md")).unwrap();
+    let file_content = "\
+- [ ] task #feture
+";
+    let diag = Diagnostic {
+        range: Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 11,
+            },
+        },
+        code: Some(NumberOrString::String("E008".into())),
+        data: Some(serde_json::json!({
+            "kind": "undefined_property",
+            "property_name": "feture",
+        })),
+        ..Diagnostic::default()
+    };
+
+    assert!(build_quickfixes(&diag, file_content, &uri).is_empty());
+}
+
+#[test]
 fn build_quickfix_e008_finds_toml_in_a_parent_directory() {
     // The task file lives in a subdirectory; mdagile.toml lives in the
     // project root above it — the toml lookup must walk up to find it.
