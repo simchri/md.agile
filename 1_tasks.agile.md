@@ -894,7 +894,8 @@ new:
   - [x] display on hover
   - [x] display on auto-complete
 
-- [ ] LSP for the config file
+- [-] LSP for the config file
+  not needed
 
 - [x] additional LSP syntax highlighting
   - [x] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
@@ -904,7 +905,7 @@ new:
   - [x] Document VS Code setup (.vscode/settings.json)
   - [x] Document Vim/Neovim setup (init.lua example)
   - [x] Add LSP section to README.md
-  - [ ] Provide troubleshooting guide
+  - [-] Provide troubleshooting guide
 
 #MILESTONE: LSP 2.0
 
