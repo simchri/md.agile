@@ -192,6 +192,13 @@ To use the property, place it anywhere in the task:
 ```
 You are not allowed to use a property that is not defined in the `mdagile.toml`. This is to keep things orderly—no proliferation of random meaningless hashtags, and no duplication (`#Feature #feature #feat`). The tool will issue an error if you use undefined properties. Otherwise, an "empty" property doesn't do much. It just marks a task as part of some group—but you can do much more with them ...!
 
+Give your properties clear definitions with the using `brief` and `description`:
+```toml
+[Properties.feature]
+brief = "New end-user visible functionality of the product"
+description = "Not considered \"features\" are bugfixes, refactorings, and other internal changes. Features are usually requested by the product owner or the customer."
+```
+
 Properties are the essential building blocks of your team's task management strategy - you can keep things simple or get really sophisticated - it is up to you!
 
 ### Subtasks
