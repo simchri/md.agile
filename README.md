@@ -132,6 +132,8 @@ Parses all `*.agile.md` files and reports validation issues. See [doc/usage/chec
 
 A minimal LSP server that offers real-time diagnostics as you edit, quickfix code actions for fixable issues and jump actions! See [checks.md](doc/usage/checks.md), [lsp_task_navigation.md](doc/usage/lsp_task_navigation.md).
 
+Completing a `#property` marker shows its configured brief, description and required subtasks in the selected suggestion's documentation, matching the property hover.
+
 ## GUI
 
 Use the installed shortcuts - just search "mdagile Board". This opens a browser view to your tasks - Don't be confused: Your browser is connecting to a program running fully locally on your machine. We simply use the browser as a powerful "UI framework" so to say.

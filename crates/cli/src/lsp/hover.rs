@@ -47,6 +47,16 @@ pub(super) fn special_marker_hover(text: &str, line: u32, character: u32) -> Opt
 }
 
 pub(super) fn property_hover(name: &str, property: &PropertyConfig) -> Option<Hover> {
+    Some(Hover {
+        contents: HoverContents::Markup(property_documentation(name, property)?),
+        range: None,
+    })
+}
+
+pub(super) fn property_documentation(
+    name: &str,
+    property: &PropertyConfig,
+) -> Option<MarkupContent> {
     let mut sections = vec![format!("**#{name}**")];
 
     if let Some(brief) = property
@@ -77,7 +87,10 @@ pub(super) fn property_hover(name: &str, property: &PropertyConfig) -> Option<Ho
         return None;
     }
 
-    Some(markdown_hover(sections.join("\n\n")))
+    Some(MarkupContent {
+        kind: MarkupKind::Markdown,
+        value: sections.join("\n\n"),
+    })
 }
 
 pub(super) fn assignment_hover(name: &str, config: &Config) -> Option<Hover> {

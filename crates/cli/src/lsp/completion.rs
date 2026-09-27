@@ -1,8 +1,9 @@
 use crate::config::Config;
+use crate::lsp::hover::property_documentation;
 use crate::parser::{MARKER_TRAILING_PUNCT, is_in_code_span, is_marker_boundary, is_marker_escape};
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionResponse, CompletionTextEdit, Position, Range,
-    TextEdit,
+    CompletionItem, CompletionItemKind, CompletionResponse, CompletionTextEdit, Documentation,
+    Position, Range, TextEdit,
 };
 
 pub(super) fn property_completions(
@@ -11,19 +12,21 @@ pub(super) fn property_completions(
     config: &Config,
 ) -> Option<CompletionResponse> {
     let (prefix, start, end) = property_prefix_at_position(text, position)?;
-    let mut names: Vec<_> = config
+    let mut properties: Vec<_> = config
         .properties
-        .keys()
-        .filter(|name| name.starts_with(&prefix))
+        .iter()
+        .filter(|(name, _)| name.starts_with(&prefix))
         .collect();
-    names.sort_unstable();
+    properties.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
 
     Some(CompletionResponse::Array(
-        names
+        properties
             .into_iter()
-            .map(|name| CompletionItem {
+            .map(|(name, property)| CompletionItem {
                 label: format!("#{name}"),
                 kind: Some(CompletionItemKind::PROPERTY),
+                documentation: property_documentation(name, property)
+                    .map(Documentation::MarkupContent),
                 text_edit: Some(CompletionTextEdit::Edit(TextEdit {
                     range: Range {
                         start: Position {

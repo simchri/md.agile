@@ -6,6 +6,8 @@ fn lsp_completion_suggests_matching_properties_and_replaces_partial_marker() {
     let config = "\
 [Properties.feature]
 brief = \"Feature brief\"
+description = \"More about the feature.\"
+subtasks = [\"design\", \"implementation\"]
 
 [Properties.feat]
 
@@ -36,6 +38,22 @@ brief = \"Feature brief\"
         assert_eq!(item["textEdit"]["range"]["start"]["character"], 11);
         assert_eq!(item["textEdit"]["range"]["end"]["character"], 14);
     }
+    assert_eq!(items[0]["documentation"], serde_json::Value::Null);
+    let expected_documentation = "\
+**#feature**
+
+Feature brief
+
+More about the feature.
+
+**Required subtasks:**
+
+- design
+- implementation";
+    assert_eq!(
+        items[1]["documentation"],
+        serde_json::json!({"kind": "markdown", "value": expected_documentation})
+    );
 }
 
 #[test]
