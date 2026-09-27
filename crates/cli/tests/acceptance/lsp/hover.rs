@@ -284,7 +284,7 @@ fn lsp_hover_explains_optional_subtask_marker() {
         .expect("expected optional-subtask hover contents");
     assert_eq!(
         contents,
-        "**#OPT**\n\nWhen applied to a subtask, it makes that subtask optional and it does not block completion of its parent task."
+        "**#OPT**\n\nOptional subtask. This subtask does not block completion of its parent task."
     );
 }
 

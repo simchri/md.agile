@@ -13,7 +13,7 @@ pub(super) fn special_marker_hover(text: &str, line: u32, character: u32) -> Opt
             if !task_contains_marker_at(&items, line, character, SpecialMarkerKind::Opt) {
                 return None;
             }
-            "**#OPT**\n\nWhen applied to a subtask, it makes that subtask optional and it does not block completion of its parent task."
+            "**#OPT**\n\nOptional subtask. This subtask does not block completion of its parent task."
         }
         SpecialMarkerKind::Milestone => {
             let marker_start = line_text.find("#MILESTONE")?;
