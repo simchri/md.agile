@@ -874,9 +874,9 @@ new:
   - [ ] textDocument/hover — show property definitions
     - [ ] properties: Add optional help texts / descriptions to properties that can be shown on hover
       - [x] parse property "brief"
-      - [ ] documentation README.md for brief
+      - [x] documentation README.md for brief
       - [x] parse property "description"
-      - [ ] documentation README.md for description
+      - [x] documentation README.md for description
       - [x] Show a property's configured brief, description and required subtasks when hovering over its marker
     - [x] idem '@assignments' relevant, e.g. for groups
       - [x] Show whether an assignment refers to a user or group; for groups, include their members
