@@ -86,6 +86,8 @@ pub struct UserConfig {
 #[derive(Debug, Clone, PartialEq)]
 pub struct GroupConfig {
     pub name: String,
+    pub brief: Option<String>,
+    pub description: Option<String>,
     /// `[Users.X]` keys that belong to this group.
     pub members: Vec<String>,
 }
@@ -190,6 +192,10 @@ struct RawUserConfig {
 #[derive(serde::Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct RawGroupConfig {
+    #[serde(default)]
+    brief: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
     #[serde(default)]
     members: Vec<String>,
 }
@@ -348,6 +354,8 @@ impl Config {
                     name.clone(),
                     GroupConfig {
                         name,
+                        brief: raw_group.brief,
+                        description: raw_group.description,
                         members: raw_group.members,
                     },
                 ))

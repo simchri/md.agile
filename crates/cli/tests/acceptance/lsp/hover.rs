@@ -214,6 +214,73 @@ members = [\"alice\", \"bob\"]
 }
 
 #[test]
+fn lsp_hover_shows_group_brief_and_description() {
+    // Arrange
+    let config = "\
+[Users.alice]
+
+[Groups.devs]
+brief = \"Product development team\"
+description = \"Builds and maintains the product.\"
+members = [\"alice\"]
+";
+    let file_content = "\
+- [ ] task @devs
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 0, 13);
+
+    // Assert
+    let expected = "\
+**@devs**
+
+Assigned to group `devs`.
+
+Product development team
+
+Builds and maintains the product.
+
+**Members:**
+
+- `alice`
+
+Assignments determine who is eligible to work on this task and who may mark it complete.";
+    assert_eq!(response["result"]["contents"]["value"], expected);
+}
+
+#[test]
+fn lsp_hover_shows_group_details_when_name_is_also_user() {
+    // Arrange
+    let config = "\
+[Users.devs]
+
+[Groups.devs]
+brief = \"Product development team\"
+description = \"Builds and maintains the product.\"
+members = [\"devs\"]
+";
+    let file_content = "\
+- [ ] task @devs
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 0, 13);
+
+    // Assert
+    let contents = response["result"]["contents"]["value"].as_str().unwrap();
+    assert!(contents.contains("both user `devs` and group `devs`"));
+    assert!(contents.contains("Product development team"));
+    assert!(contents.contains("Builds and maintains the product."));
+}
+
+#[test]
 fn lsp_hover_returns_null_for_unknown_assignment() {
     // Arrange
     let config = "";

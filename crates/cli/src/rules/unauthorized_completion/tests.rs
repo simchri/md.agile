@@ -30,6 +30,8 @@ fn config_with_users_and_groups(users: &[&str], groups: &[(&str, &[&str])]) -> C
                     n.to_string(),
                     GroupConfig {
                         name: n.to_string(),
+                        brief: None,
+                        description: None,
                         members: members.iter().map(|s| s.to_string()).collect(),
                     },
                 )

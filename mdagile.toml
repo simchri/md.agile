@@ -36,8 +36,12 @@ git_emails = ["simon.massa@hotmail.de"]
 [Groups]
 
 [Groups.devs]
+brief = "Development team"
+description = "Contributors responsible for implementing product changes."
 members = ["alice"]
 
 [Groups.QM]
+brief = "Quality management"
+description = "Contributors responsible for reviewing and validating changes."
 members = ["smassa"]
 [Properties.review]

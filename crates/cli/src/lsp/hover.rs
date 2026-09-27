@@ -59,20 +59,7 @@ pub(super) fn property_documentation(
 ) -> Option<MarkupContent> {
     let mut sections = vec![format!("**#{name}**")];
 
-    if let Some(brief) = property
-        .brief
-        .as_deref()
-        .filter(|text| !text.trim().is_empty())
-    {
-        sections.push(brief.to_string());
-    }
-    if let Some(description) = property
-        .description
-        .as_deref()
-        .filter(|text| !text.trim().is_empty())
-    {
-        sections.push(description.to_string());
-    }
+    append_metadata(&mut sections, &property.brief, &property.description);
     if !property.subtasks.is_empty() {
         let subtasks = property
             .subtasks
@@ -113,11 +100,13 @@ pub(super) fn assignment_documentation(name: &str, config: &Config) -> Option<Ma
             sections.push(format!(
                 "This assignment refers to both user `{name}` and group `{name}`."
             ));
+            append_metadata(&mut sections, &group.brief, &group.description);
             sections.push(group_members_section(&group.members));
         }
         (Some(_), None) => sections.push(format!("Assigned to user `{name}`.")),
         (None, Some(group)) => {
             sections.push(format!("Assigned to group `{name}`."));
+            append_metadata(&mut sections, &group.brief, &group.description);
             sections.push(group_members_section(&group.members));
         }
         (None, None) => return None,
@@ -131,6 +120,18 @@ pub(super) fn assignment_documentation(name: &str, config: &Config) -> Option<Ma
         kind: MarkupKind::Markdown,
         value: sections.join("\n\n"),
     })
+}
+
+fn append_metadata(
+    sections: &mut Vec<String>,
+    brief: &Option<String>,
+    description: &Option<String>,
+) {
+    for text in [brief, description] {
+        if let Some(text) = text.as_deref().filter(|text| !text.trim().is_empty()) {
+            sections.push(text.to_string());
+        }
+    }
 }
 
 fn group_members_section(members: &[String]) -> String {

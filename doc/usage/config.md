@@ -26,6 +26,8 @@ git_emails = ["bob@example.com"]
 [Groups]
 
 [Groups.devs]
+brief = "Development team"
+description = "Contributors responsible for implementing product changes."
 members = ["alice", "bob"]
 ```
 
@@ -65,6 +67,10 @@ an undeclared `@marker` is [E009](checks.md).
 Declares a group, referenced by an `@marker` on tasks (`@devs`). Grants
 authorization to every listed member for E013 purposes.
 
+- `brief` — optional short summary of the group, shown on assignment hover
+  and in completion documentation.
+- `description` — optional longer explanation of the group, shown after its
+  brief on assignment hover and in completion documentation.
 - `members` — a list of `[Users.X]` keys belonging to this group. Every name
   listed must correspond to an actually-defined user — an unknown member
   name is a config validation error.

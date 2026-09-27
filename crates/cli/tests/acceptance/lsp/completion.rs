@@ -180,6 +180,59 @@ members = [\"amy\"]
 }
 
 #[test]
+fn lsp_completion_shows_group_metadata_from_unsaved_config() {
+    // Arrange
+    let config = "\
+[Users.alice]
+
+[Groups.devs]
+members = [\"alice\"]
+";
+    let file_content = "\
+- [ ] task @de
+- [ ] task @devs
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+    let config_uri = file_uri.replace("tasks.agile.md", "mdagile.toml");
+    let unsaved_config = "\
+[Users.alice]
+
+[Groups.devs]
+brief = \"Product development team\"
+description = \"Builds and maintains the product.\"
+members = [\"alice\"]
+";
+    session.open_document(&config_uri, unsaved_config);
+
+    // Act
+    let completion = session.completion(&file_uri, 2, 0, 14);
+    let hover = session.hover(&file_uri, 3, 1, 13);
+
+    // Assert
+    let items = completion["result"].as_array().expect("completion items");
+    assert_eq!(items.len(), 1);
+    let expected = "\
+**@devs**
+
+Assigned to group `devs`.
+
+Product development team
+
+Builds and maintains the product.
+
+**Members:**
+
+- `alice`
+
+Assignments determine who is eligible to work on this task and who may mark it complete.";
+    assert_eq!(items[0]["documentation"]["kind"], "markdown");
+    assert_eq!(items[0]["documentation"]["value"], expected);
+    assert_eq!(items[0]["documentation"], hover["result"]["contents"]);
+}
+
+#[test]
 fn lsp_completion_after_at_suggests_all_assignments_and_replaces_full_marker() {
     // Arrange
     let config = "\

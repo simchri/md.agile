@@ -885,14 +885,14 @@ new:
     - [-] Explain that quoted required-subtask titles are reserved for subtasks required by a property, and identify the property when possible
       don't do. Fairly complicated for the provided value. After a short while users will understand "quoted properties" come from subtasks
 
-- [ ] auto complete
+- [x] auto complete
   - [x] textDocument/completion — suggest properties
   - [x] textDocument/completion — suggest users
   - [x] textDocument/completion — suggest groups
 
-- [ ] brief and description for user groups
-  - [ ] display on hover
-  - [ ] display on auto-complete
+- [x] brief and description for user groups
+  - [x] display on hover
+  - [x] display on auto-complete
 
 - [ ] LSP for the config file
 

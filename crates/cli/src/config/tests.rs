@@ -220,6 +220,30 @@ fn group_without_members_has_empty_vec() {
 }
 
 #[test]
+fn group_brief_and_description_are_parsed() {
+    let file_content = "\
+[Groups.devs]
+brief = \"Product development team\"
+description = \"Builds and maintains the product.\"
+";
+    let config = Config::from_str(file_content).unwrap();
+    let group = config.groups.get("devs").unwrap();
+    assert_eq!(group.brief.as_deref(), Some("Product development team"));
+    assert_eq!(
+        group.description.as_deref(),
+        Some("Builds and maintains the product.")
+    );
+}
+
+#[test]
+fn group_without_brief_or_description_has_none() {
+    let config = Config::from_str("[Groups.devs]\n").unwrap();
+    let group = config.groups.get("devs").unwrap();
+    assert_eq!(group.brief, None);
+    assert_eq!(group.description, None);
+}
+
+#[test]
 fn group_with_members_is_parsed() {
     let input = "\
 [Users.alice]

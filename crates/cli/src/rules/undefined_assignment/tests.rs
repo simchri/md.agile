@@ -36,6 +36,8 @@ fn config_with_groups(names: &[&str]) -> Config {
                     n.to_string(),
                     GroupConfig {
                         name: n.to_string(),
+                        brief: None,
+                        description: None,
                         members: vec![],
                     },
                 )
@@ -142,6 +144,8 @@ fn user_and_group_with_same_name_does_not_duplicate_issue() {
             "devs".to_string(),
             GroupConfig {
                 name: "devs".to_string(),
+                brief: None,
+                description: None,
                 members: vec![],
             },
         )]),
