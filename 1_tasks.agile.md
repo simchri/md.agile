@@ -884,7 +884,6 @@ new:
     - [x] Show built-in behavior for special markers such as '#OPT', '#MILESTONE', and #MDAGILE
     - [-] Explain that quoted required-subtask titles are reserved for subtasks required by a property, and identify the property when possible
       don't do. Fairly complicated for the provided value. After a short while users will understand "quoted properties" come from subtasks
-    - [ ] Prioritize config-backed information for properties and assignments, with built-in explanations for special markers
 
 - [ ] auto complete
   - [ ] textDocument/completion — suggest properties, users, groups
