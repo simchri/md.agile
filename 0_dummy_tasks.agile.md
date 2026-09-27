@@ -16,6 +16,11 @@
   - [ ] "2. (feature) validation by programmer" @alice
   - [ ] foo @smassa
 
+- [ ] some #feature --> eligible (because of group)
+  - [ ] "1. (feature) implementation" @alice
+  - [ ] "2. (feature) validation by programmer" @alice
+  - [ ] foo @QM
+
 - [ ] some #feature --> not eligible
   - [ ] "1. (feature) implementation" @alice
   - [ ] "2. (feature) validation by programmer" @smassa
