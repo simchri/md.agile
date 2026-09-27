@@ -1,5 +1,10 @@
 use super::*;
 
+fn highest_priority_open_task_line(file_content: &str) -> Option<u32> {
+    highest_priority_open_task(None, Path::new("tasks.agile.md"), Some(file_content), None)
+        .map(|(_, line)| line)
+}
+
 #[test]
 fn finds_first_todo_task_in_text() {
     let doc = "\
@@ -42,4 +47,55 @@ fn considers_subtasks_falling_back_to_parent_once_all_are_resolved() {
     // Every descendant is done/cancelled, so there's nothing left to
     // delegate to — the parent itself (line 0) is the actionable unit.
     assert_eq!(highest_priority_open_task_line(doc), Some(0));
+}
+
+#[test]
+fn highest_priority_keeps_file_priority_before_current_buffer() {
+    let project = tempfile::tempdir().unwrap();
+    let first = project.path().join("01_tasks.agile.md");
+    let second = project.path().join("02_tasks.agile.md");
+    let file_content = "\
+- [ ] earlier task
+";
+    std::fs::write(&first, file_content).unwrap();
+    let file_content = "\
+- [x] closed on disk
+";
+    std::fs::write(&second, file_content).unwrap();
+    let file_content = "\
+- [ ] reopened in editor
+";
+
+    assert_eq!(
+        highest_priority_open_task(Some(project.path()), &second, Some(file_content), None),
+        Some((first, 0)),
+    );
+}
+
+#[test]
+fn relative_navigation_uses_live_current_buffer_and_disk_for_other_files() {
+    let project = tempfile::tempdir().unwrap();
+    let first = project.path().join("01_tasks.agile.md");
+    let second = project.path().join("02_tasks.agile.md");
+    let file_content = "\
+- [ ] first task
+";
+    std::fs::write(&first, file_content).unwrap();
+    let file_content = "\
+- [ ] task in next file
+";
+    std::fs::write(&second, file_content).unwrap();
+    let file_content = "\
+- [x] first task completed in editor
+- [ ] second task added in editor
+";
+
+    assert_eq!(
+        next_open_task_after(project.path(), &first, Some(file_content), 0),
+        Some((first.clone(), 1)),
+    );
+    assert_eq!(
+        next_open_task_after(project.path(), &first, Some(file_content), 1),
+        Some((second, 0)),
+    );
 }

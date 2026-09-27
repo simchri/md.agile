@@ -15,9 +15,8 @@ use goto_definition::{
     property_name_at_position,
 };
 use jump::{
-    find_highest_priority_open_task_in_workspace, find_my_highest_priority_open_task_in_workspace,
-    highest_priority_open_task_line, my_highest_priority_open_task_line, next_my_open_task_after,
-    next_open_task_after, previous_my_open_task_before, previous_open_task_before,
+    highest_priority_open_task, next_my_open_task_after, next_open_task_after,
+    previous_my_open_task_before, previous_open_task_before,
 };
 use quickfix::build_quickfixes_with_config;
 use semantic_tokens::{TOKEN_TYPES, build_tokens};
@@ -147,30 +146,6 @@ impl Backend {
         }
     }
 
-    /// The shared "jump to task" shape behind `goto_declaration` and
-    /// `goto_implementation`: try `workspace_finder` across all task files
-    /// under the project root first (if a root is known), then fall back to
-    /// `doc_finder` on the currently open document. Returns the target
-    /// `(uri, 0_based_line)`, or `None` if neither search finds a task.
-    async fn jump_target(
-        &self,
-        uri: &Url,
-        workspace_finder: impl Fn(&Path) -> Option<(PathBuf, u32)>,
-        doc_finder: impl Fn(&str) -> Option<u32>,
-    ) -> Option<(Url, u32)> {
-        let target = if let Some(root) = self.root.read().await.as_ref() {
-            workspace_finder(root)
-                .and_then(|(path, line)| Url::from_file_path(path).ok().map(|u| (u, line)))
-        } else {
-            None
-        };
-        if let Some(t) = target {
-            return Some(t);
-        }
-        let doc_text = self.docs.read().await.get(uri)?.clone();
-        doc_finder(&doc_text).map(|line| (uri.clone(), line))
-    }
-
     /// Resolves the config governing `uri` and the live git identity for
     /// "my task" features, reusing [`Self::load_config`] and
     /// [`checker::resolve_editor_identity`]. Returns `None` if no project
@@ -199,25 +174,26 @@ impl Backend {
     /// `(uri, 0_based_line)`, or `None` if no matching task is found (or, for
     /// `mine`, if the caller's identity can't be resolved).
     async fn highest_priority_target(&self, uri: &Url, mine: bool) -> Option<(Url, u32)> {
-        if !mine {
-            return self
-                .jump_target(
-                    uri,
-                    find_highest_priority_open_task_in_workspace,
-                    highest_priority_open_task_line,
-                )
-                .await;
-        }
         let path = uri
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
-        let (config, identity) = self.resolve_my_identity(uri, &path).await?;
-        self.jump_target(
-            uri,
-            |root| find_my_highest_priority_open_task_in_workspace(root, &identity, &config),
-            |doc_text| my_highest_priority_open_task_line(doc_text, &identity, &config),
-        )
-        .await
+        let mine_context = if mine {
+            Some(self.resolve_my_identity(uri, &path).await?)
+        } else {
+            None
+        };
+        let root = self.root.read().await.clone();
+        let current_doc_text = self.docs.read().await.get(uri).cloned();
+        let identity = mine_context
+            .as_ref()
+            .map(|(config, identity)| (identity, config));
+        let (path, line) = highest_priority_open_task(
+            root.as_deref(),
+            &path,
+            current_doc_text.as_deref(),
+            identity,
+        )?;
+        Url::from_file_path(path).ok().map(|u| (u, line))
     }
 
     /// The shared logic behind the `mdagile.jump.nextOpen`/`previousOpen`/

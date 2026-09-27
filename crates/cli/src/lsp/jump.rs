@@ -26,62 +26,22 @@ fn actionable_line(task: &Task, identity: Option<(&ResolvedIdentity, &Config)>) 
         .map(|node| (node.location().line - 1) as u32)
 }
 
-/// Find the 0-based line number of the highest-priority open (sub)task in
-/// the document text — see [`actionable_line`].
-pub fn highest_priority_open_task_line(doc_text: &str) -> Option<u32> {
-    let items = crate::parser::parse(doc_text, PathBuf::from("tasks.agile.md"));
-    items.into_iter().find_map(|item| match item {
-        FileItem::Task(t) => actionable_line(&t, None),
-        _ => None,
-    })
-}
-
-/// Find the highest-priority open (sub)task across all task files under
-/// `root`, returning `(path, 0_based_line)`.
-pub fn find_highest_priority_open_task_in_workspace(root: &Path) -> Option<(PathBuf, u32)> {
-    crate::cli::common::find_task_files(root)
-        .into_iter()
-        .find_map(|path| {
-            let items = crate::cli::common::parse_file(&path);
-            items.into_iter().find_map(|item| match item {
-                FileItem::Task(t) => actionable_line(&t, None).map(|line| (path.clone(), line)),
-                _ => None,
-            })
-        })
-}
-
-/// Find the 0-based line number of the highest-priority open (sub)task in
-/// the document text that's eligible for `identity` (see [`actionable_line`]).
-pub fn my_highest_priority_open_task_line(
-    doc_text: &str,
-    identity: &ResolvedIdentity,
-    config: &Config,
-) -> Option<u32> {
-    let items = crate::parser::parse(doc_text, PathBuf::from("tasks.agile.md"));
-    items.into_iter().find_map(|item| match item {
-        FileItem::Task(t) => actionable_line(&t, Some((identity, config))),
-        _ => None,
-    })
-}
-
-/// Find the highest-priority open (sub)task, eligible for `identity`,
-/// across all task files under `root`, returning `(path, 0_based_line)`.
-pub fn find_my_highest_priority_open_task_in_workspace(
-    root: &Path,
-    identity: &ResolvedIdentity,
-    config: &Config,
+/// Search files in workspace priority order, substituting the current editor
+/// buffer for its on-disk counterpart. A buffer not found by file discovery
+/// is searched after discovered files, as it has no workspace priority rank.
+pub fn highest_priority_open_task(
+    root: Option<&Path>,
+    current_path: &Path,
+    current_doc_text: Option<&str>,
+    identity: Option<(&ResolvedIdentity, &Config)>,
 ) -> Option<(PathBuf, u32)> {
-    crate::cli::common::find_task_files(root)
-        .into_iter()
-        .find_map(|path| {
-            let items = crate::cli::common::parse_file(&path);
-            items.into_iter().find_map(|item| match item {
-                FileItem::Task(t) => {
-                    actionable_line(&t, Some((identity, config))).map(|line| (path.clone(), line))
-                }
-                _ => None,
-            })
-        })
+    search_task_files(
+        root,
+        current_path,
+        current_doc_text,
+        Search::Highest,
+        identity,
+    )
 }
 
 /// Direction to search for a task relative to a cursor position, used by
@@ -93,11 +53,20 @@ pub enum Direction {
     Previous,
 }
 
+#[derive(Clone, Copy)]
+enum Search {
+    Highest,
+    Relative {
+        current_line: u32,
+        direction: Direction,
+    },
+}
+
 /// Find the next open (sub)task strictly after `current_line` in
 /// `current_path` (preferring `current_doc_text` — the live in-editor
 /// buffer — over disk content, if given), or (if none) the first one in
 /// each subsequent task file under `root`, in the same file-priority order
-/// as [`find_highest_priority_open_task_in_workspace`]. Never wraps around.
+/// as [`highest_priority_open_task`]. Never wraps around.
 /// Returns `(path, 0_based_line)`.
 pub fn next_open_task_after(
     root: &Path,
@@ -196,55 +165,120 @@ fn task_relative_to_cursor(
     direction: Direction,
     identity: Option<(&ResolvedIdentity, &Config)>,
 ) -> Option<(PathBuf, u32)> {
-    let pick = |lines: Vec<u32>| match direction {
-        Direction::Next => lines.into_iter().min(),
-        Direction::Previous => lines.into_iter().max(),
-    };
-
-    let lines_in_current: Vec<u32> = match current_doc_text {
-        Some(text) => matching_lines_in_text(text, identity),
-        None => matching_lines_in_file(current_path, identity),
-    }
-    .into_iter()
-    .filter(|&line| match direction {
-        Direction::Next => line > current_line,
-        Direction::Previous => line < current_line,
-    })
-    .collect();
-    if let Some(line) = pick(lines_in_current) {
-        return Some((current_path.to_path_buf(), line));
-    }
-
-    let files = crate::cli::common::find_task_files(root);
-    let current_index = files.iter().position(|p| p == current_path)?;
-    let other_files: Box<dyn Iterator<Item = &PathBuf>> = match direction {
-        Direction::Next => Box::new(files[current_index + 1..].iter()),
-        Direction::Previous => Box::new(files[..current_index].iter().rev()),
-    };
-    for path in other_files {
-        if let Some(line) = pick(matching_lines_in_file(path, identity)) {
-            return Some((path.clone(), line));
-        }
-    }
-    None
+    search_task_files(
+        Some(root),
+        current_path,
+        current_doc_text,
+        Search::Relative {
+            current_line,
+            direction,
+        },
+        identity,
+    )
 }
 
-/// Returns the actionable line (see [`actionable_line`]) of every top-level
-/// task in `path`, one entry per top-level task that has one.
-fn matching_lines_in_file(path: &Path, identity: Option<(&ResolvedIdentity, &Config)>) -> Vec<u32> {
-    crate::cli::common::parse_file(path)
+/// Supply paths in search order; the current path is substituted from the live
+/// buffer by `matching_lines`, regardless of its position in this sequence.
+fn ordered_task_paths(
+    root: Option<&Path>,
+    current_path: &Path,
+    current_doc_text: Option<&str>,
+    search: Search,
+) -> Vec<PathBuf> {
+    let Some(root) = root else {
+        return if matches!(search, Search::Highest) && current_doc_text.is_some() {
+            vec![current_path.to_path_buf()]
+        } else {
+            vec![]
+        };
+    };
+    let mut files = crate::cli::common::find_task_files(root);
+    let current_index = files.iter().position(|path| path == current_path);
+    match search {
+        Search::Highest => {
+            if current_index.is_none() && current_doc_text.is_some() {
+                files.push(current_path.to_path_buf());
+            }
+            files
+        }
+        Search::Relative { direction, .. } => {
+            let mut ordered = vec![current_path.to_path_buf()];
+            if let Some(index) = current_index {
+                match direction {
+                    Direction::Next => ordered.extend(files.drain(index + 1..)),
+                    Direction::Previous => ordered.extend(files.drain(..index).rev()),
+                }
+            }
+            ordered
+        }
+    }
+}
+
+fn search_task_files(
+    root: Option<&Path>,
+    current_path: &Path,
+    current_doc_text: Option<&str>,
+    search: Search,
+    identity: Option<(&ResolvedIdentity, &Config)>,
+) -> Option<(PathBuf, u32)> {
+    ordered_task_paths(root, current_path, current_doc_text, search)
         .into_iter()
-        .filter_map(|item| match item {
-            FileItem::Task(t) => actionable_line(&t, identity),
-            _ => None,
+        .find_map(|path| {
+            let lines = matching_lines(&path, current_path, current_doc_text, identity);
+            let line = match search {
+                Search::Highest => lines.into_iter().next(),
+                Search::Relative {
+                    current_line,
+                    direction,
+                } => {
+                    let candidates = lines.into_iter().filter(|line| {
+                        path != current_path
+                            || match direction {
+                                Direction::Next => *line > current_line,
+                                Direction::Previous => *line < current_line,
+                            }
+                    });
+                    match direction {
+                        Direction::Next => candidates.min(),
+                        Direction::Previous => candidates.max(),
+                    }
+                }
+            }?;
+            Some((path, line))
         })
-        .collect()
+}
+
+/// Resolve each workspace path from its live buffer if it is the current
+/// document; otherwise read from disk.
+fn matching_lines(
+    path: &Path,
+    current_path: &Path,
+    current_doc_text: Option<&str>,
+    identity: Option<(&ResolvedIdentity, &Config)>,
+) -> Vec<u32> {
+    if path == current_path {
+        if let Some(text) = current_doc_text {
+            return matching_lines_in_text(text, path, identity);
+        }
+    }
+    actionable_lines(crate::cli::common::parse_file(path), identity)
 }
 
 /// Returns the actionable line (see [`actionable_line`]) of every top-level
 /// task in `text`, one entry per top-level task that has one.
-fn matching_lines_in_text(text: &str, identity: Option<(&ResolvedIdentity, &Config)>) -> Vec<u32> {
-    crate::parser::parse(text, PathBuf::from("tasks.agile.md"))
+fn matching_lines_in_text(
+    text: &str,
+    path: &Path,
+    identity: Option<(&ResolvedIdentity, &Config)>,
+) -> Vec<u32> {
+    actionable_lines(crate::parser::parse(text, path.to_path_buf()), identity)
+}
+
+fn actionable_lines(
+    items: Vec<FileItem>,
+    identity: Option<(&ResolvedIdentity, &Config)>,
+) -> Vec<u32> {
+    items
         .into_iter()
         .filter_map(|item| match item {
             FileItem::Task(t) => actionable_line(&t, identity),

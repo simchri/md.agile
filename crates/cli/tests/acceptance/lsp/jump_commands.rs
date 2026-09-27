@@ -98,6 +98,53 @@ git_emails = [\"bob@example.com\"]
 }
 
 #[test]
+fn lsp_jump_highest_priority_my_uses_unsaved_current_buffer() {
+    // Arrange
+    let project_root = tempfile::tempdir().unwrap();
+    git(project_root.path(), &["init", "-q"]);
+    git(
+        project_root.path(),
+        &["config", "user.email", "alice@example.com"],
+    );
+    git(project_root.path(), &["config", "user.name", "Alice"]);
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(project_root.path().join("mdagile.toml"), config).unwrap();
+    let disk_content = "\
+- [ ] task for bob @bob
+- [ ] task for alice on disk @alice
+";
+    let file_content = "\
+- [ ] task for alice in editor @alice
+- [x] task for alice done @alice
+";
+    let task_path = project_root.path().join("tasks.agile.md");
+    fs::write(&task_path, disk_content).unwrap();
+    let root_uri = super::helpers::file_uri(project_root.path());
+    let file_uri = super::helpers::file_uri(&task_path);
+    let mut session = super::helpers::LspSession::start_with_root_uri(Some(&root_uri));
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let (show_document, response) = session.execute_command(
+        2,
+        "mdagile.jump.highestPriorityMy",
+        vec![serde_json::json!(file_uri)],
+    );
+
+    // Assert
+    assert_eq!(show_document["params"]["uri"], file_uri);
+    assert_eq!(show_document["params"]["selection"]["start"]["line"], 0);
+    assert_eq!(response["result"], true);
+}
+
+#[test]
 fn lsp_jump_next_open_command_shows_document_at_next_open_task_after_cursor() {
     // Arrange
     let (mut session, file_uri) = super::helpers::start_project_session("");

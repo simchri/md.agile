@@ -104,3 +104,66 @@ fn lsp_goto_declaration_jumps_across_files_to_highest_priority_task() {
         "GoTo Declaration should point to line 0 of 02_todo.agile.md"
     );
 }
+
+#[test]
+fn lsp_goto_declaration_uses_unsaved_current_file_in_workspace_order() {
+    // Arrange
+    let project_root = tempfile::tempdir().unwrap();
+    let first_path = project_root.path().join("01_tasks.agile.md");
+    let second_path = project_root.path().join("02_tasks.agile.md");
+    let disk_content = "\
+- [x] first task completed on disk
+";
+    let live_content = "\
+- [ ] first task reopened in editor
+";
+    let second_content = "\
+- [ ] later task
+";
+    std::fs::write(&first_path, disk_content).unwrap();
+    std::fs::write(&second_path, second_content).unwrap();
+    let root_uri = super::helpers::file_uri(project_root.path());
+    let file_uri = super::helpers::file_uri(&first_path);
+    let mut session = super::helpers::LspSession::start_with_root_uri(Some(&root_uri));
+    session.open_document(&file_uri, live_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.goto_declaration(&file_uri, 2, 0, 0);
+
+    // Assert
+    assert_eq!(response["result"]["uri"], file_uri);
+    assert_eq!(response["result"]["range"]["start"]["line"], 0);
+}
+
+#[test]
+fn lsp_goto_declaration_skips_task_closed_in_unsaved_current_file() {
+    // Arrange
+    let project_root = tempfile::tempdir().unwrap();
+    let first_path = project_root.path().join("01_tasks.agile.md");
+    let second_path = project_root.path().join("02_tasks.agile.md");
+    let disk_content = "\
+- [ ] first task open on disk
+";
+    let live_content = "\
+- [x] first task completed in editor
+";
+    let second_content = "\
+- [ ] later task
+";
+    std::fs::write(&first_path, disk_content).unwrap();
+    std::fs::write(&second_path, second_content).unwrap();
+    let root_uri = super::helpers::file_uri(project_root.path());
+    let file_uri = super::helpers::file_uri(&first_path);
+    let second_uri = super::helpers::file_uri(&second_path);
+    let mut session = super::helpers::LspSession::start_with_root_uri(Some(&root_uri));
+    session.open_document(&file_uri, live_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.goto_declaration(&file_uri, 2, 0, 0);
+
+    // Assert
+    assert_eq!(response["result"]["uri"], second_uri);
+    assert_eq!(response["result"]["range"]["start"]["line"], 0);
+}

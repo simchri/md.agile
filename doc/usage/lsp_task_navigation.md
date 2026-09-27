@@ -43,10 +43,12 @@ focus) and returns a boolean indicating whether a target task was found — it
 does **not** return a `Location`, so it can't be bound as a regular
 goto-definition-style action; it must be invoked as a workspace command.
 
-All actions prefer the live in-editor buffer content (including unsaved
-edits) over on-disk file content when resolving targets, and search across
-every `*.agile.md` file under the project root, not just the currently open
-one.
+All actions use the live content of the requesting document (including
+unsaved edits) in its normal workspace priority position. Other task files
+are read from disk. Highest-priority jumps search a current buffer not yet
+discoverable on disk after the workspace files; cursor-relative jumps search
+that buffer but cannot continue into adjacent files without a known position
+in the workspace order.
 
 ## Editor setup
 
