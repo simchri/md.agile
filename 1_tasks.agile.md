@@ -901,7 +901,7 @@ new:
   - [x] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
 
 ## LSP documentation
-- [ ] LSP improved IDE Integration
+- [x] LSP improved IDE Integration
   - [x] Document VS Code setup (.vscode/settings.json)
   - [x] Document Vim/Neovim setup (init.lua example)
   - [x] Add LSP section to README.md
