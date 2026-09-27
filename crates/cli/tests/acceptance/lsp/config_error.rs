@@ -1,4 +1,96 @@
-use super::helpers::{LspSession, file_uri};
+use super::helpers::{LspSession, file_uri, start_project_session};
+
+#[test]
+fn lsp_diagnostics_follow_unsaved_config_and_report_invalid_changes() {
+    // Arrange
+    let config = "\
+[Properties.feature]
+";
+    let file_content = "\
+- [ ] task #feature
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+    let config_uri = file_uri.replace("tasks.agile.md", "mdagile.toml");
+    let unsaved_config = "\
+[Properties.other]
+";
+    session.open_document(&config_uri, unsaved_config);
+
+    // Act
+    let updated = session.read_notification("textDocument/publishDiagnostics");
+
+    // Assert
+    assert!(
+        updated["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["code"] == "E008")
+    );
+
+    let invalid_config = "\
+[Properties.
+";
+    session.send(
+        &serde_json::json!({
+            "jsonrpc": "2.0", "method": "textDocument/didChange",
+            "params": {"textDocument": {"uri": config_uri, "version": 2},
+                       "contentChanges": [{"text": invalid_config}]}
+        })
+        .to_string(),
+    );
+    session.read_notification("window/showMessage");
+    let broken = session.read_notification("textDocument/publishDiagnostics");
+    let diagnostics = broken["params"]["diagnostics"].as_array().unwrap();
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d["message"].as_str().unwrap_or("").contains("config error"))
+    );
+    assert!(!diagnostics.iter().any(|d| d["code"] == "E008"));
+}
+
+#[test]
+fn lsp_reports_conflict_with_new_unsaved_config_buffer() {
+    // Arrange
+    let config = "\
+[Properties.feature]
+";
+    let file_content = "\
+- [ ] task #feature
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+    let second_uri = file_uri.replace("tasks.agile.md", ".mdagile.toml");
+    let second_config = "\
+[Properties.other]
+";
+
+    // Act
+    session.open_document(&second_uri, second_config);
+    let error = session.read_notification("window/showMessage");
+    let diagnostics = session.read_notification("textDocument/publishDiagnostics");
+    let completion = session.completion(&file_uri, 2, 0, 17);
+
+    // Assert
+    assert!(
+        error["params"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("conflicting config files")
+    );
+    assert!(
+        diagnostics["params"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["message"].as_str().unwrap_or("").contains("config error"))
+    );
+    assert_eq!(completion["result"], serde_json::json!([]));
+}
 
 // A broken/conflicting mdagile.toml must not be silently swallowed by the
 // LSP: unlike the CLI (which hard-fails with an error and a non-zero exit

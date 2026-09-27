@@ -174,6 +174,65 @@ fn lsp_hover_explains_user_assignment() {
 }
 
 #[test]
+fn lsp_hover_resolves_marker_after_utf16_surrogate_pair() {
+    // Arrange
+    let config = "\
+[Properties.feature]
+brief = \"Feature summary\"
+
+[Users.alice]
+";
+    let file_content = "\
+- [ ] 😀 #feature @alice
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let property = session.hover(&file_uri, 2, 0, 14);
+    let assignment = session.hover(&file_uri, 3, 0, 23);
+
+    // Assert
+    assert!(
+        property["result"]["contents"]["value"]
+            .as_str()
+            .unwrap()
+            .contains("Feature summary")
+    );
+    assert!(
+        assignment["result"]["contents"]["value"]
+            .as_str()
+            .unwrap()
+            .contains("user `alice`")
+    );
+}
+
+#[test]
+fn lsp_hover_resolves_special_marker_after_utf16_surrogate_pair() {
+    // Arrange
+    let config = "";
+    let file_content = "\
+- [ ] parent
+  - [ ] 😀 #OPT optional subtask
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 1, 12);
+
+    // Assert
+    assert!(
+        response["result"]["contents"]["value"]
+            .as_str()
+            .unwrap()
+            .contains("Optional subtask")
+    );
+}
+
+#[test]
 fn lsp_hover_shows_group_assignment_members() {
     // Arrange
     let config = "\

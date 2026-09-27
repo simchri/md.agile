@@ -19,6 +19,51 @@ fn git(dir: &std::path::Path, args: &[&str]) {
 }
 
 #[test]
+fn lsp_my_task_navigation_uses_unsaved_group_members() {
+    // Arrange
+    let project_root = tempfile::tempdir().unwrap();
+    git(project_root.path(), &["init", "-q"]);
+    git(
+        project_root.path(),
+        &["config", "user.email", "alice@example.com"],
+    );
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Groups.devs]
+members = []
+";
+    fs::write(project_root.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] group task @devs
+";
+    let task_path = project_root.path().join("tasks.agile.md");
+    fs::write(&task_path, file_content).unwrap();
+    let file_uri = super::helpers::file_uri(&task_path);
+    let config_uri = super::helpers::file_uri(&project_root.path().join("mdagile.toml"));
+    let root_uri = super::helpers::file_uri(project_root.path());
+    let mut session = super::helpers::LspSession::start_with_root_uri(Some(&root_uri));
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+    let unsaved_config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Groups.devs]
+members = [\"alice\"]
+";
+    session.open_document(&config_uri, unsaved_config);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let result = session.goto_implementation(&file_uri, 2, 0, 0);
+
+    // Assert
+    assert_eq!(result["result"]["range"]["start"]["line"], 0);
+}
+
+#[test]
 fn lsp_goto_implementation_jumps_to_highest_priority_my_task() {
     // Arrange
     let project_root = tempfile::tempdir().unwrap();

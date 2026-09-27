@@ -2,10 +2,9 @@
 ///
 /// Both functions are free of I/O and async so they can be unit-tested
 /// without spinning up the full LSP server.
-use crate::parser::{
-    MARKER_TRAILING_PUNCT, SpecialMarker, SpecialMarkerKind, is_in_code_span, is_marker_boundary,
-    is_marker_escape, is_tick_wrapped,
-};
+use crate::lsp::marker::{CursorMode, token_at};
+use crate::parser::{MARKER_TRAILING_PUNCT, SpecialMarker, SpecialMarkerKind};
+use tower_lsp::lsp_types::Position;
 
 // ── Shared cursor helper ──────────────────────────────────────────────────────
 
@@ -18,88 +17,26 @@ use crate::parser::{
 /// behaviour of `parse_markers` in the parser.
 ///
 /// The returned string is the **raw** name (everything after the sigil, up to
-/// the first [`is_marker_boundary`] character). **No normalisation or trimming
+/// the first [`crate::parser::is_marker_boundary`] character). **No normalisation or trimming
 /// is applied** — callers are responsible for that (see `normalize_property_name`
 /// and `assignment_name_at_position`).
 ///
 /// Quote rule (mirrors `parse_markers`): a sigil is treated as prose (and
 /// this returns `None`) only when its name is fully wrapped in single
-/// ticks — see [`is_tick_wrapped`]. A tick on only one side does not
+/// ticks — see [`crate::parser::is_tick_wrapped`]. A tick on only one side does not
 /// suppress it.
 ///
 /// Escape rule (mirrors `parse_markers`): a sigil immediately preceded by a
-/// backslash ([`is_marker_escape`]) is treated as a literal character and
+/// backslash ([`crate::parser::is_marker_escape`]) is treated as a literal character and
 /// returns `None`.
 fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) -> Option<String> {
-    let line_text = text.lines().nth(line as usize)?;
-    let chars: Vec<char> = line_text.chars().collect();
-    let char_idx = character as usize;
-
-    if char_idx > chars.len() {
-        return None;
-    }
-
-    // Walk LEFT from the cursor (inclusive) to find the sigil, stopping at whitespace.
-    //
-    // Mirrors parse_markers: sigils may be embedded anywhere in a non-whitespace
-    // run — e.g. `(@bob)`, `(#feature)`, `asdf#prop`.
-    let sigil_pos = if chars.get(char_idx) == Some(&sigil) {
-        // Cursor is directly on the sigil.
-        char_idx
-    } else {
-        let mut found = None;
-        let mut pos = char_idx;
-        while pos > 0 {
-            pos -= 1;
-            let c = chars[pos];
-            if c.is_ascii_whitespace() {
-                break; // Whitespace reached before the sigil — cursor is not in a marker.
-            }
-            if c == sigil {
-                found = Some(pos);
-                break;
-            }
-        }
-        found?
-    };
-
-    if is_in_code_span(&chars, sigil_pos) {
-        return None;
-    }
-
-    // Escape rule (mirrors parse_markers): a sigil immediately preceded by a
-    // backslash (`\#`, `\@`) is treated as a literal character, not a marker.
-    if sigil_pos > 0 && is_marker_escape(chars[sigil_pos - 1]) {
-        return None;
-    }
-
-    // Walk RIGHT from sigil+1 to find the end of the marker name.
-    // Uses is_marker_boundary from the parser — the single source of truth.
-    let name_start = sigil_pos + 1;
-    let mut end = name_start;
-    while end < chars.len() && !is_marker_boundary(chars[end]) {
-        end += 1;
-    }
-
-    // Quote rule (mirrors parse_markers): only a *matching* opening AND
-    // closing tick suppresses recognition — a lone tick on one side does not.
-    let before_sigil = if sigil_pos > 0 {
-        Some(chars[sigil_pos - 1])
-    } else {
-        None
-    };
-    let after_name = chars.get(end).copied();
-    if is_tick_wrapped(before_sigil, after_name) {
-        return None;
-    }
-
-    // The cursor must lie within [sigil_pos..end).
-    if char_idx >= end {
-        return None;
-    }
-
-    let raw: String = chars[name_start..end].iter().collect();
-    if raw.is_empty() { None } else { Some(raw) }
+    token_at(
+        text,
+        Position { line, character },
+        sigil,
+        CursorMode::OnMarker,
+    )
+    .map(|token| token.raw)
 }
 
 // ── Properties ────────────────────────────────────────────────────────────────
@@ -142,28 +79,13 @@ pub fn special_marker_at_position(
 }
 
 fn cursor_on_marker_keyword(text: &str, line: u32, character: u32, keyword: &str) -> bool {
-    let Some(line_text) = text.lines().nth(line as usize) else {
-        return false;
-    };
-    let chars: Vec<char> = line_text.chars().collect();
-    let char_idx = character as usize;
-    if char_idx >= chars.len() {
-        return false;
-    }
-    let mut sigil_pos = None;
-    for idx in (0..=char_idx).rev() {
-        if chars[idx].is_ascii_whitespace() {
-            break;
-        }
-        if chars[idx] == '#' {
-            sigil_pos = Some(idx);
-            break;
-        }
-    }
-    let Some(sigil_pos) = sigil_pos else {
-        return false;
-    };
-    char_idx < sigil_pos + keyword.chars().count() + 1
+    token_at(
+        text,
+        Position { line, character },
+        '#',
+        CursorMode::OnMarker,
+    )
+    .is_some_and(|token| character < token.start + 1 + keyword.len() as u32)
 }
 
 /// Normalize a raw token body (the part after `#`) into a property name,

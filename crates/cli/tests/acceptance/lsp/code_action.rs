@@ -1,6 +1,63 @@
 use super::helpers::LspSession;
 
 #[test]
+fn lsp_quickfix_uses_unsaved_config_without_overwriting_it() {
+    // Arrange
+    let config = "\
+[Properties.feature]
+";
+    let file_content = "\
+- [ ] task #featur
+";
+    let (mut session, file_uri) = super::helpers::start_project_session(config);
+    let config_uri = file_uri.replace("tasks.agile.md", "mdagile.toml");
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+    let unsaved_config = "\
+[Properties.features]
+brief = \"Unsaved notes\"
+";
+    session.open_document(&config_uri, unsaved_config);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let request = serde_json::json!({
+        "jsonrpc":"2.0", "id":2, "method":"textDocument/codeAction",
+        "params":{
+            "textDocument":{"uri":file_uri},
+            "range":{"start":{"line":0,"character":0},"end":{"line":0,"character":19}},
+            "context":{"diagnostics":[]}
+        }
+    });
+    session.send(&request.to_string());
+    let response = session.read_response(2);
+
+    // Assert
+    let actions = response["result"].as_array().expect("actions");
+    assert!(
+        actions
+            .iter()
+            .any(|action| action["title"].as_str().unwrap_or("").contains("#features"))
+    );
+    assert!(
+        !actions
+            .iter()
+            .any(|action| action["title"].as_str().unwrap_or("").contains("#feature'"))
+    );
+    let add = actions
+        .iter()
+        .find(|action| {
+            action["title"]
+                .as_str()
+                .unwrap_or("")
+                .contains("Add '[Properties.featur]'")
+        })
+        .expect("add action");
+    let edit = &add["edit"]["changes"][&config_uri][0]["newText"];
+    assert!(edit.as_str().unwrap().contains("Unsaved notes"));
+}
+
+#[test]
 fn lsp_code_action_returns_quickfix_for_e002() {
     let mut session = LspSession::start();
 

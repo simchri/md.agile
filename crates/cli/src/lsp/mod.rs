@@ -19,7 +19,7 @@ use jump::{
     highest_priority_open_task_line, my_highest_priority_open_task_line, next_my_open_task_after,
     next_open_task_after, previous_my_open_task_before, previous_open_task_before,
 };
-use quickfix::build_quickfixes;
+use quickfix::build_quickfixes_with_config;
 use semantic_tokens::{TOKEN_TYPES, build_tokens};
 
 use std::collections::HashMap;
@@ -37,13 +37,14 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::{
     checker,
-    config::{CONFIG_FILE_NAMES, Config, find_config_file_in, find_config_file_upwards},
+    config::{CONFIG_FILE_NAMES, Config, ConfigError, find_config_file_in},
     parser,
     rules::{Issue, ResolvedIdentity},
 };
 
 mod completion;
 mod hover;
+mod marker;
 
 struct Backend {
     client: Client,
@@ -68,9 +69,42 @@ struct Backend {
 }
 
 impl Backend {
-    /// Loads the `mdagile.toml`/`.mdagile.toml` config governing `path`
-    /// (reporting/clearing the config-error notification as a side effect —
-    /// see [`Self::report_config_error`]), falling back to an empty
+    async fn config_source(
+        &self,
+        config_path: Option<&Path>,
+    ) -> std::result::Result<Option<(PathBuf, String)>, ConfigError> {
+        let Some(config_path) = config_path else {
+            return Ok(None);
+        };
+        let parent = config_path.parent().unwrap_or(config_path);
+        let paths = CONFIG_FILE_NAMES.map(|name| parent.join(name));
+        let docs = self.docs.read().await;
+        let exists = |path: &Path| {
+            path.exists()
+                || Url::from_file_path(path)
+                    .ok()
+                    .is_some_and(|uri| docs.contains_key(&uri))
+        };
+        if paths.iter().all(|path| exists(path)) {
+            return Err(ConfigError::ConflictingConfig { paths });
+        }
+        let text = if let Ok(uri) = Url::from_file_path(config_path) {
+            docs.get(&uri).cloned()
+        } else {
+            None
+        };
+        drop(docs);
+        let text = match text {
+            Some(text) => text,
+            None => std::fs::read_to_string(config_path)?,
+        };
+        Ok(Some((config_path.to_path_buf(), text)))
+    }
+
+    /// Loads the `mdagile.toml`/`.mdagile.toml` config governing `path`,
+    /// preferring its live editor buffer (including a not-yet-saved file).
+    /// Reports/clears the config-error notification as a side effect (see
+    /// [`Self::report_config_error`]), falling back to an empty
     /// [`Config::default`] if no config file is found or it fails to parse.
     /// Returns `(config, config_load_failed)`; `config_load_failed` is `true`
     /// only when a config file exists but fails to load, so callers can tell
@@ -78,67 +112,37 @@ impl Backend {
     /// a trustworthy "no properties/users declared" config in the latter
     /// case).
     async fn load_config(&self, config_path: Option<&Path>, path: &Path) -> (Config, bool) {
-        match config_path {
-            Some(config_path) => {
-                let load_result = Config::load(config_path.parent().unwrap_or(config_path));
-                match load_result {
-                    Ok(c) => {
-                        self.clear_config_error().await;
-                        (c, false)
-                    }
-                    Err(e) => {
-                        self.report_config_error(e.to_string()).await;
-                        (Config::default(), true)
-                    }
+        let (config, failed, _) = self.load_config_with_source(config_path, path).await;
+        (config, failed)
+    }
+
+    async fn load_config_with_source(
+        &self,
+        config_path: Option<&Path>,
+        path: &Path,
+    ) -> (Config, bool, Option<(PathBuf, String)>) {
+        match self.config_source(config_path).await {
+            Ok(Some((config_path, text))) => match Config::from_str(&text) {
+                Ok(c) => {
+                    self.clear_config_error().await;
+                    (c, false, Some((config_path, text)))
                 }
-            }
-            None => {
+                Err(e) => {
+                    self.report_config_error(e.to_string()).await;
+                    (Config::default(), true, None)
+                }
+            },
+            Ok(None) => {
                 log::warn!(
                     "No config file found for {}. Falling back to empty config.",
                     path.display()
                 );
                 self.clear_config_error().await;
-                (Config::default(), false)
+                (Config::default(), false, None)
             }
-        }
-    }
-
-    /// Loads the document's config, preferring its live editor buffer when
-    /// the config file is open so hover reflects unsaved property metadata.
-    async fn load_config_for_hover(
-        &self,
-        config_path: Option<&Path>,
-        path: &Path,
-    ) -> (Config, bool) {
-        let Some(config_path) = config_path else {
-            return self.load_config(None, path).await;
-        };
-        let Some(config_uri) = Url::from_file_path(config_path).ok() else {
-            return self.load_config(Some(config_path), path).await;
-        };
-        let config_text = self.docs.read().await.get(&config_uri).cloned();
-        let Some(config_text) = config_text else {
-            return self.load_config(Some(config_path), path).await;
-        };
-
-        // Keep the normal conflicting-config error behavior even if one
-        // candidate file is already open in the editor.
-        let has_conflicting_file = CONFIG_FILE_NAMES
-            .iter()
-            .map(|name| config_path.parent().unwrap_or(config_path).join(name))
-            .any(|candidate| candidate != config_path && candidate.exists());
-        if has_conflicting_file {
-            return self.load_config(Some(config_path), path).await;
-        }
-
-        match Config::from_str(&config_text) {
-            Ok(config) => {
-                self.clear_config_error().await;
-                (config, false)
-            }
-            Err(error) => {
-                self.report_config_error(error.to_string()).await;
-                (Config::default(), true)
+            Err(e) => {
+                self.report_config_error(e.to_string()).await;
+                (Config::default(), true, None)
             }
         }
     }
@@ -180,7 +184,10 @@ impl Backend {
     ) -> Option<(Config, ResolvedIdentity)> {
         let root = self.root.read().await.clone()?;
         let config_path = self.resolve_config_path(uri).await;
-        let (config, _) = self.load_config(config_path.as_deref(), path).await;
+        let (config, failed) = self.load_config(config_path.as_deref(), path).await;
+        if failed {
+            return None;
+        }
         let identity = checker::resolve_editor_identity(&root, &config)?;
         Some((config, identity))
     }
@@ -370,18 +377,37 @@ impl Backend {
     ///
     /// This is the single source of truth for config discovery in the LSP server.
     /// Uses the editor-supplied project root when set; otherwise walks up from
-    /// the document's directory.
+    /// the document's directory. Open unsaved config buffers count as files.
     async fn resolve_config_path(&self, uri: &Url) -> Option<PathBuf> {
         let root = self.root.read().await;
         if let Some(root) = root.as_ref() {
-            find_config_file_in(root)
+            self.config_in_dir(root).await
         } else {
             let file_path = uri
                 .to_file_path()
                 .unwrap_or_else(|_| PathBuf::from(uri.path()));
-            let dir = file_path.parent()?;
-            find_config_file_upwards(dir)
+            let mut dir = file_path.parent();
+            while let Some(current) = dir {
+                if let Some(path) = self.config_in_dir(current).await {
+                    return Some(path);
+                }
+                dir = current.parent();
+            }
+            None
         }
+    }
+
+    async fn config_in_dir(&self, dir: &Path) -> Option<PathBuf> {
+        let docs = self.docs.read().await;
+        CONFIG_FILE_NAMES
+            .iter()
+            .map(|name| dir.join(name))
+            .find(|path| {
+                path.exists()
+                    || Url::from_file_path(path)
+                        .ok()
+                        .is_some_and(|uri| docs.contains_key(&uri))
+            })
     }
 
     /// Check if config file has been modified since last check, and re-validate all docs if so.
@@ -407,6 +433,24 @@ impl Backend {
             // Config changed, re-validate all open documents.
             let docs = self.docs.read().await.clone();
             for (uri, text) in docs {
+                if !Self::is_config_uri(&uri) {
+                    self.validate(uri, &text, None).await;
+                }
+            }
+        }
+    }
+
+    fn is_config_uri(uri: &Url) -> bool {
+        uri.to_file_path().ok().is_some_and(|path| {
+            path.file_name()
+                .is_some_and(|name| CONFIG_FILE_NAMES.iter().any(|candidate| name == *candidate))
+        })
+    }
+
+    async fn revalidate_task_documents(&self) {
+        let docs = self.docs.read().await.clone();
+        for (uri, text) in docs {
+            if !Self::is_config_uri(&uri) {
                 self.validate(uri, &text, None).await;
             }
         }
@@ -601,7 +645,11 @@ impl LanguageServer for Backend {
             .write()
             .await
             .insert(doc.uri.clone(), doc.text.clone());
-        self.validate(doc.uri, &doc.text, Some(doc.version)).await;
+        if Self::is_config_uri(&doc.uri) {
+            self.revalidate_task_documents().await;
+        } else {
+            self.validate(doc.uri, &doc.text, Some(doc.version)).await;
+        }
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
@@ -614,12 +662,28 @@ impl LanguageServer for Backend {
             .write()
             .await
             .insert(params.text_document.uri.clone(), change.text.clone());
-        self.validate(
-            params.text_document.uri,
-            &change.text,
-            Some(params.text_document.version),
-        )
-        .await;
+        if Self::is_config_uri(&params.text_document.uri) {
+            self.revalidate_task_documents().await;
+        } else {
+            self.validate(
+                params.text_document.uri,
+                &change.text,
+                Some(params.text_document.version),
+            )
+            .await;
+        }
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        let uri = params.text_document.uri;
+        self.docs.write().await.remove(&uri);
+        self.diagnostics.write().await.remove(&uri);
+        self.client
+            .publish_diagnostics(uri.clone(), vec![], None)
+            .await;
+        if Self::is_config_uri(&uri) {
+            self.revalidate_task_documents().await;
+        }
     }
 
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
@@ -638,10 +702,35 @@ impl LanguageServer for Backend {
             .unwrap_or_default();
         drop(stored);
 
+        let path = params
+            .text_document
+            .uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(params.text_document.uri.path()));
+        let config_path = self.resolve_config_path(&params.text_document.uri).await;
+        let (_, config_load_failed, source) = self
+            .load_config_with_source(config_path.as_deref(), &path)
+            .await;
         let actions: Vec<CodeActionOrCommand> = diags
             .iter()
             .filter(|d| ranges_overlap(&d.range, &params.range))
-            .flat_map(|d| build_quickfixes(d, &doc_text, &params.text_document.uri))
+            .filter(|d| {
+                !config_load_failed
+                    || !matches!(
+                        d.code.as_ref(),
+                        Some(NumberOrString::String(code)) if code == "E008" || code == "E009"
+                    )
+            })
+            .flat_map(|d| {
+                build_quickfixes_with_config(
+                    d,
+                    &doc_text,
+                    &params.text_document.uri,
+                    source
+                        .as_ref()
+                        .map(|(path, text)| (path.as_path(), text.as_str())),
+                )
+            })
             .map(CodeActionOrCommand::CodeAction)
             .collect();
 
@@ -693,9 +782,7 @@ impl LanguageServer for Backend {
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
         let config_path = self.resolve_config_path(uri).await;
-        let (config, config_load_failed) = self
-            .load_config_for_hover(config_path.as_deref(), &path)
-            .await;
+        let (config, config_load_failed) = self.load_config(config_path.as_deref(), &path).await;
         if config_load_failed {
             return Ok(Some(CompletionResponse::Array(Vec::new())));
         }
@@ -733,9 +820,7 @@ impl LanguageServer for Backend {
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
         let config_path = self.resolve_config_path(uri).await;
-        let (config, config_load_failed) = self
-            .load_config_for_hover(config_path.as_deref(), &path)
-            .await;
+        let (config, config_load_failed) = self.load_config(config_path.as_deref(), &path).await;
         if config_load_failed {
             return Ok(None);
         }
@@ -780,6 +865,15 @@ impl LanguageServer for Backend {
             Some(p) => p,
             None => return Ok(None),
         };
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let (_, failed, source) = self
+            .load_config_with_source(Some(&config_path), &path)
+            .await;
+        if failed {
+            return Ok(None);
+        }
 
         let config_uri = match Url::from_file_path(&config_path) {
             Ok(u) => u,
@@ -787,17 +881,8 @@ impl LanguageServer for Backend {
         };
 
         // Use the in-editor buffer if the config file is open (respects unsaved edits).
-        let config_text = {
-            let docs = self.docs.read().await;
-            if let Some(t) = docs.get(&config_uri) {
-                t.clone()
-            } else {
-                drop(docs);
-                match std::fs::read_to_string(&config_path) {
-                    Ok(t) => t,
-                    Err(_) => return Ok(None),
-                }
-            }
+        let Some((_, config_text)) = source else {
+            return Ok(None);
         };
 
         let line = match finder(&config_text, &name) {

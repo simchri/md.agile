@@ -1,5 +1,6 @@
 use crate::config::{Config, PropertyConfig};
 use crate::lsp::goto_definition::special_marker_at_position;
+use crate::lsp::marker::char_index_at_utf16;
 use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask, TASK_LINE_PREFIX_LEN, Task};
 use std::path::PathBuf;
 use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
@@ -7,16 +8,18 @@ use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 pub(super) fn special_marker_hover(text: &str, line: u32, character: u32) -> Option<Hover> {
     let kind = special_marker_at_position(text, line, character)?;
     let line_text = text.lines().nth(line as usize)?;
+    let character = char_index_at_utf16(&line_text.chars().collect::<Vec<_>>(), character)? as u32;
     let hover_text = match kind {
         SpecialMarkerKind::Opt => {
             let items = crate::parser::parse(text, PathBuf::from("hover.agile.md"));
-            if !task_contains_marker_at(&items, line, character, SpecialMarkerKind::Opt) {
+            if !task_contains_marker_at(&items, line, character, SpecialMarkerKind::Opt, line_text)
+            {
                 return None;
             }
             "**#OPT**\n\nOptional subtask. This subtask does not block completion of its parent task."
         }
         SpecialMarkerKind::Milestone => {
-            let marker_start = line_text.find("#MILESTONE")?;
+            let marker_start = line_text[..line_text.find("#MILESTONE")?].chars().count();
             if !line_text.trim().starts_with("#MILESTONE")
                 || !character_in_marker(character, marker_start, "#MILESTONE")
             {
@@ -167,27 +170,28 @@ fn task_contains_marker_at(
     line: u32,
     character: u32,
     kind: SpecialMarkerKind,
+    line_text: &str,
 ) -> bool {
     items.iter().any(|item| match item {
-        FileItem::Task(task) => task_contains_marker(task, line, character, &kind),
+        FileItem::Task(task) => task_contains_marker(task, line, character, &kind, line_text),
         FileItem::Milestone(_) => false,
     })
 }
 
-fn task_contains_marker(task: &Task, line: u32, character: u32, kind: &SpecialMarkerKind) -> bool {
+fn task_contains_marker(
+    task: &Task,
+    line: u32,
+    character: u32,
+    kind: &SpecialMarkerKind,
+    line_text: &str,
+) -> bool {
     let marker_found = task.location.line == line as usize + 1
-        && task.markers.iter().any(|marker| match marker {
-            Marker::Special(special) if special.kind == *kind => {
-                let start = task.indent + TASK_LINE_PREFIX_LEN + special.column - 1;
-                character_in_marker(character, start, &format!("#{}", special.as_str()))
-            }
-            _ => false,
-        });
+        && matches_special_marker(&task.markers, task.indent, character, kind, line_text);
     marker_found
         || task
             .children
             .iter()
-            .any(|child| subtask_contains_marker(child, line, character, kind))
+            .any(|child| subtask_contains_marker(child, line, character, kind, line_text))
 }
 
 fn subtask_contains_marker(
@@ -195,18 +199,35 @@ fn subtask_contains_marker(
     line: u32,
     character: u32,
     kind: &SpecialMarkerKind,
+    line_text: &str,
 ) -> bool {
     let marker_found = task.location.line == line as usize + 1
-        && task.markers.iter().any(|marker| match marker {
-            Marker::Special(special) if special.kind == *kind => {
-                let start = task.indent + TASK_LINE_PREFIX_LEN + special.column - 1;
-                character_in_marker(character, start, &format!("#{}", special.as_str()))
-            }
-            _ => false,
-        });
+        && matches_special_marker(&task.markers, task.indent, character, kind, line_text);
     marker_found
         || task
             .children
             .iter()
-            .any(|child| subtask_contains_marker(child, line, character, kind))
+            .any(|child| subtask_contains_marker(child, line, character, kind, line_text))
+}
+
+fn matches_special_marker(
+    markers: &[Marker],
+    indent: usize,
+    character: u32,
+    kind: &SpecialMarkerKind,
+    line_text: &str,
+) -> bool {
+    markers.iter().any(|marker| match marker {
+        Marker::Special(special) if special.kind == *kind => {
+            let byte_start = indent + TASK_LINE_PREFIX_LEN + special.column - 1;
+            line_text.get(..byte_start).is_some_and(|before| {
+                character_in_marker(
+                    character,
+                    before.chars().count(),
+                    &format!("#{}", special.as_str()),
+                )
+            })
+        }
+        _ => false,
+    })
 }

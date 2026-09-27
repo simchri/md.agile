@@ -56,6 +56,23 @@ pub fn build_quickfixes(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> V
     }
 }
 
+pub(super) fn build_quickfixes_with_config(
+    diagnostic: &Diagnostic,
+    doc_text: &str,
+    uri: &Url,
+    source: Option<(&Path, &str)>,
+) -> Vec<CodeAction> {
+    match diagnostic.code.as_ref() {
+        Some(NumberOrString::String(code)) if code == "E008" => source
+            .map(|source| undefined_property::build_with_config(diagnostic, uri, source))
+            .unwrap_or_default(),
+        Some(NumberOrString::String(code)) if code == "E009" => source
+            .map(|source| undefined_assignment::build_with_config(diagnostic, uri, source))
+            .unwrap_or_default(),
+        _ => build_quickfixes(diagnostic, doc_text, uri),
+    }
+}
+
 /// Convenience wrapper — returns the first (preferred) action, if any.
 ///
 /// Use [`build_quickfixes`] when you need all available actions.

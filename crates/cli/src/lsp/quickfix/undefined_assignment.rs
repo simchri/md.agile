@@ -13,6 +13,17 @@ use tower_lsp::lsp_types::*;
 /// unknown at the point of the error) and are deprioritised when a spelling
 /// correction is available.
 pub fn build(diagnostic: &Diagnostic, _doc_text: &str, uri: &Url) -> Vec<CodeAction> {
+    let Some((path, text)) = super::read_toml(uri) else {
+        return vec![];
+    };
+    build_with_config(diagnostic, uri, (&path, &text))
+}
+
+pub(super) fn build_with_config(
+    diagnostic: &Diagnostic,
+    uri: &Url,
+    source: (&std::path::Path, &str),
+) -> Vec<CodeAction> {
     let issue_data = match super::issue_data(diagnostic) {
         Some(d) => d,
         None => return vec![],
@@ -22,15 +33,13 @@ pub fn build(diagnostic: &Diagnostic, _doc_text: &str, uri: &Url) -> Vec<CodeAct
         _ => return vec![],
     };
 
-    let Some((toml_path, toml_content)) = super::read_toml(uri) else {
-        return vec![];
-    };
+    let (toml_path, toml_content) = source;
 
     let corrections = super::build_spelling_corrections(
         diagnostic,
         uri,
         &assignment_name,
-        &toml_content,
+        toml_content,
         &["Users", "Groups"],
         '@',
     );
@@ -41,8 +50,8 @@ pub fn build(diagnostic: &Diagnostic, _doc_text: &str, uri: &Url) -> Vec<CodeAct
         if let Some(mut add) = super::build_add_to_toml(
             diagnostic,
             &assignment_name,
-            &toml_path,
-            &toml_content,
+            toml_path,
+            toml_content,
             section,
         ) {
             if have_corrections {

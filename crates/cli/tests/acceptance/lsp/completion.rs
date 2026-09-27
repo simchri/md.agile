@@ -38,6 +38,7 @@ subtasks = [\"design\", \"implementation\"]
         assert_eq!(item["textEdit"]["range"]["start"]["character"], 11);
         assert_eq!(item["textEdit"]["range"]["end"]["character"], 14);
     }
+
     assert_eq!(items[0]["documentation"], serde_json::Value::Null);
     let expected_documentation = "\
 **#feature**
@@ -54,6 +55,55 @@ More about the feature.
         items[1]["documentation"],
         serde_json::json!({"kind": "markdown", "value": expected_documentation})
     );
+}
+
+#[test]
+fn lsp_completion_uses_utf16_replacement_range_after_emoji() {
+    // Arrange
+    let config = "\
+[Properties.feature]
+";
+    let file_content = "\
+- [ ] 😀 #fe
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.completion(&file_uri, 2, 0, 12);
+
+    // Assert
+    let item = &response["result"][0];
+    assert_eq!(item["label"], "#feature");
+    assert_eq!(item["textEdit"]["range"]["start"]["character"], 9);
+    assert_eq!(item["textEdit"]["range"]["end"]["character"], 12);
+}
+
+#[test]
+fn lsp_completion_reads_new_unsaved_config_file() {
+    // Arrange
+    let dir = tempfile::tempdir().unwrap();
+    let root_uri = super::helpers::file_uri(dir.path());
+    let file_uri = super::helpers::file_uri(&dir.path().join("tasks.agile.md"));
+    let config_uri = super::helpers::file_uri(&dir.path().join("mdagile.toml"));
+    let mut session = LspSession::start_with_root_uri(Some(&root_uri));
+    let file_content = "\
+- [ ] task #fe
+";
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+    let config = "\
+[Properties.feature]
+";
+    session.open_document(&config_uri, config);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.completion(&file_uri, 2, 0, 14);
+
+    // Assert
+    assert_eq!(response["result"][0]["label"], "#feature");
 }
 
 #[test]
