@@ -29,11 +29,15 @@ These validate `#property` and `@user`/`@group` markers against
 
 | Code | Name | Description |
 |------|------|-------------|
-| E008 | Undefined property | A `#marker` is used on a task but isn't declared under `[Properties.X]` in `mdagile.toml`. |
+| E008 | Undefined property | A `#marker` is used on a task but isn't declared as `[Properties.X]` or a key under `[Properties]` in `mdagile.toml`. |
 | E009 | Undefined assignment | An `@marker` is used on a task but doesn't match any `[Users.X]` or `[Groups.X]` entry in `mdagile.toml`. |
 | E010 | Missing required subtasks | A task has a property (e.g. `#feature`) but is missing one or more of that property's required subtasks. |
 | E011 | Unrequired quoted subtask | A subtask uses the quoted syntax (`- [ ] "some subtask"`) — reserved for required subtasks — but isn't declared as required by any of the task's properties. |
 | E012 | Cancelled required subtask not allowed | A required subtask was cancelled (`[-]`), but the owning property doesn't allow that subtask to be cancelled (see `subtasks_allow_cancel` in [Configuration](config.md)). |
+
+In the language server, definition lookup and spelling-correction suggestions
+use the same declarations from the current config, including unsaved edits and
+properties declared under a flat `[Properties]` section.
 
 ## Assignment / completion validation
 
@@ -71,5 +75,4 @@ just within a single file.
 |------|------|-------------|
 | E017 | Duplicate milestone name | Two milestones (anywhere in the project) use the same name. Milestone names must be unique across the whole project. |
 | E018 | Missing milestone name | A `#MILESTONE` header has no name (e.g. bare `#MILESTONE` or `#MILESTONE:`). A milestone name must be provided. |
-
 

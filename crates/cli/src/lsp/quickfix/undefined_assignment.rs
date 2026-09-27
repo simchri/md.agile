@@ -42,7 +42,10 @@ pub(super) fn build_with_config(
         uri,
         &assignment_name,
         toml_content,
-        &["Users", "Groups"],
+        &[
+            super::super::declarations::Kind::User,
+            super::super::declarations::Kind::Group,
+        ],
         '@',
     );
     let have_corrections = !corrections.is_empty();

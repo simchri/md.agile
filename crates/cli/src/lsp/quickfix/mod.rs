@@ -177,30 +177,8 @@ pub(super) fn levenshtein(a: &str, b: &str) -> usize {
     dp[m][n]
 }
 
-/// Collects names declared under any of `sections` in `toml_content`.
-///
-/// E.g. `sections = &["Properties"]` matches `[Properties.feature]` → `"feature"`.
-fn extract_toml_names(toml_content: &str, sections: &[&str]) -> Vec<String> {
-    toml_content
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim();
-            sections.iter().find_map(|section| {
-                let prefix = format!("[{}.", section);
-                let inner = line.strip_prefix(&prefix)?;
-                let name = inner.strip_suffix(']')?;
-                if name.is_empty() {
-                    None
-                } else {
-                    Some(name.to_string())
-                }
-            })
-        })
-        .collect()
-}
-
 /// Builds "Fix typo" quickfixes for `typed_name` against all names declared
-/// under any of `sections` in `toml_content`.
+/// under any of `kinds` in `toml_content`.
 ///
 /// `sigil` is `'#'` for properties or `'@'` for assignments.
 pub(super) fn build_spelling_corrections(
@@ -209,10 +187,17 @@ pub(super) fn build_spelling_corrections(
     uri: &Url,
     typed_name: &str,
     toml_content: &str,
-    sections: &[&str],
+    kinds: &[super::declarations::Kind],
     sigil: char,
 ) -> Vec<CodeAction> {
-    let existing = extract_toml_names(toml_content, sections);
+    let index = match super::declarations::DeclarationIndex::parse(toml_content) {
+        Ok(index) => index,
+        Err(error) => {
+            log::warn!("could not index config declarations for spelling correction: {error}");
+            return vec![];
+        }
+    };
+    let existing = index.names(kinds);
     let line = diagnostic.range.start.line;
     let Some(token) = super::marker::token_at(
         doc_text,

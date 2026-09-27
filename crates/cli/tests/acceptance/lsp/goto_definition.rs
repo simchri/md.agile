@@ -144,3 +144,26 @@ fn lsp_goto_definition_returns_null_for_unknown_assignment() {
         "expected null result for unknown assignment, got: {response}"
     );
 }
+
+#[test]
+fn lsp_definition_resolves_quoted_flat_property_declaration() {
+    // Arrange
+    let config = "\
+[Properties]
+\"feature\" = {}
+";
+    let file_content = "\
+- [ ] task #feature
+";
+    let (mut session, file_uri) = super::helpers::start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.goto_definition(&file_uri, 2, 0, 12);
+
+    // Assert
+    let config_uri = file_uri.replace("tasks.agile.md", "mdagile.toml");
+    assert_eq!(response["result"]["uri"], config_uri);
+    assert_eq!(response["result"]["range"]["start"]["line"], 1);
+}

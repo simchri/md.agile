@@ -38,7 +38,7 @@ pub(super) fn build_with_config(
         uri,
         &property_name,
         toml_content,
-        &["Properties"],
+        &[super::super::declarations::Kind::Property],
         '#',
     );
     let have_corrections = !corrections.is_empty();

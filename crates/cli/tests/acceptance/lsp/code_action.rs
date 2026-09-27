@@ -1,6 +1,44 @@
 use super::helpers::LspSession;
 
 #[test]
+fn lsp_typo_quickfix_suggests_flat_property_declaration() {
+    // Arrange
+    let config = "\
+[Properties]
+feature = {}
+";
+    let file_content = "\
+- [ ] task #feture
+";
+    let (mut session, file_uri) = super::helpers::start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let request = serde_json::json!({
+        "jsonrpc": "2.0", "id": 2, "method": "textDocument/codeAction",
+        "params": {
+            "textDocument": {"uri": file_uri},
+            "range": {"start": {"line": 0, "character": 0},
+                      "end": {"line": 0, "character": 20}},
+            "context": {"diagnostics": []}
+        }
+    });
+    session.send(&request.to_string());
+    let response = session.read_response(2);
+
+    // Assert
+    let actions = response["result"].as_array().unwrap();
+    assert!(
+        actions.iter().any(|action| action["title"]
+            .as_str()
+            .unwrap_or("")
+            .contains("Fix typo: replace '#feture' with '#feature'")),
+        "{actions:?}"
+    );
+}
+
+#[test]
 fn lsp_typo_quickfix_preserves_trailing_punctuation() {
     // Arrange
     let config = "\

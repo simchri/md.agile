@@ -10,10 +10,8 @@ pub mod logger;
 pub mod quickfix;
 pub mod semantic_tokens;
 
-use goto_definition::{
-    assignment_name_at_position, find_assignment_line_in_config, find_property_line_in_config,
-    property_name_at_position,
-};
+use declarations::{DeclarationIndex, Kind};
+use goto_definition::{assignment_name_at_position, property_name_at_position};
 use jump::{
     highest_priority_open_task, next_my_open_task_after, next_open_task_after,
     previous_my_open_task_before, previous_open_task_before,
@@ -42,6 +40,7 @@ use crate::{
 };
 
 mod completion;
+mod declarations;
 mod hover;
 mod marker;
 
@@ -840,15 +839,12 @@ impl LanguageServer for Backend {
             None => return Ok(None),
         };
 
-        // Determine what name is under the cursor and which config finder to use.
-        // Property (#name) is tried first; assignment (@name) second.
-        type Finder = fn(&str, &str) -> Option<u32>;
-        let (name, finder): (String, Finder) = if let Some(n) =
+        let (name, kind): (String, Option<Kind>) = if let Some(n) =
             property_name_at_position(&doc_text, pos.line, pos.character)
         {
-            (n, find_property_line_in_config)
+            (n, Some(Kind::Property))
         } else if let Some(n) = assignment_name_at_position(&doc_text, pos.line, pos.character) {
-            (n, find_assignment_line_in_config)
+            (n, None)
         } else {
             return Ok(None);
         };
@@ -877,10 +873,18 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        let line = match finder(&config_text, &name) {
-            Some(l) => l,
-            None => return Ok(None),
+        let index = match DeclarationIndex::parse(&config_text) {
+            Ok(index) => index,
+            Err(error) => {
+                log::warn!("could not index config declarations: {error}");
+                return Ok(None);
+            }
         };
+        let line = match kind {
+            Some(kind) => index.line(kind, &name),
+            None => index.assignment_line(&name),
+        };
+        let Some(line) = line else { return Ok(None) };
 
         let location = Location {
             uri: config_uri,

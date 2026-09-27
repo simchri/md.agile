@@ -125,48 +125,12 @@ fn normalize_property_name(raw: &str) -> Option<String> {
     Some(clean.to_string())
 }
 
-/// Scan `config_text` (the contents of `mdagile.toml`) and return the
-/// **0-based** line number where `name` is declared, or `None`.
-///
-/// Handles:
-/// - Dotted table header:  `[Properties.name]`
-/// - Flat key under `[Properties]`:  `name = ...`
-/// - Inline TOML comments after the section header: `[Properties.name] # ok`
+/// Test adapter for property declaration lookup in the shared source index.
+#[cfg(test)]
 pub fn find_property_line_in_config(config_text: &str, name: &str) -> Option<u32> {
-    let dotted_header = format!("[Properties.{}]", name);
-    let mut in_properties_section = false;
-
-    for (idx, line) in config_text.lines().enumerate() {
-        // Strip inline TOML comment (` # ...`) for comparison purposes.
-        let trimmed = line.split(" #").next().unwrap_or(line).trim();
-
-        // Dotted table header: [Properties.name]
-        if trimmed == dotted_header {
-            return Some(idx as u32);
-        }
-
-        // Track flat [Properties] section.
-        if trimmed == "[Properties]" {
-            in_properties_section = true;
-            continue;
-        }
-
-        // Any other section header ends the flat Properties section.
-        if trimmed.starts_with('[') {
-            in_properties_section = false;
-            continue;
-        }
-
-        // Inside [Properties], look for `name = ...`
-        if in_properties_section {
-            let key = trimmed.split('=').next().unwrap_or("").trim();
-            if key == name {
-                return Some(idx as u32);
-            }
-        }
-    }
-
-    None
+    crate::lsp::declarations::DeclarationIndex::parse(config_text)
+        .ok()?
+        .line(crate::lsp::declarations::Kind::Property, name)
 }
 
 // ── Assignments ───────────────────────────────────────────────────────────────
@@ -187,20 +151,12 @@ pub fn assignment_name_at_position(text: &str, line: u32, character: u32) -> Opt
     }
 }
 
-/// Scan `config_text` (the contents of `mdagile.toml`) and return the
-/// **0-based** line number where `name` is declared as a user or group,
-/// or `None`.
-///
-/// Searches `[Users.name]` and `[Groups.name]` dotted table headers.
-/// Inline TOML comments are stripped before comparison.
+/// Test adapter for assignment declaration lookup in the shared source index.
+#[cfg(test)]
 pub fn find_assignment_line_in_config(config_text: &str, name: &str) -> Option<u32> {
-    for (idx, line) in config_text.lines().enumerate() {
-        let trimmed = line.split(" #").next().unwrap_or(line).trim();
-        if trimmed == format!("[Users.{}]", name) || trimmed == format!("[Groups.{}]", name) {
-            return Some(idx as u32);
-        }
-    }
-    None
+    crate::lsp::declarations::DeclarationIndex::parse(config_text)
+        .ok()?
+        .assignment_line(name)
 }
 
 #[cfg(test)]
