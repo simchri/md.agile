@@ -896,8 +896,8 @@ new:
 
 - [ ] LSP for the config file
 
-- [ ] additional LSP syntax highlighting
-  - [ ] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
+- [x] additional LSP syntax highlighting
+  - [x] LSP syntax highlighting for ordered tasks (1. 2. 3. highlighted, so it's clear it's task syntax)
 
 ## LSP documentation
 - [ ] LSP improved IDE Integration

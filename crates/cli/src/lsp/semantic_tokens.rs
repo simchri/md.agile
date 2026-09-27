@@ -1,6 +1,6 @@
 //! LSP Semantic Tokens for `.agile.md` files.
 //!
-//! Highlights three kinds of markers:
+//! Highlights three kinds of markers and ordered subtask prefixes:
 //!
 //! - Built-in special markers as `keyword` tokens:
 //!   - `#OPT` appears as a marker on task/subtask lines.
@@ -11,9 +11,12 @@
 //!   properties (`#review...`, `#review:passed`) only the base name is
 //!   highlighted.
 //! - `@user`/`@group` assignment markers as `parameter` tokens.
+//! - Digits in an ordered subtask prefix (`1. `) as `number` tokens.
 
 use super::marker::byte_offset_to_utf16;
-use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask, TASK_LINE_PREFIX_LEN};
+use crate::parser::{
+    FileItem, Marker, Order, SpecialMarkerKind, Subtask, SubtaskKind, TASK_LINE_PREFIX_LEN,
+};
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
 
 // ── Legend ────────────────────────────────────────────────────────────────────
@@ -24,11 +27,13 @@ pub const TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::KEYWORD,   // 0 — #OPT / #MILESTONE / #MDAGILE
     SemanticTokenType::PROPERTY,  // 1 — user-defined #property markers
     SemanticTokenType::PARAMETER, // 2 — @user/@group assignment markers
+    SemanticTokenType::NUMBER,    // 3 — digits in ordered subtask prefixes
 ];
 
 const KEYWORD: u32 = 0;
 const PROPERTY: u32 = 1;
 const PARAMETER: u32 = 2;
+const NUMBER: u32 = 3;
 
 /// Length of the `#MILESTONE` token (sigil + keyword name).
 const MILESTONE_TOKEN_LEN: u32 = "#MILESTONE".len() as u32;
@@ -83,9 +88,52 @@ struct RawToken {
 
 fn collect_subtasks(subtasks: &[Subtask], lines: &[&str], raw: &mut Vec<RawToken>) {
     for sub in subtasks {
+        if matches!(sub.order, Order::Ordered(_)) {
+            collect_order_prefix(sub, lines, raw);
+        }
         collect_markers(&sub.markers, sub.location.line, sub.indent, lines, raw);
         collect_subtasks(&sub.children, lines, raw);
     }
+}
+
+fn collect_order_prefix(sub: &Subtask, lines: &[&str], raw: &mut Vec<RawToken>) {
+    let Some(source_line) = lines.get(sub.location.line - 1) else {
+        log::warn!(
+            "missing source line for ordered subtask at line {}",
+            sub.location.line
+        );
+        return;
+    };
+    let byte_start =
+        sub.indent + TASK_LINE_PREFIX_LEN + usize::from(sub.kind == SubtaskKind::PropertyRequired);
+    let Some(prefix) = source_line.get(byte_start..) else {
+        log::warn!(
+            "invalid ordered subtask offset on line {}",
+            sub.location.line
+        );
+        return;
+    };
+    let digits = prefix.bytes().take_while(u8::is_ascii_digit).count();
+    if digits == 0 || !prefix[digits..].starts_with(". ") {
+        log::warn!(
+            "ordered subtask prefix differs from source on line {}",
+            sub.location.line
+        );
+        return;
+    }
+    let Some(character) = byte_offset_to_utf16(source_line, byte_start) else {
+        log::warn!(
+            "invalid ordered subtask character offset on line {}",
+            sub.location.line
+        );
+        return;
+    };
+    raw.push(RawToken {
+        line: (sub.location.line - 1) as u32,
+        character,
+        length: digits as u32,
+        token_type: NUMBER,
+    });
 }
 
 /// Collect semantic tokens for all markers on a single task/subtask line.
@@ -165,6 +213,10 @@ fn encode_delta(sorted: Vec<RawToken>) -> Vec<SemanticToken> {
     tokens
 }
 
+#[cfg(test)]
+#[path = "semantic_tokens_order_tests.rs"]
+mod order_tests;
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -189,7 +241,7 @@ mod tests {
         super::build_tokens(&parsed.items, parsed.text)
     }
 
-    /// Guard that TOKEN_TYPES order matches the KEYWORD/PROPERTY/PARAMETER
+    /// Guard that TOKEN_TYPES order matches the KEYWORD/PROPERTY/PARAMETER/NUMBER
     /// index constants. If these ever drift apart, all highlighting breaks
     /// silently — this test catches it immediately.
     #[test]
@@ -200,6 +252,7 @@ mod tests {
             TOKEN_TYPES[PARAMETER as usize],
             SemanticTokenType::PARAMETER
         );
+        assert_eq!(TOKEN_TYPES[NUMBER as usize], SemanticTokenType::NUMBER);
     }
 
     // ── #OPT on a subtask ─────────────────────────────────────────────────────

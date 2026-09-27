@@ -322,6 +322,8 @@ Ordering numbers have to follow the checkbox after a single space character, mus
 
 If there is no `.` after the number, it is not interpreted in any way. There can not be two tasks with the same rank.
 
+The language server highlights only the digits of recognized ordered subtask prefixes as semantic `number` tokens; the dot and task title keep their usual styling. The exact color depends on your editor theme.
+
 When an order is defined, the following rules apply:
 
 - Unordered tasks ("discuss further steps", "2 or more test users ..") can be marked complete at any point.
