@@ -679,6 +679,11 @@ impl LanguageServer for Backend {
             Some(text) => text.clone(),
             None => return Ok(None),
         };
+        if let Some(hover) =
+            hover::special_marker_hover(&doc_text, position.line, position.character)
+        {
+            return Ok(Some(hover));
+        }
         let property_name = property_name_at_position(&doc_text, position.line, position.character);
         let assignment_name = if property_name.is_none() {
             assignment_name_at_position(&doc_text, position.line, position.character)

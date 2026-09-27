@@ -262,3 +262,104 @@ members = [\"bob\"]
     assert!(contents.contains("both user `alice` and group `alice`"));
     assert!(contents.contains("`bob`"));
 }
+
+#[test]
+fn lsp_hover_explains_optional_subtask_marker() {
+    // Arrange
+    let config = "";
+    let file_content = "\
+- [ ] parent
+  - [ ] #OPT optional polish
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 1, 10);
+
+    // Assert
+    let contents = response["result"]["contents"]["value"]
+        .as_str()
+        .expect("expected optional-subtask hover contents");
+    assert_eq!(
+        contents,
+        "**#OPT**\n\nWhen applied to a subtask, it makes that subtask optional and it does not block completion of its parent task."
+    );
+}
+
+#[test]
+fn lsp_hover_explains_milestone_marker() {
+    // Arrange
+    let config = "";
+    let file_content = "\
+- [x] finish release
+#MILESTONE: Release
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 1, 4);
+
+    // Assert
+    let contents = response["result"]["contents"]["value"]
+        .as_str()
+        .unwrap_or_else(|| panic!("expected milestone hover contents: {response}"));
+    assert_eq!(
+        contents,
+        "**#MILESTONE**\n\nA milestone separates tasks in the backlog. It is reached when all tasks before it are complete."
+    );
+}
+
+#[test]
+fn lsp_hover_explains_md_agile_marker_without_claiming_unimplemented_directive() {
+    // Arrange
+    let config = "";
+    let file_content = "\
+#MDAGILE.file.mandatory_property=feature
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 0, 3);
+
+    // Assert
+    let contents = response["result"]["contents"]["value"]
+        .as_str()
+        .unwrap_or_else(|| panic!("expected MDAGILE hover contents: {response}"));
+    assert_eq!(
+        contents,
+        "**#MDAGILE**\n\nReserved for file-level Mdagile directives. The `file.mandatory_property` directive is not currently implemented."
+    );
+}
+
+#[test]
+fn lsp_hover_only_explains_special_markers_in_their_syntax_positions() {
+    // Arrange
+    let config = "";
+    let file_content = "\
+- [ ] #MILESTONE: not a standalone milestone
+#MDAGILE.file.mandatory_property=feature
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let inline_milestone = session.hover(&file_uri, 2, 0, 8);
+    let directive_value = session.hover(&file_uri, 3, 1, 15);
+
+    // Assert
+    assert!(
+        inline_milestone["result"].is_null(),
+        "expected no hover for an inline #MILESTONE, got: {inline_milestone}"
+    );
+    assert!(
+        directive_value["result"].is_null(),
+        "expected no hover over the MDAGILE directive value, got: {directive_value}"
+    );
+}

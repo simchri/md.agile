@@ -3,8 +3,8 @@
 /// Both functions are free of I/O and async so they can be unit-tested
 /// without spinning up the full LSP server.
 use crate::parser::{
-    MARKER_TRAILING_PUNCT, SpecialMarker, is_in_code_span, is_marker_boundary, is_marker_escape,
-    is_tick_wrapped,
+    MARKER_TRAILING_PUNCT, SpecialMarker, SpecialMarkerKind, is_in_code_span, is_marker_boundary,
+    is_marker_escape, is_tick_wrapped,
 };
 
 // ── Shared cursor helper ──────────────────────────────────────────────────────
@@ -117,6 +117,53 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
 pub fn property_name_at_position(text: &str, line: u32, character: u32) -> Option<String> {
     let raw = token_name_at_position(text, line, character, '#')?;
     normalize_property_name(&raw)
+}
+
+/// Return the special marker kind at the cursor, if it is positioned on a
+/// built-in marker keyword. For `#MDAGILE.<directive>`, only the keyword
+/// itself counts; hovering the directive value does not.
+pub fn special_marker_at_position(
+    text: &str,
+    line: u32,
+    character: u32,
+) -> Option<SpecialMarkerKind> {
+    let raw = token_name_at_position(text, line, character, '#')?;
+    let clean = raw.trim_end_matches(|c: char| MARKER_TRAILING_PUNCT.contains(c));
+    match clean {
+        "OPT" => Some(SpecialMarkerKind::Opt),
+        "MILESTONE" => Some(SpecialMarkerKind::Milestone),
+        "MDAGILE" => Some(SpecialMarkerKind::MdAgile),
+        directive if directive.starts_with("MDAGILE.") => {
+            cursor_on_marker_keyword(text, line, character, "MDAGILE")
+                .then_some(SpecialMarkerKind::MdAgile)
+        }
+        _ => None,
+    }
+}
+
+fn cursor_on_marker_keyword(text: &str, line: u32, character: u32, keyword: &str) -> bool {
+    let Some(line_text) = text.lines().nth(line as usize) else {
+        return false;
+    };
+    let chars: Vec<char> = line_text.chars().collect();
+    let char_idx = character as usize;
+    if char_idx >= chars.len() {
+        return false;
+    }
+    let mut sigil_pos = None;
+    for idx in (0..=char_idx).rev() {
+        if chars[idx].is_ascii_whitespace() {
+            break;
+        }
+        if chars[idx] == '#' {
+            sigil_pos = Some(idx);
+            break;
+        }
+    }
+    let Some(sigil_pos) = sigil_pos else {
+        return false;
+    };
+    char_idx < sigil_pos + keyword.chars().count() + 1
 }
 
 /// Normalize a raw token body (the part after `#`) into a property name,
