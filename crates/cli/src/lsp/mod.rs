@@ -42,6 +42,7 @@ use crate::{
     rules::{Issue, ResolvedIdentity},
 };
 
+mod completion;
 mod hover;
 
 struct Backend {
@@ -529,6 +530,10 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
+                completion_provider: Some(CompletionOptions {
+                    trigger_characters: Some(vec!["#".to_string()]),
+                    ..CompletionOptions::default()
+                }),
                 definition_provider: Some(OneOf::Left(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
@@ -670,6 +675,33 @@ impl LanguageServer for Backend {
     async fn shutdown(&self) -> Result<()> {
         info!("shutdown");
         Ok(())
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = &params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let doc_text = match self.docs.read().await.get(uri) {
+            Some(text) => text.clone(),
+            None => return Ok(Some(CompletionResponse::Array(Vec::new()))),
+        };
+        if completion::property_prefix_at_position(&doc_text, position).is_none() {
+            return Ok(Some(CompletionResponse::Array(Vec::new())));
+        }
+
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let config_path = self.resolve_config_path(uri).await;
+        let (config, config_load_failed) = self
+            .load_config_for_hover(config_path.as_deref(), &path)
+            .await;
+        if config_load_failed {
+            return Ok(Some(CompletionResponse::Array(Vec::new())));
+        }
+
+        Ok(completion::property_completions(
+            &doc_text, position, &config,
+        ))
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
