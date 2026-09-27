@@ -8,15 +8,16 @@ use tower_lsp::lsp_types::*;
 ///    (preferred; listed first).
 /// 2. Add the undefined property to `mdagile.toml` (deprioritised when a
 ///    spelling correction is available).
-pub fn build(diagnostic: &Diagnostic, _doc_text: &str, uri: &Url) -> Vec<CodeAction> {
+pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
     let Some((path, text)) = super::read_toml(uri) else {
         return vec![];
     };
-    build_with_config(diagnostic, uri, (&path, &text))
+    build_with_config(diagnostic, doc_text, uri, (&path, &text))
 }
 
 pub(super) fn build_with_config(
     diagnostic: &Diagnostic,
+    doc_text: &str,
     uri: &Url,
     source: (&std::path::Path, &str),
 ) -> Vec<CodeAction> {
@@ -33,6 +34,7 @@ pub(super) fn build_with_config(
 
     let corrections = super::build_spelling_corrections(
         diagnostic,
+        doc_text,
         uri,
         &property_name,
         toml_content,

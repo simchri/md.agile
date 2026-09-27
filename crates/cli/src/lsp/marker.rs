@@ -100,6 +100,10 @@ fn utf16_offset(chars: &[char], end: usize) -> u32 {
     chars[..end].iter().map(|c| c.len_utf16() as u32).sum()
 }
 
+pub(super) fn byte_offset_to_utf16(line: &str, byte_offset: usize) -> Option<u32> {
+    Some(line.get(..byte_offset)?.encode_utf16().count() as u32)
+}
+
 fn task_title_start(chars: &[char]) -> Option<usize> {
     let indent = chars.iter().take_while(|c| **c == ' ').count();
     let prefix = &chars[indent..];

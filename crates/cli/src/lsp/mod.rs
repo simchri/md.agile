@@ -334,8 +334,10 @@ impl Backend {
                 &root, &path, text, &config,
             ));
         }
-        let mut diagnostics: Vec<Diagnostic> =
-            issues.into_iter().map(issue_to_diagnostic).collect();
+        let mut diagnostics: Vec<Diagnostic> = issues
+            .into_iter()
+            .filter_map(|issue| issue_to_diagnostic(issue, text))
+            .collect();
         if let Some(message) = self.config_error.read().await.as_ref() {
             diagnostics.push(config_error_diagnostic(message));
         }
@@ -498,12 +500,26 @@ fn config_error_diagnostic(message: &str) -> Diagnostic {
     }
 }
 
-fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
+fn issue_to_diagnostic(issue: Issue, text: &str) -> Option<Diagnostic> {
     // Parser uses 1-based lines/columns; LSP uses 0-based.
     // For E001 (orphaned indented task), `column` is the 1-based column of the
     // dash, so the leading whitespace runs from column 0 to column-1.
     let line = issue.location.line.saturating_sub(1) as u32;
-    let dash_col = issue.column.saturating_sub(1) as u32;
+    let byte_offset = issue.column.saturating_sub(1);
+    let dash_col = match text
+        .lines()
+        .nth(line as usize)
+        .and_then(|source_line| marker::byte_offset_to_utf16(source_line, byte_offset))
+    {
+        Some(column) => column,
+        None => {
+            log::warn!(
+                "invalid diagnostic byte offset {byte_offset} on line {}",
+                issue.location.line
+            );
+            return None;
+        }
+    };
     let range = Range {
         start: Position { line, character: 0 },
         end: Position {
@@ -534,7 +550,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
         None => head,
     };
 
-    Diagnostic {
+    Some(Diagnostic {
         range,
         severity: Some(sev),
         code: Some(NumberOrString::String(issue.code.as_str().to_string())),
@@ -542,7 +558,7 @@ fn issue_to_diagnostic(issue: Issue) -> Diagnostic {
         message,
         data,
         ..Diagnostic::default()
-    }
+    })
 }
 
 /// The `mdagile.jump.*` custom command names advertised via
@@ -754,7 +770,7 @@ impl LanguageServer for Backend {
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
         let items = parser::parse(&doc_text, path);
-        let data = build_tokens(&items);
+        let data = build_tokens(&items, &doc_text);
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
             data,

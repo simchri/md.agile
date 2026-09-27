@@ -12,15 +12,16 @@ use tower_lsp::lsp_types::*;
 /// Actions 2 and 3 are always offered (the intent -- user vs. group -- is
 /// unknown at the point of the error) and are deprioritised when a spelling
 /// correction is available.
-pub fn build(diagnostic: &Diagnostic, _doc_text: &str, uri: &Url) -> Vec<CodeAction> {
+pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
     let Some((path, text)) = super::read_toml(uri) else {
         return vec![];
     };
-    build_with_config(diagnostic, uri, (&path, &text))
+    build_with_config(diagnostic, doc_text, uri, (&path, &text))
 }
 
 pub(super) fn build_with_config(
     diagnostic: &Diagnostic,
+    doc_text: &str,
     uri: &Url,
     source: (&std::path::Path, &str),
 ) -> Vec<CodeAction> {
@@ -37,6 +38,7 @@ pub(super) fn build_with_config(
 
     let corrections = super::build_spelling_corrections(
         diagnostic,
+        doc_text,
         uri,
         &assignment_name,
         toml_content,

@@ -64,10 +64,12 @@ pub(super) fn build_quickfixes_with_config(
 ) -> Vec<CodeAction> {
     match diagnostic.code.as_ref() {
         Some(NumberOrString::String(code)) if code == "E008" => source
-            .map(|source| undefined_property::build_with_config(diagnostic, uri, source))
+            .map(|source| undefined_property::build_with_config(diagnostic, doc_text, uri, source))
             .unwrap_or_default(),
         Some(NumberOrString::String(code)) if code == "E009" => source
-            .map(|source| undefined_assignment::build_with_config(diagnostic, uri, source))
+            .map(|source| {
+                undefined_assignment::build_with_config(diagnostic, doc_text, uri, source)
+            })
             .unwrap_or_default(),
         _ => build_quickfixes(diagnostic, doc_text, uri),
     }
@@ -200,10 +202,10 @@ fn extract_toml_names(toml_content: &str, sections: &[&str]) -> Vec<String> {
 /// Builds "Fix typo" quickfixes for `typed_name` against all names declared
 /// under any of `sections` in `toml_content`.
 ///
-/// `sigil` is `'#'` for properties or `'@'` for assignments. The column of the
-/// sigil in the document is read from `diagnostic.range.end.character`.
+/// `sigil` is `'#'` for properties or `'@'` for assignments.
 pub(super) fn build_spelling_corrections(
     diagnostic: &Diagnostic,
+    doc_text: &str,
     uri: &Url,
     typed_name: &str,
     toml_content: &str,
@@ -211,9 +213,21 @@ pub(super) fn build_spelling_corrections(
     sigil: char,
 ) -> Vec<CodeAction> {
     let existing = extract_toml_names(toml_content, sections);
-    let marker_col = diagnostic.range.end.character;
     let line = diagnostic.range.start.line;
-    let token_len = (1 + typed_name.len()) as u32; // sigil + name
+    let Some(token) = super::marker::token_at(
+        doc_text,
+        diagnostic.range.end,
+        sigil,
+        super::marker::CursorMode::OnMarker,
+    ) else {
+        log::warn!("cannot locate {sigil}{typed_name} for spelling correction at line {line}");
+        return vec![];
+    };
+    if !token.raw.starts_with(typed_name) {
+        log::warn!("spelling correction marker does not match diagnostic at line {line}");
+        return vec![];
+    }
+    let marker_end = token.start + 1 + typed_name.encode_utf16().count() as u32;
 
     existing
         .into_iter()
@@ -223,11 +237,11 @@ pub(super) fn build_spelling_corrections(
                 range: Range {
                     start: Position {
                         line,
-                        character: marker_col,
+                        character: token.start,
                     },
                     end: Position {
                         line,
-                        character: marker_col + token_len,
+                        character: marker_end,
                     },
                 },
                 new_text: format!("{}{}", sigil, correct_name),

@@ -12,6 +12,7 @@
 //!   highlighted.
 //! - `@user`/`@group` assignment markers as `parameter` tokens.
 
+use super::marker::byte_offset_to_utf16;
 use crate::parser::{FileItem, Marker, SpecialMarkerKind, Subtask, TASK_LINE_PREFIX_LEN};
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenType};
 
@@ -38,14 +39,21 @@ const MILESTONE_TOKEN_LEN: u32 = "#MILESTONE".len() as u32;
 ///
 /// Returns tokens delta-encoded in ascending line/character order as required
 /// by the LSP specification.
-pub fn build_tokens(items: &[FileItem]) -> Vec<SemanticToken> {
+pub fn build_tokens(items: &[FileItem], text: &str) -> Vec<SemanticToken> {
     let mut raw: Vec<RawToken> = Vec::new();
+    let lines: Vec<&str> = text.lines().collect();
 
     for item in items {
         match item {
             FileItem::Task(task) => {
-                collect_markers(&task.markers, task.location.line, task.indent, &mut raw);
-                collect_subtasks(&task.children, &mut raw);
+                collect_markers(
+                    &task.markers,
+                    task.location.line,
+                    task.indent,
+                    &lines,
+                    &mut raw,
+                );
+                collect_subtasks(&task.children, &lines, &mut raw);
             }
             FileItem::Milestone(m) => {
                 // Highlight the `#MILESTONE` keyword on the header line.
@@ -73,10 +81,10 @@ struct RawToken {
     token_type: u32,
 }
 
-fn collect_subtasks(subtasks: &[Subtask], raw: &mut Vec<RawToken>) {
+fn collect_subtasks(subtasks: &[Subtask], lines: &[&str], raw: &mut Vec<RawToken>) {
     for sub in subtasks {
-        collect_markers(&sub.markers, sub.location.line, sub.indent, raw);
-        collect_subtasks(&sub.children, raw);
+        collect_markers(&sub.markers, sub.location.line, sub.indent, lines, raw);
+        collect_subtasks(&sub.children, lines, raw);
     }
 }
 
@@ -85,7 +93,7 @@ fn collect_subtasks(subtasks: &[Subtask], raw: &mut Vec<RawToken>) {
 /// `location_line` is 1-based; `indent` is the number of leading spaces.
 /// Each marker stores the 1-based column of `#`/`@` within the title text
 /// (after the `"  - [ ] "` prefix). The 0-based character in the full source
-/// line is therefore `indent + (TASK_LINE_PREFIX_LEN - 1) + column`.
+/// line is therefore at byte offset `indent + (TASK_LINE_PREFIX_LEN - 1) + column`.
 ///
 /// Each marker is mapped to `(column, name, token_type)` and pushed once;
 /// for branch-form properties (`#review...`, `#review:passed`) only the base
@@ -94,12 +102,14 @@ fn collect_markers(
     markers: &[Marker],
     location_line: usize,
     indent: usize,
+    lines: &[&str],
     raw: &mut Vec<RawToken>,
 ) {
     let line = (location_line - 1) as u32;
-    // Convert 1-based title column to 0-based source-line character:
-    // indent + (TASK_LINE_PREFIX_LEN - 1) + column
-    let char_of = |column: usize| (indent + TASK_LINE_PREFIX_LEN - 1 + column) as u32;
+    let Some(source_line) = lines.get(location_line - 1) else {
+        log::warn!("missing source line for semantic tokens at line {location_line}");
+        return;
+    };
     for marker in markers {
         let (column, name, token_type): (usize, &str, u32) = match marker {
             Marker::Special(special) => {
@@ -114,10 +124,15 @@ fn collect_markers(
             Marker::Property(prop) => (prop.column, prop.name.as_str(), PROPERTY),
             Marker::Assignment(a) => (a.column, a.name.as_str(), PARAMETER),
         };
+        let byte_offset = indent + TASK_LINE_PREFIX_LEN - 1 + column;
+        let Some(character) = byte_offset_to_utf16(source_line, byte_offset) else {
+            log::warn!("invalid semantic token byte offset {byte_offset} on line {location_line}");
+            continue;
+        };
         raw.push(RawToken {
             line,
-            character: char_of(column),
-            length: (1 + name.len()) as u32, // sigil ('#' or '@') + name
+            character,
+            length: 1 + name.encode_utf16().count() as u32,
             token_type,
         });
     }
@@ -158,8 +173,20 @@ mod tests {
     use crate::parser::parse;
     use std::path::PathBuf;
 
-    fn p(input: &str) -> Vec<FileItem> {
-        parse(input, PathBuf::from("test.agile.md"))
+    struct Parsed<'a> {
+        items: Vec<FileItem>,
+        text: &'a str,
+    }
+
+    fn p(input: &str) -> Parsed<'_> {
+        Parsed {
+            items: parse(input, PathBuf::from("test.agile.md")),
+            text: input,
+        }
+    }
+
+    fn build_tokens(parsed: &Parsed<'_>) -> Vec<SemanticToken> {
+        super::build_tokens(&parsed.items, parsed.text)
     }
 
     /// Guard that TOKEN_TYPES order matches the KEYWORD/PROPERTY/PARAMETER
@@ -458,3 +485,7 @@ Something something
         assert_eq!(tokens[1].token_type, PARAMETER);
     }
 }
+
+#[cfg(test)]
+#[path = "semantic_tokens_utf16_tests.rs"]
+mod utf16_tests;
