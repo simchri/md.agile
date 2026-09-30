@@ -14,6 +14,7 @@ setup() {
   # Isolate logging and the global config into throwaway locations so tests
   # never touch the real /tmp/autogit/ or ~/.config/mdagile/autogit.toml.
   export AUTOGIT_LOG_DIR="$BATS_TEST_TMPDIR/autogit-logs"
+  export AUTOGIT_STATE_DIR="$BATS_TEST_TMPDIR/autogit-state"
   export AUTOGIT_GLOBAL_CONFIG="$BATS_TEST_TMPDIR/global.toml"
 
   # A throwaway git repo to run repo-scoped commands (add/remove/set/status) in.

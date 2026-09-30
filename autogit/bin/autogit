@@ -54,7 +54,10 @@ loge() { # log "error" (always echoed to stderr, colored)
 # logi/logw/loge), followed by the last RUN_LOGGED_MAX_LINES lines of each
 # non-empty stream as indented continuation lines. Always returns the
 # command's exit code, so callers keep full control over the failure path.
+# The full failure message (incl. captured output) is also left in
+# RUN_LOGGED_LAST_ERROR, e.g. for recording it in the repo's error state.
 RUN_LOGGED_MAX_LINES=50
+RUN_LOGGED_LAST_ERROR=""
 
 run_logged() {
   local component="$1" level="$2" description="$3"; shift 3
@@ -69,6 +72,7 @@ run_logged() {
     msg+="$(format_captured_stream stdout "$out")"
     msg+="$(format_captured_stream stderr "$err")"
     "log$level" "$component" "$msg"
+    RUN_LOGGED_LAST_ERROR="$msg"
   fi
   rm -f "$out" "$err"
   return "$rc"
@@ -232,6 +236,34 @@ abnormal_state_reason() { # abnormal_state_reason <repo> ; echoes reason + exit 
   return 0
 }
 
+# --- per-repo error state (read-only here) ---------------------------------
+# Written by autogit-daemon after each repo's sync cycle; reader duplicated
+# here (not shared via a lib, per project convention). File format:
+# `key = value` header lines (state/step/since/updated), then, for errors, a
+# blank line followed by the full error message incl. captured command output.
+
+AUTOGIT_STATE_DIR="${AUTOGIT_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/autogit}"
+
+repo_state_key() { # repo_state_key <repo> ; must match autogit-daemon's
+  printf '%s' "$1" | sha256sum | cut -c1-16
+}
+
+repo_status_file() { printf '%s/%s.status\n' "$AUTOGIT_STATE_DIR" "$(repo_state_key "$1")"; }
+
+repo_status_field() { # repo_status_field <repo> <key> ; empty if no state recorded
+  local f; f="$(repo_status_file "$1")"
+  [ -f "$f" ] || return 0
+  sed -n "/^\$/q; s/^$2 = //p" "$f"
+}
+
+repo_status_message() { # repo_status_message <repo> ; the error message body (after the blank line)
+  local f; f="$(repo_status_file "$1")"
+  [ -f "$f" ] || return 0
+  sed '1,/^$/d' "$f"
+}
+
+format_epoch() { date -d "@$1" '+%Y-%m-%d %H:%M:%S'; }
+
 # --- current-repo helper --------------------------------------------------
 
 require_git_repo() {
@@ -294,8 +326,8 @@ cmd_set() {
   esac
 }
 
-cmd_status() {
-  local genabled
+cmd_status() { # exits 1 if any observed repo (or the current repo) is in an error state
+  local genabled any_error=0
   genabled="$(global_read_enabled)"
   echo "Global status:"
   if [ "$genabled" = "true" ]; then
@@ -310,7 +342,12 @@ cmd_status() {
   else
     echo "  observed repos:"
     for r in "${repos[@]}"; do
-      echo "    - $r"
+      if [ "$(repo_status_field "$r" state)" = "error" ]; then
+        any_error=1
+        echo "    - $r  [ERROR: $(repo_status_field "$r" step)]"
+      else
+        echo "    - $r"
+      fi
     done
   fi
 
@@ -334,6 +371,23 @@ cmd_status() {
       logw "cli" "repo is in an abnormal git state ($reason)"
       echo "  warning: repo is in an abnormal git state ($reason). auto-git will skip this repo until it is resolved."
     fi
+    case "$(repo_status_field "$repo" state)" in
+      "")
+        echo "  last sync: not yet synced"
+        ;;
+      error)
+        any_error=1
+        echo "  last sync: ERROR in step '$(repo_status_field "$repo" step)' (failing since $(format_epoch "$(repo_status_field "$repo" since)"), last attempt $(format_epoch "$(repo_status_field "$repo" updated)"))"
+        repo_status_message "$repo" | sed 's/^/    /'
+        ;;
+      *)
+        echo "  last sync: $(repo_status_field "$repo" state) ($(format_epoch "$(repo_status_field "$repo" updated)"))"
+        ;;
+    esac
+  fi
+
+  if [ "$any_error" -ne 0 ]; then
+    exit 1
   fi
 }
 

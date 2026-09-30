@@ -58,7 +58,10 @@ loge() { # log "error" (always echoed to stderr, colored)
 # logi/logw/loge), followed by the last RUN_LOGGED_MAX_LINES lines of each
 # non-empty stream as indented continuation lines. Always returns the
 # command's exit code, so callers keep full control over the failure path.
+# The full failure message (incl. captured output) is also left in
+# RUN_LOGGED_LAST_ERROR, e.g. for recording it in the repo's error state.
 RUN_LOGGED_MAX_LINES=50
+RUN_LOGGED_LAST_ERROR=""
 
 run_logged() {
   local component="$1" level="$2" description="$3"; shift 3
@@ -73,6 +76,7 @@ run_logged() {
     msg+="$(format_captured_stream stdout "$out")"
     msg+="$(format_captured_stream stderr "$err")"
     "log$level" "$component" "$msg"
+    RUN_LOGGED_LAST_ERROR="$msg"
   fi
   rm -f "$out" "$err"
   return "$rc"
@@ -195,12 +199,12 @@ local_read_validation_timeouts() { # local_read_validation_timeouts <repo>
   sed -n '/^validation_timeouts = \[/,/^\]/p' "$f" | grep -oE '"[^"]*"' | sed 's/^"//; s/"$//'
 }
 
-# --- validation-failure notification threshold state ---------------------
-# Tracks, per repo, how long validation has been failing continuously, so a
-# user-visible notification only fires once the configured threshold is
-# exceeded (not on every single cycle — see Local Configurations).
+# --- per-repo state -------------------------------------------------------
+# Persistent (across reboots) per-repo state lives under AUTOGIT_STATE_DIR:
+# the validation-failure notification threshold state below, and the
+# error state of each repo's last sync cycle (see "per-repo error state").
 
-AUTOGIT_STATE_DIR="${AUTOGIT_LOG_DIR:-/tmp/autogit}/state"
+AUTOGIT_STATE_DIR="${AUTOGIT_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/autogit}"
 
 repo_state_key() { # repo_state_key <repo> ; filesystem-safe, collision-safe key
   # A naive "/" -> "_" substitution can collide for distinct repo paths (e.g.
@@ -210,6 +214,11 @@ repo_state_key() { # repo_state_key <repo> ; filesystem-safe, collision-safe key
   # a practical concern, and logs already name the repo path separately.
   printf '%s' "$1" | sha256sum | cut -c1-16
 }
+
+# --- validation-failure notification threshold state ---------------------
+# Tracks, per repo, how long validation has been failing continuously, so a
+# user-visible notification only fires once the configured threshold is
+# exceeded (not on every single cycle — see Local Configurations).
 
 failure_since_file() { printf '%s/%s.failure_since\n' "$AUTOGIT_STATE_DIR" "$(repo_state_key "$1")"; }
 notified_file() { printf '%s/%s.notified\n' "$AUTOGIT_STATE_DIR" "$(repo_state_key "$1")"; }
@@ -234,6 +243,44 @@ record_validation_failure() { # record_validation_failure <repo>
 
 clear_failure_state() { # clear_failure_state <repo>
   rm -f "$(failure_since_file "$1")" "$(notified_file "$1")"
+}
+
+# --- per-repo error state ---------------------------------------------------
+# Outcome of each repo's last sync cycle, read by `autogit status` (which has
+# a duplicated reader, per project convention). File format: `key = value`
+# header lines, then (for errors only) a blank line followed by the full
+# error message incl. captured command output:
+#   state = error        # ok | error
+#   step = push          # fetch | validate | commit | reconcile | push | unexpected
+#   since = <epoch>      # start of the current continuous error streak
+#   updated = <epoch>    # time this state was recorded
+#
+#   <message>
+
+repo_status_file() { printf '%s/%s.status
+' "$AUTOGIT_STATE_DIR" "$(repo_state_key "$1")"; }
+
+record_repo_ok() { # record_repo_ok <repo>
+  local f tmp
+  f="$(repo_status_file "$1")"
+  mkdir -p "$AUTOGIT_STATE_DIR"
+  tmp="$(mktemp "$f.XXXXXX")"
+  printf 'state = ok\nupdated = %s\n' "$(date +%s)" > "$tmp"
+  mv -f "$tmp" "$f"
+}
+
+record_repo_error() { # record_repo_error <repo> <step> <message>
+  local repo="$1" step="$2" message="$3" f tmp now since=""
+  f="$(repo_status_file "$repo")"
+  now="$(date +%s)"
+  mkdir -p "$AUTOGIT_STATE_DIR"
+  if [ -f "$f" ] && grep -qx 'state = error' "$f"; then
+    since="$(sed -n '/^$/q; s/^since = //p' "$f")"
+  fi
+  [ -n "$since" ] || since="$now"
+  tmp="$(mktemp "$f.XXXXXX")"
+  printf 'state = error\nstep = %s\nsince = %s\nupdated = %s\n\n%s\n' "$step" "$since" "$now" "$message" > "$tmp"
+  mv -f "$tmp" "$f"
 }
 
 # --- safety guards --------------------------------------------------------
@@ -280,7 +327,7 @@ run_validation() { # run_validation <repo> ; 0 if all configured commands pass (
     [ -n "$cmd" ] || { i=$((i + 1)); continue; }
     t="${timeouts[$i]:-120}"
     [ -n "$t" ] || t=120
-    if ! (cd "$repo" && run_logged "daemon" w "$repo: validation command failed or timed out: $cmd" timeout "$t" bash -c "$cmd") >/dev/null; then
+    if ! run_logged "daemon" w "$repo: validation command failed or timed out: $cmd" env -C "$repo" timeout "$t" bash -c "$cmd" > /dev/null; then
       return 1
     fi
     i=$((i + 1))
@@ -409,6 +456,7 @@ reconcile() { # reconcile <repo>
 
 sync_one_repo() { # sync_one_repo <repo>
   local repo="$1" reason stage_untracked
+  RUN_LOGGED_LAST_ERROR=""
 
   # 1. re-read local config (global already read by the caller)
   if [ "$(local_read_enabled "$repo")" != "true" ]; then
@@ -428,16 +476,20 @@ sync_one_repo() { # sync_one_repo <repo>
 
   # 3. fetch (read-only, 5s timeout)
   if ! run_logged "daemon" e "$repo: git fetch failed or timed out" git_timeout "$repo" fetch --quiet > /dev/null; then
+    record_repo_error "$repo" fetch "$RUN_LOGGED_LAST_ERROR"
     return 0
   fi
 
   # 4. validate + stage + commit
   stage_untracked="$(local_read_stage_untracked "$repo")"
   if has_changes "$repo" "$stage_untracked"; then
-    if run_validation "$repo"; then
-      stage_and_commit "$repo" "$stage_untracked"
-    else
+    if ! run_validation "$repo"; then
       record_validation_failure "$repo"
+      record_repo_error "$repo" validate "$RUN_LOGGED_LAST_ERROR"
+      return 0
+    fi
+    if ! stage_and_commit "$repo" "$stage_untracked"; then
+      record_repo_error "$repo" commit "$RUN_LOGGED_LAST_ERROR"
       return 0
     fi
   fi
@@ -445,24 +497,32 @@ sync_one_repo() { # sync_one_repo <repo>
   if ! git -C "$repo" rev-parse --verify -q '@{u}' >/dev/null 2>&1; then
     logw "daemon" "$repo: no upstream branch configured, skipping reconcile/push this cycle"
     clear_failure_state "$repo"
+    record_repo_ok "$repo"
     return 0
   fi
 
-  # 5. reconcile with the fetched remote
-  reconcile "$repo"
+  # 5. reconcile with the fetched remote (a successfully resolved merge
+  # conflict is not an error; only failures of the reconcile steps are)
+  if ! reconcile "$repo"; then
+    record_repo_error "$repo" reconcile "$RUN_LOGGED_LAST_ERROR"
+    return 0
+  fi
 
   # 6. re-run validation after reconcile, before push
   if ! run_validation "$repo"; then
     record_validation_failure "$repo"
     loge "daemon" "$repo: validation failed after reconcile, not pushing"
+    record_repo_error "$repo" validate "validation failed after reconcile, not pushing: $RUN_LOGGED_LAST_ERROR"
     return 0
   fi
   clear_failure_state "$repo"
 
   # 7. push (never --force, 5s timeout)
   if ! run_logged "daemon" e "$repo: git push failed or timed out" git_timeout "$repo" push --quiet > /dev/null; then
+    record_repo_error "$repo" push "$RUN_LOGGED_LAST_ERROR"
     return 0
   fi
+  record_repo_ok "$repo"
 
   # 8.
   logi "daemon" "$repo: sync cycle complete"
@@ -492,6 +552,7 @@ sync_all_repos() {
     # whole daemon process and starve every other registered repo (Bug 1).
     if ! sync_one_repo "$repo"; then
       loge "daemon" "$repo: sync cycle aborted unexpectedly, skipping to next repo this cycle"
+      record_repo_error "$repo" unexpected "sync cycle aborted unexpectedly (see log at $AUTOGIT_LOG_DIR)"
     fi
   done
 }

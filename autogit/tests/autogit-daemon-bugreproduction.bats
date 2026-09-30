@@ -7,6 +7,7 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   AUTOGIT_DAEMON="$REPO_ROOT/autogit/bin/autogit-daemon"
   export AUTOGIT_LOG_DIR="$BATS_TEST_TMPDIR/autogit-logs"
+  export AUTOGIT_STATE_DIR="$BATS_TEST_TMPDIR/autogit-state"
   export AUTOGIT_GLOBAL_CONFIG="$BATS_TEST_TMPDIR/global.toml"
 }
 

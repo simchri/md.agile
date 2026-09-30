@@ -965,6 +965,7 @@ users don't have to think about it. Design plan: see
 - [x] logging
   - [x] weekly log rotation (deferred from scaffolding task)
   - [x] `run_logged` helper for external commands: failing commands' captured stdout/stderr (last 50 lines each) are appended to the logged error message
+  - [x] per-repo error state: daemon records each repo's last sync outcome (step + message incl. captured output) under `${XDG_STATE_HOME:-~/.local/state}/autogit`; `autogit status` reports it and exits non-zero if any repo is in error
 
 - [ ] safety guards / hardening
   - [x] shared git-operation timeout (5s) wrapper used by fetch and push

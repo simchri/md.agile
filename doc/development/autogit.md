@@ -39,11 +39,14 @@ Output has to sections
 First section: global status
 - show global on/off status
 - show warning if problem with systemd service
-- show list of observed repos
+- show list of observed repos; repos whose last sync cycle ended in an error are flagged, e.g. `- /path/repo  [ERROR: push]`
 Second section: local status (this repo)
 - only if current dir is a registered repo
 - repo is currently on/off
 - show warning if the current repo local setting is "on" but does not appear in the global config list. User can fix this with `autogit add .`
+- show the outcome of the repo's last sync cycle (see Error State): `not yet synced`, `ok`, or `ERROR in step '<step>'` with the time the error streak started, the last attempt, and the full error message incl. captured command output
+
+Exit code: non-zero if any observed repo (or the current repo) is in an error state, so `autogit status` can be used in scripts
 ```
 autogit status
 ```
@@ -73,7 +76,7 @@ autogit on/off
 - **Discarded idea: independent "auto commit on/off" + "auto pull push on/off" toggles.** Considered allowing a partial-automation mode where the user commits manually but autogit still handles fetch/reconcile/push. Discarded: the Conflict Resolution strategy's "aggressively discard local work onto a backup branch" tradeoff is only acceptable because the discarded commits are autogit's own frequently-generated, cheap-to-replace commits (see "accepted tradeoff" below, mitigated by short polling intervals). In manual-commit mode, the commits being reconciled/potentially discarded would be user-authored — possibly representing significant hand-written work accumulated across many manual commits between polls — so the same "~1 minute at risk" mitigation no longer holds, and silently resetting user commits onto a backup branch is not acceptable. This would also fragment the sync loop (which step runs depends on which toggle is on) and the Commit Message Strategy (which assumes autogit authors every commit) for comparatively little benefit. Kept as a single combined on/off per repo instead (see "on / off state" above)
 
 ## logging
-- log to /tmp/autogit/
+- log to /tmp/autogit/ (`AUTOGIT_LOG_DIR`); persistent per-repo state lives separately, see Error State
 - time stamped log files, one per day. Rotate every week: log files older than `AUTOGIT_LOG_RETENTION_DAYS` (env var, default 7) are deleted once per sync cycle; set to an empty string to disable rotation
 - use log helpers (c.f. snippets.bash)
 - external commands whose failure is an error (not mere boolean probes) are run through the `run_logged` helper: on failure, the logged message includes the exit code, the command line, and the command's captured stdout/stderr (last 50 lines of each stream, indented under the log entry)
@@ -94,7 +97,13 @@ proposed per-repo cycle order, run each poll interval:
 6. re-run validation commands once more after any pull/rebase/merge, before pushing (same per-command timeouts) — this guards against a "clean" local commit being combined with a broken remote state
    - if validation now fails: do not push, log/notify (same threshold-based notification as step 4), retry next cycle
 7. `git push` (never `--force` — see Safety Guards; subject to the 5s git-operation timeout)
-8. log outcome, sleep until next poll
+8. log outcome, record the repo's error state (see Error State), sleep until next poll
+
+## Error State
+- after each repo's sync cycle, the daemon records its outcome in a per-repo state file `$AUTOGIT_STATE_DIR/<key>.status` (`AUTOGIT_STATE_DIR` env var, default `${XDG_STATE_HOME:-~/.local/state}/autogit`, i.e. persistent across reboots; `<key>` is a hash of the repo path). The same directory holds the validation-failure notification threshold state
+- file format: `key = value` header lines (`state` = `ok`|`error`, `step` = `fetch`|`validate`|`commit`|`reconcile`|`push`|`unexpected`, `since` = start of the current continuous error streak, `updated` = time of recording), then, for errors, a blank line followed by the full error message incl. captured stdout/stderr (last 50 lines per stream, see logging). Written atomically (temp file + rename)
+- an error is recorded right away (no threshold), on the first failing cycle; the next fully successful cycle resets the state to `ok`
+- not errors: skipped cycles (globally/locally off, abnormal git state — the state file is left untouched), and successfully resolved merge conflicts (see Conflict Resolution; the backup branch + notification are the user-facing signal there)
 
 ## Conflict Resolution
 - if a rebase/merge attempt (step 5) reports actual content conflicts, the top-level strategy is:
