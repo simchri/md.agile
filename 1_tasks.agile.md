@@ -962,8 +962,8 @@ users don't have to think about it. Design plan: see
   - [x] implement Option E (bash-only keyword extraction, embedded stopword list) as the retained/default strategy
   - [x] `commit_message_template` local config plumbing for Option D style (timestamp/hostname)
 
-- [ ] logging
-  - [ ] weekly log rotation (deferred from scaffolding task)
+- [x] logging
+  - [x] weekly log rotation (deferred from scaffolding task)
 
 - [ ] safety guards / hardening
   - [x] shared git-operation timeout (5s) wrapper used by fetch and push

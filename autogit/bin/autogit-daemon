@@ -13,6 +13,10 @@ set -euo pipefail
 # echoed to stderr (colored), matching snippets.bash's logw/loge.
 AUTOGIT_LOG_DIR="${AUTOGIT_LOG_DIR:-/tmp/autogit}"
 AUTOGIT_VERBOSE="${AUTOGIT_VERBOSE:-0}"
+# Weekly log rotation: log files older than AUTOGIT_LOG_RETENTION_DAYS days
+# (default 7) are deleted once per sync cycle by prune_old_logs(). Set to an
+# empty string to disable rotation entirely.
+AUTOGIT_LOG_RETENTION_DAYS="${AUTOGIT_LOG_RETENTION_DAYS-7}"
 
 log_line() { # log_line <component> <level> <message>
   local component="$1" level="$2" message="$3"
@@ -422,7 +426,14 @@ sync_one_repo() { # sync_one_repo <repo>
   logi "daemon" "$repo: sync cycle complete"
 }
 
+prune_old_logs() { # prune_old_logs ; deletes log files older than AUTOGIT_LOG_RETENTION_DAYS (default 7, weekly rotation); empty value disables pruning
+  [ -n "$AUTOGIT_LOG_RETENTION_DAYS" ] || return 0
+  [ -d "$AUTOGIT_LOG_DIR" ] || return 0
+  find "$AUTOGIT_LOG_DIR" -maxdepth 1 -name '*.log' -mtime "+$((AUTOGIT_LOG_RETENTION_DAYS - 1))" -delete 2>/dev/null || true
+}
+
 sync_all_repos() {
+  prune_old_logs
   if [ "$(global_read_enabled)" != "true" ]; then
     logi "daemon" "autogit is globally off, skipping this cycle"
     return 0

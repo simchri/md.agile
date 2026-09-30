@@ -262,3 +262,33 @@ commit_message_template = \"[TEST-TEMPLATE] {summary}\"
   [[ "$subject" != *"files changed"* ]]
 }
 
+@test "weekly log rotation: log files older than the retention window are deleted, recent ones kept" {
+  mkdir -p "$AUTOGIT_LOG_DIR"
+  old_log="$AUTOGIT_LOG_DIR/daemon-2020-01-01.log"
+  recent_log="$AUTOGIT_LOG_DIR/daemon-2020-01-06.log"
+  echo "old entry" > "$old_log"
+  echo "recent entry" > "$recent_log"
+  touch -d "8 days ago" "$old_log"
+  touch -d "2 days ago" "$recent_log"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ ! -e "$old_log" ]
+  [ -e "$recent_log" ]
+}
+
+@test "weekly log rotation: unset retention (custom override to empty) never deletes log files" {
+  mkdir -p "$AUTOGIT_LOG_DIR"
+  very_old_log="$AUTOGIT_LOG_DIR/daemon-2000-01-01.log"
+  echo "ancient entry" > "$very_old_log"
+  touch -d "365 days ago" "$very_old_log"
+
+  export AUTOGIT_LOG_RETENTION_DAYS=""
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ -e "$very_old_log" ]
+}
+
+

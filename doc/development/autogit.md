@@ -74,7 +74,7 @@ autogit on/off
 
 ## logging
 - log to /tmp/autogit/
-- time stamped log files, one per day. Rotate every week
+- time stamped log files, one per day. Rotate every week: log files older than `AUTOGIT_LOG_RETENTION_DAYS` (env var, default 7) are deleted once per sync cycle; set to an empty string to disable rotation
 - use log helpers (c.f. snippets.bash)
 
 ## What it actually does - sync loop
