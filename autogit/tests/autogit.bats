@@ -28,6 +28,16 @@ setup() {
   [[ "$output" == *"usage: autogit"* ]]
 }
 
+@test "autogit --help and -h print usage" {
+  run "$AUTOGIT_BIN" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"usage: autogit"* ]]
+
+  run "$AUTOGIT_BIN" -h
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"usage: autogit"* ]]
+}
+
 @test "autogit-daemon --once exits successfully" {
   run "$AUTOGIT_DAEMON" --once
   [ "$status" -eq 0 ]
