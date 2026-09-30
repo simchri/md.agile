@@ -918,10 +918,15 @@ users don't have to think about it. Design plan: see
 ### tasks
 - [ ] scaffolding - no useful functionality yet!
   - [ ] systemd file with script that only logs a message once per minute. Logging set up
-  - [ ] sample unit test setup with bats
-  - [ ] working, installable packages
-  - [ ] bats script testing integrated with `make test`
-  - [ ] packaging flow integrated with `make install`
+    - [ ] working postinst etc. to enable systemd service
+    - [ ] sample unit test setup with bats
+    - [ ] working, installable packages
+    - [ ] bats script testing integrated with `make test`
+    - [ ] packaging flow integrated with `make install`
+  - [ ] autogit file / command available
+    - [ ] dummy script installed with package, that prints hello world
+    - [ ] can log messages (same mechanism as systemd, but different log file)
+      
 
 - [ ] command auto-git
   - [ ] config file writing
