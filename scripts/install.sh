@@ -48,26 +48,27 @@ case "$PACKAGING_SYSTEM" in
       "$DIST_DIR/mdagile-cli-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
       "$DIST_DIR/mdagile-lsp-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
       "$DIST_DIR/mdagile-gui-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
+      "$DIST_DIR/mdagile-autogit-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm"
     )
     if command -v dnf >/dev/null 2>&1; then
       # `dnf reinstall` (unlike apt's `--reinstall`) errors out if the
       # package isn't already installed at all, so first-time installs still
       # need plain `install`. Pick the right one up front (rather than
       # printing one command below and silently running another) based on
-      # whether any of the three packages are already present.
-      if rpm -q mdagile-cli mdagile-lsp mdagile-gui >/dev/null 2>&1; then
+      # whether any of the four packages are already present.
+      if rpm -q mdagile-cli mdagile-lsp mdagile-gui mdagile-autogit >/dev/null 2>&1; then
         cmd=(sudo dnf reinstall -y "${PACKAGES[@]}")
       else
         cmd=(sudo dnf install -y "${PACKAGES[@]}")
       fi
-      uninstall_cmd="sudo dnf remove -y mdagile-cli mdagile-lsp mdagile-gui"
+      uninstall_cmd="sudo dnf remove -y mdagile-cli mdagile-lsp mdagile-gui mdagile-autogit"
     elif command -v yum >/dev/null 2>&1; then
-      if rpm -q mdagile-cli mdagile-lsp mdagile-gui >/dev/null 2>&1; then
+      if rpm -q mdagile-cli mdagile-lsp mdagile-gui mdagile-autogit >/dev/null 2>&1; then
         cmd=(sudo yum reinstall -y "${PACKAGES[@]}")
       else
         cmd=(sudo yum install -y "${PACKAGES[@]}")
       fi
-      uninstall_cmd="sudo yum remove -y mdagile-cli mdagile-lsp mdagile-gui"
+      uninstall_cmd="sudo yum remove -y mdagile-cli mdagile-lsp mdagile-gui mdagile-autogit"
     else
       echo "error: neither dnf nor yum found on this host" >&2
       exit 1

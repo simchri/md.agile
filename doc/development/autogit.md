@@ -12,7 +12,7 @@ autogit add .
 Enable automatic synchronization of the current repo via git.
 
 ## Architecture
-- new indpendent (debian) package
+- new indpendent package (built for both Debian (`.deb`) and rpm-based (`.rpm`) distros)
 - bins:
   - systemd service global for the current user, started on log in
   - script to set configuration options (command `autogit`)

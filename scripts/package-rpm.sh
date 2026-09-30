@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Assemble .rpm packages for mdagile-cli, mdagile-lsp and mdagile-gui from
-# previously built release artifacts, using rpmbuild. Intended to be run
-# inside the project's docker dev container (see Makefile target `package`),
-# which has the `rpm` apt package installed (providing `rpmbuild`) so it can
-# build .rpm packages even though the container itself is Debian-based —
-# rpmbuild doesn't require an RPM-based host to produce valid .rpm archives.
+# Assemble .rpm packages for mdagile-cli, mdagile-lsp, mdagile-gui and
+# mdagile-autogit from previously built release artifacts, using rpmbuild.
+# Intended to be run inside the project's docker dev container (see
+# Makefile target `package`), which has the `rpm` apt package installed
+# (providing `rpmbuild`) so it can build .rpm packages even though the
+# container itself is Debian-based — rpmbuild doesn't require an RPM-based
+# host to produce valid .rpm archives.
 set -euo pipefail
 
 VERSION="${1:?usage: package-rpm.sh <version>}"
@@ -101,6 +102,55 @@ install -m 644 $ROOT/scripts/assets/mdagile-gui-stop.desktop %{buildroot}/usr/sh
 /usr/share/applications/mdagile-gui.desktop
 /usr/share/applications/mdagile-gui-stop.desktop"
 build_rpm "mdagile-gui"
+
+# --- mdagile-autogit: automatic git commit/push/pull sync daemon ---
+# Not built from write_spec/the generic pattern above since it needs
+# %post/%preun scriptlets (rpm's equivalent of Debian's postinst/prerm) and
+# ships from plain files under autogit/, not a cargo build artifact.
+AUTOGIT_BIN_DIR="autogit/bin"
+AUTOGIT_SYSTEMD_DIR="autogit/systemd"
+AUTOGIT_PACKAGING_DIR="autogit/packaging"
+
+for f in "$AUTOGIT_BIN_DIR/autogit" "$AUTOGIT_BIN_DIR/autogit-daemon" "$AUTOGIT_SYSTEMD_DIR/autogit.service" \
+         "$AUTOGIT_PACKAGING_DIR/postinst" "$AUTOGIT_PACKAGING_DIR/prerm"; do
+  if [ ! -e "$f" ]; then
+    echo "error: expected autogit source file missing: $f" >&2
+    exit 1
+  fi
+done
+
+cat > "$TOPDIR/SPECS/mdagile-autogit.spec" <<EOF
+Name: mdagile-autogit
+Version: $VERSION
+Release: $RELEASE
+Summary: automatic git commit/push/pull sync daemon for mdagile (scaffolding only, no real sync behavior yet)
+License: Proprietary
+BuildArch: $RPM_ARCH
+Packager: $MAINTAINER
+
+%description
+automatic git commit/push/pull sync daemon for mdagile (scaffolding only, no real sync behavior yet)
+
+%install
+mkdir -p %{buildroot}/usr/bin %{buildroot}/usr/lib/systemd/user/default.target.wants
+install -m 755 $ROOT/$AUTOGIT_BIN_DIR/autogit %{buildroot}/usr/bin/autogit
+install -m 755 $ROOT/$AUTOGIT_BIN_DIR/autogit-daemon %{buildroot}/usr/bin/autogit-daemon
+install -m 644 $ROOT/$AUTOGIT_SYSTEMD_DIR/autogit.service %{buildroot}/usr/lib/systemd/user/autogit.service
+ln -s ../autogit.service %{buildroot}/usr/lib/systemd/user/default.target.wants/autogit.service
+
+%files
+/usr/bin/autogit
+/usr/bin/autogit-daemon
+/usr/lib/systemd/user/autogit.service
+/usr/lib/systemd/user/default.target.wants/autogit.service
+
+%post
+%include $ROOT/$AUTOGIT_PACKAGING_DIR/postinst
+
+%preun
+%include $ROOT/$AUTOGIT_PACKAGING_DIR/prerm
+EOF
+build_rpm "mdagile-autogit"
 
 rm -rf "$TOPDIR"
 

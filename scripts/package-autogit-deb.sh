@@ -6,8 +6,9 @@
 # docker dev container (see Makefile target `package`), but works on any
 # Debian/Ubuntu host with dpkg-deb available.
 #
-# Debian only (no .rpm equivalent): the Architecture section of the design
-# doc explicitly scopes autogit to a Debian package.
+# The .rpm equivalent lives in scripts/package-rpm.sh (mdagile-autogit
+# section), reusing the same autogit/packaging/{postinst,prerm} scripts via
+# rpm's %include.
 set -euo pipefail
 
 VERSION="${1:?usage: package-autogit-deb.sh <version>}"
