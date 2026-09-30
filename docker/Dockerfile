@@ -12,6 +12,7 @@ RUN cargo install cargo-binstall
 
 RUN apt-get update && apt-get install --yes \
       bash \
+      bats \
       build-essential \
       curl \
       file \

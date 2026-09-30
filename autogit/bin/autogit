@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# The `autogit` command line tool. Scaffolding scope: no useful
+# functionality yet — just a placeholder that prints a greeting and logs
+# that it was invoked (see doc/development/autogit.md).
+set -euo pipefail
+
+# Locate lib/log.bash whether running from the repo checkout
+# (autogit/bin/autogit -> autogit/lib/log.bash) or from an installed
+# package (/usr/bin/autogit -> /usr/lib/mdagile-autogit/log.bash).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+for candidate in \
+  "$SCRIPT_DIR/../lib/log.bash" \
+  "/usr/lib/mdagile-autogit/log.bash"; do
+  if [ -f "$candidate" ]; then
+    # shellcheck disable=SC1090
+    source "$candidate"
+    break
+  fi
+done
+
+echo "hello world"
+autogit_log "cli" "autogit invoked: $*"

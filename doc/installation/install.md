@@ -24,10 +24,10 @@ From the project root directory, run:
 ```
 make install
 ```
-The `install` target will create packages (e.g. *.deb files) for your OS and install all components (cli, gui, lsp). If you want to install only some components, instead run `make package`, then manually install only the wanted packages. Package files are in `./dist`. Run `make help` to see all available targets.
+The `install` target will create packages (e.g. *.deb files) for your OS and install all components (cli, gui, lsp, and — on Debian based distros only — autogit). If you want to install only some components, instead run `make package`, then manually install only the wanted packages. Package files are in `./dist`. Run `make help` to see all available targets.
 
 Uninstall:
-- Remove executables via your package manager, e.g. debian based distro: `sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui`
+- Remove executables via your package manager, e.g. debian based distro: `sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui mdagile-autogit`
 - Optionally; Clean docker images & containers (c.f. Docker documentation)
 - Optionally; remove this project directory
 

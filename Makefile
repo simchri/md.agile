@@ -7,9 +7,9 @@
 # Targets:
 #   make toolchain      - build (or rebuild) the docker dev image
 #   make build-release  - release-build the cli+lsp (cargo) and the gui (dx bundle)
-#   make package        - assemble mdagile-cli, mdagile-lsp, mdagile-gui .deb and .rpm packages into dist/
+#   make package        - assemble mdagile-cli, mdagile-lsp, mdagile-gui, mdagile-autogit .deb/.rpm packages into dist/
 #   make smoketest-install - install the built packages into disposable containers and sanity-check them
-#   make test           - run the full cargo test suite
+#   make test           - run the full cargo test suite and the autogit bats suite
 
 SHELL := bash
 
@@ -53,15 +53,16 @@ build-release: toolchain
 		cargo build --release -p mdagile && \
 		cd crates/gui && dx bundle --release --platform web"
 
-## Run the full cargo test suite.
+## Run the full cargo test suite and the autogit bats suite.
 test: toolchain
-	$(COMPOSE_RUN) "cargo test"
+	$(COMPOSE_RUN) "cargo test && bats autogit/tests"
 
-## Assemble mdagile-cli, mdagile-lsp and mdagile-gui .deb and .rpm packages into dist/.
+## Assemble mdagile-cli, mdagile-lsp, mdagile-gui .deb/.rpm and mdagile-autogit .deb packages into dist/.
 package: build-release
 	$(COMPOSE_RUN) "set -euo pipefail && \
 		scripts/package-deb.sh $(VERSION) && \
-		scripts/package-rpm.sh $(VERSION)"
+		scripts/package-rpm.sh $(VERSION) && \
+		scripts/package-autogit-deb.sh $(VERSION)"
 
 ## Remove packaging output.
 clean-package:
@@ -71,7 +72,7 @@ clean-package:
 detect-packaging-system:
 	@scripts/detect-packaging-system.sh check
 
-## Install the built packages (mdagile-cli, mdagile-lsp, mdagile-gui) onto the host.
+## Install the built packages (mdagile-cli, mdagile-lsp, mdagile-gui, and — on Debian hosts — mdagile-autogit) onto the host.
 install: package detect-packaging-system
 	@scripts/install.sh $(VERSION)
 

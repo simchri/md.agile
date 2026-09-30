@@ -916,16 +916,16 @@ users don't have to think about it. Design plan: see
 [doc/development/autogit.md](doc/development/autogit.md).
 
 ### tasks
-- [ ] scaffolding - no useful functionality yet!
-  - [ ] systemd file with script that only logs a message once per minute. Logging set up
-    - [ ] working postinst etc. to enable systemd service
-    - [ ] sample unit test setup with bats
-    - [ ] working, installable packages
-    - [ ] bats script testing integrated with `make test`
-    - [ ] packaging flow integrated with `make install`
-  - [ ] autogit file / command available
-    - [ ] dummy script installed with package, that prints hello world
-    - [ ] can log messages (same mechanism as systemd, but different log file)
+- [x] scaffolding - no useful functionality yet!
+  - [x] systemd file with script that only logs a message once per minute. Logging set up
+    - [x] working postinst etc. to enable systemd service
+    - [x] sample unit test setup with bats
+    - [x] working, installable packages
+    - [x] bats script testing integrated with `make test`
+    - [x] packaging flow integrated with `make install`
+  - [x] autogit file / command available
+    - [x] dummy script installed with package, that prints hello world
+    - [x] can log messages (same mechanism as systemd, but different log file)
       
 
 - [ ] command auto-git
@@ -937,6 +937,8 @@ users don't have to think about it. Design plan: see
     - [ ] local config
   - [ ] status printing
     ... 
+
+- [ ] documentation 
 
 #MILESTONE: Mdagile autogit 1.0
 

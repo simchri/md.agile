@@ -1,0 +1,10 @@
+[Unit]
+Description=mdagile autogit daemon (automatic git commit/push/pull sync)
+
+[Service]
+ExecStart=/usr/bin/autogit-daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

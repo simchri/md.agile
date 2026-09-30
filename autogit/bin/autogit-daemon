@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Systemd-managed daemon script. Scaffolding scope: does nothing useful yet,
+# just logs a heartbeat once a minute (see doc/development/autogit.md).
+set -euo pipefail
+
+# Locate lib/log.bash whether running from the repo checkout
+# (autogit/bin/autogit-daemon -> autogit/lib/log.bash) or from an installed
+# package (/usr/bin/autogit-daemon -> /usr/lib/mdagile-autogit/log.bash).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+for candidate in \
+  "$SCRIPT_DIR/../lib/log.bash" \
+  "/usr/lib/mdagile-autogit/log.bash"; do
+  if [ -f "$candidate" ]; then
+    # shellcheck disable=SC1090
+    source "$candidate"
+    break
+  fi
+done
+
+# `--once`: log a single heartbeat and exit, instead of looping forever.
+# Lets tests (and manual smoke-checks) exercise the daemon without waiting.
+once=0
+if [[ "${1:-}" == "--once" ]]; then
+  once=1
+fi
+
+autogit_log "daemon" "autogit daemon started"
+while true; do
+  autogit_log "daemon" "heartbeat"
+  if [[ "$once" == "1" ]]; then
+    break
+  fi
+  sleep 60
+done

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Install the previously built mdagile-cli, mdagile-lsp and mdagile-gui .deb
-# packages (see scripts/package-deb.sh / `make package`) onto the *host*
-# system. Runs on the host (not in the docker dev container), since it needs
-# to modify the host's package database.
+# Install the previously built mdagile-cli, mdagile-lsp, mdagile-gui, and
+# (on Debian hosts only) mdagile-autogit .deb/.rpm packages (see
+# scripts/package-deb.sh, scripts/package-rpm.sh, scripts/package-autogit-deb.sh
+# / `make package`) onto the *host* system. Runs on the host (not in the
+# docker dev container), since it needs to modify the host's package database.
 set -euo pipefail
 
 VERSION="${1:?usage: install.sh <version>}"
@@ -29,6 +30,7 @@ case "$PACKAGING_SYSTEM" in
       "$DIST_DIR/mdagile-cli_${VERSION}_${ARCH}.deb"
       "$DIST_DIR/mdagile-lsp_${VERSION}_${ARCH}.deb"
       "$DIST_DIR/mdagile-gui_${VERSION}_${ARCH}.deb"
+      "$DIST_DIR/mdagile-autogit_${VERSION}_${ARCH}.deb"
     )
     # `--reinstall` so re-running `make install` after rebuilding a package
     # with the *same* version number (e.g. local dev iteration, no version
@@ -37,7 +39,7 @@ case "$PACKAGING_SYSTEM" in
     # the request — otherwise `make install` doesn't behave like an "update"
     # command, which is surprising.
     cmd=(sudo apt-get install --reinstall -y "${PACKAGES[@]}")
-    uninstall_cmd="sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui"
+    uninstall_cmd="sudo apt-get remove -y mdagile-cli mdagile-lsp mdagile-gui mdagile-autogit"
     ;;
   rpm)
     RPM_ARCH="$(uname -m)"
@@ -78,7 +80,7 @@ case "$PACKAGING_SYSTEM" in
 esac
 
 echo "-----------------------------------------------------------------"
-echo "About to install mdagile-cli, mdagile-lsp and mdagile-gui system-wide."
+echo "About to install the built mdagile packages system-wide."
 echo "This requires root privileges (to write into /usr/bin, /usr/lib), so"
 echo "sudo will prompt you for your password. The exact command about to"
 echo "be run is:"
