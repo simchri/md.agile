@@ -150,8 +150,13 @@ local_read_validation_timeouts() { # local_read_validation_timeouts <repo>
 
 AUTOGIT_STATE_DIR="${AUTOGIT_LOG_DIR:-/tmp/autogit}/state"
 
-repo_state_key() { # repo_state_key <repo> ; filesystem-safe key
-  printf '%s' "$1" | tr '/' '_'
+repo_state_key() { # repo_state_key <repo> ; filesystem-safe, collision-safe key
+  # A naive "/" -> "_" substitution can collide for distinct repo paths (e.g.
+  # ".../foo/bar_baz" and ".../foo_bar/baz" both become "..._foo_bar_baz"),
+  # leaking one repo's failure-notification state into another's. Hash the
+  # full path instead: filenames become opaque, but collisions are no longer
+  # a practical concern, and logs already name the repo path separately.
+  printf '%s' "$1" | sha256sum | cut -c1-16
 }
 
 failure_since_file() { printf '%s/%s.failure_since\n' "$AUTOGIT_STATE_DIR" "$(repo_state_key "$1")"; }
