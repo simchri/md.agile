@@ -1015,11 +1015,25 @@ proposed per-repo cycle order, run each poll interval:
 - autogit only ever operates on the current/checked-out branch (whatever it is at the time of a cycle) and never switches, creates, or manages branches itself; branch management (creating, switching, tracking upstream) is entirely the user's responsibility before/while autogit is on for a repo
 
 ### Commit Message Strategy (draft options)
-undecided — options to choose between (or offer as a config setting):
+options considered (or offer as a config setting):
 - **A. Fixed generic message**: e.g. `autogit: sync <timestamp>` — simplest, but produces a meaningless, repetitive history
 - **B. File list summary**: e.g. `autogit: update foo.rs, bar.md (+2 more)` — more informative, needs truncation for large changesets
 - **C. Diffstat summary**: e.g. `autogit: 3 files changed (+42/-7)` — compact, consistent length, no filename noise
 - **D. Templated, including machine identity**: combine timestamp + hostname (useful for multi-machine setups when debugging who/what synced) + one of the above, configurable via local config (e.g. `commit_message_template`)
+- **E. Keyword extraction (retained option)**: naive bash-only term-frequency heuristic over the changed lines of the diff, no external dependencies (fits "bash, max compatibility"):
+  ```bash
+  git diff --cached -U0 -- . \
+    | grep -E '^[+-][^+-]' \
+    | grep -oE '[A-Za-z_][A-Za-z0-9_]{2,}' \
+    | grep -vixFf stopwords.txt \
+    | sort | uniq -c | sort -rn | head -5
+  ```
+  - `-U0` + `^[+-]` isolates changed lines only (not context)
+  - `grep -oE` tokenizes identifiers/words
+  - a small hand-maintained `stopwords.txt` filters common language noise (`the`, `fn`, `let`, `pub`, `use`, `def`, `import`, `return`, etc.) — kept language-agnostic since repos vary
+  - top N most-frequent surviving tokens become the "keywords" appended to the commit message (e.g. combined with C: `autogit: 3 files changed (+42/-7) [parser, rule, checker]`)
+  - caveats: crude (no stemming/no real relevance weighting, biased toward long, frequently-repeated identifiers); a real TF-IDF/NLP approach would need extra dependencies (e.g. Python), against the bash-only architecture goal
+  - **this is the retained option** for the initial implementation
 
 ### tasks
 - [ ] scaffolding - no useful functionality yet!
