@@ -160,6 +160,38 @@ systemd_warning() {
   echo "  warning: autogit systemd service is not active"
 }
 
+# --- abnormal git state detection (Safety Guards) -------------------------
+# Duplicated from autogit-daemon (not shared via a lib, per project
+# convention): both `autogit status` and the sync loop need to detect the
+# same set of "abnormal" git states and skip/warn accordingly.
+
+abnormal_state_reason() { # abnormal_state_reason <repo> ; echoes reason + exit 1 if abnormal, else exit 0
+  local repo="$1" gitdir
+  gitdir="$(git -C "$repo" rev-parse --absolute-git-dir 2>/dev/null)" || { echo "not a git repository"; return 1; }
+  if [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then
+    echo "mid-rebase"; return 1
+  fi
+  if [ -f "$gitdir/MERGE_HEAD" ]; then
+    echo "mid-merge"; return 1
+  fi
+  if [ -f "$gitdir/CHERRY_PICK_HEAD" ]; then
+    echo "mid-cherry-pick"; return 1
+  fi
+  if [ -f "$gitdir/BISECT_LOG" ]; then
+    echo "mid-bisect"; return 1
+  fi
+  if ! git -C "$repo" rev-parse HEAD >/dev/null 2>&1; then
+    echo "unborn branch"; return 1
+  fi
+  if ! git -C "$repo" symbolic-ref -q HEAD >/dev/null 2>&1; then
+    echo "detached HEAD"; return 1
+  fi
+  if git -C "$repo" submodule status 2>/dev/null | grep -qE '^[+-]'; then
+    echo "dirty/uninitialized submodules"; return 1
+  fi
+  return 0
+}
+
 # --- current-repo helper --------------------------------------------------
 
 require_git_repo() {
@@ -256,6 +288,11 @@ cmd_status() {
     if [ "$lenabled" = "true" ] && ! global_repo_registered "$repo"; then
       logw "cli" "local setting is 'on' but repo is not in the global config list"
       echo "  warning: local setting is 'on' but this repo is not in the global config list. Run 'autogit add .' to fix."
+    fi
+    local reason
+    if ! reason="$(abnormal_state_reason "$repo")"; then
+      logw "cli" "repo is in an abnormal git state ($reason)"
+      echo "  warning: repo is in an abnormal git state ($reason). auto-git will skip this repo until it is resolved."
     fi
   fi
 }

@@ -145,3 +145,15 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"warning: local setting is 'on'"* ]]
 }
+
+@test "autogit status warns when the repo is in an abnormal git state (detached HEAD)" {
+  echo "hello" > "$REPO/tracked.txt"
+  git -C "$REPO" add tracked.txt
+  git -C "$REPO" commit -q -m "initial commit"
+  bash -c "cd '$REPO' && '$AUTOGIT_BIN' add ." >/dev/null
+  git -C "$REPO" checkout -q --detach
+
+  run bash -c "cd '$REPO' && '$AUTOGIT_BIN' status"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"warning: repo is in an abnormal git state (detached HEAD)"* ]]
+}

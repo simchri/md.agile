@@ -968,7 +968,7 @@ users don't have to think about it. Design plan: see
 - [ ] safety guards / hardening
   - [x] shared git-operation timeout (5s) wrapper used by fetch and push
   - [x] shared validation-command timeout wrapper (per-command, default 120s)
-  - [ ] shared abnormal-git-state detection reused by both `autogit status` and the sync loop
+  - [x] shared abnormal-git-state detection reused by both `autogit status` and the sync loop
   - [x] per-repo failure isolation: a git-command failure in one registered repo's sync cycle no longer crashes the whole `autogit-daemon` process (`set -e` guarded via `if ! sync_one_repo ...`), so other registered repos still get synced that cycle
   - [x] collision-safe `repo_state_key` derivation for validation-failure-threshold state: hashes the full repo path (sha256sum, truncated) instead of the previous naive `/`→`_` substitution, which could collide between distinct repo paths (e.g. `.../foo/bar_baz` and `.../foo_bar/baz`), leaking one repo's failure-notification state into another's
 
