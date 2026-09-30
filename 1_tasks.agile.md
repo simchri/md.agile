@@ -970,6 +970,7 @@ autogit on/off
 - on / off state (is auto-git currently turned on for this repo)
 - validation commands
   list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass)
+- stage untracked files (default: off) — if enabled, autogit stages new/untracked files too (`git add .`/`-A`) instead of the default tracked-files-only behavior (`git add -u`, see Safety Guards)
 
 ### logging
 - log to /tmp/autogit/
@@ -981,7 +982,7 @@ proposed per-repo cycle order, run each poll interval:
 1. re-read local + global config
 2. skip this repo for this cycle if: globally off, locally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
 3. `git fetch` (read-only, always safe)
-4. if working tree/index has changes to already-tracked files: run configured validation commands in order; only if all pass, `git add -u` (never `git add .`) and commit locally
+4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order; only if all pass, stage (`git add -u` by default, or `git add .`/`-A` if opted in) and commit locally
 5. reconcile with the fetched remote:
    - if a fast-forward is possible, fast-forward — no conflict handling needed
    - otherwise apply the Conflict Resolution strategy below
@@ -1001,7 +1002,7 @@ proposed per-repo cycle order, run each poll interval:
 ### Safety Guards
 - never run `git push --force` (or any equivalent history-rewriting push), under any circumstance
 - always pull/reconcile with the remote before pushing, never the reverse
-- never add new/untracked files to version control: autogit only stages and commits changes (modifications/deletions) to files already tracked by git (`git add -u`, not `git add .`/`git add -A`). Adding a new file to the repo remains a deliberate, manual user action
+- never add new/untracked files to version control by default: autogit only stages and commits changes (modifications/deletions) to files already tracked by git (`git add -u`, not `git add .`/`git add -A`). This can be overridden per-repo via the "stage untracked files" local config option; adding new files otherwise remains a deliberate, manual user action
 - before doing anything else in a cycle, detect and skip repos in an "abnormal" git state, warning instead of acting:
   - detached HEAD
   - mid-rebase / mid-merge / mid-cherry-pick / mid-bisect
