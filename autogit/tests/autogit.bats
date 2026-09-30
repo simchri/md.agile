@@ -71,6 +71,39 @@ setup() {
   [ -f "$REPO/.autogit.toml" ]
 }
 
+@test "autogit add accepts an absolute path argument (not just '.')" {
+  run "$AUTOGIT_BIN" add "$REPO"
+  [ "$status" -eq 0 ]
+
+  [ -f "$AUTOGIT_GLOBAL_CONFIG" ]
+  grep -qF "$REPO" "$AUTOGIT_GLOBAL_CONFIG"
+  [ -f "$REPO/.autogit.toml" ]
+}
+
+@test "autogit add accepts a relative path argument" {
+  run bash -c "cd '$BATS_TEST_TMPDIR' && '$AUTOGIT_BIN' add repo"
+  [ "$status" -eq 0 ]
+
+  grep -qF "$REPO" "$AUTOGIT_GLOBAL_CONFIG"
+  [ -f "$REPO/.autogit.toml" ]
+}
+
+@test "autogit remove accepts a path argument (not just '.')" {
+  "$AUTOGIT_BIN" add "$REPO" >/dev/null
+
+  run "$AUTOGIT_BIN" remove "$REPO"
+  [ "$status" -eq 0 ]
+
+  ! grep -qF "$REPO" "$AUTOGIT_GLOBAL_CONFIG"
+  [ -f "$REPO/.autogit.toml" ]
+}
+
+@test "autogit add with a path that is not a git repository fails with an error" {
+  run "$AUTOGIT_BIN" add "$BATS_TEST_TMPDIR"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"not a git repository"* ]]
+}
+
 @test "autogit on/off toggle the global enabled flag" {
   bash -c "cd '$REPO' && '$AUTOGIT_BIN' off" >/dev/null
   grep -q '^enabled = false' "$AUTOGIT_GLOBAL_CONFIG"

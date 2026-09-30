@@ -124,9 +124,9 @@ global_set_enabled() { # global_set_enabled <true|false>
 # --- local config (per-repo on/off state) --------------------------------
 #   enabled = true
 
-local_config_file() {
-  local root
-  root="$(git rev-parse --show-toplevel)"
+local_config_file() { # local_config_file [<repo>] ; defaults to the current directory's repo toplevel
+  local root="${1:-}"
+  [ -n "$root" ] || root="$(git rev-parse --show-toplevel)"
   printf '%s/.autogit.toml\n' "$root"
 }
 
@@ -139,8 +139,8 @@ local_read_enabled() {
   fi
 }
 
-local_config_init_if_missing() {
-  local f; f="$(local_config_file)"
+local_config_init_if_missing() { # local_config_init_if_missing [<repo>]
+  local f; f="$(local_config_file "${1:-}")"
   [ -f "$f" ] || printf 'enabled = true\n' > "$f"
 }
 
@@ -166,34 +166,30 @@ require_git_repo() {
   git rev-parse --show-toplevel 2>/dev/null
 }
 
-require_dot_arg() { # require_dot_arg <arg>
-  if [ "$1" != "." ]; then
-    loge "cli" "expected '.' as argument, got: $1"
-    echo "error: expected '.' (the current repo), got: $1" 1>&2
-    exit 1
-  fi
+resolve_repo_arg() { # resolve_repo_arg <path> ; resolves <path> (relative or absolute) to its git repo toplevel
+  local path="$1" repo
+  repo="$(git -C "$path" rev-parse --show-toplevel 2>/dev/null)" || { loge "cli" "not a git repository: $path"; echo "error: not a git repository: $path" 1>&2; exit 1; }
+  printf '%s\n' "$repo"
 }
 
 # --- subcommands -----------------------------------------------------------
 
 cmd_add() {
-  require_dot_arg "${1:?usage: autogit add .}"
   local repo
-  repo="$(require_git_repo)" || { loge "cli" "not inside a git repository"; echo "error: not inside a git repository" 1>&2; exit 1; }
+  repo="$(resolve_repo_arg "${1:?usage: autogit add <path>}")"
   global_add_repo "$repo"
-  local_config_init_if_missing
+  local_config_init_if_missing "$repo"
   logi "cli" "registered repo: $repo"
   echo "autogit: registered $repo"
 }
 
 cmd_remove() {
-  require_dot_arg "${1:?usage: autogit remove .}"
   local repo lf
-  repo="$(require_git_repo)" || { loge "cli" "not inside a git repository"; echo "error: not inside a git repository" 1>&2; exit 1; }
+  repo="$(resolve_repo_arg "${1:?usage: autogit remove <path>}")"
   global_remove_repo "$repo"
-  lf="$(local_config_file)"
+  lf="$(local_config_file "$repo")"
   logi "cli" "unregistered repo: $repo"
-  echo "auto-git off for current repo. Config file $lf retained. If you permanently want to un-manage this repo, you can delete this file now."
+  echo "auto-git off for $repo. Config file $lf retained. If you permanently want to un-manage this repo, you can delete this file now."
 }
 
 cmd_on() {
@@ -269,8 +265,8 @@ print_usage() {
 usage: autogit <command> [args]
 
 commands:
-  add .                register the current repo for auto-git (adds to global config)
-  remove .             turn auto-git off for the current repo (removes from global config; local config is retained)
+  add <path>            register the repo at <path> (relative or absolute; use '.' for the current repo) for auto-git (adds to global config)
+  remove <path>         turn auto-git off for the repo at <path> (relative or absolute; use '.' for the current repo) (removes from global config; local config is retained)
   set <option> <value> set a local (per-repo) config option, e.g. `autogit set enabled false`
   on                    turn auto-git on globally
   off                   turn auto-git off globally

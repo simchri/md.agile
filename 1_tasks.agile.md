@@ -938,7 +938,7 @@ users don't have to think about it. Design plan: see
   - [x] status printing
     ... 
 
-- [ ] BUG: claude interpreted `autogit add .` as the literal general command. `.` is not handled as a path. FIX: Support a path argument (relativ and absolute), i.e. `autogit add <path>` (same for remove)
+- [x] BUG: claude interpreted `autogit add .` as the literal general command. `.` is not handled as a path. FIX: Support a path argument (relativ and absolute), i.e. `autogit add <path>` (same for remove)
 
 - [x] sync loop (core daemon logic, see "What it actually does - sync loop")
   - [x] re-read local + global config every cycle
