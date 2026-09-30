@@ -3,19 +3,18 @@
 # just logs a heartbeat once a minute (see doc/development/autogit.md).
 set -euo pipefail
 
-# Locate lib/log.bash whether running from the repo checkout
-# (autogit/bin/autogit-daemon -> autogit/lib/log.bash) or from an installed
-# package (/usr/bin/autogit-daemon -> /usr/lib/mdagile-autogit/log.bash).
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for candidate in \
-  "$SCRIPT_DIR/../lib/log.bash" \
-  "/usr/lib/mdagile-autogit/log.bash"; do
-  if [ -f "$candidate" ]; then
-    # shellcheck disable=SC1090
-    source "$candidate"
-    break
-  fi
-done
+# autogit_log <component> <message>
+# Intentionally duplicated (not shared via a lib) between autogit and
+# autogit-daemon: it's a handful of lines, and keeping each script
+# self-contained avoids needing an install-path lookup for a shared file.
+AUTOGIT_LOG_DIR="${AUTOGIT_LOG_DIR:-/tmp/autogit}"
+autogit_log() {
+  local component="$1"
+  local message="$2"
+  mkdir -p "$AUTOGIT_LOG_DIR"
+  local file="$AUTOGIT_LOG_DIR/${component}-$(date +%F).log"
+  printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$component" "$message" >> "$file"
+}
 
 # `--once`: log a single heartbeat and exit, instead of looping forever.
 # Lets tests (and manual smoke-checks) exercise the daemon without waiting.

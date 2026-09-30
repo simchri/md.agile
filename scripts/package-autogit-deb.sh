@@ -21,7 +21,7 @@ DIST_DIR="dist"
 STAGE_DIR="$DIST_DIR/stage"
 PKG_DIR="$STAGE_DIR/mdagile-autogit"
 
-for f in autogit/bin/autogit autogit/bin/autogit-daemon autogit/lib/log.bash autogit/systemd/autogit.service; do
+for f in autogit/bin/autogit autogit/bin/autogit-daemon autogit/systemd/autogit.service; do
   if [ ! -e "$f" ]; then
     echo "error: expected autogit source file missing: $f" >&2
     exit 1
@@ -34,13 +34,11 @@ rm -f "$DIST_DIR/mdagile-autogit_${VERSION}_${ARCH}.deb"
 
 mkdir -p \
   "$PKG_DIR/usr/bin" \
-  "$PKG_DIR/usr/lib/mdagile-autogit" \
   "$PKG_DIR/usr/lib/systemd/user/default.target.wants" \
   "$PKG_DIR/DEBIAN"
 
 install -m 755 autogit/bin/autogit "$PKG_DIR/usr/bin/autogit"
 install -m 755 autogit/bin/autogit-daemon "$PKG_DIR/usr/bin/autogit-daemon"
-install -m 644 autogit/lib/log.bash "$PKG_DIR/usr/lib/mdagile-autogit/log.bash"
 install -m 644 autogit/systemd/autogit.service "$PKG_DIR/usr/lib/systemd/user/autogit.service"
 
 # Ship the "enabled" symlink directly in the package, rather than creating it
