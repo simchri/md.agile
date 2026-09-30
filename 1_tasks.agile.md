@@ -933,7 +933,7 @@ users don't have to think about it. Design plan: see
   - [ ] status printing
     ... 
 
-#MILESTONE: Mdagile autogit
+#MILESTONE: Mdagile autogit 1.0
 
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
