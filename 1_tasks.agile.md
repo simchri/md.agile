@@ -1011,6 +1011,15 @@ proposed per-repo cycle order, run each poll interval:
   - unborn branch (no commits yet)
   - dirty/uninitialized submodules
 - these guards apply even if the repo is otherwise configured "on"; treat them as a hard stop for that cycle, not a one-off failure to retry blindly
+- accepted, out of scope: autogit acting concurrently with a user's own manual git usage (e.g. mid-way through staging/crafting a commit) may conflict or produce unexpected results. This is not specially guarded against; the mitigation is that the user can turn autogit off for the repo (`autogit remove .` / local on-off) whenever they want to do manual git work
+- autogit only ever operates on the current/checked-out branch (whatever it is at the time of a cycle) and never switches, creates, or manages branches itself; branch management (creating, switching, tracking upstream) is entirely the user's responsibility before/while autogit is on for a repo
+
+### Commit Message Strategy (draft options)
+undecided — options to choose between (or offer as a config setting):
+- **A. Fixed generic message**: e.g. `autogit: sync <timestamp>` — simplest, but produces a meaningless, repetitive history
+- **B. File list summary**: e.g. `autogit: update foo.rs, bar.md (+2 more)` — more informative, needs truncation for large changesets
+- **C. Diffstat summary**: e.g. `autogit: 3 files changed (+42/-7)` — compact, consistent length, no filename noise
+- **D. Templated, including machine identity**: combine timestamp + hostname (useful for multi-machine setups when debugging who/what synced) + one of the above, configurable via local config (e.g. `commit_message_template`)
 
 ### tasks
 - [ ] scaffolding - no useful functionality yet!
