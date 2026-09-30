@@ -981,7 +981,7 @@ proposed per-repo cycle order, run each poll interval:
 1. re-read local + global config
 2. skip this repo for this cycle if: globally off, locally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
 3. `git fetch` (read-only, always safe)
-4. if working tree/index has changes: run configured validation commands in order; only if all pass, `git add .` and commit locally
+4. if working tree/index has changes to already-tracked files: run configured validation commands in order; only if all pass, `git add -u` (never `git add .`) and commit locally
 5. reconcile with the fetched remote:
    - if a fast-forward is possible, fast-forward — no conflict handling needed
    - otherwise apply the Conflict Resolution strategy below
@@ -1001,6 +1001,7 @@ proposed per-repo cycle order, run each poll interval:
 ### Safety Guards
 - never run `git push --force` (or any equivalent history-rewriting push), under any circumstance
 - always pull/reconcile with the remote before pushing, never the reverse
+- never add new/untracked files to version control: autogit only stages and commits changes (modifications/deletions) to files already tracked by git (`git add -u`, not `git add .`/`git add -A`). Adding a new file to the repo remains a deliberate, manual user action
 - before doing anything else in a cycle, detect and skip repos in an "abnormal" git state, warning instead of acting:
   - detached HEAD
   - mid-rebase / mid-merge / mid-cherry-pick / mid-bisect
