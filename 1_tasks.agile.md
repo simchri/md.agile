@@ -940,8 +940,6 @@ users don't have to think about it. Design plan: see
 
 - [ ] BUG: claude interpreted `autogit add .` as the literal general command. `.` is not handled as a path. FIX: Support a path argument (relativ and absolute), i.e. `autogit add <path>` (same for remove)
 
-- [ ] on `autogit add`, if `agile` is a command, add `agile check` as a validation check to the toml.
-
 - [x] sync loop (core daemon logic, see "What it actually does - sync loop")
   - [x] re-read local + global config every cycle
   - [x] detect and skip "abnormal" git states (detached HEAD, mid-rebase/merge/cherry-pick/bisect, unborn branch, dirty/uninitialized submodules), surfaced via `autogit status`
