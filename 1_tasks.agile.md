@@ -951,12 +951,12 @@ users don't have to think about it. Design plan: see
   - [x] `git push` (never `--force`), subject to 5s git-operation timeout
   - [x] validation-failure notification threshold (default 5 min, configurable): log every cycle, only notify once threshold exceeded
 
-- [ ] Conflict Resolution (see design doc section)
+- [x] Conflict Resolution (see design doc section)
   - [x] create timestamped backup branch (`autogit-backup/<repo>/<timestamp>`) at current HEAD on real conflicts
   - [x] stash any leftover uncommitted changes with an identifiable message
   - [x] hard-reset current branch to the fetched remote ref
   - [x] notify user (system notification + log) with recovery instructions for backup branch / stash
-  - [ ] backup branch retention: optional per-repo retention (in days); naming-convention-based automatic deletion, logged only (no user notification)
+  - [x] backup branch retention: optional per-repo retention (in days); naming-convention-based automatic deletion, logged only (no user notification)
 
 - [ ] Commit Message Strategy
   - [ ] implement Option E (bash-only keyword extraction, embedded stopword list) as the retained/default strategy

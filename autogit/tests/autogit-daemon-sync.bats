@@ -193,3 +193,36 @@ EOF
   backup_count="$(git -C "$REPO" branch --list 'autogit-backup/*' | wc -l)"
   [ "$backup_count" -eq 1 ]
 }
+
+@test "backup branch retention: expired backup branches are pruned, recent ones kept, when configured" {
+  write_local_config "\
+enabled = true
+backup_branch_retention_days = 14
+"
+  name="$(basename "$REPO")"
+  old_ts="$(date -u -d '30 days ago' +%Y%m%dT%H%M%S)"
+  recent_ts="$(date -u -d '1 day ago' +%Y%m%dT%H%M%S)"
+  git -C "$REPO" branch "autogit-backup/$name/$old_ts" HEAD
+  git -C "$REPO" branch "autogit-backup/$name/$recent_ts" HEAD
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  old_listing="$(git -C "$REPO" branch --list "autogit-backup/$name/$old_ts")"
+  recent_listing="$(git -C "$REPO" branch --list "autogit-backup/$name/$recent_ts")"
+  [ -z "$old_listing" ]
+  [ -n "$recent_listing" ]
+}
+
+@test "backup branch retention: unset (default) never deletes backup branches" {
+  name="$(basename "$REPO")"
+  old_ts="$(date -u -d '365 days ago' +%Y%m%dT%H%M%S)"
+  git -C "$REPO" branch "autogit-backup/$name/$old_ts" HEAD
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  old_listing="$(git -C "$REPO" branch --list "autogit-backup/$name/$old_ts")"
+  [ -n "$old_listing" ]
+}
+

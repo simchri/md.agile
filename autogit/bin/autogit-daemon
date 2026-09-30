@@ -281,6 +281,24 @@ conflict_resolution() { # conflict_resolution <repo>
     "Local history preserved on branch $backup_ref (and a stash entry if uncommitted changes existed). Repo was reset to upstream. Run 'git -C $repo branch --list autogit-backup/*' or 'git -C $repo stash list' to recover."
 }
 
+prune_backup_branches() { # prune_backup_branches <repo> ; deletes autogit-backup/* branches older than the configured retention (if any), logged only
+  local repo="$1" retention_days now branch ts branch_epoch age_days
+  retention_days="$(local_read_backup_retention_days "$repo")"
+  [ -n "$retention_days" ] || return 0
+  now="$(date +%s)"
+  while IFS= read -r branch; do
+    [ -n "$branch" ] || continue
+    ts="${branch##*/}"
+    branch_epoch="$(date -u -d "${ts:0:8} ${ts:9:2}:${ts:11:2}:${ts:13:2}" +%s 2>/dev/null)" || continue
+    age_days=$(( (now - branch_epoch) / 86400 ))
+    if [ "$age_days" -ge "$retention_days" ]; then
+      if git -C "$repo" branch -D "$branch" >/dev/null 2>&1; then
+        logi "daemon" "$repo: pruned expired backup branch $branch (age ${age_days}d >= retention ${retention_days}d)"
+      fi
+    fi
+  done < <(git -C "$repo" for-each-ref --format='%(refname:short)' 'refs/heads/autogit-backup')
+}
+
 # --- reconcile with fetched remote (step 5) --------------------------------
 
 reconcile() { # reconcile <repo>
@@ -318,6 +336,10 @@ sync_one_repo() { # sync_one_repo <repo>
     logw "daemon" "$repo: abnormal git state ($reason), skipping"
     return 0
   fi
+
+  # housekeeping: prune expired backup branches (Conflict Resolution
+  # retention), independent of this cycle's fetch/commit/push outcome
+  prune_backup_branches "$repo"
 
   # 3. fetch (read-only, 5s timeout)
   if ! git_timeout "$repo" fetch --quiet; then
