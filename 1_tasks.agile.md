@@ -929,8 +929,8 @@ Enable automatic synchronization of the current repo via git.
   - local config file name: ...
 - config format is toml
 - auto-git actions are typically based on sleep cycles ("polling")
-- any config file is re-read before autogit does any action
-- technology: Either script is just "bash" for max compatibility
+- any relevant config file is re-read before autogit does any action
+- technology: Either script is just "bash" for max compatibility. No build required, only packaging. Bats for unit testing
 - consider autogit a largely independent project (but keep it in this repository and package it alongside mdagile, for convenience and good integration)
 
 ### Other command line actions
@@ -974,13 +974,18 @@ autogit on/off
 ### logging
 - log to /tmp/autogit/
 - time stamped log files, one per day. Rotate every week
+- use log helpers (c.f. snippets.bash)
 
 ### What it actually does - sync loop
 ...
 
 ### tasks
-- [ ] scaffolding
-  - [ ]
+- [ ] scaffolding - no useful functionality yet!
+  - [ ] systemd file with script that only logs a message once per minute. Logging set up
+  - [ ] sample unit test setup with bats
+  - [ ] working, installable packages
+  - [ ] bats script testing integrated with `make test`
+  - [ ] packaging flow integrated with `make install`
 
 #MILESTONE: Mdagile autogit
 
