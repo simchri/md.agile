@@ -226,3 +226,35 @@ backup_branch_retention_days = 14
   [ -n "$old_listing" ]
 }
 
+@test "commit message strategy: default message includes diffstat and extracted keywords" {
+  cat > "$REPO/tracked.txt" <<'EOF'
+fn calculate_widget_total() {
+    let widget_count = 42;
+    widget_count
+}
+EOF
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  subject="$(git -C "$REPO" log -1 --format=%s)"
+  echo "commit subject: $subject" >&2
+  [[ "$subject" == "autogit: "*"file changed"* ]]
+  [[ "$subject" == *"widget"* ]]
+}
+
+@test "commit message strategy: commit_message_template config is honored" {
+  write_local_config "\
+enabled = true
+commit_message_template = \"[TEST-TEMPLATE] {summary}\"
+"
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  subject="$(git -C "$REPO" log -1 --format=%s)"
+  echo "commit subject: $subject" >&2
+  [[ "$subject" == "[TEST-TEMPLATE] "*"file changed"* ]]
+}
+

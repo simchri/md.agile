@@ -958,9 +958,9 @@ users don't have to think about it. Design plan: see
   - [x] notify user (system notification + log) with recovery instructions for backup branch / stash
   - [x] backup branch retention: optional per-repo retention (in days); naming-convention-based automatic deletion, logged only (no user notification)
 
-- [ ] Commit Message Strategy
-  - [ ] implement Option E (bash-only keyword extraction, embedded stopword list) as the retained/default strategy
-  - [ ] `commit_message_template` local config plumbing for Option D style (timestamp/hostname)
+- [x] Commit Message Strategy
+  - [x] implement Option E (bash-only keyword extraction, embedded stopword list) as the retained/default strategy
+  - [x] `commit_message_template` local config plumbing for Option D style (timestamp/hostname)
 
 - [ ] logging
   - [ ] weekly log rotation (deferred from scaffolding task)

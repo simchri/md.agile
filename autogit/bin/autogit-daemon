@@ -84,6 +84,7 @@ global_read_repos() {
 #   stage_untracked = false
 #   validation_failure_threshold_seconds = 300
 #   backup_branch_retention_days = 14
+#   commit_message_template = "[{hostname} {timestamp}] {summary}"
 #   validation_commands = [
 #     "cargo test",
 #   ]
@@ -128,6 +129,13 @@ local_read_backup_retention_days() { # local_read_backup_retention_days <repo> ;
   local f; f="$(local_config_file "$1")"
   if [ -f "$f" ] && grep -q '^backup_branch_retention_days' "$f"; then
     grep -m1 '^backup_branch_retention_days' "$f" | sed -E 's/^backup_branch_retention_days *= *//'
+  fi
+}
+
+local_read_commit_message_template() { # local_read_commit_message_template <repo> ; empty if unset (use default template)
+  local f; f="$(local_config_file "$1")"
+  if [ -f "$f" ] && grep -q '^commit_message_template' "$f"; then
+    grep -m1 '^commit_message_template' "$f" | sed -E 's/^commit_message_template *= *"//; s/"$//'
   fi
 }
 
@@ -248,6 +256,45 @@ has_changes() { # has_changes <repo> <stage_untracked: true|false>
   fi
 }
 
+# Commit Message Strategy (see doc/development/autogit.md): option E
+# (bash-only keyword extraction over the staged diff, embedded stopword
+# list) combined with option C (diffstat summary), as the retained default.
+COMMIT_MESSAGE_STOPWORDS="the fn let pub use def import return if else for while class impl struct enum mod pub(crate) const static mut self"
+
+commit_message_summary() { # commit_message_summary <repo> ; e.g. "3 files changed (+42/-7) [parser, rule, checker]"
+  local repo="$1" stat files ins del file_word keywords msg
+  stat="$(git -C "$repo" diff --cached --shortstat)"
+  files="$(printf '%s' "$stat" | grep -oE '[0-9]+ files? changed' | grep -oE '^[0-9]+')"; files="${files:-0}"
+  ins="$(printf '%s' "$stat" | grep -oE '[0-9]+ insertions?\(\+\)' | grep -oE '^[0-9]+')"; ins="${ins:-0}"
+  del="$(printf '%s' "$stat" | grep -oE '[0-9]+ deletions?\(-\)' | grep -oE '^[0-9]+')"; del="${del:-0}"
+  file_word="files"
+  [ "$files" -eq 1 ] && file_word="file"
+
+  keywords="$(git -C "$repo" diff --cached -U0 -- . \
+    | grep -E '^[+-][^+-]' \
+    | grep -oE '[A-Za-z_][A-Za-z0-9_]{2,}' \
+    | grep -vixwFf <(tr ' ' '\n' <<< "$COMMIT_MESSAGE_STOPWORDS") \
+    | sort | uniq -c | sort -rn | head -5 \
+    | awk '{print $2}' | paste -sd ', ' - 2>/dev/null)"
+
+  msg="$files $file_word changed (+$ins/-$del)"
+  [ -z "$keywords" ] || msg="$msg [$keywords]"
+  printf '%s' "$msg"
+}
+
+render_commit_message() { # render_commit_message <repo> ; applies commit_message_template ({summary}/{timestamp}/{hostname}), default "autogit: {summary}"
+  local repo="$1" template summary hostname_val timestamp msg
+  template="$(local_read_commit_message_template "$repo")"
+  [ -n "$template" ] || template="autogit: {summary}"
+  summary="$(commit_message_summary "$repo")"
+  hostname_val="$(hostname 2>/dev/null || echo unknown-host)"
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+  msg="${template//\{summary\}/$summary}"
+  msg="${msg//\{timestamp\}/$timestamp}"
+  msg="${msg//\{hostname\}/$hostname_val}"
+  printf '%s' "$msg"
+}
+
 stage_and_commit() { # stage_and_commit <repo> <stage_untracked>
   local repo="$1" stage_untracked="$2"
   if [ "$stage_untracked" = "true" ]; then
@@ -258,9 +305,7 @@ stage_and_commit() { # stage_and_commit <repo> <stage_untracked>
   if git -C "$repo" diff --cached --quiet; then
     return 0
   fi
-  # Fixed generic message (Commit Message Strategy option A); the retained
-  # option (E, keyword extraction) is implemented by a dedicated task.
-  git -C "$repo" commit -q -m "autogit: sync $(date '+%Y-%m-%d %H:%M:%S')"
+  git -C "$repo" commit -q -m "$(render_commit_message "$repo")"
   logi "daemon" "$repo: committed local changes"
 }
 
