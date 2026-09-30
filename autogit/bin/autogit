@@ -45,6 +45,46 @@ loge() { # log "error" (always echoed to stderr, colored)
   printf "${RED}ERROR${DEFAULT}   %s\n" "$2" 1>&2
 }
 
+# run_logged <component> <level: i|w|e> <description> <cmd...>
+# Helper for calling external commands: runs <cmd...>, capturing its stdout
+# and stderr separately. On success, the captured stdout is forwarded to our
+# own stdout (so the helper also works inside `$(...)`) and stderr is
+# discarded. On failure, nothing is forwarded; instead, a single log entry
+# "<description> (exit <rc>: <cmd...>)" is written at the given level (via
+# logi/logw/loge), followed by the last RUN_LOGGED_MAX_LINES lines of each
+# non-empty stream as indented continuation lines. Always returns the
+# command's exit code, so callers keep full control over the failure path.
+RUN_LOGGED_MAX_LINES=50
+
+run_logged() {
+  local component="$1" level="$2" description="$3"; shift 3
+  local out err rc=0 msg
+  out="$(mktemp)"
+  err="$(mktemp)"
+  "$@" > "$out" 2> "$err" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    cat "$out"
+  else
+    msg="$description (exit $rc: $*)"
+    msg+="$(format_captured_stream stdout "$out")"
+    msg+="$(format_captured_stream stderr "$err")"
+    "log$level" "$component" "$msg"
+  fi
+  rm -f "$out" "$err"
+  return "$rc"
+}
+
+format_captured_stream() { # format_captured_stream <name> <file> ; newline-prefixed indented block, empty if the stream was empty
+  local name="$1" file="$2" total note=""
+  [ -s "$file" ] || return 0
+  total="$(awk 'END { print NR }' "$file")"
+  if [ "$total" -gt "$RUN_LOGGED_MAX_LINES" ]; then
+    note=" (truncated, showing last $RUN_LOGGED_MAX_LINES of $total lines)"
+  fi
+  printf '\n    %s:%s\n' "$name" "$note"
+  tail -n "$RUN_LOGGED_MAX_LINES" "$file" | sed 's/^/      | /'
+}
+
 # --- global config (observed repos + global on/off) ---------------------
 # Hand-rolled minimal TOML subset (see doc/development/autogit.md
 # Architecture): only our own canonical output is guaranteed parseable.
@@ -200,7 +240,7 @@ require_git_repo() {
 
 resolve_repo_arg() { # resolve_repo_arg <path> ; resolves <path> (relative or absolute) to its git repo toplevel
   local path="$1" repo
-  repo="$(git -C "$path" rev-parse --show-toplevel 2>/dev/null)" || { loge "cli" "not a git repository: $path"; echo "error: not a git repository: $path" 1>&2; exit 1; }
+  repo="$(run_logged "cli" e "not a git repository: $path" git -C "$path" rev-parse --show-toplevel)" || { echo "error: not a git repository: $path" 1>&2; exit 1; }
   printf '%s\n' "$repo"
 }
 

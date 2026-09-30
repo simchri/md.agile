@@ -964,6 +964,7 @@ users don't have to think about it. Design plan: see
 
 - [x] logging
   - [x] weekly log rotation (deferred from scaffolding task)
+  - [x] `run_logged` helper for external commands: failing commands' captured stdout/stderr (last 50 lines each) are appended to the logged error message
 
 - [ ] safety guards / hardening
   - [x] shared git-operation timeout (5s) wrapper used by fetch and push

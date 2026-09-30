@@ -49,6 +49,46 @@ loge() { # log "error" (always echoed to stderr, colored)
   printf "${RED}ERROR${DEFAULT}   %s\n" "$2" 1>&2
 }
 
+# run_logged <component> <level: i|w|e> <description> <cmd...>
+# Helper for calling external commands: runs <cmd...>, capturing its stdout
+# and stderr separately. On success, the captured stdout is forwarded to our
+# own stdout (so the helper also works inside `$(...)`) and stderr is
+# discarded. On failure, nothing is forwarded; instead, a single log entry
+# "<description> (exit <rc>: <cmd...>)" is written at the given level (via
+# logi/logw/loge), followed by the last RUN_LOGGED_MAX_LINES lines of each
+# non-empty stream as indented continuation lines. Always returns the
+# command's exit code, so callers keep full control over the failure path.
+RUN_LOGGED_MAX_LINES=50
+
+run_logged() {
+  local component="$1" level="$2" description="$3"; shift 3
+  local out err rc=0 msg
+  out="$(mktemp)"
+  err="$(mktemp)"
+  "$@" > "$out" 2> "$err" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    cat "$out"
+  else
+    msg="$description (exit $rc: $*)"
+    msg+="$(format_captured_stream stdout "$out")"
+    msg+="$(format_captured_stream stderr "$err")"
+    "log$level" "$component" "$msg"
+  fi
+  rm -f "$out" "$err"
+  return "$rc"
+}
+
+format_captured_stream() { # format_captured_stream <name> <file> ; newline-prefixed indented block, empty if the stream was empty
+  local name="$1" file="$2" total note=""
+  [ -s "$file" ] || return 0
+  total="$(awk 'END { print NR }' "$file")"
+  if [ "$total" -gt "$RUN_LOGGED_MAX_LINES" ]; then
+    note=" (truncated, showing last $RUN_LOGGED_MAX_LINES of $total lines)"
+  fi
+  printf '\n    %s:%s\n' "$name" "$note"
+  tail -n "$RUN_LOGGED_MAX_LINES" "$file" | sed 's/^/      | /'
+}
+
 notify() { # notify <title> <message> ; best-effort, never fails the cycle.
   # Log output/notification publishing is assumed to work (not unit tested).
   command -v notify-send >/dev/null 2>&1 && notify-send "$1" "$2" >/dev/null 2>&1
@@ -240,8 +280,7 @@ run_validation() { # run_validation <repo> ; 0 if all configured commands pass (
     [ -n "$cmd" ] || { i=$((i + 1)); continue; }
     t="${timeouts[$i]:-120}"
     [ -n "$t" ] || t=120
-    if ! (cd "$repo" && timeout "$t" bash -c "$cmd") >/dev/null 2>&1; then
-      logw "daemon" "$repo: validation command failed or timed out: $cmd"
+    if ! (cd "$repo" && run_logged "daemon" w "$repo: validation command failed or timed out: $cmd" timeout "$t" bash -c "$cmd") >/dev/null; then
       return 1
     fi
     i=$((i + 1))
@@ -294,14 +333,14 @@ render_commit_message() { # render_commit_message <repo> ; applies commit_messag
 stage_and_commit() { # stage_and_commit <repo> <stage_untracked>
   local repo="$1" stage_untracked="$2"
   if [ "$stage_untracked" = "true" ]; then
-    git -C "$repo" add -A
+    run_logged "daemon" e "$repo: git add failed" git -C "$repo" add -A || return 1
   else
-    git -C "$repo" add -u
+    run_logged "daemon" e "$repo: git add failed" git -C "$repo" add -u || return 1
   fi
   if git -C "$repo" diff --cached --quiet; then
     return 0
   fi
-  git -C "$repo" commit -q -m "$(render_commit_message "$repo")"
+  run_logged "daemon" e "$repo: git commit failed" git -C "$repo" commit -q -m "$(render_commit_message "$repo")" || return 1
   logi "daemon" "$repo: committed local changes"
 }
 
@@ -312,11 +351,16 @@ conflict_resolution() { # conflict_resolution <repo>
   name="$(basename "$repo")"
   ts="$(date +%Y%m%dT%H%M%S)"
   backup_ref="autogit-backup/$name/$ts"
-  git -C "$repo" branch "$backup_ref" HEAD
+  # Never reset without a successful backup: bail out (repo left untouched,
+  # retried next cycle) if the backup branch or stash can't be created.
+  run_logged "daemon" e "$repo: merge conflict, but creating backup branch $backup_ref failed — repo left untouched" \
+    git -C "$repo" branch "$backup_ref" HEAD || return 1
   if [ -n "$(git -C "$repo" status --porcelain)" ]; then
-    git -C "$repo" stash push -u -m "autogit backup: $repo $ts" >/dev/null 2>&1 || true
+    run_logged "daemon" e "$repo: merge conflict, but stashing uncommitted changes failed — repo left untouched" \
+      git -C "$repo" stash push -u -m "autogit backup: $repo $ts" > /dev/null || return 1
   fi
-  git -C "$repo" reset -q --hard '@{u}'
+  run_logged "daemon" e "$repo: merge conflict, but resetting to upstream failed (local history is on backup branch $backup_ref)" \
+    git -C "$repo" reset -q --hard '@{u}' || return 1
   loge "daemon" "$repo: merge conflict — local history moved to backup branch $backup_ref, repo reset to upstream"
   notify "autogit: conflict in $repo" \
     "Local history preserved on branch $backup_ref (and a stash entry if uncommitted changes existed). Repo was reset to upstream. Run 'git -C $repo branch --list autogit-backup/*' or 'git -C $repo stash list' to recover."
@@ -333,7 +377,7 @@ prune_backup_branches() { # prune_backup_branches <repo> ; deletes autogit-backu
     branch_epoch="$(date -u -d "${ts:0:8} ${ts:9:2}:${ts:11:2}:${ts:13:2}" +%s 2>/dev/null)" || continue
     age_days=$(( (now - branch_epoch) / 86400 ))
     if [ "$age_days" -ge "$retention_days" ]; then
-      if git -C "$repo" branch -D "$branch" >/dev/null 2>&1; then
+      if run_logged "daemon" w "$repo: failed to delete expired backup branch $branch" git -C "$repo" branch -D "$branch" > /dev/null; then
         logi "daemon" "$repo: pruned expired backup branch $branch (age ${age_days}d >= retention ${retention_days}d)"
       fi
     fi
@@ -345,19 +389,19 @@ prune_backup_branches() { # prune_backup_branches <repo> ; deletes autogit-backu
 reconcile() { # reconcile <repo>
   local repo="$1"
   if git -C "$repo" merge-base --is-ancestor HEAD '@{u}' 2>/dev/null; then
-    git -C "$repo" merge -q --ff-only '@{u}'
+    run_logged "daemon" e "$repo: fast-forward to upstream failed" git -C "$repo" merge -q --ff-only '@{u}' > /dev/null || return 1
     return 0
   fi
-  if git -C "$repo" rebase '@{u}' >/dev/null 2>&1; then
+  if run_logged "daemon" i "$repo: rebase onto upstream failed, falling back to merge" git -C "$repo" rebase '@{u}' > /dev/null; then
     logi "daemon" "$repo: rebased local commits onto upstream"
     return 0
   fi
-  git -C "$repo" rebase --abort >/dev/null 2>&1 || true
-  if git -C "$repo" merge -q --no-edit '@{u}' >/dev/null 2>&1; then
+  run_logged "daemon" w "$repo: git rebase --abort failed" git -C "$repo" rebase --abort > /dev/null || true
+  if run_logged "daemon" w "$repo: merge of upstream failed, falling back to conflict resolution" git -C "$repo" merge -q --no-edit '@{u}' > /dev/null; then
     logi "daemon" "$repo: merged upstream (no conflicts)"
     return 0
   fi
-  git -C "$repo" merge --abort >/dev/null 2>&1 || true
+  run_logged "daemon" w "$repo: git merge --abort failed" git -C "$repo" merge --abort > /dev/null || true
   conflict_resolution "$repo"
 }
 
@@ -383,8 +427,7 @@ sync_one_repo() { # sync_one_repo <repo>
   prune_backup_branches "$repo"
 
   # 3. fetch (read-only, 5s timeout)
-  if ! git_timeout "$repo" fetch --quiet; then
-    loge "daemon" "$repo: git fetch failed or timed out"
+  if ! run_logged "daemon" e "$repo: git fetch failed or timed out" git_timeout "$repo" fetch --quiet > /dev/null; then
     return 0
   fi
 
@@ -417,8 +460,7 @@ sync_one_repo() { # sync_one_repo <repo>
   clear_failure_state "$repo"
 
   # 7. push (never --force, 5s timeout)
-  if ! git_timeout "$repo" push --quiet; then
-    loge "daemon" "$repo: git push failed or timed out"
+  if ! run_logged "daemon" e "$repo: git push failed or timed out" git_timeout "$repo" push --quiet > /dev/null; then
     return 0
   fi
 
@@ -441,8 +483,7 @@ sync_all_repos() {
   mapfile -t repos < <(global_read_repos)
   for repo in "${repos[@]:-}"; do
     [ -n "$repo" ] || continue
-    if ! git -C "$repo" rev-parse --git-dir >/dev/null 2>&1; then
-      logw "daemon" "$repo: not a git repository, skipping"
+    if ! run_logged "daemon" w "$repo: not a git repository, skipping" git -C "$repo" rev-parse --git-dir > /dev/null; then
       continue
     fi
     # Guarded as the condition of `if`: this suspends `set -e` for the

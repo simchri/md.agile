@@ -5,7 +5,9 @@
 # global config (bypassing the `autogit` CLI, since these tests exercise the
 # daemon's own config reading), then runs `autogit-daemon --once` and
 # inspects the resulting git state. Log output/notification publishing is
-# assumed to work and is intentionally not asserted on (see autogit.bats).
+# assumed to work and is intentionally not asserted on (see autogit.bats),
+# except for the "error logging" tests, which check that a failing external
+# command's captured stdout/stderr is recorded in the log.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -292,3 +294,63 @@ commit_message_template = \"[TEST-TEMPLATE] {summary}\"
 }
 
 
+
+# --- error logging: external command output is recorded -------------------
+# Exception to the "logs are not asserted on" rule above: these tests check
+# that the captured stdout/stderr of a failing external command ends up in
+# the logged error message (run_logged helper).
+
+@test "error logging: failing validation command's stdout and stderr are recorded in the log" {
+  write_local_config "enabled = true
+validation_commands = [
+  \"echo STDOUT-MARKER-\$((40+2)); echo STDERR-MARKER-\$((40+2)) 1>&2; false\",
+]
+validation_timeouts = [
+  \"5\",
+]"
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  log="$(cat "$AUTOGIT_LOG_DIR"/daemon-*.log)"
+  [[ "$log" == *"validation command failed"* ]]
+  # markers are computed at runtime so they can't match the (also logged)
+  # command text itself
+  [[ "$log" == *"STDOUT-MARKER-42"* ]]
+  [[ "$log" == *"STDERR-MARKER-42"* ]]
+}
+
+@test "error logging: failing git push's stderr is recorded in the log" {
+  mkdir -p "$REMOTE/hooks"
+  printf '#!/bin/sh\necho PUSH-REJECTED-BY-HOOK-MARKER 1>&2\nexit 1\n' > "$REMOTE/hooks/pre-receive"
+  chmod +x "$REMOTE/hooks/pre-receive"
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  log="$(cat "$AUTOGIT_LOG_DIR"/daemon-*.log)"
+  [[ "$log" == *"git push failed"* ]]
+  [[ "$log" == *"PUSH-REJECTED-BY-HOOK-MARKER"* ]]
+}
+
+@test "error logging: captured output is truncated to the last 50 lines per stream" {
+  write_local_config "enabled = true
+validation_commands = [
+  \"for i in \$(seq 1 100); do echo OUT-LINE-\$i; done; false\",
+]
+validation_timeouts = [
+  \"5\",
+]"
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  log="$(cat "$AUTOGIT_LOG_DIR"/daemon-*.log)"
+  [[ "$log" == *"OUT-LINE-100"* ]]
+  [[ "$log" == *"OUT-LINE-51"* ]]
+  [ -z "$(grep 'OUT-LINE-50$' <<< "$log")" ]
+  [[ "$log" == *"truncated"* ]]
+}

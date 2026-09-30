@@ -2,7 +2,9 @@
 # Scaffolding tests: only check that the placeholder daemon script runs
 # (autogit-daemon has no real functionality yet), plus the actual `autogit`
 # CLI behavior implemented so far (config writing + status printing). Log
-# output/publishing is assumed to work and is intentionally not asserted on.
+# output/publishing is assumed to work and is intentionally not asserted on,
+# except for the "error logging" test, which checks that a failing external
+# command's captured stdout/stderr is recorded in the log.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -156,4 +158,14 @@ setup() {
   run bash -c "cd '$REPO' && '$AUTOGIT_BIN' status"
   [ "$status" -eq 0 ]
   [[ "$output" == *"warning: repo is in an abnormal git state (detached HEAD)"* ]]
+}
+
+@test "error logging: autogit add on a non-git path records git's stderr in the log" {
+  run "$AUTOGIT_BIN" add "$BATS_TEST_TMPDIR"
+  [ "$status" -ne 0 ]
+
+  log="$(cat "$AUTOGIT_LOG_DIR"/cli-*.log)"
+  [[ "$log" == *"not a git repository: $BATS_TEST_TMPDIR"* ]]
+  [[ "$log" == *"stderr:"* ]]
+  [[ "$log" == *"fatal:"* ]]
 }

@@ -76,6 +76,7 @@ autogit on/off
 - log to /tmp/autogit/
 - time stamped log files, one per day. Rotate every week: log files older than `AUTOGIT_LOG_RETENTION_DAYS` (env var, default 7) are deleted once per sync cycle; set to an empty string to disable rotation
 - use log helpers (c.f. snippets.bash)
+- external commands whose failure is an error (not mere boolean probes) are run through the `run_logged` helper: on failure, the logged message includes the exit code, the command line, and the command's captured stdout/stderr (last 50 lines of each stream, indented under the log entry)
 
 ## What it actually does - sync loop
 proposed per-repo cycle order, run each poll interval:
@@ -101,6 +102,7 @@ proposed per-repo cycle order, run each poll interval:
   - create a timestamped backup branch/ref at the current local `HEAD` (e.g. `autogit-backup/<repo>/<timestamp>`), preserving all local commits reachable from it — this replaces relying on `git stash` for already-committed work, since stash cannot capture a range of commits, only uncommitted working-tree/index changes
   - this backup branch is local-only and is never pushed to the remote
   - hard-reset the current branch to the fetched remote ref
+  - if creating the backup branch (or the stash, see below) fails, the hard reset is never performed: the error (incl. git's output) is logged and the repo is left untouched, to be retried next cycle
   - if there were also uncommitted working-tree changes at the time of the reset (on top of the now-backed-up commits), those are captured with `git stash` as before, with an identifiable message (repo path + timestamp) so `git stash list` remains usable even if the user has their own unrelated stash entries
   - inform the user about the situation, including how to inspect/recover the backup branch and any stash entry
     - system notification
