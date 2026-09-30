@@ -909,6 +909,56 @@ new:
 
 #MILESTONE: LSP 2.0
 
+## Auto-Git
+
+With the command
+```
+autogit on
+```
+Enable automatic synchronization of the current repo via git. 
+
+### Architecture
+- new indpendent (debian) package 
+- bins:
+  - systemd service global for the current user, started on log in
+  - script to set configuration options (command `autogit`)
+- has a configuration file with observed repositories
+  - a new repo to observe is added, by adding the path to the global config file
+  - global config file path: ...
+- additional configuration files per repository
+  - local config file name: ...
+- config format is toml
+- auto-git actions are typically based on sleep cycles ("polling")
+- any config file is re-read before autogit does any action
+- technology: Either script is just "bash" for max compatibility
+- consider autogit a largely independent project (but keep it in this repository and package it alongside mdagile, for convenience and good integration)
+
+### Other command line actions 
+
+set an option value for the current repo:
+```
+autogit set <option> <value>
+```
+Print status of autogit (can be called anywhere). Lists all relevant config info and whether the systemd is running or not
+Output has to sections
+First section: global status
+Second section: local status (this repo)
+```
+autogit status
+```
+Turn autogit off for the current repo (remove entry from global config file
+```
+autogit off
+```
+
+### Local Configurations
+
+- validation commands
+  list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass)
+
+
+#MILESTONE: Mdagile autogit
+
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
 - [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
