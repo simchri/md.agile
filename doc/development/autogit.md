@@ -68,10 +68,7 @@ autogit on/off
 - validation failure notification threshold (default: 5 minutes) — only surface a user-visible notification once validation commands have been failing continuously for at least this long; failures shorter than this are logged only (not notified), to avoid noise from brief/transient failures. Configurable per repo
 - backup branch retention (in days, optional, default: unset/never) — if set, automatically delete `autogit-backup/*` branches (see Conflict Resolution) older than this many days. If unset, backup branches are never automatically deleted
 
-- auto pull push on / off (default: on)
-- auto commit on / off    (default: on)
-The idea is that we enable a partial-automation mode where the user commits, but the tool takes care of pushing and pulling
-TODO: spec this out how it could work in the loop
+- **Discarded idea: independent "auto commit on/off" + "auto pull push on/off" toggles.** Considered allowing a partial-automation mode where the user commits manually but autogit still handles fetch/reconcile/push. Discarded: the Conflict Resolution strategy's "aggressively discard local work onto a backup branch" tradeoff is only acceptable because the discarded commits are autogit's own frequently-generated, cheap-to-replace commits (see "accepted tradeoff" below, mitigated by short polling intervals). In manual-commit mode, the commits being reconciled/potentially discarded would be user-authored — possibly representing significant hand-written work accumulated across many manual commits between polls — so the same "~1 minute at risk" mitigation no longer holds, and silently resetting user commits onto a backup branch is not acceptable. This would also fragment the sync loop (which step runs depends on which toggle is on) and the Commit Message Strategy (which assumes autogit authors every commit) for comparatively little benefit. Kept as a single combined on/off per repo instead (see "on / off state" above)
 
 ## logging
 - log to /tmp/autogit/
