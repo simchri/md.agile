@@ -915,10 +915,10 @@ With the command
 ```
 autogit add .
 ```
-Enable automatic synchronization of the current repo via git. 
+Enable automatic synchronization of the current repo via git.
 
 ### Architecture
-- new indpendent (debian) package 
+- new indpendent (debian) package
 - bins:
   - systemd service global for the current user, started on log in
   - script to set configuration options (command `autogit`)
@@ -933,7 +933,7 @@ Enable automatic synchronization of the current repo via git.
 - technology: Either script is just "bash" for max compatibility
 - consider autogit a largely independent project (but keep it in this repository and package it alongside mdagile, for convenience and good integration)
 
-### Other command line actions 
+### Other command line actions
 
 set an option value for the current repo:
 ```
@@ -952,7 +952,7 @@ Second section: local status (this repo)
 ```
 autogit status
 ```
-Turn autogit off for the current repo (remove entry from global config file
+Turn autogit off for the current repo (remove entry from global config file. Do not delete the local config. Show info message similar to "auto-git off for current repo. Config file .. retained. If you permanently want to un-manage this repo, you can delete this file now."
 ```
 autogit remove .
 ```
@@ -971,8 +971,16 @@ autogit on/off
 - validation commands
   list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass)
 
+### logging
+- log to /tmp/autogit/
+- time stamped log files, one per day. Rotate every week
+
 ### What it actually does - sync loop
 ...
+
+### tasks
+- [ ] scaffolding
+  - [ ]
 
 #MILESTONE: Mdagile autogit
 
