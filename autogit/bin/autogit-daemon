@@ -13,34 +13,34 @@ set -euo pipefail
 AUTOGIT_LOG_DIR="${AUTOGIT_LOG_DIR:-/tmp/autogit}"
 AUTOGIT_VERBOSE="${AUTOGIT_VERBOSE:-0}"
 
-autogit_log_line() { # autogit_log_line <component> <level> <message>
+log_line() { # log_line <component> <level> <message>
   local component="$1" level="$2" message="$3"
   mkdir -p "$AUTOGIT_LOG_DIR"
   local file="$AUTOGIT_LOG_DIR/${component}-$(date +%F).log"
   printf '%s [%s] %-7s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$component" "$level" "$message" >> "$file"
 }
 
-autogit_loga() { # log "always" (also echoed to stderr unconditionally)
-  autogit_log_line "$1" "ALWAYS" "$2"
+loga() { # log "always" (also echoed to stderr unconditionally)
+  log_line "$1" "ALWAYS" "$2"
   printf '%s\n' "$2" 1>&2
 }
 
-autogit_logi() { # log "info" (only echoed to stderr if AUTOGIT_VERBOSE=1)
-  autogit_log_line "$1" "INFO" "$2"
+logi() { # log "info" (only echoed to stderr if AUTOGIT_VERBOSE=1)
+  log_line "$1" "INFO" "$2"
   if [[ "$AUTOGIT_VERBOSE" == 1 ]]; then
     printf 'INFO    %s\n' "$2" 1>&2
   fi
 }
 
-autogit_logw() { # log "warning" (always echoed to stderr, colored)
+logw() { # log "warning" (always echoed to stderr, colored)
   local YELLOW='\033[0;33m' DEFAULT='\033[0m'
-  autogit_log_line "$1" "WARNING" "$2"
+  log_line "$1" "WARNING" "$2"
   printf "${YELLOW}WARNING${DEFAULT} %s\n" "$2" 1>&2
 }
 
-autogit_loge() { # log "error" (always echoed to stderr, colored)
+loge() { # log "error" (always echoed to stderr, colored)
   local RED='\033[0;31m' DEFAULT='\033[0m'
-  autogit_log_line "$1" "ERROR" "$2"
+  log_line "$1" "ERROR" "$2"
   printf "${RED}ERROR${DEFAULT}   %s\n" "$2" 1>&2
 }
 
@@ -51,9 +51,9 @@ if [[ "${1:-}" == "--once" ]]; then
   once=1
 fi
 
-autogit_logi "daemon" "autogit daemon started"
+logi "daemon" "autogit daemon started"
 while true; do
-  autogit_logi "daemon" "heartbeat"
+  logi "daemon" "heartbeat"
   if [[ "$once" == "1" ]]; then
     break
   fi
