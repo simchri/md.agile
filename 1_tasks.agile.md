@@ -987,6 +987,16 @@ autogit on/off
   - [ ] bats script testing integrated with `make test`
   - [ ] packaging flow integrated with `make install`
 
+- [ ] command auto-git
+  - [ ] config file writing
+    - [ ] gobal config
+      - [ ] add repo
+      - [ ] remove repo
+      - [ ] global on-off
+    - [ ] local config
+  - [ ] status printing
+    ... 
+
 #MILESTONE: Mdagile autogit
 
 ## Neighbor Tasks / Branch Properties / Workflows
