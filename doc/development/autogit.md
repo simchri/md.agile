@@ -68,6 +68,11 @@ autogit on/off
 - validation failure notification threshold (default: 5 minutes) — only surface a user-visible notification once validation commands have been failing continuously for at least this long; failures shorter than this are logged only (not notified), to avoid noise from brief/transient failures. Configurable per repo
 - backup branch retention (in days, optional, default: unset/never) — if set, automatically delete `autogit-backup/*` branches (see Conflict Resolution) older than this many days. If unset, backup branches are never automatically deleted
 
+- auto pull push on / off (default: on)
+- auto commit on / off    (default: on)
+The idea is that we enable a partial-automation mode where the user commits, but the tool takes care of pushing and pulling
+TODO: spec this out how it could work in the loop
+
 ## logging
 - log to /tmp/autogit/
 - time stamped log files, one per day. Rotate every week
