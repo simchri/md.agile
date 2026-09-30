@@ -913,7 +913,7 @@ new:
 
 With the command
 ```
-autogit on
+autogit add .
 ```
 Enable automatic synchronization of the current repo via git. 
 
@@ -942,20 +942,37 @@ autogit set <option> <value>
 Print status of autogit (can be called anywhere). Lists all relevant config info and whether the systemd is running or not
 Output has to sections
 First section: global status
+- show global on/off status
+- show warning if problem with systemd service
+- show list of observed repos
 Second section: local status (this repo)
+- only if current dir is a registered repo
+- repo is currently on/off
+- show warning if the current repo local setting is "on" but does not appear in the global config list. User can fix this with `autogit add .`
 ```
 autogit status
 ```
 Turn autogit off for the current repo (remove entry from global config file
 ```
-autogit off
+autogit remove .
 ```
+Turn autogit on/off globally:
+```
+autogit on/off
+```
+
+### Global configurations
+- list of observed repositories
+- globally on / off
 
 ### Local Configurations
 
+- on / off state (is auto-git currently turned on for this repo)
 - validation commands
   list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass)
 
+### What it actually does - sync loop
+...
 
 #MILESTONE: Mdagile autogit
 
