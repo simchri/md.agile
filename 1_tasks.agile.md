@@ -1022,15 +1022,17 @@ options considered (or offer as a config setting):
 - **D. Templated, including machine identity**: combine timestamp + hostname (useful for multi-machine setups when debugging who/what synced) + one of the above, configurable via local config (e.g. `commit_message_template`)
 - **E. Keyword extraction (retained option)**: naive bash-only term-frequency heuristic over the changed lines of the diff, no external dependencies (fits "bash, max compatibility"):
   ```bash
+  STOPWORDS="the fn let pub use def import return if else for while class impl struct enum mod pub(crate) const static mut self"
+
   git diff --cached -U0 -- . \
     | grep -E '^[+-][^+-]' \
     | grep -oE '[A-Za-z_][A-Za-z0-9_]{2,}' \
-    | grep -vixFf stopwords.txt \
+    | grep -vixwFf <(tr ' ' '\n' <<< "$STOPWORDS") \
     | sort | uniq -c | sort -rn | head -5
   ```
   - `-U0` + `^[+-]` isolates changed lines only (not context)
   - `grep -oE` tokenizes identifiers/words
-  - a small hand-maintained `stopwords.txt` filters common language noise (`the`, `fn`, `let`, `pub`, `use`, `def`, `import`, `return`, etc.) — kept language-agnostic since repos vary
+  - the stopword list is embedded directly in the script (a `STOPWORDS` variable), not a separate file — no extra file to ship/read/keep in sync; filters common language noise, kept language-agnostic since repos vary
   - top N most-frequent surviving tokens become the "keywords" appended to the commit message (e.g. combined with C: `autogit: 3 files changed (+42/-7) [parser, rule, checker]`)
   - caveats: crude (no stemming/no real relevance weighting, biased toward long, frequently-repeated identifiers); a real TF-IDF/NLP approach would need extra dependencies (e.g. Python), against the bash-only architecture goal
   - **this is the retained option** for the initial implementation
