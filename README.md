@@ -118,7 +118,8 @@ agile file       # Show all task files in priority order (alias: agile files)
 
 ### Get Next Task
 ```bash
-agile task next        # Print the next incomplete task (same as `agile` with no editor)
+agile task next        # Print the next incomplete (sub)task 
+agile task next --mine # Print my next (sub)task (c.f. assignments / eligibility)
 agile task show 2.1    # Alias for `task next`; print one specific (sub)task by address
 ```
 
