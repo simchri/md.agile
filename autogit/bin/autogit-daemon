@@ -261,14 +261,8 @@ has_changes() { # has_changes <repo> <stage_untracked: true|false>
 # list) combined with option C (diffstat summary), as the retained default.
 COMMIT_MESSAGE_STOPWORDS="the fn let pub use def import return if else for while class impl struct enum mod pub(crate) const static mut self"
 
-commit_message_summary() { # commit_message_summary <repo> ; e.g. "3 files changed (+42/-7) [parser, rule, checker]"
-  local repo="$1" stat files ins del file_word keywords msg
-  stat="$(git -C "$repo" diff --cached --shortstat)"
-  files="$(printf '%s' "$stat" | grep -oE '[0-9]+ files? changed' | grep -oE '^[0-9]+')"; files="${files:-0}"
-  ins="$(printf '%s' "$stat" | grep -oE '[0-9]+ insertions?\(\+\)' | grep -oE '^[0-9]+')"; ins="${ins:-0}"
-  del="$(printf '%s' "$stat" | grep -oE '[0-9]+ deletions?\(-\)' | grep -oE '^[0-9]+')"; del="${del:-0}"
-  file_word="files"
-  [ "$files" -eq 1 ] && file_word="file"
+commit_message_summary() { # commit_message_summary <repo> ; e.g. "parser, rule, checker"
+  local repo="$1" keywords
 
   keywords="$(git -C "$repo" diff --cached -U0 -- . \
     | grep -E '^[+-][^+-]' \
@@ -277,9 +271,7 @@ commit_message_summary() { # commit_message_summary <repo> ; e.g. "3 files chang
     | sort | uniq -c | sort -rn | head -5 \
     | awk '{print $2}' | paste -sd ', ' - 2>/dev/null)"
 
-  msg="$files $file_word changed (+$ins/-$del)"
-  [ -z "$keywords" ] || msg="$msg [$keywords]"
-  printf '%s' "$msg"
+  printf '%s' "$keywords"
 }
 
 render_commit_message() { # render_commit_message <repo> ; applies commit_message_template ({summary}/{timestamp}/{hostname}), default "autogit: {summary}"

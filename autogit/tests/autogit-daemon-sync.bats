@@ -226,7 +226,7 @@ backup_branch_retention_days = 14
   [ -n "$old_listing" ]
 }
 
-@test "commit message strategy: default message includes diffstat and extracted keywords" {
+@test "commit message strategy: default message includes extracted keywords only (no diffstat)" {
   cat > "$REPO/tracked.txt" <<'EOF'
 fn calculate_widget_total() {
     let widget_count = 42;
@@ -239,8 +239,10 @@ EOF
 
   subject="$(git -C "$REPO" log -1 --format=%s)"
   echo "commit subject: $subject" >&2
-  [[ "$subject" == "autogit: "*"file changed"* ]]
+  [[ "$subject" == "autogit: "* ]]
   [[ "$subject" == *"widget"* ]]
+  [[ "$subject" != *"file changed"* ]]
+  [[ "$subject" != *"files changed"* ]]
 }
 
 @test "commit message strategy: commit_message_template config is honored" {
@@ -255,6 +257,8 @@ commit_message_template = \"[TEST-TEMPLATE] {summary}\"
 
   subject="$(git -C "$REPO" log -1 --format=%s)"
   echo "commit subject: $subject" >&2
-  [[ "$subject" == "[TEST-TEMPLATE] "*"file changed"* ]]
+  [[ "$subject" == "[TEST-TEMPLATE] "* ]]
+  [[ "$subject" != *"file changed"* ]]
+  [[ "$subject" != *"files changed"* ]]
 }
 
