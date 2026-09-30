@@ -1,0 +1,132 @@
+# Auto-Git
+
+Planned feature: automatic synchronization of a git repo (commit, push, pull)
+so users don't have to think about it. Referenced from `tasks.agile.md`
+("Auto-Git" milestone); this document holds the design plan, the task list
+itself stays in `tasks.agile.md`.
+
+With the command
+```
+autogit add .
+```
+Enable automatic synchronization of the current repo via git.
+
+## Architecture
+- new indpendent (debian) package
+- bins:
+  - systemd service global for the current user, started on log in
+  - script to set configuration options (command `autogit`)
+- has a configuration file with observed repositories
+  - a new repo to observe is added, by adding the path to the global config file
+  - global config file path: ...
+- additional configuration files per repository
+  - local config file name: ...
+- config format is toml
+- auto-git actions are typically based on sleep cycles ("polling"); default poll interval is short (e.g. once per minute) — this is load-bearing for the Conflict Resolution strategy below, not just a performance choice
+- any relevant config file is re-read before autogit does any action
+- technology: Either script is just "bash" for max compatibility. No build required, only packaging. Bats for unit testing
+- consider autogit a largely independent project (but keep it in this repository and package it alongside mdagile, for convenience and good integration)
+
+## Other command line actions
+
+set an option value for the current repo:
+```
+autogit set <option> <value>
+```
+Print status of autogit (can be called anywhere). Lists all relevant config info and whether the systemd is running or not
+Output has to sections
+First section: global status
+- show global on/off status
+- show warning if problem with systemd service
+- show list of observed repos
+Second section: local status (this repo)
+- only if current dir is a registered repo
+- repo is currently on/off
+- show warning if the current repo local setting is "on" but does not appear in the global config list. User can fix this with `autogit add .`
+```
+autogit status
+```
+Turn autogit off for the current repo (remove entry from global config file. Do not delete the local config. Show info message similar to "auto-git off for current repo. Config file .. retained. If you permanently want to un-manage this repo, you can delete this file now."
+```
+autogit remove .
+```
+Turn autogit on/off globally:
+```
+autogit on/off
+```
+
+## Global configurations
+- list of observed repositories
+- globally on / off
+
+## Local Configurations
+
+- on / off state (is auto-git currently turned on for this repo)
+- validation commands
+  list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass)
+- stage untracked files (default: off) — if enabled, autogit stages new/untracked files too (`git add .`/`-A`) instead of the default tracked-files-only behavior (`git add -u`, see Safety Guards)
+
+## logging
+- log to /tmp/autogit/
+- time stamped log files, one per day. Rotate every week
+- use log helpers (c.f. snippets.bash)
+
+## What it actually does - sync loop
+proposed per-repo cycle order, run each poll interval:
+1. re-read local + global config
+2. skip this repo for this cycle if: globally off, locally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
+3. `git fetch` (read-only, always safe)
+4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order; only if all pass, stage (`git add -u` by default, or `git add .`/`-A` if opted in) and commit locally
+5. reconcile with the fetched remote:
+   - if a fast-forward is possible, fast-forward — no conflict handling needed
+   - otherwise apply the Conflict Resolution strategy below
+6. re-run validation commands once more after any pull/merge, before pushing — this guards against a "clean" local commit being combined with a broken remote state
+   - if validation now fails: do not push, log/notify, retry next cycle
+7. `git push` (never `--force` — see Safety Guards)
+8. log outcome, sleep until next poll
+
+## Conflict Resolution
+- if any conflict that would require a merge, the top-level strategy is:
+  - "discard" local changes, move them to the git stash
+  - pull the remote version and apply it
+  - inform the user about the situation
+    - system notification
+    - logging
+- this is intentional and applies even to already-committed local (autogit) commits, not just uncommitted working-tree changes: on divergence, local history is aggressively thrown away onto the stash rather than merged/rebased
+- accepted tradeoff: this is deliberately somewhat silent/lossy in the rare case where the stashed commits are never recovered. The mitigation is the short poll interval (see Architecture) — with an active network connection, at most one poll interval's worth of work (e.g. ~1 minute) is ever at risk of being stashed-and-forgotten. For that residual edge case, the stash itself is considered sufficient recovery
+
+## Safety Guards
+- never run `git push --force` (or any equivalent history-rewriting push), under any circumstance
+- always pull/reconcile with the remote before pushing, never the reverse
+- never add new/untracked files to version control by default: autogit only stages and commits changes (modifications/deletions) to files already tracked by git (`git add -u`, not `git add .`/`git add -A`). This can be overridden per-repo via the "stage untracked files" local config option; adding new files otherwise remains a deliberate, manual user action
+- before doing anything else in a cycle, detect and skip repos in an "abnormal" git state, warning instead of acting:
+  - detached HEAD
+  - mid-rebase / mid-merge / mid-cherry-pick / mid-bisect
+  - unborn branch (no commits yet)
+  - dirty/uninitialized submodules
+- these guards apply even if the repo is otherwise configured "on"; treat them as a hard stop for that cycle, not a one-off failure to retry blindly
+- accepted, out of scope: autogit acting concurrently with a user's own manual git usage (e.g. mid-way through staging/crafting a commit) may conflict or produce unexpected results. This is not specially guarded against; the mitigation is that the user can turn autogit off for the repo (`autogit remove .` / local on-off) whenever they want to do manual git work
+- autogit only ever operates on the current/checked-out branch (whatever it is at the time of a cycle) and never switches, creates, or manages branches itself; branch management (creating, switching, tracking upstream) is entirely the user's responsibility before/while autogit is on for a repo
+
+## Commit Message Strategy (draft options)
+options considered (or offer as a config setting):
+- **A. Fixed generic message**: e.g. `autogit: sync <timestamp>` — simplest, but produces a meaningless, repetitive history
+- **B. File list summary**: e.g. `autogit: update foo.rs, bar.md (+2 more)` — more informative, needs truncation for large changesets
+- **C. Diffstat summary**: e.g. `autogit: 3 files changed (+42/-7)` — compact, consistent length, no filename noise
+- **D. Templated, including machine identity**: combine timestamp + hostname (useful for multi-machine setups when debugging who/what synced) + one of the above, configurable via local config (e.g. `commit_message_template`)
+- **E. Keyword extraction (retained option)**: naive bash-only term-frequency heuristic over the changed lines of the diff, no external dependencies (fits "bash, max compatibility"):
+  ```bash
+  STOPWORDS="the fn let pub use def import return if else for while class impl struct enum mod pub(crate) const static mut self"
+
+  git diff --cached -U0 -- . \
+    | grep -E '^[+-][^+-]' \
+    | grep -oE '[A-Za-z_][A-Za-z0-9_]{2,}' \
+    | grep -vixwFf <(tr ' ' '\n' <<< "$STOPWORDS") \
+    | sort | uniq -c | sort -rn | head -5
+  ```
+  - `-U0` + `^[+-]` isolates changed lines only (not context)
+  - `grep -oE` tokenizes identifiers/words
+  - the stopword list is embedded directly in the script (a `STOPWORDS` variable), not a separate file — no extra file to ship/read/keep in sync; filters common language noise, kept language-agnostic since repos vary
+  - top N most-frequent surviving tokens become the "keywords" appended to the commit message (e.g. combined with C: `autogit: 3 files changed (+42/-7) [parser, rule, checker]`)
+  - caveats: crude (no stemming/no real relevance weighting, biased toward long, frequently-repeated identifiers); a real TF-IDF/NLP approach would need extra dependencies (e.g. Python), against the bash-only architecture goal
+  - **this is the retained option** for the initial implementation
