@@ -928,7 +928,7 @@ Enable automatic synchronization of the current repo via git.
 - additional configuration files per repository
   - local config file name: ...
 - config format is toml
-- auto-git actions are typically based on sleep cycles ("polling")
+- auto-git actions are typically based on sleep cycles ("polling"); default poll interval is short (e.g. once per minute) — this is load-bearing for the Conflict Resolution strategy below, not just a performance choice
 - any relevant config file is re-read before autogit does any action
 - technology: Either script is just "bash" for max compatibility. No build required, only packaging. Bats for unit testing
 - consider autogit a largely independent project (but keep it in this repository and package it alongside mdagile, for convenience and good integration)
@@ -998,6 +998,8 @@ proposed per-repo cycle order, run each poll interval:
   - inform the user about the situation
     - system notification
     - logging
+- this is intentional and applies even to already-committed local (autogit) commits, not just uncommitted working-tree changes: on divergence, local history is aggressively thrown away onto the stash rather than merged/rebased
+- accepted tradeoff: this is deliberately somewhat silent/lossy in the rare case where the stashed commits are never recovered. The mitigation is the short poll interval (see Architecture) — with an active network connection, at most one poll interval's worth of work (e.g. ~1 minute) is ever at risk of being stashed-and-forgotten. For that residual edge case, the stash itself is considered sufficient recovery
 
 ### Safety Guards
 - never run `git push --force` (or any equivalent history-rewriting push), under any circumstance
