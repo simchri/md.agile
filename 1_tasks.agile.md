@@ -928,14 +928,14 @@ users don't have to think about it. Design plan: see
     - [x] can log messages (same mechanism as systemd, but different log file)
       
 
-- [ ] command auto-git
-  - [ ] config file writing
-    - [ ] gobal config
-      - [ ] add repo
-      - [ ] remove repo
-      - [ ] global on-off
-    - [ ] local config
-  - [ ] status printing
+- [x] command auto-git
+  - [x] config file writing
+    - [x] gobal config
+      - [x] add repo
+      - [x] remove repo
+      - [x] global on-off
+    - [x] local config
+  - [x] status printing
     ... 
 
 - [ ] sync loop (core daemon logic, see "What it actually does - sync loop")

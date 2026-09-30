@@ -18,10 +18,11 @@ Enable automatic synchronization of the current repo via git.
   - script to set configuration options (command `autogit`)
 - has a configuration file with observed repositories
   - a new repo to observe is added, by adding the path to the global config file
-  - global config file path: ...
+  - global config file path: `${XDG_CONFIG_HOME:-$HOME/.config}/mdagile/autogit.toml` (per-user, matches the existing mdagile-gui settings.rs convention; overridable via `AUTOGIT_GLOBAL_CONFIG` for testing)
 - additional configuration files per repository
-  - local config file name: ...
+  - local config file name: `.autogit.toml`, at the repo root. Committed to git (team-shareable policy: validation commands, timeouts, etc.), separate from `mdagile.toml`'s own lifecycle
 - config format is toml
+  - parsed/written with a hand-rolled minimal bash subset (line-based `key = value`, plus a canonical multi-line array-of-strings form for the global repos list) rather than a real TOML library or an external CLI tool — keeps with the "bash, no build required" architecture goal. Only autogit's own canonical output is guaranteed parseable; arbitrary hand-written TOML is not fully supported
 - auto-git actions are typically based on sleep cycles ("polling"); default poll interval is short (e.g. once per minute) — this is load-bearing for the Conflict Resolution strategy below, not just a performance choice
 - any relevant config file is re-read before autogit does any action
 - technology: Either script is just "bash" for max compatibility. No build required, only packaging. Bats for unit testing

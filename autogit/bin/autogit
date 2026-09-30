@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# The `autogit` command line tool. Scaffolding scope: no useful
-# functionality yet — just a placeholder that prints a greeting and logs
-# that it was invoked (see doc/development/autogit.md).
+# The `autogit` command line tool: manages the global/local config files and
+# prints status (see doc/development/autogit.md). The actual sync-loop
+# daemon logic lives in autogit-daemon, not here.
 set -euo pipefail
 
 # Log level helpers, following the loga/logi/logw/loge pattern from
@@ -45,5 +45,260 @@ loge() { # log "error" (always echoed to stderr, colored)
   printf "${RED}ERROR${DEFAULT}   %s\n" "$2" 1>&2
 }
 
-echo "hello world"
-logi "cli" "autogit invoked: $*"
+# --- global config (observed repos + global on/off) ---------------------
+# Hand-rolled minimal TOML subset (see doc/development/autogit.md
+# Architecture): only our own canonical output is guaranteed parseable.
+#   enabled = true
+#   repos = [
+#     "/abs/path/one",
+#     "/abs/path/two",
+#   ]
+
+global_config_file() {
+  printf '%s\n' "${AUTOGIT_GLOBAL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/mdagile/autogit.toml}"
+}
+
+global_read_enabled() {
+  local f; f="$(global_config_file)"
+  if [ -f "$f" ] && grep -q '^enabled' "$f"; then
+    grep -m1 '^enabled' "$f" | sed -E 's/^enabled *= *//'
+  else
+    echo "true"
+  fi
+}
+
+global_read_repos() {
+  local f; f="$(global_config_file)"
+  [ -f "$f" ] || return 0
+  sed -n '/^repos = \[/,/^\]/p' "$f" | grep -oE '"[^"]*"' | sed 's/^"//; s/"$//'
+}
+
+global_repo_registered() { # global_repo_registered <path>
+  global_read_repos | grep -qxF "$1"
+}
+
+global_write() { # global_write <enabled> <repo1> <repo2> ...
+  local enabled="$1"; shift
+  local f; f="$(global_config_file)"
+  mkdir -p "$(dirname "$f")"
+  {
+    printf 'enabled = %s\n' "$enabled"
+    if [ "$#" -eq 0 ]; then
+      printf 'repos = []\n'
+    else
+      printf 'repos = [\n'
+      for repo in "$@"; do
+        printf '  "%s",\n' "$repo"
+      done
+      printf ']\n'
+    fi
+  } > "$f"
+}
+
+global_add_repo() { # global_add_repo <path>
+  local path="$1" enabled
+  enabled="$(global_read_enabled)"
+  mapfile -t repos < <(global_read_repos)
+  if ! printf '%s\n' "${repos[@]:-}" | grep -qxF "$path"; then
+    repos+=("$path")
+  fi
+  global_write "$enabled" "${repos[@]}"
+}
+
+global_remove_repo() { # global_remove_repo <path>
+  local path="$1" enabled kept=()
+  enabled="$(global_read_enabled)"
+  mapfile -t repos < <(global_read_repos)
+  for r in "${repos[@]:-}"; do
+    [ -n "$r" ] && [ "$r" != "$path" ] && kept+=("$r")
+  done
+  global_write "$enabled" "${kept[@]}"
+}
+
+global_set_enabled() { # global_set_enabled <true|false>
+  local value="$1"
+  mapfile -t repos < <(global_read_repos)
+  global_write "$value" "${repos[@]:-}"
+}
+
+# --- local config (per-repo on/off state) --------------------------------
+#   enabled = true
+
+local_config_file() {
+  local root
+  root="$(git rev-parse --show-toplevel)"
+  printf '%s/.autogit.toml\n' "$root"
+}
+
+local_read_enabled() {
+  local f; f="$(local_config_file)"
+  if [ -f "$f" ] && grep -q '^enabled' "$f"; then
+    grep -m1 '^enabled' "$f" | sed -E 's/^enabled *= *//'
+  else
+    echo "true"
+  fi
+}
+
+local_config_init_if_missing() {
+  local f; f="$(local_config_file)"
+  [ -f "$f" ] || printf 'enabled = true\n' > "$f"
+}
+
+local_set_enabled() { # local_set_enabled <true|false>
+  local value="$1" f
+  f="$(local_config_file)"
+  local_config_init_if_missing
+  sed -i "s/^enabled.*/enabled = $value/" "$f"
+}
+
+# --- systemd status (best-effort, silent if no user systemd session) ----
+
+systemd_warning() {
+  command -v systemctl >/dev/null 2>&1 || return 0
+  systemctl --user list-units >/dev/null 2>&1 || return 0
+  systemctl --user is-active --quiet autogit.service 2>/dev/null && return 0
+  echo "  warning: autogit systemd service is not active"
+}
+
+# --- current-repo helper --------------------------------------------------
+
+require_git_repo() {
+  git rev-parse --show-toplevel 2>/dev/null
+}
+
+require_dot_arg() { # require_dot_arg <arg>
+  if [ "$1" != "." ]; then
+    loge "cli" "expected '.' as argument, got: $1"
+    echo "error: expected '.' (the current repo), got: $1" 1>&2
+    exit 1
+  fi
+}
+
+# --- subcommands -----------------------------------------------------------
+
+cmd_add() {
+  require_dot_arg "${1:?usage: autogit add .}"
+  local repo
+  repo="$(require_git_repo)" || { loge "cli" "not inside a git repository"; echo "error: not inside a git repository" 1>&2; exit 1; }
+  global_add_repo "$repo"
+  local_config_init_if_missing
+  logi "cli" "registered repo: $repo"
+  echo "autogit: registered $repo"
+}
+
+cmd_remove() {
+  require_dot_arg "${1:?usage: autogit remove .}"
+  local repo lf
+  repo="$(require_git_repo)" || { loge "cli" "not inside a git repository"; echo "error: not inside a git repository" 1>&2; exit 1; }
+  global_remove_repo "$repo"
+  lf="$(local_config_file)"
+  logi "cli" "unregistered repo: $repo"
+  echo "auto-git off for current repo. Config file $lf retained. If you permanently want to un-manage this repo, you can delete this file now."
+}
+
+cmd_on() {
+  global_set_enabled true
+  logi "cli" "autogit turned on globally"
+  echo "autogit: on"
+}
+
+cmd_off() {
+  global_set_enabled false
+  logi "cli" "autogit turned off globally"
+  echo "autogit: off"
+}
+
+cmd_set() {
+  local option="${1:?usage: autogit set <option> <value>}" value="${2:?usage: autogit set <option> <value>}"
+  case "$option" in
+    enabled)
+      local repo
+      repo="$(require_git_repo)" || { loge "cli" "not inside a git repository"; echo "error: not inside a git repository" 1>&2; exit 1; }
+      local_set_enabled "$value"
+      logi "cli" "set $option=$value for $repo"
+      echo "autogit: set $option = $value for current repo"
+      ;;
+    *)
+      loge "cli" "unknown option: $option"
+      echo "error: unknown option: $option" 1>&2
+      exit 1
+      ;;
+  esac
+}
+
+cmd_status() {
+  local genabled
+  genabled="$(global_read_enabled)"
+  echo "Global status:"
+  if [ "$genabled" = "true" ]; then
+    echo "  auto-git: on"
+  else
+    echo "  auto-git: off"
+  fi
+  systemd_warning
+  mapfile -t repos < <(global_read_repos)
+  if [ "${#repos[@]}" -eq 0 ]; then
+    echo "  observed repos: (none)"
+  else
+    echo "  observed repos:"
+    for r in "${repos[@]}"; do
+      echo "    - $r"
+    done
+  fi
+
+  local repo
+  if repo="$(require_git_repo)"; then
+    echo ""
+    echo "Local status (this repo: $repo):"
+    local lenabled
+    lenabled="$(local_read_enabled)"
+    if [ "$lenabled" = "true" ]; then
+      echo "  auto-git: on"
+    else
+      echo "  auto-git: off"
+    fi
+    if [ "$lenabled" = "true" ] && ! global_repo_registered "$repo"; then
+      logw "cli" "local setting is 'on' but repo is not in the global config list"
+      echo "  warning: local setting is 'on' but this repo is not in the global config list. Run 'autogit add .' to fix."
+    fi
+  fi
+}
+
+print_usage() {
+  cat <<'USAGE'
+usage: autogit <command> [args]
+
+commands:
+  add .                register the current repo for auto-git (adds to global config)
+  remove .             turn auto-git off for the current repo (removes from global config; local config is retained)
+  set <option> <value> set a local (per-repo) config option, e.g. `autogit set enabled false`
+  on                    turn auto-git on globally
+  off                   turn auto-git off globally
+  status                print global + local (this repo) auto-git status
+USAGE
+}
+
+main() {
+  if [ "$#" -eq 0 ]; then
+    print_usage
+    exit 0
+  fi
+  local cmd="$1"; shift
+  case "$cmd" in
+    add) cmd_add "$@" ;;
+    remove) cmd_remove "$@" ;;
+    on) cmd_on "$@" ;;
+    off) cmd_off "$@" ;;
+    set) cmd_set "$@" ;;
+    status) cmd_status "$@" ;;
+    -h|--help|help) print_usage ;;
+    *)
+      loge "cli" "unknown command: $cmd"
+      echo "error: unknown command: $cmd" 1>&2
+      print_usage 1>&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
