@@ -979,6 +979,14 @@ autogit on/off
 ### What it actually does - sync loop
 ...
 
+### Conflict Resolution
+- if any conflict that would require a merge, the top-level strategy is:
+  - "discard" local changes, move them to the git stash
+  - pull the remote version and apply it
+  - inform the user about the situation
+    - system notification
+    - logging
+
 ### tasks
 - [ ] scaffolding - no useful functionality yet!
   - [ ] systemd file with script that only logs a message once per minute. Logging set up
