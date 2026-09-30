@@ -21,7 +21,8 @@ DIST_DIR="dist"
 STAGE_DIR="$DIST_DIR/stage"
 PKG_DIR="$STAGE_DIR/mdagile-autogit"
 
-for f in autogit/bin/autogit autogit/bin/autogit-daemon autogit/systemd/autogit.service; do
+for f in autogit/bin/autogit autogit/bin/autogit-daemon autogit/systemd/autogit.service \
+         autogit/packaging/postinst autogit/packaging/prerm; do
   if [ ! -e "$f" ]; then
     echo "error: expected autogit source file missing: $f" >&2
     exit 1
@@ -59,54 +60,8 @@ Maintainer: $MAINTAINER
 Description: automatic git commit/push/pull sync daemon for mdagile (scaffolding only, no real sync behavior yet)
 EOF
 
-# Best-effort: also start the service *now*, for whichever user actually ran
-# the install, instead of only waiting for their next login (the symlink
-# above already guarantees that fallback). If there's no live user session
-# to talk to yet (e.g. non-interactive install), this silently falls back
-# to "starts on next login" rather than failing the package install.
-cat > "$PKG_DIR/DEBIAN/postinst" <<'EOF'
-#!/bin/sh
-set -e
-
-target_user="${SUDO_USER:-$(logname 2>/dev/null || true)}"
-
-if [ -n "$target_user" ] && [ "$target_user" != "root" ]; then
-  target_uid="$(id -u "$target_user" 2>/dev/null || true)"
-  if [ -n "$target_uid" ] && su - "$target_user" -c \
-      "XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user daemon-reload && XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user enable --now autogit.service" \
-      >/dev/null 2>&1; then
-    echo "mdagile-autogit: started now for user '$target_user'."
-  else
-    echo "mdagile-autogit: could not start immediately (no active user session?); it will start automatically on next login."
-  fi
-else
-  echo "mdagile-autogit: installed. The service will start automatically on next user login."
-fi
-
-exit 0
-EOF
-chmod 755 "$PKG_DIR/DEBIAN/postinst"
-
-# Best-effort: stop the running user service before removal, so an
-# uninstall doesn't leave a daemon running with its unit file gone.
-cat > "$PKG_DIR/DEBIAN/prerm" <<'EOF'
-#!/bin/sh
-set -e
-
-target_user="${SUDO_USER:-$(logname 2>/dev/null || true)}"
-
-if [ -n "$target_user" ] && [ "$target_user" != "root" ]; then
-  target_uid="$(id -u "$target_user" 2>/dev/null || true)"
-  if [ -n "$target_uid" ]; then
-    su - "$target_user" -c \
-      "XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user stop autogit.service" \
-      >/dev/null 2>&1 || true
-  fi
-fi
-
-exit 0
-EOF
-chmod 755 "$PKG_DIR/DEBIAN/prerm"
+install -m 755 autogit/packaging/postinst "$PKG_DIR/DEBIAN/postinst"
+install -m 755 autogit/packaging/prerm "$PKG_DIR/DEBIAN/prerm"
 
 dpkg-deb --build --root-owner-group "$PKG_DIR" "$DIST_DIR/mdagile-autogit_${VERSION}_${ARCH}.deb"
 

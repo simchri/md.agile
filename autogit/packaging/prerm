@@ -1,0 +1,17 @@
+#!/bin/sh
+# Best-effort: stop the running user service before removal, so an
+# uninstall doesn't leave a daemon running with its unit file gone.
+set -e
+
+target_user="${SUDO_USER:-$(logname 2>/dev/null || true)}"
+
+if [ -n "$target_user" ] && [ "$target_user" != "root" ]; then
+  target_uid="$(id -u "$target_user" 2>/dev/null || true)"
+  if [ -n "$target_uid" ]; then
+    su - "$target_user" -c \
+      "XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user stop autogit.service" \
+      >/dev/null 2>&1 || true
+  fi
+fi
+
+exit 0

@@ -1,0 +1,25 @@
+#!/bin/sh
+# Best-effort: also start the service *now*, for whichever user actually ran
+# the install, instead of only waiting for their next login (the shipped
+# default.target.wants/autogit.service symlink already guarantees that
+# fallback). If there's no live user session to talk to yet (e.g.
+# non-interactive install), this silently falls back to "starts on next
+# login" rather than failing the package install.
+set -e
+
+target_user="${SUDO_USER:-$(logname 2>/dev/null || true)}"
+
+if [ -n "$target_user" ] && [ "$target_user" != "root" ]; then
+  target_uid="$(id -u "$target_user" 2>/dev/null || true)"
+  if [ -n "$target_uid" ] && su - "$target_user" -c \
+      "XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user daemon-reload && XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user enable --now autogit.service" \
+      >/dev/null 2>&1; then
+    echo "mdagile-autogit: started now for user '$target_user'."
+  else
+    echo "mdagile-autogit: could not start immediately (no active user session?); it will start automatically on next login."
+  fi
+else
+  echo "mdagile-autogit: installed. The service will start automatically on next user login."
+fi
+
+exit 0
