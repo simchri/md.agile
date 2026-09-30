@@ -3,17 +3,45 @@
 # just logs a heartbeat once a minute (see doc/development/autogit.md).
 set -euo pipefail
 
-# autogit_log <component> <message>
-# Intentionally duplicated (not shared via a lib) between autogit and
-# autogit-daemon: it's a handful of lines, and keeping each script
-# self-contained avoids needing an install-path lookup for a shared file.
+# Log level helpers, following the loga/logi/logw/loge pattern from
+# snippets.bash. Intentionally duplicated (not shared via a lib) between
+# autogit and autogit-daemon: it's a handful of lines, and keeping each
+# script self-contained avoids needing an install-path lookup for a shared
+# file. All levels always write to the log file; only INFO is additionally
+# gated behind AUTOGIT_VERBOSE for stderr output. WARNING/ERROR are also
+# echoed to stderr (colored), matching snippets.bash's logw/loge.
 AUTOGIT_LOG_DIR="${AUTOGIT_LOG_DIR:-/tmp/autogit}"
-autogit_log() {
-  local component="$1"
-  local message="$2"
+AUTOGIT_VERBOSE="${AUTOGIT_VERBOSE:-0}"
+
+autogit_log_line() { # autogit_log_line <component> <level> <message>
+  local component="$1" level="$2" message="$3"
   mkdir -p "$AUTOGIT_LOG_DIR"
   local file="$AUTOGIT_LOG_DIR/${component}-$(date +%F).log"
-  printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$component" "$message" >> "$file"
+  printf '%s [%s] %-7s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$component" "$level" "$message" >> "$file"
+}
+
+autogit_loga() { # log "always" (also echoed to stderr unconditionally)
+  autogit_log_line "$1" "ALWAYS" "$2"
+  printf '%s\n' "$2" 1>&2
+}
+
+autogit_logi() { # log "info" (only echoed to stderr if AUTOGIT_VERBOSE=1)
+  autogit_log_line "$1" "INFO" "$2"
+  if [[ "$AUTOGIT_VERBOSE" == 1 ]]; then
+    printf 'INFO    %s\n' "$2" 1>&2
+  fi
+}
+
+autogit_logw() { # log "warning" (always echoed to stderr, colored)
+  local YELLOW='\033[0;33m' DEFAULT='\033[0m'
+  autogit_log_line "$1" "WARNING" "$2"
+  printf "${YELLOW}WARNING${DEFAULT} %s\n" "$2" 1>&2
+}
+
+autogit_loge() { # log "error" (always echoed to stderr, colored)
+  local RED='\033[0;31m' DEFAULT='\033[0m'
+  autogit_log_line "$1" "ERROR" "$2"
+  printf "${RED}ERROR${DEFAULT}   %s\n" "$2" 1>&2
 }
 
 # `--once`: log a single heartbeat and exit, instead of looping forever.
@@ -23,9 +51,9 @@ if [[ "${1:-}" == "--once" ]]; then
   once=1
 fi
 
-autogit_log "daemon" "autogit daemon started"
+autogit_logi "daemon" "autogit daemon started"
 while true; do
-  autogit_log "daemon" "heartbeat"
+  autogit_logi "daemon" "heartbeat"
   if [[ "$once" == "1" ]]; then
     break
   fi
