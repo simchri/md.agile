@@ -1,0 +1,195 @@
+#!/usr/bin/env bats
+# Sync-loop tests for autogit-daemon (see doc/development/autogit.md
+# "What it actually does - sync loop"). Each test sets up a bare "remote"
+# repo plus a working clone, registers the clone directly in an isolated
+# global config (bypassing the `autogit` CLI, since these tests exercise the
+# daemon's own config reading), then runs `autogit-daemon --once` and
+# inspects the resulting git state. Log output/notification publishing is
+# assumed to work and is intentionally not asserted on (see autogit.bats).
+
+setup() {
+  REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+  AUTOGIT_DAEMON="$REPO_ROOT/autogit/bin/autogit-daemon"
+
+  export AUTOGIT_LOG_DIR="$BATS_TEST_TMPDIR/autogit-logs"
+  export AUTOGIT_GLOBAL_CONFIG="$BATS_TEST_TMPDIR/global.toml"
+
+  REMOTE="$BATS_TEST_TMPDIR/remote.git"
+  git init -q --bare "$REMOTE"
+
+  REPO="$BATS_TEST_TMPDIR/repo"
+  git clone -q "$REMOTE" "$REPO"
+  git -C "$REPO" config user.email "test@example.com"
+  git -C "$REPO" config user.name "test"
+
+  echo "hello" > "$REPO/tracked.txt"
+  git -C "$REPO" add tracked.txt
+  git -C "$REPO" commit -q -m "initial commit"
+
+  register_repo
+  write_local_config "enabled = true"
+  git -C "$REPO" push -q origin HEAD
+}
+
+# Writes the global config directly (isolated by AUTOGIT_GLOBAL_CONFIG),
+# registering $REPO with autogit globally enabled.
+register_repo() {
+  cat > "$AUTOGIT_GLOBAL_CONFIG" <<EOF
+enabled = true
+repos = [
+  "$REPO",
+]
+EOF
+}
+
+# Writes .autogit.toml and commits it (it's a git-tracked file per
+# doc/development/autogit.md), so it never itself shows up as a dirty/
+# untracked file in the assertions below.
+write_local_config() {
+  printf '%s\n' "$1" > "$REPO/.autogit.toml"
+  git -C "$REPO" add .autogit.toml
+  git -C "$REPO" commit -q -m "autogit config"
+}
+
+local_remote_heads_match() {
+  [ "$(git -C "$REPO" rev-parse HEAD)" = "$(git -C "$REMOTE" rev-parse HEAD)" ]
+}
+
+@test "clean repo with no changes: cycle completes, nothing committed or pushed" {
+  before="$(git -C "$REPO" rev-parse HEAD)"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ "$(git -C "$REPO" rev-parse HEAD)" = "$before" ]
+  local_remote_heads_match
+}
+
+@test "modified tracked file with no validation commands is committed and pushed" {
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ -z "$(git -C "$REPO" status --porcelain)" ]
+  local_remote_heads_match
+  [ "$(git -C "$REPO" log -1 --format=%s)" != "initial commit" ]
+}
+
+@test "failing validation command blocks commit" {
+  write_local_config "enabled = true
+validation_commands = [
+  \"false\",
+]
+validation_timeouts = [
+  \"5\",
+]"
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ -n "$(git -C "$REPO" status --porcelain)" ]
+  [ "$(git -C "$REPO" log -1 --format=%s)" = "autogit config" ]
+}
+
+@test "untracked file is left alone by default (stage_untracked=false)" {
+  echo "new" > "$REPO/untracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [[ "$(git -C "$REPO" status --porcelain)" == *"?? untracked.txt"* ]]
+  [ "$(git -C "$REPO" log -1 --format=%s)" = "autogit config" ]
+}
+
+@test "untracked file is committed and pushed when stage_untracked=true" {
+  write_local_config "enabled = true
+stage_untracked = true"
+  echo "new" > "$REPO/untracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ -z "$(git -C "$REPO" status --porcelain)" ]
+  local_remote_heads_match
+  git -C "$REMOTE" show HEAD:untracked.txt
+}
+
+@test "repo in an abnormal git state (detached HEAD) is skipped" {
+  git -C "$REPO" checkout -q --detach HEAD
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ -n "$(git -C "$REPO" status --porcelain)" ]
+}
+
+@test "globally off: no registered repo is synced" {
+  cat > "$AUTOGIT_GLOBAL_CONFIG" <<EOF
+enabled = false
+repos = [
+  "$REPO",
+]
+EOF
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ -n "$(git -C "$REPO" status --porcelain)" ]
+}
+
+@test "locally off: repo is skipped even though globally on" {
+  write_local_config "enabled = false"
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ -n "$(git -C "$REPO" status --porcelain)" ]
+}
+
+@test "diverging non-conflicting commits are reconciled via rebase and then pushed" {
+  # A second clone commits+pushes a change to a different file, simulating
+  # another machine syncing in between this daemon's polls.
+  OTHER="$BATS_TEST_TMPDIR/other-clone"
+  git clone -q "$REMOTE" "$OTHER"
+  git -C "$OTHER" config user.email "other@example.com"
+  git -C "$OTHER" config user.name "other"
+  echo "from other machine" > "$OTHER/other.txt"
+  git -C "$OTHER" add other.txt
+  git -C "$OTHER" commit -q -m "other machine change"
+  git -C "$OTHER" push -q origin HEAD
+
+  echo "changed" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  [ -z "$(git -C "$REPO" status --porcelain)" ]
+  local_remote_heads_match
+  [ -f "$REPO/other.txt" ]
+  [ "$(git -C "$REPO" log -1 --format=%s)" != "initial commit" ]
+}
+
+@test "real content conflicts trigger conflict resolution: backup branch created, repo reset to remote" {
+  OTHER="$BATS_TEST_TMPDIR/other-clone"
+  git clone -q "$REMOTE" "$OTHER"
+  git -C "$OTHER" config user.email "other@example.com"
+  git -C "$OTHER" config user.name "other"
+  echo "other machine's version" > "$OTHER/tracked.txt"
+  git -C "$OTHER" add tracked.txt
+  git -C "$OTHER" commit -q -m "other machine conflicting change"
+  git -C "$OTHER" push -q origin HEAD
+
+  echo "this machine's conflicting version" > "$REPO/tracked.txt"
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+
+  local_remote_heads_match
+  backup_count="$(git -C "$REPO" branch --list 'autogit-backup/*' | wc -l)"
+  [ "$backup_count" -eq 1 ]
+}

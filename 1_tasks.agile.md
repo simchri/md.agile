@@ -940,22 +940,22 @@ users don't have to think about it. Design plan: see
 
 - [ ] BUG: claude interpreted `autogit add .` as the literal general command. `.` is not handled as a path. FIX: Support a path argument (relativ and absolute), i.e. `autogit add <path>` (same for remove)
 
-- [ ] sync loop (core daemon logic, see "What it actually does - sync loop")
-  - [ ] re-read local + global config every cycle
-  - [ ] detect and skip "abnormal" git states (detached HEAD, mid-rebase/merge/cherry-pick/bisect, unborn branch, dirty/uninitialized submodules), surfaced via `autogit status`
-  - [ ] `git fetch`, subject to 5s git-operation timeout
-  - [ ] validation command runner: ordered list, per-command configurable timeout (default 120s), exit code check
-  - [ ] staging + commit gated on validation passing (`git add -u` default, `git add .`/`-A` if "stage untracked files" opted in)
-  - [ ] reconcile with fetched remote: fast-forward, else `git rebase`, else `git merge`, else Conflict Resolution
-  - [ ] re-run validation after reconcile, before push
-  - [ ] `git push` (never `--force`), subject to 5s git-operation timeout
-  - [ ] validation-failure notification threshold (default 5 min, configurable): log every cycle, only notify once threshold exceeded
+- [x] sync loop (core daemon logic, see "What it actually does - sync loop")
+  - [x] re-read local + global config every cycle
+  - [x] detect and skip "abnormal" git states (detached HEAD, mid-rebase/merge/cherry-pick/bisect, unborn branch, dirty/uninitialized submodules), surfaced via `autogit status`
+  - [x] `git fetch`, subject to 5s git-operation timeout
+  - [x] validation command runner: ordered list, per-command configurable timeout (default 120s), exit code check
+  - [x] staging + commit gated on validation passing (`git add -u` default, `git add .`/`-A` if "stage untracked files" opted in)
+  - [x] reconcile with fetched remote: fast-forward, else `git rebase`, else `git merge`, else Conflict Resolution
+  - [x] re-run validation after reconcile, before push
+  - [x] `git push` (never `--force`), subject to 5s git-operation timeout
+  - [x] validation-failure notification threshold (default 5 min, configurable): log every cycle, only notify once threshold exceeded
 
 - [ ] Conflict Resolution (see design doc section)
-  - [ ] create timestamped backup branch (`autogit-backup/<repo>/<timestamp>`) at current HEAD on real conflicts
-  - [ ] stash any leftover uncommitted changes with an identifiable message
-  - [ ] hard-reset current branch to the fetched remote ref
-  - [ ] notify user (system notification + log) with recovery instructions for backup branch / stash
+  - [x] create timestamped backup branch (`autogit-backup/<repo>/<timestamp>`) at current HEAD on real conflicts
+  - [x] stash any leftover uncommitted changes with an identifiable message
+  - [x] hard-reset current branch to the fetched remote ref
+  - [x] notify user (system notification + log) with recovery instructions for backup branch / stash
   - [ ] backup branch retention: optional per-repo retention (in days); naming-convention-based automatic deletion, logged only (no user notification)
 
 - [ ] Commit Message Strategy
@@ -966,8 +966,8 @@ users don't have to think about it. Design plan: see
   - [ ] weekly log rotation (deferred from scaffolding task)
 
 - [ ] safety guards / hardening
-  - [ ] shared git-operation timeout (5s) wrapper used by fetch and push
-  - [ ] shared validation-command timeout wrapper (per-command, default 120s)
+  - [x] shared git-operation timeout (5s) wrapper used by fetch and push
+  - [x] shared validation-command timeout wrapper (per-command, default 120s)
   - [ ] shared abnormal-git-state detection reused by both `autogit status` and the sync loop
 
 - [ ] documentation 

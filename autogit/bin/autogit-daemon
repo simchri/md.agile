@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Systemd-managed daemon script. Scaffolding scope: does nothing useful yet,
-# just logs a heartbeat once a minute (see doc/development/autogit.md).
+# Systemd-managed daemon script: runs the sync loop (see
+# doc/development/autogit.md "What it actually does - sync loop") for every
+# repo registered in the global config, once per poll interval.
 set -euo pipefail
 
 # Log level helpers, following the loga/logi/logw/loge pattern from
@@ -44,18 +45,350 @@ loge() { # log "error" (always echoed to stderr, colored)
   printf "${RED}ERROR${DEFAULT}   %s\n" "$2" 1>&2
 }
 
-# `--once`: log a single heartbeat and exit, instead of looping forever.
-# Lets tests (and manual smoke-checks) exercise the daemon without waiting.
+notify() { # notify <title> <message> ; best-effort, never fails the cycle.
+  # Log output/notification publishing is assumed to work (not unit tested).
+  command -v notify-send >/dev/null 2>&1 && notify-send "$1" "$2" >/dev/null 2>&1
+  return 0
+}
+
+# --- global config (read-only here; `autogit` owns writing it) ----------
+# Same hand-rolled TOML subset as `autogit` (see doc/development/autogit.md
+# Architecture); duplicated rather than shared via a lib, per project
+# convention.
+
+global_config_file() {
+  printf '%s\n' "${AUTOGIT_GLOBAL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/mdagile/autogit.toml}"
+}
+
+global_read_enabled() {
+  local f; f="$(global_config_file)"
+  if [ -f "$f" ] && grep -q '^enabled' "$f"; then
+    grep -m1 '^enabled' "$f" | sed -E 's/^enabled *= *//'
+  else
+    echo "true"
+  fi
+}
+
+global_read_repos() {
+  local f; f="$(global_config_file)"
+  [ -f "$f" ] || return 0
+  sed -n '/^repos = \[/,/^\]/p' "$f" | grep -oE '"[^"]*"' | sed 's/^"//; s/"$//'
+}
+
+# --- local config (per-repo; read-only here) -----------------------------
+# Unlike `autogit` (which always operates on the current directory's repo
+# via `git rev-parse --show-toplevel`), the daemon iterates over arbitrary
+# repo paths from the global config, so every reader takes an explicit
+# <repo> argument instead.
+#   enabled = true
+#   stage_untracked = false
+#   validation_failure_threshold_seconds = 300
+#   backup_branch_retention_days = 14
+#   validation_commands = [
+#     "cargo test",
+#   ]
+#   validation_timeouts = [
+#     "120",
+#   ]
+# (validation_commands/validation_timeouts are matched by array index, per
+# doc/development/autogit.md Local Configurations.)
+
+local_config_file() { # local_config_file <repo>
+  printf '%s/.autogit.toml\n' "$1"
+}
+
+local_read_enabled() { # local_read_enabled <repo>
+  local f; f="$(local_config_file "$1")"
+  if [ -f "$f" ] && grep -q '^enabled' "$f"; then
+    grep -m1 '^enabled' "$f" | sed -E 's/^enabled *= *//'
+  else
+    echo "true"
+  fi
+}
+
+local_read_stage_untracked() { # local_read_stage_untracked <repo>
+  local f; f="$(local_config_file "$1")"
+  if [ -f "$f" ] && grep -q '^stage_untracked' "$f"; then
+    grep -m1 '^stage_untracked' "$f" | sed -E 's/^stage_untracked *= *//'
+  else
+    echo "false"
+  fi
+}
+
+local_read_validation_threshold() { # local_read_validation_threshold <repo>
+  local f; f="$(local_config_file "$1")"
+  if [ -f "$f" ] && grep -q '^validation_failure_threshold_seconds' "$f"; then
+    grep -m1 '^validation_failure_threshold_seconds' "$f" | sed -E 's/^validation_failure_threshold_seconds *= *//'
+  else
+    echo "300"
+  fi
+}
+
+local_read_backup_retention_days() { # local_read_backup_retention_days <repo> ; empty if unset (never)
+  local f; f="$(local_config_file "$1")"
+  if [ -f "$f" ] && grep -q '^backup_branch_retention_days' "$f"; then
+    grep -m1 '^backup_branch_retention_days' "$f" | sed -E 's/^backup_branch_retention_days *= *//'
+  fi
+}
+
+local_read_validation_commands() { # local_read_validation_commands <repo>
+  local f; f="$(local_config_file "$1")"
+  [ -f "$f" ] || return 0
+  sed -n '/^validation_commands = \[/,/^\]/p' "$f" | grep -oE '"[^"]*"' | sed 's/^"//; s/"$//'
+}
+
+local_read_validation_timeouts() { # local_read_validation_timeouts <repo>
+  local f; f="$(local_config_file "$1")"
+  [ -f "$f" ] || return 0
+  sed -n '/^validation_timeouts = \[/,/^\]/p' "$f" | grep -oE '"[^"]*"' | sed 's/^"//; s/"$//'
+}
+
+# --- validation-failure notification threshold state ---------------------
+# Tracks, per repo, how long validation has been failing continuously, so a
+# user-visible notification only fires once the configured threshold is
+# exceeded (not on every single cycle — see Local Configurations).
+
+AUTOGIT_STATE_DIR="${AUTOGIT_LOG_DIR:-/tmp/autogit}/state"
+
+repo_state_key() { # repo_state_key <repo> ; filesystem-safe key
+  printf '%s' "$1" | tr '/' '_'
+}
+
+failure_since_file() { printf '%s/%s.failure_since\n' "$AUTOGIT_STATE_DIR" "$(repo_state_key "$1")"; }
+notified_file() { printf '%s/%s.notified\n' "$AUTOGIT_STATE_DIR" "$(repo_state_key "$1")"; }
+
+record_validation_failure() { # record_validation_failure <repo>
+  local repo="$1" f nf since now elapsed threshold
+  mkdir -p "$AUTOGIT_STATE_DIR"
+  f="$(failure_since_file "$repo")"
+  [ -f "$f" ] || date +%s > "$f"
+  since="$(cat "$f")"
+  now="$(date +%s)"
+  elapsed=$((now - since))
+  threshold="$(local_read_validation_threshold "$repo")"
+  nf="$(notified_file "$repo")"
+  logw "daemon" "$repo: validation failing (${elapsed}s so far, threshold ${threshold}s)"
+  if [ "$elapsed" -ge "$threshold" ] && [ ! -f "$nf" ]; then
+    notify "autogit: validation failing in $repo" \
+      "Validation commands have been failing continuously for over ${threshold}s. See autogit status / logs at $AUTOGIT_LOG_DIR."
+    touch "$nf"
+  fi
+}
+
+clear_failure_state() { # clear_failure_state <repo>
+  rm -f "$(failure_since_file "$1")" "$(notified_file "$1")"
+}
+
+# --- safety guards --------------------------------------------------------
+
+git_timeout() { # git_timeout <repo> <git-args...> ; 5s timeout (Safety Guards)
+  local repo="$1"; shift
+  timeout 5 git -C "$repo" "$@"
+}
+
+abnormal_state_reason() { # abnormal_state_reason <repo> ; echoes reason + exit 1 if abnormal, else exit 0
+  local repo="$1" gitdir
+  gitdir="$(git -C "$repo" rev-parse --absolute-git-dir 2>/dev/null)" || { echo "not a git repository"; return 1; }
+  if [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then
+    echo "mid-rebase"; return 1
+  fi
+  if [ -f "$gitdir/MERGE_HEAD" ]; then
+    echo "mid-merge"; return 1
+  fi
+  if [ -f "$gitdir/CHERRY_PICK_HEAD" ]; then
+    echo "mid-cherry-pick"; return 1
+  fi
+  if [ -f "$gitdir/BISECT_LOG" ]; then
+    echo "mid-bisect"; return 1
+  fi
+  if ! git -C "$repo" rev-parse HEAD >/dev/null 2>&1; then
+    echo "unborn branch"; return 1
+  fi
+  if ! git -C "$repo" symbolic-ref -q HEAD >/dev/null 2>&1; then
+    echo "detached HEAD"; return 1
+  fi
+  if git -C "$repo" submodule status 2>/dev/null | grep -qE '^[+-]'; then
+    echo "dirty/uninitialized submodules"; return 1
+  fi
+  return 0
+}
+
+# --- validation command runner --------------------------------------------
+
+run_validation() { # run_validation <repo> ; 0 if all configured commands pass (or none configured)
+  local repo="$1" i=0 cmd t
+  mapfile -t cmds < <(local_read_validation_commands "$repo")
+  mapfile -t timeouts < <(local_read_validation_timeouts "$repo")
+  for cmd in "${cmds[@]:-}"; do
+    [ -n "$cmd" ] || { i=$((i + 1)); continue; }
+    t="${timeouts[$i]:-120}"
+    [ -n "$t" ] || t=120
+    if ! (cd "$repo" && timeout "$t" bash -c "$cmd") >/dev/null 2>&1; then
+      logw "daemon" "$repo: validation command failed or timed out: $cmd"
+      return 1
+    fi
+    i=$((i + 1))
+  done
+  return 0
+}
+
+# --- staging / committing (step 4) ----------------------------------------
+
+has_changes() { # has_changes <repo> <stage_untracked: true|false>
+  local repo="$1" stage_untracked="$2"
+  if [ "$stage_untracked" = "true" ]; then
+    [ -n "$(git -C "$repo" status --porcelain)" ]
+  else
+    git -C "$repo" status --porcelain | grep -qv '^??'
+  fi
+}
+
+stage_and_commit() { # stage_and_commit <repo> <stage_untracked>
+  local repo="$1" stage_untracked="$2"
+  if [ "$stage_untracked" = "true" ]; then
+    git -C "$repo" add -A
+  else
+    git -C "$repo" add -u
+  fi
+  if git -C "$repo" diff --cached --quiet; then
+    return 0
+  fi
+  # Fixed generic message (Commit Message Strategy option A); the retained
+  # option (E, keyword extraction) is implemented by a dedicated task.
+  git -C "$repo" commit -q -m "autogit: sync $(date '+%Y-%m-%d %H:%M:%S')"
+  logi "daemon" "$repo: committed local changes"
+}
+
+# --- conflict resolution ---------------------------------------------------
+
+conflict_resolution() { # conflict_resolution <repo>
+  local repo="$1" name ts backup_ref
+  name="$(basename "$repo")"
+  ts="$(date +%Y%m%dT%H%M%S)"
+  backup_ref="autogit-backup/$name/$ts"
+  git -C "$repo" branch "$backup_ref" HEAD
+  if [ -n "$(git -C "$repo" status --porcelain)" ]; then
+    git -C "$repo" stash push -u -m "autogit backup: $repo $ts" >/dev/null 2>&1 || true
+  fi
+  git -C "$repo" reset -q --hard '@{u}'
+  loge "daemon" "$repo: merge conflict — local history moved to backup branch $backup_ref, repo reset to upstream"
+  notify "autogit: conflict in $repo" \
+    "Local history preserved on branch $backup_ref (and a stash entry if uncommitted changes existed). Repo was reset to upstream. Run 'git -C $repo branch --list autogit-backup/*' or 'git -C $repo stash list' to recover."
+}
+
+# --- reconcile with fetched remote (step 5) --------------------------------
+
+reconcile() { # reconcile <repo>
+  local repo="$1"
+  if git -C "$repo" merge-base --is-ancestor HEAD '@{u}' 2>/dev/null; then
+    git -C "$repo" merge -q --ff-only '@{u}'
+    return 0
+  fi
+  if git -C "$repo" rebase '@{u}' >/dev/null 2>&1; then
+    logi "daemon" "$repo: rebased local commits onto upstream"
+    return 0
+  fi
+  git -C "$repo" rebase --abort >/dev/null 2>&1 || true
+  if git -C "$repo" merge -q --no-edit '@{u}' >/dev/null 2>&1; then
+    logi "daemon" "$repo: merged upstream (no conflicts)"
+    return 0
+  fi
+  git -C "$repo" merge --abort >/dev/null 2>&1 || true
+  conflict_resolution "$repo"
+}
+
+# --- per-repo sync cycle (steps 1-8) ---------------------------------------
+
+sync_one_repo() { # sync_one_repo <repo>
+  local repo="$1" reason stage_untracked
+
+  # 1. re-read local config (global already read by the caller)
+  if [ "$(local_read_enabled "$repo")" != "true" ]; then
+    logi "daemon" "$repo: locally off, skipping"
+    return 0
+  fi
+
+  # 2. skip repos in an abnormal git state
+  if ! reason="$(abnormal_state_reason "$repo")"; then
+    logw "daemon" "$repo: abnormal git state ($reason), skipping"
+    return 0
+  fi
+
+  # 3. fetch (read-only, 5s timeout)
+  if ! git_timeout "$repo" fetch --quiet; then
+    loge "daemon" "$repo: git fetch failed or timed out"
+    return 0
+  fi
+
+  # 4. validate + stage + commit
+  stage_untracked="$(local_read_stage_untracked "$repo")"
+  if has_changes "$repo" "$stage_untracked"; then
+    if run_validation "$repo"; then
+      stage_and_commit "$repo" "$stage_untracked"
+    else
+      record_validation_failure "$repo"
+      return 0
+    fi
+  fi
+
+  if ! git -C "$repo" rev-parse --verify -q '@{u}' >/dev/null 2>&1; then
+    logw "daemon" "$repo: no upstream branch configured, skipping reconcile/push this cycle"
+    clear_failure_state "$repo"
+    return 0
+  fi
+
+  # 5. reconcile with the fetched remote
+  reconcile "$repo"
+
+  # 6. re-run validation after reconcile, before push
+  if ! run_validation "$repo"; then
+    record_validation_failure "$repo"
+    loge "daemon" "$repo: validation failed after reconcile, not pushing"
+    return 0
+  fi
+  clear_failure_state "$repo"
+
+  # 7. push (never --force, 5s timeout)
+  if ! git_timeout "$repo" push --quiet; then
+    loge "daemon" "$repo: git push failed or timed out"
+    return 0
+  fi
+
+  # 8.
+  logi "daemon" "$repo: sync cycle complete"
+}
+
+sync_all_repos() {
+  if [ "$(global_read_enabled)" != "true" ]; then
+    logi "daemon" "autogit is globally off, skipping this cycle"
+    return 0
+  fi
+  mapfile -t repos < <(global_read_repos)
+  for repo in "${repos[@]:-}"; do
+    [ -n "$repo" ] || continue
+    if ! git -C "$repo" rev-parse --git-dir >/dev/null 2>&1; then
+      logw "daemon" "$repo: not a git repository, skipping"
+      continue
+    fi
+    sync_one_repo "$repo"
+  done
+}
+
+# `--once`: run a single pass over all registered repos and exit, instead of
+# looping forever. Lets tests (and manual smoke-checks) exercise the daemon
+# without waiting for a real poll interval.
 once=0
 if [[ "${1:-}" == "--once" ]]; then
   once=1
 fi
 
+POLL_INTERVAL="${AUTOGIT_POLL_INTERVAL:-60}"
+
 logi "daemon" "autogit daemon started"
 while true; do
-  logi "daemon" "heartbeat"
+  sync_all_repos
   if [[ "$once" == "1" ]]; then
     break
   fi
-  sleep 60
+  sleep "$POLL_INTERVAL"
 done
