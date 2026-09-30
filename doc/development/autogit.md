@@ -63,7 +63,7 @@ autogit on/off
 
 - on / off state (is auto-git currently turned on for this repo)
 - validation commands
-  list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass)
+  list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass). Each command has its own configurable timeout (default: 120 seconds); a command that doesn't complete in that time is killed and treated as a failure for that cycle
 - stage untracked files (default: off) — if enabled, autogit stages new/untracked files too (`git add .`/`-A`) instead of the default tracked-files-only behavior (`git add -u`, see Safety Guards)
 - validation failure notification threshold (default: 5 minutes) — only surface a user-visible notification once validation commands have been failing continuously for at least this long; failures shorter than this are logged only (not notified), to avoid noise from brief/transient failures. Configurable per repo
 - backup branch retention (in days, optional, default: unset/never) — if set, automatically delete `autogit-backup/*` branches (see Conflict Resolution) older than this many days. If unset, backup branches are never automatically deleted
@@ -77,8 +77,8 @@ autogit on/off
 proposed per-repo cycle order, run each poll interval:
 1. re-read local + global config
 2. skip this repo for this cycle if: globally off, locally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
-3. `git fetch` (read-only, always safe; subject to the 5s operation timeout, see Safety Guards)
-4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order (each subject to the 5s command timeout, see Safety Guards)
+3. `git fetch` (read-only, always safe; subject to the 5s git-operation timeout, see Safety Guards)
+4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order (each subject to its own configurable timeout, default 120s, see Local Configurations)
    - if all pass, stage (`git add -u` by default, or `git add .`/`-A` if opted in) and commit locally
    - if any fail: do not commit, log the failure every cycle; only surface a user-visible notification once validation has been failing continuously for at least the "validation failure notification threshold" (default 5 min, see Local Configurations) — avoids notification noise for brief/transient failures
 5. reconcile with the fetched remote:
@@ -86,9 +86,9 @@ proposed per-repo cycle order, run each poll interval:
    - otherwise, attempt `git rebase` of the local (not-yet-pushed) commits onto the fetched remote ref: since these commits have never been pushed/shared, this is safe under the "never force-push" guard and keeps history linear — no merge-commit noise accumulating from every polling cycle across every machine
    - if the rebase itself hits a conflict, abort it and instead attempt a normal `git merge` (three-way merge): if that completes cleanly with no content conflicts, keep the merge result — still a common case for small, non-overlapping changes, and preserves local history
    - only if that merge also reports actual conflicts, abort it and apply the Conflict Resolution strategy below
-6. re-run validation commands once more after any pull/rebase/merge, before pushing (same 5s per-command timeout) — this guards against a "clean" local commit being combined with a broken remote state
+6. re-run validation commands once more after any pull/rebase/merge, before pushing (same per-command timeouts) — this guards against a "clean" local commit being combined with a broken remote state
    - if validation now fails: do not push, log/notify (same threshold-based notification as step 4), retry next cycle
-7. `git push` (never `--force` — see Safety Guards; subject to the 5s operation timeout)
+7. `git push` (never `--force` — see Safety Guards; subject to the 5s git-operation timeout)
 8. log outcome, sleep until next poll
 
 ## Conflict Resolution
@@ -117,7 +117,8 @@ proposed per-repo cycle order, run each poll interval:
 - these guards apply even if the repo is otherwise configured "on"; treat them as a hard stop for that cycle, not a one-off failure to retry blindly
 - accepted, out of scope: autogit acting concurrently with a user's own manual git usage (e.g. mid-way through staging/crafting a commit) may conflict or produce unexpected results. This is not specially guarded against; the mitigation is that the user can turn autogit off for the repo (`autogit remove .` / local on-off) whenever they want to do manual git work
 - autogit only ever operates on the current/checked-out branch (whatever it is at the time of a cycle) and never switches, creates, or manages branches itself; branch management (creating, switching, tracking upstream) is entirely the user's responsibility before/while autogit is on for a repo
-- every git network operation (`git fetch`, `git push`) and every configured validation command is subject to a fixed 5 second timeout; if it doesn't complete within that time, it is killed, treated as a failure for that cycle (logged; validation failures still follow the notification threshold above), and retried next poll — this bounds how long one slow/hanging repo or command can stall that repo's cycle
+- every git network operation (`git fetch`, `git push`) is subject to a fixed 5 second timeout; if it doesn't complete within that time, it is killed, treated as a failure for that cycle (logged), and retried next poll — this bounds how long a hanging network op can stall a repo's cycle
+- every configured validation command has its own timeout, configurable per command (default: 120 seconds, see Local Configurations) — deliberately separate from and much longer than the git-operation timeout, since validation commands (e.g. running a test suite) routinely take far longer than a network call. On timeout, the command is killed and treated as a failure for that cycle (logged; still follows the notification threshold above)
 
 ## Commit Message Strategy (draft options)
 options considered (or offer as a config setting):
