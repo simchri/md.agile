@@ -370,7 +370,13 @@ sync_all_repos() {
       logw "daemon" "$repo: not a git repository, skipping"
       continue
     fi
-    sync_one_repo "$repo"
+    # Guarded as the condition of `if`: this suspends `set -e` for the
+    # entire duration of sync_one_repo (and anything it calls), so an
+    # unexpected git-command failure inside one repo's cycle can't crash the
+    # whole daemon process and starve every other registered repo (Bug 1).
+    if ! sync_one_repo "$repo"; then
+      loge "daemon" "$repo: sync cycle aborted unexpectedly, skipping to next repo this cycle"
+    fi
   done
 }
 

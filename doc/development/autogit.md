@@ -122,6 +122,7 @@ proposed per-repo cycle order, run each poll interval:
 - autogit only ever operates on the current/checked-out branch (whatever it is at the time of a cycle) and never switches, creates, or manages branches itself; branch management (creating, switching, tracking upstream) is entirely the user's responsibility before/while autogit is on for a repo
 - every git network operation (`git fetch`, `git push`) is subject to a fixed 5 second timeout; if it doesn't complete within that time, it is killed, treated as a failure for that cycle (logged), and retried next poll — this bounds how long a hanging network op can stall a repo's cycle
 - every configured validation command has its own timeout, configurable per command (default: 120 seconds, see Local Configurations) — deliberately separate from and much longer than the git-operation timeout, since validation commands (e.g. running a test suite) routinely take far longer than a network call. On timeout, the command is killed and treated as a failure for that cycle (logged; still follows the notification threshold above)
+- a repo's cycle failing unexpectedly (e.g. an unforeseen git error) never aborts the daemon process or other registered repos' cycles that poll: each repo's cycle is isolated, logged as an error, and simply skipped for that cycle, with the daemon continuing on to the next registered repo
 
 ## Commit Message Strategy (draft options)
 options considered (or offer as a config setting):

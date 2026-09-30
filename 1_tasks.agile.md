@@ -940,6 +940,8 @@ users don't have to think about it. Design plan: see
 
 - [ ] BUG: claude interpreted `autogit add .` as the literal general command. `.` is not handled as a path. FIX: Support a path argument (relativ and absolute), i.e. `autogit add <path>` (same for remove)
 
+- [ ] on `autogit add`, if `agile` is a command, add `agile check` as a validation check to the toml.
+
 - [x] sync loop (core daemon logic, see "What it actually does - sync loop")
   - [x] re-read local + global config every cycle
   - [x] detect and skip "abnormal" git states (detached HEAD, mid-rebase/merge/cherry-pick/bisect, unborn branch, dirty/uninitialized submodules), surfaced via `autogit status`
@@ -969,6 +971,8 @@ users don't have to think about it. Design plan: see
   - [x] shared git-operation timeout (5s) wrapper used by fetch and push
   - [x] shared validation-command timeout wrapper (per-command, default 120s)
   - [ ] shared abnormal-git-state detection reused by both `autogit status` and the sync loop
+  - [x] per-repo failure isolation: a git-command failure in one registered repo's sync cycle no longer crashes the whole `autogit-daemon` process (`set -e` guarded via `if ! sync_one_repo ...`), so other registered repos still get synced that cycle
+  - [ ] collision-safe `repo_state_key` derivation for validation-failure-threshold state: the current naive `/`→`_` substitution can collide between distinct repo paths (e.g. `.../foo/bar_baz` and `.../foo_bar/baz`), leaking one repo's failure-notification state into another's
 
 - [ ] documentation 
 
