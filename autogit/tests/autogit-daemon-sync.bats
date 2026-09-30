@@ -30,7 +30,7 @@ setup() {
   git -C "$REPO" commit -q -m "initial commit"
 
   register_repo
-  write_local_config "enabled = true"
+  write_local_config "# autogit local config"
   git -C "$REPO" push -q origin HEAD
 }
 
@@ -80,8 +80,7 @@ local_remote_heads_match() {
 }
 
 @test "failing validation command blocks commit" {
-  write_local_config "enabled = true
-validation_commands = [
+  write_local_config "validation_commands = [
   \"false\",
 ]
 validation_timeouts = [
@@ -107,8 +106,7 @@ validation_timeouts = [
 }
 
 @test "untracked file is committed and pushed when stage_untracked=true" {
-  write_local_config "enabled = true
-stage_untracked = true"
+  write_local_config "stage_untracked = true"
   echo "new" > "$REPO/untracked.txt"
 
   run "$AUTOGIT_DAEMON" --once
@@ -144,14 +142,15 @@ EOF
   [ -n "$(git -C "$REPO" status --porcelain)" ]
 }
 
-@test "locally off: repo is skipped even though globally on" {
+@test "a leftover per-repo 'enabled = false' is ignored: registration alone decides, repo is synced" {
   write_local_config "enabled = false"
   echo "changed" > "$REPO/tracked.txt"
 
   run "$AUTOGIT_DAEMON" --once
   [ "$status" -eq 0 ]
 
-  [ -n "$(git -C "$REPO" status --porcelain)" ]
+  [ -z "$(git -C "$REPO" status --porcelain)" ]
+  local_remote_heads_match
 }
 
 @test "diverging non-conflicting commits are reconciled via rebase and then pushed" {
@@ -199,7 +198,6 @@ EOF
 
 @test "backup branch retention: expired backup branches are pruned, recent ones kept, when configured" {
   write_local_config "\
-enabled = true
 backup_branch_retention_days = 14
 "
   name="$(basename "$REPO")"
@@ -250,7 +248,6 @@ EOF
 
 @test "commit message strategy: commit_message_template config is honored" {
   write_local_config "\
-enabled = true
 commit_message_template = \"[TEST-TEMPLATE] {summary}\"
 "
   echo "changed" > "$REPO/tracked.txt"
@@ -302,8 +299,7 @@ commit_message_template = \"[TEST-TEMPLATE] {summary}\"
 # the logged error message (run_logged helper).
 
 @test "error logging: failing validation command's stdout and stderr are recorded in the log" {
-  write_local_config "enabled = true
-validation_commands = [
+  write_local_config "validation_commands = [
   \"echo STDOUT-MARKER-\$((40+2)); echo STDERR-MARKER-\$((40+2)) 1>&2; false\",
 ]
 validation_timeouts = [
@@ -337,8 +333,7 @@ validation_timeouts = [
 }
 
 @test "error logging: captured output is truncated to the last 50 lines per stream" {
-  write_local_config "enabled = true
-validation_commands = [
+  write_local_config "validation_commands = [
   \"for i in \$(seq 1 100); do echo OUT-LINE-\$i; done; false\",
 ]
 validation_timeouts = [

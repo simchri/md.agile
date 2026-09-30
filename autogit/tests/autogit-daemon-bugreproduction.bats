@@ -22,7 +22,7 @@ make_repo() { # make_repo <name> ; sets up a bare remote + configured clone, ret
   echo "hello" > "$repo/tracked.txt"
   git -C "$repo" add tracked.txt
   git -C "$repo" commit -q -m "initial commit"
-  printf 'enabled = true\n' > "$repo/.autogit.toml"
+  printf '# autogit local config\n' > "$repo/.autogit.toml"
   git -C "$repo" add .autogit.toml
   git -C "$repo" commit -q -m "autogit config"
   git -C "$repo" push -q origin HEAD

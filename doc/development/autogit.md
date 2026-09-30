@@ -30,10 +30,6 @@ Enable automatic synchronization of the current repo via git.
 
 ## Other command line actions
 
-set an option value for the current repo:
-```
-autogit set <option> <value>
-```
 Print status of autogit (can be called anywhere). Lists all relevant config info and whether the systemd is running or not
 Output has to sections
 First section: global status
@@ -41,10 +37,11 @@ First section: global status
 - show warning if problem with systemd service
 - show list of observed repos; repos whose last sync cycle ended in an error are flagged, e.g. `- /path/repo  [ERROR: push]`
 Second section: local status (this repo)
-- only if current dir is a registered repo
-- repo is currently on/off
-- show warning if the current repo local setting is "on" but does not appear in the global config list. User can fix this with `autogit add .`
-- show the outcome of the repo's last sync cycle (see Error State): `not yet synced`, `ok`, or `ERROR in step '<step>'` with the time the error streak started, the last attempt, and the full error message incl. captured command output
+- only if current dir is a git repo
+- if the repo is not registered (not in the global config list, whether or not a local config file exists): only show `not managed by autogit. Run 'autogit add .' to register it.`
+- otherwise (registered):
+  - show warning if the repo is in an abnormal git state (see Safety Guards)
+  - show the outcome of the repo's last sync cycle (see Error State): `not yet synced`, `ok`, or `ERROR in step '<step>'` with the time the error streak started, the last attempt, and the full error message incl. captured command output
 
 Exit code: non-zero if any observed repo (or the current repo) is in an error state, so `autogit status` can be used in scripts
 ```
@@ -65,7 +62,7 @@ autogit on/off
 
 ## Local Configurations
 
-- on / off state (is auto-git currently turned on for this repo)
+- there is deliberately no per-repo on/off setting: whether a repo is synced is decided solely by its registration in the global config (`autogit add`/`autogit remove`). A leftover `enabled = ...` key in an existing `.autogit.toml` is ignored
 - validation commands
   list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass). Each command has its own configurable timeout (default: 120 seconds); a command that doesn't complete in that time is killed and treated as a failure for that cycle
 - stage untracked files (default: off) — if enabled, autogit stages new/untracked files too (`git add .`/`-A`) instead of the default tracked-files-only behavior (`git add -u`, see Safety Guards)
@@ -73,7 +70,7 @@ autogit on/off
 - backup branch retention (in days, optional, default: unset/never) — if set, automatically delete `autogit-backup/*` branches (see Conflict Resolution) older than this many days. If unset, backup branches are never automatically deleted
 - commit message template (`commit_message_template`, optional, default: unset) — overrides the default `autogit: {summary}` commit message format (see Commit Message Strategy). Supports the placeholders `{summary}` (extracted keywords only, option E; deliberately excludes diffstat counts, which `git log --stat`/`git show` already provide), `{timestamp}`, and `{hostname}`, e.g. `"[{hostname} {timestamp}] {summary}"`
 
-- **Discarded idea: independent "auto commit on/off" + "auto pull push on/off" toggles.** Considered allowing a partial-automation mode where the user commits manually but autogit still handles fetch/reconcile/push. Discarded: the Conflict Resolution strategy's "aggressively discard local work onto a backup branch" tradeoff is only acceptable because the discarded commits are autogit's own frequently-generated, cheap-to-replace commits (see "accepted tradeoff" below, mitigated by short polling intervals). In manual-commit mode, the commits being reconciled/potentially discarded would be user-authored — possibly representing significant hand-written work accumulated across many manual commits between polls — so the same "~1 minute at risk" mitigation no longer holds, and silently resetting user commits onto a backup branch is not acceptable. This would also fragment the sync loop (which step runs depends on which toggle is on) and the Commit Message Strategy (which assumes autogit authors every commit) for comparatively little benefit. Kept as a single combined on/off per repo instead (see "on / off state" above)
+- **Discarded idea: independent "auto commit on/off" + "auto pull push on/off" toggles.** Considered allowing a partial-automation mode where the user commits manually but autogit still handles fetch/reconcile/push. Discarded: the Conflict Resolution strategy's "aggressively discard local work onto a backup branch" tradeoff is only acceptable because the discarded commits are autogit's own frequently-generated, cheap-to-replace commits (see "accepted tradeoff" below, mitigated by short polling intervals). In manual-commit mode, the commits being reconciled/potentially discarded would be user-authored — possibly representing significant hand-written work accumulated across many manual commits between polls — so the same "~1 minute at risk" mitigation no longer holds, and silently resetting user commits onto a backup branch is not acceptable. This would also fragment the sync loop (which step runs depends on which toggle is on) and the Commit Message Strategy (which assumes autogit authors every commit) for comparatively little benefit. Kept as a single combined on/off per repo instead (i.e. registration via `autogit add`/`autogit remove`, see above)
 
 ## logging
 - log to /tmp/autogit/ (`AUTOGIT_LOG_DIR`); persistent per-repo state lives separately, see Error State
@@ -84,7 +81,7 @@ autogit on/off
 ## What it actually does - sync loop
 proposed per-repo cycle order, run each poll interval:
 1. re-read local + global config
-2. skip this repo for this cycle if: globally off, locally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
+2. skip this repo for this cycle if: globally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
 3. `git fetch` (read-only, always safe; subject to the 5s git-operation timeout, see Safety Guards)
 4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order (each subject to its own configurable timeout, default 120s, see Local Configurations)
    - if all pass, stage (`git add -u` by default, or `git add .`/`-A` if opted in) and commit locally
@@ -103,7 +100,7 @@ proposed per-repo cycle order, run each poll interval:
 - after each repo's sync cycle, the daemon records its outcome in a per-repo state file `$AUTOGIT_STATE_DIR/<key>.status` (`AUTOGIT_STATE_DIR` env var, default `${XDG_STATE_HOME:-~/.local/state}/autogit`, i.e. persistent across reboots; `<key>` is a hash of the repo path). The same directory holds the validation-failure notification threshold state
 - file format: `key = value` header lines (`state` = `ok`|`error`, `step` = `fetch`|`validate`|`commit`|`reconcile`|`push`|`unexpected`, `since` = start of the current continuous error streak, `updated` = time of recording), then, for errors, a blank line followed by the full error message incl. captured stdout/stderr (last 50 lines per stream, see logging). Written atomically (temp file + rename)
 - an error is recorded right away (no threshold), on the first failing cycle; the next fully successful cycle resets the state to `ok`
-- not errors: skipped cycles (globally/locally off, abnormal git state — the state file is left untouched), and successfully resolved merge conflicts (see Conflict Resolution; the backup branch + notification are the user-facing signal there)
+- not errors: skipped cycles (globally off, abnormal git state — the state file is left untouched), and successfully resolved merge conflicts (see Conflict Resolution; the backup branch + notification are the user-facing signal there)
 
 ## Conflict Resolution
 - if a rebase/merge attempt (step 5) reports actual content conflicts, the top-level strategy is:

@@ -165,8 +165,9 @@ global_set_enabled() { # global_set_enabled <true|false>
   global_write "$value" "${repos[@]:-}"
 }
 
-# --- local config (per-repo on/off state) --------------------------------
-#   enabled = true
+# --- local config (per-repo options, read by autogit-daemon) -------------
+# Whether a repo is synced is decided solely by its registration in the
+# global config; there is no per-repo on/off setting.
 
 local_config_file() { # local_config_file [<repo>] ; defaults to the current directory's repo toplevel
   local root="${1:-}"
@@ -174,25 +175,9 @@ local_config_file() { # local_config_file [<repo>] ; defaults to the current dir
   printf '%s/.autogit.toml\n' "$root"
 }
 
-local_read_enabled() {
-  local f; f="$(local_config_file)"
-  if [ -f "$f" ] && grep -q '^enabled' "$f"; then
-    grep -m1 '^enabled' "$f" | sed -E 's/^enabled *= *//'
-  else
-    echo "true"
-  fi
-}
-
 local_config_init_if_missing() { # local_config_init_if_missing [<repo>]
   local f; f="$(local_config_file "${1:-}")"
-  [ -f "$f" ] || printf 'enabled = true\n' > "$f"
-}
-
-local_set_enabled() { # local_set_enabled <true|false>
-  local value="$1" f
-  f="$(local_config_file)"
-  local_config_init_if_missing
-  sed -i "s/^enabled.*/enabled = $value/" "$f"
+  [ -f "$f" ] || printf '# autogit local config (see doc/development/autogit.md "Local Configurations")\n' > "$f"
 }
 
 # --- systemd status (best-effort, silent if no user systemd session) ----
@@ -308,24 +293,6 @@ cmd_off() {
   echo "autogit: off"
 }
 
-cmd_set() {
-  local option="${1:?usage: autogit set <option> <value>}" value="${2:?usage: autogit set <option> <value>}"
-  case "$option" in
-    enabled)
-      local repo
-      repo="$(require_git_repo)" || { loge "cli" "not inside a git repository"; echo "error: not inside a git repository" 1>&2; exit 1; }
-      local_set_enabled "$value"
-      logi "cli" "set $option=$value for $repo"
-      echo "autogit: set $option = $value for current repo"
-      ;;
-    *)
-      loge "cli" "unknown option: $option"
-      echo "error: unknown option: $option" 1>&2
-      exit 1
-      ;;
-  esac
-}
-
 cmd_status() { # exits 1 if any observed repo (or the current repo) is in an error state
   local genabled any_error=0
   genabled="$(global_read_enabled)"
@@ -355,20 +322,15 @@ cmd_status() { # exits 1 if any observed repo (or the current repo) is in an err
   if repo="$(require_git_repo)"; then
     echo ""
     echo "Local status (this repo: $repo):"
-    local lenabled
-    lenabled="$(local_read_enabled)"
-    if [ "$lenabled" = "true" ]; then
-      echo "  auto-git: on"
-    else
-      echo "  auto-git: off"
-    fi
-    if [ "$lenabled" = "true" ] && ! global_repo_registered "$repo"; then
-      logw "cli" "local setting is 'on' but repo is not in the global config list"
-      echo "  warning: local setting is 'on' but this repo is not in the global config list. Run 'autogit add .' to fix."
+    if ! global_repo_registered "$repo"; then
+      echo "  not managed by autogit. Run 'autogit add .' to register it."
+      [ "$any_error" -eq 0 ] || exit 1
+      return 0
     fi
     local reason
     if ! reason="$(abnormal_state_reason "$repo")"; then
-      logw "cli" "repo is in an abnormal git state ($reason)"
+      # log file only: the stdout line below is the user-facing message
+      log_line "cli" "WARNING" "repo is in an abnormal git state ($reason)"
       echo "  warning: repo is in an abnormal git state ($reason). auto-git will skip this repo until it is resolved."
     fi
     case "$(repo_status_field "$repo" state)" in
@@ -398,7 +360,6 @@ usage: autogit <command> [args]
 commands:
   add <path>            register the repo at <path> (relative or absolute; use '.' for the current repo) for auto-git (adds to global config)
   remove <path>         turn auto-git off for the repo at <path> (relative or absolute; use '.' for the current repo) (removes from global config; local config is retained)
-  set <option> <value> set a local (per-repo) config option, e.g. `autogit set enabled false`
   on                    turn auto-git on globally
   off                   turn auto-git off globally
   status                print global + local (this repo) auto-git status
@@ -416,11 +377,10 @@ main() {
     remove) cmd_remove "$@" ;;
     on) cmd_on "$@" ;;
     off) cmd_off "$@" ;;
-    set) cmd_set "$@" ;;
     status) cmd_status "$@" ;;
     -h|--help|help) print_usage ;;
     *)
-      loge "cli" "unknown command: $cmd"
+      log_line "cli" "ERROR" "unknown command: $cmd"
       echo "error: unknown command: $cmd" 1>&2
       print_usage 1>&2
       exit 1

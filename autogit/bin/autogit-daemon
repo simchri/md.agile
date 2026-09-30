@@ -127,8 +127,8 @@ global_read_repos() {
 # Unlike `autogit` (which always operates on the current directory's repo
 # via `git rev-parse --show-toplevel`), the daemon iterates over arbitrary
 # repo paths from the global config, so every reader takes an explicit
-# <repo> argument instead.
-#   enabled = true
+# <repo> argument instead. (There is no per-repo on/off setting: whether a
+# repo is synced is decided solely by its global registration.)
 #   stage_untracked = false
 #   validation_failure_threshold_seconds = 300
 #   backup_branch_retention_days = 14
@@ -144,15 +144,6 @@ global_read_repos() {
 
 local_config_file() { # local_config_file <repo>
   printf '%s/.autogit.toml\n' "$1"
-}
-
-local_read_enabled() { # local_read_enabled <repo>
-  local f; f="$(local_config_file "$1")"
-  if [ -f "$f" ] && grep -q '^enabled' "$f"; then
-    grep -m1 '^enabled' "$f" | sed -E 's/^enabled *= *//'
-  else
-    echo "true"
-  fi
 }
 
 local_read_stage_untracked() { # local_read_stage_untracked <repo>
@@ -458,11 +449,8 @@ sync_one_repo() { # sync_one_repo <repo>
   local repo="$1" reason stage_untracked
   RUN_LOGGED_LAST_ERROR=""
 
-  # 1. re-read local config (global already read by the caller)
-  if [ "$(local_read_enabled "$repo")" != "true" ]; then
-    logi "daemon" "$repo: locally off, skipping"
-    return 0
-  fi
+  # 1. local config is re-read by each local_read_* helper on use (global
+  # already read by the caller)
 
   # 2. skip repos in an abnormal git state
   if ! reason="$(abnormal_state_reason "$repo")"; then

@@ -53,7 +53,7 @@ setup() {
   [ -f "$AUTOGIT_GLOBAL_CONFIG" ]
   grep -qF "$REPO" "$AUTOGIT_GLOBAL_CONFIG"
   [ -f "$REPO/.autogit.toml" ]
-  grep -q '^enabled = true' "$REPO/.autogit.toml"
+  [ -z "$(grep '^enabled' "$REPO/.autogit.toml")" ]
 }
 
 @test "autogit add . is idempotent (repo listed once)" {
@@ -115,18 +115,13 @@ setup() {
   grep -q '^enabled = true' "$AUTOGIT_GLOBAL_CONFIG"
 }
 
-@test "autogit set enabled false updates the local config for the current repo" {
+@test "autogit set no longer exists (per-repo enabled setting removed; registration alone decides)" {
   bash -c "cd '$REPO' && '$AUTOGIT_BIN' add ." >/dev/null
 
   run bash -c "cd '$REPO' && '$AUTOGIT_BIN' set enabled false"
-  [ "$status" -eq 0 ]
 
-  grep -q '^enabled = false' "$REPO/.autogit.toml"
-}
-
-@test "autogit set with an unknown option fails" {
-  run bash -c "cd '$REPO' && '$AUTOGIT_BIN' set bogus_option value"
   [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown command: set"* ]]
 }
 
 @test "autogit status prints global and local sections for a registered repo" {
@@ -137,16 +132,35 @@ setup() {
   [[ "$output" == *"Global status:"* ]]
   [[ "$output" == *"auto-git: on"* ]]
   [[ "$output" == *"$REPO"* ]]
-  [[ "$output" != *"warning: local setting is 'on'"* ]]
+  local_section="${output#*Local status}"
+  [[ "$local_section" != *"auto-git:"* ]]
+  [[ "$local_section" != *"not managed by autogit"* ]]
+  [[ "$local_section" == *"last sync:"* ]]
 }
 
-@test "autogit status warns when locally on but not registered globally" {
-  bash -c "cd '$REPO' && '$AUTOGIT_BIN' add ." >/dev/null
-  bash -c "cd '$REPO' && '$AUTOGIT_BIN' remove ." >/dev/null
+@test "autogit status in an unregistered repo without local config only says it is not managed" {
+  expected_local_section="\
+Local status (this repo: $REPO):
+  not managed by autogit. Run 'autogit add .' to register it."
 
   run bash -c "cd '$REPO' && '$AUTOGIT_BIN' status"
+
   [ "$status" -eq 0 ]
-  [[ "$output" == *"warning: local setting is 'on'"* ]]
+  [[ "$output" == *"$expected_local_section" ]]
+  [[ "$output" != *"WARNING"* ]]
+}
+
+@test "autogit status in a removed repo (local config retained) only says it is not managed" {
+  bash -c "cd '$REPO' && '$AUTOGIT_BIN' add ." >/dev/null
+  bash -c "cd '$REPO' && '$AUTOGIT_BIN' remove ." >/dev/null
+  expected_local_section="\
+Local status (this repo: $REPO):
+  not managed by autogit. Run 'autogit add .' to register it."
+
+  run bash -c "cd '$REPO' && '$AUTOGIT_BIN' status"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"$expected_local_section" ]]
 }
 
 @test "autogit status warns when the repo is in an abnormal git state (detached HEAD)" {
@@ -159,6 +173,9 @@ setup() {
   run bash -c "cd '$REPO' && '$AUTOGIT_BIN' status"
   [ "$status" -eq 0 ]
   [[ "$output" == *"warning: repo is in an abnormal git state (detached HEAD)"* ]]
+  # printed once (stdout), not additionally echoed to stderr by the log helper
+  [[ "$output" != *"WARNING"* ]]
+  grep -q "abnormal git state (detached HEAD)" "$AUTOGIT_LOG_DIR"/cli-*.log
 }
 
 @test "error logging: autogit add on a non-git path records git's stderr in the log" {

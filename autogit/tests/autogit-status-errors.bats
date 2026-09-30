@@ -72,7 +72,7 @@ reject_pushes() {
 }
 
 @test "error state: failing validation is reported as an error, status exits non-zero" {
-  printf 'enabled = true\nvalidation_commands = [\n  "false",\n]\n' > "$REPO/.autogit.toml"
+  printf 'validation_commands = [\n  "false",\n]\n' > "$REPO/.autogit.toml"
   git -C "$REPO" commit -q -am "failing validation config"
   echo "changed" > "$REPO/tracked.txt"
 
