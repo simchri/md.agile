@@ -65,6 +65,7 @@ autogit on/off
 - validation commands
   list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass)
 - stage untracked files (default: off) — if enabled, autogit stages new/untracked files too (`git add .`/`-A`) instead of the default tracked-files-only behavior (`git add -u`, see Safety Guards)
+- validation failure notification threshold (default: 5 minutes) — only surface a user-visible notification once validation commands have been failing continuously for at least this long; failures shorter than this are logged only (not notified), to avoid noise from brief/transient failures. Configurable per repo
 
 ## logging
 - log to /tmp/autogit/
@@ -76,24 +77,29 @@ proposed per-repo cycle order, run each poll interval:
 1. re-read local + global config
 2. skip this repo for this cycle if: globally off, locally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
 3. `git fetch` (read-only, always safe)
-4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order; only if all pass, stage (`git add -u` by default, or `git add .`/`-A` if opted in) and commit locally
+4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order
+   - if all pass, stage (`git add -u` by default, or `git add .`/`-A` if opted in) and commit locally
+   - if any fail: do not commit, log the failure every cycle; only surface a user-visible notification once validation has been failing continuously for at least the "validation failure notification threshold" (default 5 min, see Local Configurations) — avoids notification noise for brief/transient failures
 5. reconcile with the fetched remote:
    - if a fast-forward is possible, fast-forward — no conflict handling needed
-   - otherwise apply the Conflict Resolution strategy below
+   - otherwise, attempt a normal `git merge` (three-way merge): if it completes cleanly with no content conflicts, keep the merge result — this is the common case for small, frequent, non-overlapping changes and preserves local history
+   - only if that merge itself reports actual conflicts, abort it and apply the Conflict Resolution strategy below
 6. re-run validation commands once more after any pull/merge, before pushing — this guards against a "clean" local commit being combined with a broken remote state
-   - if validation now fails: do not push, log/notify, retry next cycle
+   - if validation now fails: do not push, log/notify (same threshold-based notification as step 4), retry next cycle
 7. `git push` (never `--force` — see Safety Guards)
 8. log outcome, sleep until next poll
 
 ## Conflict Resolution
-- if any conflict that would require a merge, the top-level strategy is:
-  - "discard" local changes, move them to the git stash
-  - pull the remote version and apply it
-  - inform the user about the situation
+- if a merge attempt (step 5) reports actual content conflicts, the top-level strategy is:
+  - abort the in-progress merge
+  - create a timestamped backup branch/ref at the current local `HEAD` (e.g. `autogit-backup/<repo>/<timestamp>`), preserving all local commits reachable from it — this replaces relying on `git stash` for already-committed work, since stash cannot capture a range of commits, only uncommitted working-tree/index changes
+  - hard-reset the current branch to the fetched remote ref
+  - if there were also uncommitted working-tree changes at the time of the reset (on top of the now-backed-up commits), those are captured with `git stash` as before, with an identifiable message (repo path + timestamp) so `git stash list` remains usable even if the user has their own unrelated stash entries
+  - inform the user about the situation, including how to inspect/recover the backup branch and any stash entry
     - system notification
     - logging
-- this is intentional and applies even to already-committed local (autogit) commits, not just uncommitted working-tree changes: on divergence, local history is aggressively thrown away onto the stash rather than merged/rebased
-- accepted tradeoff: this is deliberately somewhat silent/lossy in the rare case where the stashed commits are never recovered. The mitigation is the short poll interval (see Architecture) — with an active network connection, at most one poll interval's worth of work (e.g. ~1 minute) is ever at risk of being stashed-and-forgotten. For that residual edge case, the stash itself is considered sufficient recovery
+- this is intentional and applies even to already-committed local (autogit) commits, not just uncommitted working-tree changes: on a genuine (non-clean) merge conflict, local history is aggressively set aside (onto the backup branch) rather than merged/rebased through
+- accepted tradeoff: this is deliberately somewhat silent/lossy in the rare case where the backup branch (or stash) is never recovered. The mitigation is the short poll interval (see Architecture) — with an active network connection, at most one poll interval's worth of work (e.g. ~1 minute) is ever at risk of being set-aside-and-forgotten. For that residual edge case, the backup branch/stash is considered sufficient recovery
 
 ## Safety Guards
 - never run `git push --force` (or any equivalent history-rewriting push), under any circumstance
