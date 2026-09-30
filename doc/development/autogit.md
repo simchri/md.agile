@@ -66,6 +66,7 @@ autogit on/off
   list of commands and expected return codes (optional, default 0), executed in order before any commit is performed. (Commit is only done once all pass)
 - stage untracked files (default: off) — if enabled, autogit stages new/untracked files too (`git add .`/`-A`) instead of the default tracked-files-only behavior (`git add -u`, see Safety Guards)
 - validation failure notification threshold (default: 5 minutes) — only surface a user-visible notification once validation commands have been failing continuously for at least this long; failures shorter than this are logged only (not notified), to avoid noise from brief/transient failures. Configurable per repo
+- backup branch retention (in days, optional, default: unset/never) — if set, automatically delete `autogit-backup/*` branches (see Conflict Resolution) older than this many days. If unset, backup branches are never automatically deleted
 
 ## logging
 - log to /tmp/autogit/
@@ -93,6 +94,7 @@ proposed per-repo cycle order, run each poll interval:
 - if a merge attempt (step 5) reports actual content conflicts, the top-level strategy is:
   - abort the in-progress merge
   - create a timestamped backup branch/ref at the current local `HEAD` (e.g. `autogit-backup/<repo>/<timestamp>`), preserving all local commits reachable from it — this replaces relying on `git stash` for already-committed work, since stash cannot capture a range of commits, only uncommitted working-tree/index changes
+  - this backup branch is local-only and is never pushed to the remote
   - hard-reset the current branch to the fetched remote ref
   - if there were also uncommitted working-tree changes at the time of the reset (on top of the now-backed-up commits), those are captured with `git stash` as before, with an identifiable message (repo path + timestamp) so `git stash list` remains usable even if the user has their own unrelated stash entries
   - inform the user about the situation, including how to inspect/recover the backup branch and any stash entry
@@ -100,6 +102,7 @@ proposed per-repo cycle order, run each poll interval:
     - logging
 - this is intentional and applies even to already-committed local (autogit) commits, not just uncommitted working-tree changes: on a genuine (non-clean) merge conflict, local history is aggressively set aside (onto the backup branch) rather than merged/rebased through
 - accepted tradeoff: this is deliberately somewhat silent/lossy in the rare case where the backup branch (or stash) is never recovered. The mitigation is the short poll interval (see Architecture) — with an active network connection, at most one poll interval's worth of work (e.g. ~1 minute) is ever at risk of being set-aside-and-forgotten. For that residual edge case, the backup branch/stash is considered sufficient recovery
+- backup branch retention: by default, backup branches are never automatically deleted (they're local-only, so this is not team-visible clutter, just local disk/branch-list growth). A repo can opt in to automatic cleanup via the "backup branch retention" local config option (in days); when set, any branch matching the `autogit-backup/<repo>/*` naming convention older than the configured number of days is deleted automatically each cycle. This relies fully on the naming convention (no other bookkeeping) to identify which branches are eligible. Deletion is logged but never surfaced as a user notification
 
 ## Safety Guards
 - never run `git push --force` (or any equivalent history-rewriting push), under any circumstance
