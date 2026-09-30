@@ -977,7 +977,18 @@ autogit on/off
 - use log helpers (c.f. snippets.bash)
 
 ### What it actually does - sync loop
-...
+proposed per-repo cycle order, run each poll interval:
+1. re-read local + global config
+2. skip this repo for this cycle if: globally off, locally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
+3. `git fetch` (read-only, always safe)
+4. if working tree/index has changes: run configured validation commands in order; only if all pass, `git add .` and commit locally
+5. reconcile with the fetched remote:
+   - if a fast-forward is possible, fast-forward — no conflict handling needed
+   - otherwise apply the Conflict Resolution strategy below
+6. re-run validation commands once more after any pull/merge, before pushing — this guards against a "clean" local commit being combined with a broken remote state
+   - if validation now fails: do not push, log/notify, retry next cycle
+7. `git push` (never `--force` — see Safety Guards)
+8. log outcome, sleep until next poll
 
 ### Conflict Resolution
 - if any conflict that would require a merge, the top-level strategy is:
@@ -986,6 +997,16 @@ autogit on/off
   - inform the user about the situation
     - system notification
     - logging
+
+### Safety Guards
+- never run `git push --force` (or any equivalent history-rewriting push), under any circumstance
+- always pull/reconcile with the remote before pushing, never the reverse
+- before doing anything else in a cycle, detect and skip repos in an "abnormal" git state, warning instead of acting:
+  - detached HEAD
+  - mid-rebase / mid-merge / mid-cherry-pick / mid-bisect
+  - unborn branch (no commits yet)
+  - dirty/uninitialized submodules
+- these guards apply even if the repo is otherwise configured "on"; treat them as a hard stop for that cycle, not a one-off failure to retry blindly
 
 ### tasks
 - [ ] scaffolding - no useful functionality yet!
