@@ -77,21 +77,22 @@ autogit on/off
 proposed per-repo cycle order, run each poll interval:
 1. re-read local + global config
 2. skip this repo for this cycle if: globally off, locally off, or repo is in an "abnormal" git state (see Safety Guards below) — log/surface via `autogit status`, take no further action
-3. `git fetch` (read-only, always safe)
-4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order
+3. `git fetch` (read-only, always safe; subject to the 5s operation timeout, see Safety Guards)
+4. if working tree/index has changes to already-tracked files (or, if this repo's "stage untracked files" option is enabled, any changes): run configured validation commands in order (each subject to the 5s command timeout, see Safety Guards)
    - if all pass, stage (`git add -u` by default, or `git add .`/`-A` if opted in) and commit locally
    - if any fail: do not commit, log the failure every cycle; only surface a user-visible notification once validation has been failing continuously for at least the "validation failure notification threshold" (default 5 min, see Local Configurations) — avoids notification noise for brief/transient failures
 5. reconcile with the fetched remote:
    - if a fast-forward is possible, fast-forward — no conflict handling needed
-   - otherwise, attempt a normal `git merge` (three-way merge): if it completes cleanly with no content conflicts, keep the merge result — this is the common case for small, frequent, non-overlapping changes and preserves local history
-   - only if that merge itself reports actual conflicts, abort it and apply the Conflict Resolution strategy below
-6. re-run validation commands once more after any pull/merge, before pushing — this guards against a "clean" local commit being combined with a broken remote state
+   - otherwise, attempt `git rebase` of the local (not-yet-pushed) commits onto the fetched remote ref: since these commits have never been pushed/shared, this is safe under the "never force-push" guard and keeps history linear — no merge-commit noise accumulating from every polling cycle across every machine
+   - if the rebase itself hits a conflict, abort it and instead attempt a normal `git merge` (three-way merge): if that completes cleanly with no content conflicts, keep the merge result — still a common case for small, non-overlapping changes, and preserves local history
+   - only if that merge also reports actual conflicts, abort it and apply the Conflict Resolution strategy below
+6. re-run validation commands once more after any pull/rebase/merge, before pushing (same 5s per-command timeout) — this guards against a "clean" local commit being combined with a broken remote state
    - if validation now fails: do not push, log/notify (same threshold-based notification as step 4), retry next cycle
-7. `git push` (never `--force` — see Safety Guards)
+7. `git push` (never `--force` — see Safety Guards; subject to the 5s operation timeout)
 8. log outcome, sleep until next poll
 
 ## Conflict Resolution
-- if a merge attempt (step 5) reports actual content conflicts, the top-level strategy is:
+- if a rebase/merge attempt (step 5) reports actual content conflicts, the top-level strategy is:
   - abort the in-progress merge
   - create a timestamped backup branch/ref at the current local `HEAD` (e.g. `autogit-backup/<repo>/<timestamp>`), preserving all local commits reachable from it — this replaces relying on `git stash` for already-committed work, since stash cannot capture a range of commits, only uncommitted working-tree/index changes
   - this backup branch is local-only and is never pushed to the remote
@@ -116,6 +117,7 @@ proposed per-repo cycle order, run each poll interval:
 - these guards apply even if the repo is otherwise configured "on"; treat them as a hard stop for that cycle, not a one-off failure to retry blindly
 - accepted, out of scope: autogit acting concurrently with a user's own manual git usage (e.g. mid-way through staging/crafting a commit) may conflict or produce unexpected results. This is not specially guarded against; the mitigation is that the user can turn autogit off for the repo (`autogit remove .` / local on-off) whenever they want to do manual git work
 - autogit only ever operates on the current/checked-out branch (whatever it is at the time of a cycle) and never switches, creates, or manages branches itself; branch management (creating, switching, tracking upstream) is entirely the user's responsibility before/while autogit is on for a repo
+- every git network operation (`git fetch`, `git push`) and every configured validation command is subject to a fixed 5 second timeout; if it doesn't complete within that time, it is killed, treated as a failure for that cycle (logged; validation failures still follow the notification threshold above), and retried next poll — this bounds how long one slow/hanging repo or command can stall that repo's cycle
 
 ## Commit Message Strategy (draft options)
 options considered (or offer as a config setting):
