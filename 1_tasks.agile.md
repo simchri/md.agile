@@ -968,7 +968,7 @@ users don't have to think about it. Design plan: see
   - [x] per-repo error state: daemon records each repo's last sync outcome (step + message incl. captured output) under `${XDG_STATE_HOME:-~/.local/state}/autogit`; `autogit status` reports it and exits non-zero if any repo is in error
   - [x] BUG: `autogit status` claimed "auto-git: on" + "not in the global config list" warning for any unregistered repo without `.autogit.toml`. FIX: removed the per-repo `enabled` setting (and `autogit set`) — registration alone decides; unregistered repos only show "not managed by autogit"; status warnings no longer printed twice
 
-- [ ] safety guards / hardening
+- [x] safety guards / hardening
   - [x] shared git-operation timeout (5s) wrapper used by fetch and push
   - [x] shared validation-command timeout wrapper (per-command, default 120s)
   - [x] shared abnormal-git-state detection reused by both `autogit status` and the sync loop
