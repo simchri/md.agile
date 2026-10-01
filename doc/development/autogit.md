@@ -34,7 +34,7 @@ Print status of autogit (can be called anywhere). Lists all relevant config info
 Output has to sections
 First section: global status
 - show global on/off status
-- show warning if problem with systemd service
+- show the systemd user service's `Active:` line (from `systemctl --user status autogit`), e.g. `service: active (running) since …`; `service: unknown (systemctl --user unavailable)` if there's no systemctl / user session. Unless it is `active (running)`, also print how to view logs (`journalctl --user -u autogit.service` + the daemon log dir). Not covered by automated tests (depends on the real systemd)
 - show list of observed repos; repos whose last sync cycle ended in an error are flagged, e.g. `- /path/repo  [ERROR: push]`
 Second section: local status (this repo)
 - only if current dir is a git repo

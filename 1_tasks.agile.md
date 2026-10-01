@@ -977,6 +977,8 @@ users don't have to think about it. Design plan: see
 
 - [x] BUG: installed autogit user service crash-looped ("Permission denied" on `/tmp/autogit/daemon-*.log`): the package shipped a global `default.target.wants` symlink, so the daemon also ran for gdm, which created the shared `/tmp/autogit/` first. FIX: default log dir is now per-user `${XDG_STATE_HOME:-~/.local/state}/autogit/logs`; no global enable symlink is shipped — postinst enables/starts the service only for the installing user (fallback: per-user symlink), prerm disables it on removal
 
+- [x] `autogit status` shows the systemd service's `Active:` line; if not `active (running)`, prints how to view logs (journalctl + log dir)
+
 - [ ] documentation 
 
 #MILESTONE: Mdagile autogit 1.0

@@ -182,11 +182,20 @@ local_config_init_if_missing() { # local_config_init_if_missing [<repo>]
 
 # --- systemd status (best-effort, silent if no user systemd session) ----
 
-systemd_warning() {
-  command -v systemctl >/dev/null 2>&1 || return 0
-  systemctl --user list-units >/dev/null 2>&1 || return 0
-  systemctl --user is-active --quiet autogit.service 2>/dev/null && return 0
-  echo "  warning: autogit systemd service is not active"
+systemd_status() { # prints the service's "Active:" line; adds a log hint unless active (running)
+  local active=""
+  if command -v systemctl >/dev/null 2>&1 && systemctl --user list-units >/dev/null 2>&1; then
+    active="$(systemctl --user status autogit.service 2>/dev/null | sed -n 's/^[[:space:]]*Active:[[:space:]]*//p' | head -n 1)"
+  fi
+  if [ -z "$active" ]; then
+    echo "  service: unknown (systemctl --user unavailable)"
+  else
+    echo "  service: $active"
+  fi
+  case "$active" in
+    "active (running)"*) ;;
+    *) echo "  view logs: journalctl --user -u autogit.service (daemon logs: $AUTOGIT_LOG_DIR)" ;;
+  esac
 }
 
 # --- abnormal git state detection (Safety Guards) -------------------------
@@ -302,7 +311,7 @@ cmd_status() { # exits 1 if any observed repo (or the current repo) is in an err
   else
     echo "  auto-git: off"
   fi
-  systemd_warning
+  systemd_status
   mapfile -t repos < <(global_read_repos)
   if [ "${#repos[@]}" -eq 0 ]; then
     echo "  observed repos: (none)"
