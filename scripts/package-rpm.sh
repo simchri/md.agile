@@ -132,17 +132,15 @@ Packager: $MAINTAINER
 automatic git commit/push/pull sync daemon for mdagile (scaffolding only, no real sync behavior yet)
 
 %install
-mkdir -p %{buildroot}/usr/bin %{buildroot}/usr/lib/systemd/user/default.target.wants
+mkdir -p %{buildroot}/usr/bin %{buildroot}/usr/lib/systemd/user
 install -m 755 $ROOT/$AUTOGIT_BIN_DIR/autogit %{buildroot}/usr/bin/autogit
 install -m 755 $ROOT/$AUTOGIT_BIN_DIR/autogit-daemon %{buildroot}/usr/bin/autogit-daemon
 install -m 644 $ROOT/$AUTOGIT_SYSTEMD_DIR/autogit.service %{buildroot}/usr/lib/systemd/user/autogit.service
-ln -s ../autogit.service %{buildroot}/usr/lib/systemd/user/default.target.wants/autogit.service
 
 %files
 /usr/bin/autogit
 /usr/bin/autogit-daemon
 /usr/lib/systemd/user/autogit.service
-/usr/lib/systemd/user/default.target.wants/autogit.service
 
 %post
 %include $ROOT/$AUTOGIT_PACKAGING_DIR/postinst

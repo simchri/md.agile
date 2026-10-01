@@ -975,6 +975,8 @@ users don't have to think about it. Design plan: see
   - [x] per-repo failure isolation: a git-command failure in one registered repo's sync cycle no longer crashes the whole `autogit-daemon` process (`set -e` guarded via `if ! sync_one_repo ...`), so other registered repos still get synced that cycle
   - [x] collision-safe `repo_state_key` derivation for validation-failure-threshold state: hashes the full repo path (sha256sum, truncated) instead of the previous naive `/`→`_` substitution, which could collide between distinct repo paths (e.g. `.../foo/bar_baz` and `.../foo_bar/baz`), leaking one repo's failure-notification state into another's
 
+- [x] BUG: installed autogit user service crash-looped ("Permission denied" on `/tmp/autogit/daemon-*.log`): the package shipped a global `default.target.wants` symlink, so the daemon also ran for gdm, which created the shared `/tmp/autogit/` first. FIX: default log dir is now per-user `${XDG_STATE_HOME:-~/.local/state}/autogit/logs`; no global enable symlink is shipped — postinst enables/starts the service only for the installing user (fallback: per-user symlink), prerm disables it on removal
+
 - [ ] documentation 
 
 #MILESTONE: Mdagile autogit 1.0

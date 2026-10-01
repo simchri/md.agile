@@ -11,7 +11,7 @@ set -euo pipefail
 # file. All levels always write to the log file; only INFO is additionally
 # gated behind AUTOGIT_VERBOSE for stderr output. WARNING/ERROR are also
 # echoed to stderr (colored), matching snippets.bash's logw/loge.
-AUTOGIT_LOG_DIR="${AUTOGIT_LOG_DIR:-/tmp/autogit}"
+AUTOGIT_LOG_DIR="${AUTOGIT_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/autogit/logs}"
 AUTOGIT_VERBOSE="${AUTOGIT_VERBOSE:-0}"
 
 log_line() { # log_line <component> <level> <message>

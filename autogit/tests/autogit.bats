@@ -12,7 +12,7 @@ setup() {
   AUTOGIT_DAEMON="$REPO_ROOT/autogit/bin/autogit-daemon"
 
   # Isolate logging and the global config into throwaway locations so tests
-  # never touch the real /tmp/autogit/ or ~/.config/mdagile/autogit.toml.
+  # never touch the real ~/.local/state/autogit/ or ~/.config/mdagile/autogit.toml.
   export AUTOGIT_LOG_DIR="$BATS_TEST_TMPDIR/autogit-logs"
   export AUTOGIT_STATE_DIR="$BATS_TEST_TMPDIR/autogit-state"
   export AUTOGIT_GLOBAL_CONFIG="$BATS_TEST_TMPDIR/global.toml"
@@ -176,6 +176,21 @@ Local status (this repo: $REPO):
   # printed once (stdout), not additionally echoed to stderr by the log helper
   [[ "$output" != *"WARNING"* ]]
   grep -q "abnormal git state (detached HEAD)" "$AUTOGIT_LOG_DIR"/cli-*.log
+}
+
+@test "default log dir is per-user under XDG_STATE_HOME (not a shared /tmp path)" {
+  # A single shared /tmp/autogit/ breaks as soon as a second user (e.g. gdm)
+  # creates it first: other users then can't write their logs there.
+  unset AUTOGIT_LOG_DIR
+  export XDG_STATE_HOME="$BATS_TEST_TMPDIR/xdg-state"
+
+  run "$AUTOGIT_BIN" add "$BATS_TEST_TMPDIR"
+  [ "$status" -ne 0 ]
+  ls "$XDG_STATE_HOME"/autogit/logs/cli-*.log
+
+  run "$AUTOGIT_DAEMON" --once
+  [ "$status" -eq 0 ]
+  ls "$XDG_STATE_HOME"/autogit/logs/daemon-*.log
 }
 
 @test "error logging: autogit add on a non-git path records git's stderr in the log" {

@@ -36,20 +36,17 @@ rm -f "$DIST_DIR/mdagile-autogit_${VERSION}_${ARCH}.deb"
 
 mkdir -p \
   "$PKG_DIR/usr/bin" \
-  "$PKG_DIR/usr/lib/systemd/user/default.target.wants" \
+  "$PKG_DIR/usr/lib/systemd/user" \
   "$PKG_DIR/DEBIAN"
 
 install -m 755 autogit/bin/autogit "$PKG_DIR/usr/bin/autogit"
 install -m 755 autogit/bin/autogit-daemon "$PKG_DIR/usr/bin/autogit-daemon"
 install -m 644 autogit/systemd/autogit.service "$PKG_DIR/usr/lib/systemd/user/autogit.service"
 
-# Ship the "enabled" symlink directly in the package, rather than creating it
-# in postinst: this is what `systemctl --user enable` itself does under the
-# hood, and shipping it as a plain file in the package means the unit starts
-# automatically the next time *any* user logs in (systemd discovers
-# default.target.wants/* when it starts that user's manager), without
-# needing a live user session at package-install time.
-ln -s ../autogit.service "$PKG_DIR/usr/lib/systemd/user/default.target.wants/autogit.service"
+# Deliberately no default.target.wants/autogit.service symlink in the
+# package: under /usr/lib/systemd/user/ it would enable the service for
+# *every* user on the system (incl. system users like gdm). Instead,
+# postinst enables it only for the user who ran the install.
 
 cat > "$PKG_DIR/DEBIAN/control" <<EOF
 Package: mdagile-autogit

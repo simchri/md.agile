@@ -1,15 +1,31 @@
 #!/bin/sh
-# Best-effort: stop the running user service before removal, so an
-# uninstall doesn't leave a daemon running with its unit file gone.
+# On actual removal only: stop and disable the user service for whichever
+# user ran the uninstall, so it neither keeps running with its unit file gone
+# nor leaves a dangling "enabled" symlink in their ~/.config. On upgrade, do
+# nothing: postinst restarts it with the new version, and disabling here would
+# wipe the user's enablement (in rpm, the old %preun even runs *after* the new
+# %post).
+#
+# Shared between the .deb (prerm: $1 = remove|upgrade|...) and .rpm (%preun,
+# via %include: $1 = 0 on erase, >=1 on upgrade).
 set -e
+
+case "${1:-}" in
+  remove|0) ;;
+  *) exit 0 ;;
+esac
 
 target_user="${SUDO_USER:-$(logname 2>/dev/null || true)}"
 
 if [ -n "$target_user" ] && [ "$target_user" != "root" ]; then
   target_uid="$(id -u "$target_user" 2>/dev/null || true)"
   if [ -n "$target_uid" ]; then
-    su - "$target_user" -c \
-      "XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user stop autogit.service" \
+    su - "$target_user" -s /bin/sh -c \
+      "export XDG_RUNTIME_DIR=/run/user/$target_uid; systemctl --user disable --now autogit.service" \
+      >/dev/null 2>&1 || true
+    # Fallback if no live user manager: remove the enable symlink directly.
+    su - "$target_user" -s /bin/sh -c \
+      'rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/default.target.wants/autogit.service"' \
       >/dev/null 2>&1 || true
   fi
 fi

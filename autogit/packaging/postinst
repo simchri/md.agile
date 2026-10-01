@@ -1,25 +1,43 @@
 #!/bin/sh
-# Best-effort: also start the service *now*, for whichever user actually ran
-# the install, instead of only waiting for their next login (the shipped
-# default.target.wants/autogit.service symlink already guarantees that
-# fallback). If there's no live user session to talk to yet (e.g.
-# non-interactive install), this silently falls back to "starts on next
-# login" rather than failing the package install.
+# Enable (and start/restart) the autogit user service for whichever user
+# actually ran the install. Deliberately per-user: the package does not ship a
+# global /usr/lib/systemd/user/default.target.wants/ symlink, since that would
+# enable the daemon for *every* user, incl. system users like gdm.
+#
+# If that user has no live systemd user manager to talk to (e.g.
+# non-interactive install), fall back to creating the same per-user "enabled"
+# symlink that `systemctl --user enable` would, so the service starts on their
+# next login. Never fails the package install.
+#
+# Shared between the .deb (postinst) and .rpm (%post, via %include). Commands
+# run as the target user via `su -s /bin/sh` so they don't depend on that
+# user's login shell syntax.
 set -e
 
 target_user="${SUDO_USER:-$(logname 2>/dev/null || true)}"
 
-if [ -n "$target_user" ] && [ "$target_user" != "root" ]; then
-  target_uid="$(id -u "$target_user" 2>/dev/null || true)"
-  if [ -n "$target_uid" ] && su - "$target_user" -c \
-      "XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user daemon-reload && XDG_RUNTIME_DIR=/run/user/$target_uid systemctl --user enable --now autogit.service" \
-      >/dev/null 2>&1; then
-    echo "mdagile-autogit: started now for user '$target_user'."
-  else
-    echo "mdagile-autogit: could not start immediately (no active user session?); it will start automatically on next login."
-  fi
+if [ -z "$target_user" ] || [ "$target_user" = "root" ]; then
+  echo "mdagile-autogit: installed. Enable it per user with: systemctl --user enable --now autogit.service"
+  exit 0
+fi
+
+target_uid="$(id -u "$target_user" 2>/dev/null || true)"
+if [ -z "$target_uid" ]; then
+  echo "mdagile-autogit: installed, but unknown user '$target_user'. Enable it per user with: systemctl --user enable --now autogit.service"
+  exit 0
+fi
+
+# restart (not just enable --now) so an upgrade picks up the new daemon script.
+if su - "$target_user" -s /bin/sh -c \
+    "export XDG_RUNTIME_DIR=/run/user/$target_uid; systemctl --user daemon-reload && systemctl --user enable autogit.service && systemctl --user restart autogit.service" \
+    >/dev/null 2>&1; then
+  echo "mdagile-autogit: enabled and started for user '$target_user'."
+elif su - "$target_user" -s /bin/sh -c \
+    'd="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/default.target.wants" && mkdir -p "$d" && ln -sf /usr/lib/systemd/user/autogit.service "$d/autogit.service"' \
+    >/dev/null 2>&1; then
+  echo "mdagile-autogit: enabled for user '$target_user' (no active user session); it will start on their next login."
 else
-  echo "mdagile-autogit: installed. The service will start automatically on next user login."
+  echo "mdagile-autogit: could not enable the service for user '$target_user'. Enable it manually with: systemctl --user enable --now autogit.service"
 fi
 
 exit 0

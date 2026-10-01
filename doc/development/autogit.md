@@ -14,7 +14,7 @@ Enable automatic synchronization of the current repo via git.
 ## Architecture
 - new indpendent package (built for both Debian (`.deb`) and rpm-based (`.rpm`) distros)
 - bins:
-  - systemd service global for the current user, started on log in
+  - systemd *user* service (`autogit.service`), started on log in. Enabled per user, not globally: the package's postinst enables + starts it only for the installing user (falling back to the per-user `~/.config/systemd/user/default.target.wants/` symlink if that user has no live session); other users opt in with `systemctl --user enable --now autogit.service`. No global `default.target.wants` symlink is shipped, since that would start the daemon for every user incl. system users like gdm. Logs: `journalctl --user -u autogit`
   - script to set configuration options (command `autogit`)
 - has a configuration file with observed repositories
   - a new repo to observe is added, by adding the path to the global config file
@@ -73,7 +73,7 @@ autogit on/off
 - **Discarded idea: independent "auto commit on/off" + "auto pull push on/off" toggles.** Considered allowing a partial-automation mode where the user commits manually but autogit still handles fetch/reconcile/push. Discarded: the Conflict Resolution strategy's "aggressively discard local work onto a backup branch" tradeoff is only acceptable because the discarded commits are autogit's own frequently-generated, cheap-to-replace commits (see "accepted tradeoff" below, mitigated by short polling intervals). In manual-commit mode, the commits being reconciled/potentially discarded would be user-authored — possibly representing significant hand-written work accumulated across many manual commits between polls — so the same "~1 minute at risk" mitigation no longer holds, and silently resetting user commits onto a backup branch is not acceptable. This would also fragment the sync loop (which step runs depends on which toggle is on) and the Commit Message Strategy (which assumes autogit authors every commit) for comparatively little benefit. Kept as a single combined on/off per repo instead (i.e. registration via `autogit add`/`autogit remove`, see above)
 
 ## logging
-- log to /tmp/autogit/ (`AUTOGIT_LOG_DIR`); persistent per-repo state lives separately, see Error State
+- log to `${XDG_STATE_HOME:-~/.local/state}/autogit/logs/` (`AUTOGIT_LOG_DIR`), i.e. per user — a shared path like `/tmp/autogit/` breaks as soon as another user (e.g. gdm) creates it first; persistent per-repo state lives separately, see Error State
 - time stamped log files, one per day. Rotate every week: log files older than `AUTOGIT_LOG_RETENTION_DAYS` (env var, default 7) are deleted once per sync cycle; set to an empty string to disable rotation
 - use log helpers (c.f. snippets.bash)
 - external commands whose failure is an error (not mere boolean probes) are run through the `run_logged` helper: on failure, the logged message includes the exit code, the command line, and the command's captured stdout/stderr (last 50 lines of each stream, indented under the log entry)
