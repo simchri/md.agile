@@ -8,7 +8,13 @@ ARG UID
 RUN mkdir /home/${USER}
 RUN chown -R ${UID} /home/${USER}
 
-RUN cargo install cargo-binstall@1.24.0
+# Pinned to 1.18.1 (not the newer 1.24.0): 1.19.0+ bundles a Cargo.lock that
+# pins cargo-platform@0.3.3 (requires rustc 1.91) and vergen@10.0.3 (requires
+# rustc 1.96.0), both newer than this image's pinned rustc 1.90.0-nightly.
+# 1.18.1 is the latest release still locked to cargo-platform@0.3.2/vergen@9.1.0
+# (rustc 1.88 each), which this toolchain satisfies. Bump this together with
+# the FROM digest above if the base image's rustc is ever upgraded.
+RUN cargo install cargo-binstall@1.18.1 --locked
 
 RUN apt-get update && apt-get install --yes \
       bash \
