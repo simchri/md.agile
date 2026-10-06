@@ -1,11 +1,44 @@
+x-build: &dev-image-build
+  context: ./
+  dockerfile: ./docker/Dockerfile
+  args:
+    USER: ${USER:?error}
+    UID: ${UID:?error}
+
 services:
+  # Minimal, non-interactive service used by the Makefile (test/build-release/
+  # package/install). It only needs Docker and the source tree: no host
+  # dotfiles (.ssh/.gitconfig/.claude/.copilot), no /etc/passwd|shadow|group,
+  # no DISPLAY/GPU/privileged access. The image already has a user account
+  # matching the host UID (baked in at `docker build` time via `useradd -m -u
+  # ${UID}` in docker/Dockerfile), so none of those host-side mounts are
+  # needed to run cargo/bats/packaging scripts.
+  build-container:
+    build: *dev-image-build
+    image: mdagile-dev-env
+    user: "${UID:?error}:${UID:?error}"
+    working_dir: ${PWD:?error}
+    environment:
+      - USER=${USER}
+    ulimits:
+      core: -1 # (2)
+    deploy:
+      resources:
+        limits:
+          memory: 8gb # (5) Limits container memory usage
+    volumes:
+       - type: bind
+         source: .
+         target: ${PWD:?error}
+         read_only: false
+         bind:
+           create_host_path: false
+
+  # Interactive developer shell (used via the `devenv` wrapper), with GPU
+  # passthrough, GUI forwarding, host SSH/git identity, sudo-via-host-password,
+  # and AI assistant config mounted for convenience. Not used by the Makefile.
   dev-container:
-    build:
-      context: ./
-      dockerfile: ./docker/Dockerfile
-      args:
-        USER: ${USER:?error}
-        UID: ${UID:?error}
+    build: *dev-image-build
     image: mdagile-dev-env
     tty: true # docker run -t
     stdin_open: true # docker run -i
@@ -19,7 +52,7 @@ services:
       - sudo
     working_dir: ${PWD:?error}
     environment:
-      - DISPLAY=${DISPLAY:?error} # (1) set container env-variable DISPLAY to host's value of DISPLAY (forward GUIs to host's display!)
+      - DISPLAY=${DISPLAY:-:0} # (1) set container env-variable DISPLAY to host's value of DISPLAY (forward GUIs to host's display!)
       - NVIDIA_DRIVER_CAPABILITIES=all # (3)
       - USER=${USER}
     ulimits:
@@ -89,13 +122,9 @@ services:
          bind:
            create_host_path: false
 
+  # Interactive developer shell without GPU passthrough (used via `devenv`).
   dev-container-no-gpu:
-    build:
-      context: ./
-      dockerfile: ./docker/Dockerfile
-      args:
-        USER: ${USER:?error}
-        UID: ${UID:?error}
+    build: *dev-image-build
     image: mdagile-dev-env
     tty: true # docker run -t
     stdin_open: true # docker run -i
@@ -109,7 +138,7 @@ services:
       - sudo
     working_dir: ${PWD:?error}
     environment:
-      - DISPLAY=${DISPLAY:?error} # (1) set container env-variable DISPLAY to host's value of DISPLAY (forward GUIs to host's display!)
+      - DISPLAY=${DISPLAY:-:0} # (1) set container env-variable DISPLAY to host's value of DISPLAY (forward GUIs to host's display!)
       - USER=${USER}
     ulimits:
       core: -1 # (2)

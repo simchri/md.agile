@@ -13,15 +13,16 @@
 
 SHELL := bash
 
-# docker-compose service used for all container commands. The "-no-gpu"
-# variant is the default since building/packaging doesn't need GPU passthrough.
-COMPOSE_SERVICE ?= dev-container-no-gpu
+# docker-compose service used for all container commands. "build-container" is
+# a minimal, non-interactive service (no .ssh/.gitconfig/.claude/.copilot, no
+# DISPLAY/GPU/sudo) so these targets only need Docker and the source tree -
+# see docker-compose.yml for the interactive "dev-container*" alternatives.
+COMPOSE_SERVICE ?= build-container
 
 # docker-compose.yml requires these env vars to be set.
 UID       := $(shell id -u)
 USER      := $(shell whoami)
-DISPLAY   ?= :0
-export UID USER DISPLAY
+export UID USER
 
 # NOTE: the dev image's ENTRYPOINT is already ["/bin/bash"], so the command
 # passed to `docker compose run` becomes *arguments* to that bash, not a
