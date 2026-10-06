@@ -979,7 +979,7 @@ users don't have to think about it. Design plan: see
 
 - [x] `autogit status` shows the systemd service's `Active:` line; if not `active (running)`, prints how to view logs (journalctl + log dir)
 
-- [ ] documentation 
+- [x] documentation 
 
 #MILESTONE: Mdagile autogit 1.0
 

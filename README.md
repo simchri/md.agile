@@ -144,6 +144,14 @@ Alternatively, launch via terminal command `agilegui` then connect to the shown 
 
 After launch, indicate the directory where your task files live (Menu > Switch Project).
 
+## Auto-Git
+
+An independent, optional background service that keeps a git repo synced
+(commit, pull, push) automatically, so you don't have to think about it. See
+[doc/usage/autogit.md](doc/usage/autogit.md) for setup and usage, or
+[doc/development/autogit_implementation.md](doc/development/autogit_implementation.md)
+for internals.
+
 ## Syntax & Features
 
 A task that is "done" is marked with a lowercase `x`; `-` marks a task as cancelled. Subtasks must be indented two spaces per level, directly under their parent (no blank line in between) — a blank line always starts a new top-level task:
