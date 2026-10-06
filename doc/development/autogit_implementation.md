@@ -164,9 +164,10 @@ Notable helper functions, if you need to change behavior:
 
 - `git_timeout` — wraps a git invocation with a 5s `timeout`; used for
   `fetch`/`push` only (not for local, non-network git operations).
-- `has_changes` — checks for changes to tracked files (`git status
-  --porcelain -uno`), or including untracked (`-uall`) if `stage_untracked`
-  is on.
+- `has_changes` — runs `git status --porcelain` and, unless
+  `stage_untracked` is on, filters out untracked-file lines (`^??`) before
+  checking for any remaining output, so only changes to already-tracked
+  files count by default.
 - `commit_message_summary` / `render_commit_message` — Option E keyword
   extraction (see the design doc's "Commit Message Strategy") plus
   `commit_message_template` placeholder substitution
@@ -200,9 +201,9 @@ inverse: disables the service on removal.
 
 ## Testing
 
-Bats (`autogit/tests/*.bats`), run via `make test` (see the Makefile's
-autogit-test target) — not `cargo test`, since there's no Rust code here.
-Four files, by concern:
+Bats (`autogit/tests/*.bats`), run as part of `make test` (`cargo test &&
+bats autogit/tests` — there is no separate autogit-only Make target; see the
+Makefile's `test` target). Four files, by concern:
 
 - `autogit.bats` — the `autogit` CLI: config read/write, `add`/`remove`/
   `on`/`off`.
@@ -220,7 +221,7 @@ first (project-wide TDD convention also applies here), then run just the
 relevant file inside the dev container, e.g.:
 
 ```
-devenv . --no-tty -a -c "bats autogit/tests/autogit-daemon-sync.bats"
+devenv . -a -c "bats autogit/tests/autogit-daemon-sync.bats"
 ```
 
 ## Known pitfalls
