@@ -8,7 +8,7 @@ ARG UID
 RUN mkdir /home/${USER}
 RUN chown -R ${UID} /home/${USER}
 
-RUN cargo install cargo-binstall
+RUN cargo install cargo-binstall@1.24.0
 
 RUN apt-get update && apt-get install --yes \
       bash \
