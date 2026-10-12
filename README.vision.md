@@ -197,6 +197,45 @@ Neighbor tasks can themselves have their own properties and subtasks. This mecha
 
 **Properties with Neighbor Tasks can not be set at the top level (only on subtask level 1 and lower).** Neighbor tasks at the top level don't make sense, because the feature would only be usable exactly once for the entire project.
 
+## Forms & Fields
+```toml
+[Field.first_name]
+label = "First Name"
+
+[Field.email]
+label = "Email"
+validation_regex = ""
+
+[Field.gender]
+label = "Gender"
+default = "(don't specify)"
+values = ["male", "female", "(don't specify)"]
+
+[Form.personal_info]
+fields = ["first_name", "email" , "gender"]
+validation = "validate_personal_info.sh"
+```
+Default value for any field unless specified explicitly is `___`. 
+
+- validation:
+  - first via regex, per field OR match against allowed values.
+  - second via user defined validation script on the form level. Script gets all properties and fields of a task, json.
+
+```md
+- [ ] provide new user #personal_info 
+```
+before this can be marked complete, the fields required by the form must exist, be filled out and pass validation (Quick fix to add fields)
+
+```md
+- [ ] provide new user #personal_info 
+  First Name: ___
+  Email: ___
+  Gender: (don't specify)
+```
+The form content is strictly everything after the `<label>: ` (after label, colon and space) until the end of the line. 
+
+Validation script: ...
+
 ## Branch Properties
 
 Branch Properties allow you to implement branching workflows depending on the outcomes of tasks. The following config snippet defines a property `#review...` with two branches `#review:passed` and `#review:failed`:
@@ -221,7 +260,7 @@ While task in progress:
 Review passed:
 ```md
 - [ ] build something
-  - [x] perform #review:passed
+- [x] perform #review:passed
     - [x] "document review findings"
   - [ ] "publish feature"
 ```
@@ -238,3 +277,6 @@ It is not allowed to mark the task as complete without updating the property to 
 - [x] perform #review...
   - [x] "document review findings"
 ```
+
+## Combining Branch Properties & Forms
+validate together to build complicated business rules
