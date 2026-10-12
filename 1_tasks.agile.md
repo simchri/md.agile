@@ -987,6 +987,8 @@ users don't have to think about it. Design plan: see
 - [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
 - [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
 
+## Forms / Form Fields?
+
 #MILESTONE: Branch Properties V1
 
 
@@ -1057,5 +1059,9 @@ Think more about restriction of bad actions, e.g. sweeping tasks under the rag, 
 
 #MILESTONE: Further milestone and ETA improvements
 
+## Other Ideas (Inbox)
+- [ ] LSP action to get "ETA for task under cursor". Shown as popup window or message (configurable on the editor side)
+  As a first step the estimation logic has to be generalized to allow estimating any task instead of just milestones
+  Then this estimate needs to be exposed via LSP as an action. Finally, find suitable editor "outlet" for the received info
 
 #MILESTONE: Done
