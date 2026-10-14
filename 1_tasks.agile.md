@@ -981,6 +981,8 @@ users don't have to think about it. Design plan: see
 
 - [x] documentation 
 
+- [x] BUG: after a reboot, autogit systematically failed to fetch ("Permission denied (publickey)" / "Could not read from remote repository") on every poll cycle, until a manual `systemctl restart --user autogit`. Root cause: `autogit.service` was `WantedBy=default.target`, reached before `graphical-session-pre.target` (the point at which the SSH agent/keyring publishes `SSH_AUTH_SOCK`), so the daemon forked with no/stale `SSH_AUTH_SOCK` and — since a process's environment never updates after it forks — stayed broken until restarted. FIX: unit now ordered `After=`/`Wants=`/`WantedBy=graphical-session-pre.target`; `autogit-daemon` also self-heals via a per-cycle `refresh_agent_environment()` that re-reads agent vars from `systemctl --user show-environment`, logged whenever it picks up a change; fetch/push failures that look auth-related now get an extra, secret-free diagnostic log line (remote URL scheme, SSH agent reachability/identity count, GPG agent presence) so a recurrence is immediately spottable in the log. See doc/development/autogit.md "Authentication environment and the SSH-agent startup race"
+
 #MILESTONE: Mdagile autogit 1.0
 
 ## Neighbor Tasks / Branch Properties / Workflows

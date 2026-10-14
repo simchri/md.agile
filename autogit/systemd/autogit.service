@@ -1,5 +1,19 @@
 [Unit]
 Description=mdagile autogit daemon (automatic git commit/push/pull sync)
+# Ordered after graphical-session-pre.target, which is reached once the
+# session's early services (SSH agent / keyring, incl. SSH_AUTH_SOCK) are
+# up. default.target is reached earlier than that, so starting from it (as
+# this unit used to) raced the daemon's startup against the SSH agent: a
+# fetch over SSH could fail with "Permission denied (publickey)" because
+# SSH_AUTH_SOCK wasn't set yet in the systemd --user manager's environment
+# at the moment this service forked -- and since a process's environment
+# never updates after it starts, every subsequent cycle failed identically
+# until the service was manually restarted. See
+# doc/development/autogit.md "Authentication environment and the SSH-agent
+# startup race" for the full story and the daemon-side self-healing
+# fallback (refresh_agent_environment).
+After=graphical-session-pre.target
+Wants=graphical-session-pre.target
 
 [Service]
 ExecStart=/usr/bin/autogit-daemon
@@ -7,4 +21,4 @@ Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session-pre.target

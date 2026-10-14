@@ -14,7 +14,7 @@ Enable automatic synchronization of the current repo via git.
 ## Architecture
 - new indpendent package (built for both Debian (`.deb`) and rpm-based (`.rpm`) distros)
 - bins:
-  - systemd *user* service (`autogit.service`), started on log in. Enabled per user, not globally: the package's postinst enables + starts it only for the installing user (falling back to the per-user `~/.config/systemd/user/default.target.wants/` symlink if that user has no live session); other users opt in with `systemctl --user enable --now autogit.service`. No global `default.target.wants` symlink is shipped, since that would start the daemon for every user incl. system users like gdm. Logs: `journalctl --user -u autogit`
+  - systemd *user* service (`autogit.service`), started once the graphical session's early services (SSH agent / keyring) are up (`After=graphical-session-pre.target`/`WantedBy=graphical-session-pre.target` — not `default.target`, see "Authentication environment and the SSH-agent startup race" below). Enabled per user, not globally: the package's postinst enables + starts it only for the installing user (falling back to the per-user `~/.config/systemd/user/graphical-session-pre.target.wants/` symlink if that user has no live session); other users opt in with `systemctl --user enable --now autogit.service`. No global `graphical-session-pre.target.wants` symlink is shipped, since that would start the daemon for every user incl. system users like gdm. Logs: `journalctl --user -u autogit`
   - script to set configuration options (command `autogit`)
 - has a configuration file with observed repositories
   - a new repo to observe is added, by adding the path to the global config file
@@ -116,6 +116,46 @@ proposed per-repo cycle order, run each poll interval:
 - this is intentional and applies even to already-committed local (autogit) commits, not just uncommitted working-tree changes: on a genuine (non-clean) merge conflict, local history is aggressively set aside (onto the backup branch) rather than merged/rebased through
 - accepted tradeoff: this is deliberately somewhat silent/lossy in the rare case where the backup branch (or stash) is never recovered. The mitigation is the short poll interval (see Architecture) — with an active network connection, at most one poll interval's worth of work (e.g. ~1 minute) is ever at risk of being set-aside-and-forgotten. For that residual edge case, the backup branch/stash is considered sufficient recovery
 - backup branch retention: by default, backup branches are never automatically deleted (they're local-only, so this is not team-visible clutter, just local disk/branch-list growth). A repo can opt in to automatic cleanup via the "backup branch retention" local config option (in days); when set, any branch matching the `autogit-backup/<repo>/*` naming convention older than the configured number of days is deleted automatically each cycle. This relies fully on the naming convention (no other bookkeeping) to identify which branches are eligible. Deletion is logged but never surfaced as a user notification
+
+## Authentication environment and the SSH-agent startup race
+Bug found on a real machine: after a reboot, autogit systematically failed to
+fetch (`fatal: Could not read from remote repository` /
+`Permission denied (publickey)`) on every single poll cycle, until a manual
+`systemctl restart --user autogit`. Root cause (confirmed via
+`journalctl --user -b -1`): `autogit.service` was `WantedBy=default.target`,
+which is reached *before* `graphical-session-pre.target` — the point at
+which the SSH agent/keyring (e.g. GNOME Keyring's `gnome-keyring-ssh`)
+publishes `SSH_AUTH_SOCK` into the systemd `--user` manager's environment.
+The daemon forked with no (or a stale) `SSH_AUTH_SOCK`, and since a
+process's environment is fixed at fork time and never updated afterwards,
+every subsequent 60s cycle failed identically — only a restart re-forks the
+process and picks up the by-then-correct environment.
+
+Fix, two-pronged:
+- primary: `autogit.service` is now ordered `After=`/`Wants=`/`WantedBy=`
+  `graphical-session-pre.target` instead of `default.target`, so it only
+  starts once the session's early services (incl. the SSH agent) are ready
+- defense in depth (desktop-environment-agnostic, in case ordering can't
+  guarantee readiness everywhere): `autogit-daemon` calls
+  `refresh_agent_environment()` once per sync cycle, re-reading
+  `SSH_AUTH_SOCK`/`GPG_AGENT_INFO`/`SSH_AGENT_PID` from
+  `systemctl --user show-environment` (overridable via
+  `AUTOGIT_SYSTEMD_ENV_CMD`, for testing) and adopting any that changed —
+  self-healing a daemon that did start too early, without needing a manual
+  restart. Every such change is logged (`WARNING`, always visible, not
+  gated behind `AUTOGIT_VERBOSE`) so a recurrence of this race is obvious
+  in the log instead of silently fixing itself
+
+Diagnosability: a `git fetch`/`push` failure whose captured stderr looks
+auth-related (`Permission denied (publickey)`, `Could not read from remote
+repository`, `Authentication failed`, HTTPS credential prompts, host-key
+verification failures, etc. — see `AUTH_FAILURE_PATTERN` in
+`autogit-daemon`) gets an extra log line describing the ambient
+auth-agent environment: the origin remote's URL scheme (`ssh`/`https`/...),
+whether `SSH_AUTH_SOCK` is set/a valid socket/reachable (and, if reachable,
+only the *count* of loaded identities), and whether a `GPG_AGENT_INFO` is
+present. Never logs key material, socket paths/contents, or identity
+comments — only presence/reachability, so the log remains safe to share.
 
 ## Safety Guards
 - never run `git push --force` (or any equivalent history-rewriting push), under any circumstance

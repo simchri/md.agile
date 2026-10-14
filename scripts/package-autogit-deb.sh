@@ -43,7 +43,7 @@ install -m 755 autogit/bin/autogit "$PKG_DIR/usr/bin/autogit"
 install -m 755 autogit/bin/autogit-daemon "$PKG_DIR/usr/bin/autogit-daemon"
 install -m 644 autogit/systemd/autogit.service "$PKG_DIR/usr/lib/systemd/user/autogit.service"
 
-# Deliberately no default.target.wants/autogit.service symlink in the
+# Deliberately no graphical-session-pre.target.wants/autogit.service symlink in the
 # package: under /usr/lib/systemd/user/ it would enable the service for
 # *every* user on the system (incl. system users like gdm). Instead,
 # postinst enables it only for the user who ran the install.

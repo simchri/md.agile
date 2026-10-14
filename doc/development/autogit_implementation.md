@@ -39,6 +39,7 @@ autogit/
     autogit.bats
     autogit-daemon-sync.bats
     autogit-daemon-bugreproduction.bats
+    autogit-daemon-auth-diagnostics.bats
     autogit-status-errors.bats
 scripts/
   package-autogit-deb.sh   # assembles the .deb (see also package-rpm.sh)
@@ -182,28 +183,35 @@ Notable helper functions, if you need to change behavior:
 
 ## Service lifecycle
 
-`autogit.service` is a **user** systemd unit (`WantedBy=default.target`,
+`autogit.service` is a **user** systemd unit (`WantedBy=graphical-session-pre.target`,
 installed to `/usr/lib/systemd/user/`), not a system service — it has to run
 as the user whose repos it's syncing (ssh keys, git credential helpers,
-etc.), and must not run for every system account.
+etc.), and must not run for every system account. It's ordered after
+`graphical-session-pre.target` rather than the earlier-reached
+`default.target` deliberately: an earlier real-machine bug had the daemon
+starting before the SSH agent/keyring published `SSH_AUTH_SOCK`, causing
+every fetch to fail with `Permission denied (publickey)` until a manual
+restart (see `doc/development/autogit.md` "Authentication environment and
+the SSH-agent startup race" for the full story and the daemon-side
+self-healing fallback).
 
 `packaging/postinst` (shared between the `.deb` `postinst` and the `.rpm`
 `%post`, via rpm's `%include` — see `scripts/package-autogit-deb.sh` and
 `scripts/package-rpm.sh`) is therefore careful to only enable/start the
 service for the *installing* user (`$SUDO_USER`/`logname`), with a fallback
-to manually creating the per-user `default.target.wants` symlink if that
-user has no live systemd user session (e.g. a non-interactive/CI install).
-It deliberately does **not** ship a global
-`/usr/lib/systemd/user/default.target.wants/` symlink, which would otherwise
-start the daemon for every user on the box, including system accounts like
-`gdm` (see [Known pitfalls](#known-pitfalls)). `packaging/prerm` is the
-inverse: disables the service on removal.
+to manually creating the per-user `graphical-session-pre.target.wants`
+symlink if that user has no live systemd user session (e.g. a
+non-interactive/CI install). It deliberately does **not** ship a global
+`/usr/lib/systemd/user/graphical-session-pre.target.wants/` symlink, which
+would otherwise start the daemon for every user on the box, including
+system accounts like `gdm` (see [Known pitfalls](#known-pitfalls)).
+`packaging/prerm` is the inverse: disables the service on removal.
 
 ## Testing
 
 Bats (`autogit/tests/*.bats`), run as part of `make test` (`cargo test &&
 bats autogit/tests` — there is no separate autogit-only Make target; see the
-Makefile's `test` target). Four files, by concern:
+Makefile's `test` target). Five files, by concern:
 
 - `autogit.bats` — the `autogit` CLI: config read/write, `add`/`remove`/
   `on`/`off`.
@@ -215,6 +223,12 @@ Makefile's `test` target). Four files, by concern:
   fixed bugs (e.g. the `repo_state_key` collision, the `autogit add .`
   literal-dot-argument bug) — see `1_tasks.agile.md`'s autogit section for
   the bug history behind these.
+- `autogit-daemon-auth-diagnostics.bats` — regression tests for the
+  SSH-agent startup race (see "Authentication environment and the
+  SSH-agent startup race" in `doc/development/autogit.md`): auth-related
+  fetch/push failures get a secret-free diagnostic log line, and the
+  daemon self-heals a changed `SSH_AUTH_SOCK` picked up from the systemd
+  user environment.
 
 When adding a new config option or sync-loop step, add/extend a `.bats` test
 first (project-wide TDD convention also applies here), then run just the
@@ -246,3 +260,13 @@ devenv . -a -c "bats autogit/tests/autogit-daemon-sync.bats"
   (120s default vs. 5s) — don't "simplify" these to share one timeout value;
   validation commands (e.g. full test suites) routinely run far longer than
   a network call should ever be allowed to hang.
+- **Don't order the unit against `default.target`.** It's reached before
+  the SSH agent/keyring publish `SSH_AUTH_SOCK`, so a daemon started that
+  early races the agent and can get stuck (forever, since a process's
+  environment never updates after it forks) with no/stale `SSH_AUTH_SOCK`
+  — another real production bug (every fetch failing with "Permission
+  denied (publickey)" until a manual `systemctl restart --user autogit`).
+  Order after `graphical-session-pre.target` instead, and keep
+  `refresh_agent_environment()`'s per-cycle self-heal as a second line of
+  defense (see "Authentication environment and the SSH-agent startup race"
+  in `doc/development/autogit.md`).

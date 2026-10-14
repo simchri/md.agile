@@ -281,6 +281,86 @@ git_timeout() { # git_timeout <repo> <git-args...> ; 5s timeout (Safety Guards)
   timeout 5 git -C "$repo" "$@"
 }
 
+# --- authentication environment (fetch/push auth-failure diagnostics) -----
+# Root cause recap (see doc/development/autogit.md "Authentication
+# environment and the SSH-agent startup race" for the full story): systemd
+# starts user services as soon as default.target is reached, which can race
+# the SSH agent / keyring publishing SSH_AUTH_SOCK into the systemd --user
+# manager's environment a little later. A process's own environment is
+# fixed at fork time, so a daemon started too early is stuck with a
+# stale/missing SSH_AUTH_SOCK for its entire life, and every fetch/push
+# over SSH fails identically until the service is restarted. The unit file
+# now orders startup after the agent is up (primary fix), but the two
+# helpers below are a second line of defense: refresh_agent_environment()
+# lets an already-running daemon self-heal if it ever does start too early
+# (e.g. a non-GNOME session with different ordering), and
+# describe_agent_environment()/is_auth_failure_message() make the
+# resulting fetch/push failures (and any future recurrence of this race)
+# immediately diagnosable from the log, without ever logging key material,
+# socket contents, or other secrets -- only whether an agent/socket/scheme
+# was present and reachable.
+
+AUTOGIT_SYSTEMD_ENV_CMD="${AUTOGIT_SYSTEMD_ENV_CMD:-systemctl --user show-environment}"
+
+refresh_agent_environment() { # refresh_agent_environment ; re-reads agent-related vars from the systemd --user manager, logging (never silently) if any changed since this process started
+  command -v systemctl > /dev/null 2>&1 || return 0
+  local env_dump var current new
+  env_dump="$(bash -c "$AUTOGIT_SYSTEMD_ENV_CMD" 2>/dev/null)" || return 0
+  for var in SSH_AUTH_SOCK GPG_AGENT_INFO SSH_AGENT_PID; do
+    new="$(printf '%s\n' "$env_dump" | sed -n "s/^${var}=//p" | tail -n1)"
+    [ -n "$new" ] || continue
+    current="${!var:-}"
+    if [ "$new" != "$current" ]; then
+      logw "daemon" "picked up a changed $var from the systemd user environment (was $([ -n "$current" ] && echo "set" || echo "unset"), now set) -- if this happened after startup rather than once at the very first cycle, autogit.service likely started before the SSH agent/keyring was ready (see doc/development/autogit.md)"
+      export "$var=$new"
+    fi
+  done
+  return 0
+}
+
+AUTH_FAILURE_PATTERN='Permission denied (publickey)|Could not read from remote repository|Authentication failed|could not read Username|could not read Password|fatal: unable to access.*The requested URL returned error: 4|Host key verification failed|No supported authentication methods'
+
+is_auth_failure_message() { # is_auth_failure_message <message> ; true if <message> looks like an auth (not network/timeout/etc) failure
+  [[ "$1" =~ $AUTH_FAILURE_PATTERN ]]
+}
+
+describe_agent_environment() { # describe_agent_environment ; one-line, secret-free summary of the ambient auth-agent environment (no key material, no socket contents -- only presence/reachability)
+  local ssh_desc gpg_desc="no" n
+
+  if [ -z "${SSH_AUTH_SOCK:-}" ]; then
+    ssh_desc="SSH_AUTH_SOCK=unset"
+  elif [ ! -S "${SSH_AUTH_SOCK}" ]; then
+    ssh_desc="SSH_AUTH_SOCK=set but not a socket (stale?)"
+  elif ! command -v ssh-add > /dev/null 2>&1; then
+    ssh_desc="SSH_AUTH_SOCK=set, agent reachability unknown (ssh-add not installed)"
+  elif n="$(ssh-add -l 2>/dev/null | grep -c '^')" && [ "$n" -gt 0 ]; then
+    ssh_desc="SSH_AUTH_SOCK=set, agent reachable, $n identit$([ "$n" = 1 ] && echo y || echo ies) loaded"
+  else
+    ssh_desc="SSH_AUTH_SOCK=set, but agent unreachable or has no identities loaded"
+  fi
+
+  [ -z "${GPG_AGENT_INFO:-}" ] || gpg_desc="yes"
+
+  printf 'ssh-agent: %s; gpg-agent env present: %s' "$ssh_desc" "$gpg_desc"
+}
+
+remote_url_scheme() { # remote_url_scheme <repo> ; coarse classification of origin's URL, to correlate with the agent environment in auth-failure logs
+  local repo="$1" url
+  url="$(git -C "$repo" remote get-url origin 2>/dev/null || true)"
+  case "$url" in
+    git@*|ssh://*) echo "ssh" ;;
+    https://*|http://*) echo "https" ;;
+    "") echo "unknown (no origin url)" ;;
+    *) echo "other" ;;
+  esac
+}
+
+log_auth_diagnostics_if_relevant() { # log_auth_diagnostics_if_relevant <repo> <step> <message> ; on a likely auth failure, logs the auth environment in effect (always visible, not gated behind AUTOGIT_VERBOSE)
+  local repo="$1" step="$2" message="$3"
+  is_auth_failure_message "$message" || return 0
+  logw "daemon" "$repo: $step failure looks auth-related (remote scheme: $(remote_url_scheme "$repo"); $(describe_agent_environment))"
+}
+
 abnormal_state_reason() { # abnormal_state_reason <repo> ; echoes reason + exit 1 if abnormal, else exit 0
   local repo="$1" gitdir
   gitdir="$(git -C "$repo" rev-parse --absolute-git-dir 2>/dev/null)" || { echo "not a git repository"; return 1; }
@@ -465,6 +545,7 @@ sync_one_repo() { # sync_one_repo <repo>
   # 3. fetch (read-only, 5s timeout)
   if ! run_logged "daemon" e "$repo: git fetch failed or timed out" git_timeout "$repo" fetch --quiet > /dev/null; then
     record_repo_error "$repo" fetch "$RUN_LOGGED_LAST_ERROR"
+    log_auth_diagnostics_if_relevant "$repo" fetch "$RUN_LOGGED_LAST_ERROR"
     return 0
   fi
 
@@ -508,6 +589,7 @@ sync_one_repo() { # sync_one_repo <repo>
   # 7. push (never --force, 5s timeout)
   if ! run_logged "daemon" e "$repo: git push failed or timed out" git_timeout "$repo" push --quiet > /dev/null; then
     record_repo_error "$repo" push "$RUN_LOGGED_LAST_ERROR"
+    log_auth_diagnostics_if_relevant "$repo" push "$RUN_LOGGED_LAST_ERROR"
     return 0
   fi
   record_repo_ok "$repo"
@@ -524,6 +606,7 @@ prune_old_logs() { # prune_old_logs ; deletes log files older than AUTOGIT_LOG_R
 
 sync_all_repos() {
   prune_old_logs
+  refresh_agent_environment
   if [ "$(global_read_enabled)" != "true" ]; then
     logi "daemon" "autogit is globally off, skipping this cycle"
     return 0
@@ -555,7 +638,7 @@ fi
 
 POLL_INTERVAL="${AUTOGIT_POLL_INTERVAL:-60}"
 
-logi "daemon" "autogit daemon started"
+logi "daemon" "autogit daemon started ($(describe_agent_environment))"
 while true; do
   sync_all_repos
   if [[ "$once" == "1" ]]; then
