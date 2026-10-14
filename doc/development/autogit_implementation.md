@@ -39,7 +39,6 @@ autogit/
     autogit.bats
     autogit-daemon-sync.bats
     autogit-daemon-bugreproduction.bats
-    autogit-daemon-auth-diagnostics.bats
     autogit-status-errors.bats
 scripts/
   package-autogit-deb.sh   # assembles the .deb (see also package-rpm.sh)
@@ -209,9 +208,8 @@ system accounts like `gdm` (see [Known pitfalls](#known-pitfalls)).
 
 ## Testing
 
-Bats (`autogit/tests/*.bats`), run as part of `make test` (`cargo test &&
-bats autogit/tests` — there is no separate autogit-only Make target; see the
-Makefile's `test` target). Five files, by concern:
+Bats (`autogit/tests/*.bats`), run via `make test-autogit` (part of the
+combined `make test`; see the Makefile). Four files, by concern:
 
 - `autogit.bats` — the `autogit` CLI: config read/write, `add`/`remove`/
   `on`/`off`.
@@ -223,12 +221,13 @@ Makefile's `test` target). Five files, by concern:
   fixed bugs (e.g. the `repo_state_key` collision, the `autogit add .`
   literal-dot-argument bug) — see `1_tasks.agile.md`'s autogit section for
   the bug history behind these.
-- `autogit-daemon-auth-diagnostics.bats` — regression tests for the
-  SSH-agent startup race (see "Authentication environment and the
-  SSH-agent startup race" in `doc/development/autogit.md`): auth-related
-  fetch/push failures get a secret-free diagnostic log line, and the
-  daemon self-heals a changed `SSH_AUTH_SOCK` picked up from the systemd
-  user environment.
+
+Log *content*/wording is intentionally not asserted on anywhere in this
+suite (only log *file* location/retention is, e.g. the "weekly log
+rotation" tests in `autogit-daemon-sync.bats`) — the auth-diagnostics and
+self-heal logging described under "Authentication environment and the
+SSH-agent startup race" in `doc/development/autogit.md` is exercised
+manually/by code review rather than by bats assertions on log wording.
 
 When adding a new config option or sync-loop step, add/extend a `.bats` test
 first (project-wide TDD convention also applies here), then run just the

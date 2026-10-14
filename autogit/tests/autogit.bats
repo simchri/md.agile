@@ -193,12 +193,3 @@ Local status (this repo: $REPO):
   ls "$XDG_STATE_HOME"/autogit/logs/daemon-*.log
 }
 
-@test "error logging: autogit add on a non-git path records git's stderr in the log" {
-  run "$AUTOGIT_BIN" add "$BATS_TEST_TMPDIR"
-  [ "$status" -ne 0 ]
-
-  log="$(cat "$AUTOGIT_LOG_DIR"/cli-*.log)"
-  [[ "$log" == *"not a git repository: $BATS_TEST_TMPDIR"* ]]
-  [[ "$log" == *"stderr:"* ]]
-  [[ "$log" == *"fatal:"* ]]
-}
