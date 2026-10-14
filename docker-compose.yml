@@ -34,6 +34,10 @@ services:
          bind:
            create_host_path: false
 
+       - type: volume # (6)
+         source: cargo-registry-cache
+         target: /usr/local/cargo/registry
+
   # Interactive developer shell (used via the `devenv` wrapper), with GPU
   # passthrough, GUI forwarding, host SSH/git identity, sudo-via-host-password,
   # and AI assistant config mounted for convenience. Not used by the Makefile.
@@ -122,6 +126,10 @@ services:
          bind:
            create_host_path: false
 
+       - type: volume # (6)
+         source: cargo-registry-cache
+         target: /usr/local/cargo/registry
+
   # Interactive developer shell without GPU passthrough (used via `devenv`).
   dev-container-no-gpu:
     build: *dev-image-build
@@ -201,6 +209,13 @@ services:
          bind:
            create_host_path: false
 
+       - type: volume # (6)
+         source: cargo-registry-cache
+         target: /usr/local/cargo/registry
+
+volumes:
+  cargo-registry-cache:
+
 # (1) Allow forwarding of GUIs to host display. Allows to execute graphical applications in the container and see the GUI as if run on the host.
 # This involves making the X11 server of the host available to the container by mounting the .X11-unix file and setting DISPLAY env variable.
 # On the host do: `xhost +local:docker` to allow local unauthorized connections to the xserver for docker, or authenticate with token.
@@ -208,3 +223,9 @@ services:
 # (3) use GPU graphics acceleration.
 # (4) Enable host network stack, IPC and PID namespace sharing.
 # (5) Limit container memory. Will slow-down/freeze/crash processes in container instead of freezing host (e.g. during parallel compilation)
+# (6) Named volume (shared by all three services), persisting cargo's crates.io index + downloaded/extracted crate cache across container
+# (re)creations. build-container in particular runs via `docker compose run --rm`, i.e. a fresh, throwaway container filesystem every time,
+# so without this every single invocation looks like a first-ever build to cargo, forcing it to re-fetch index/crates for every dependency
+# not already baked into the image at `docker build` time. Scoped to .../cargo/registry only (not all of $CARGO_HOME): this leaves
+# $CARGO_HOME/bin (cargo-binstall, dioxus-cli) as part of the image layer, so an image rebuild that bumps those tools' versions isn't
+# shadowed by a stale volume. Only removed by an explicit `docker compose down -v` (or `docker volume rm`).

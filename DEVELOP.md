@@ -15,6 +15,7 @@ docker exec --interactive --tty mdagile-dev-container-1 "bash"
 ```
 **Alternatively, you can also just do everything on the host** - likely the most convenient option if you are already set up for development with rust. 
 
+Note: `build-container` runs via `docker compose run --rm`, i.e. a fresh container filesystem every invocation. Cargo's crates.io registry index/cache is persisted across these runs in a named Docker volume (`cargo-registry-cache`, mounted at `$CARGO_HOME/registry`), so only the very first build after cloning (or after `docker volume rm`/`docker compose down -v`) needs to fetch the index and download crates from the network.
 
 ### Essential Commands
 
