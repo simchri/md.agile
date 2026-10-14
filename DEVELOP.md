@@ -1,5 +1,11 @@
 ## Building & Testing
 
+Run complete test suite for project: (On host):
+```
+make test
+```
+The makefile handles a docker dev environment. If you want more fine grained control, keep reading.
+
 ### Devenv
 
 The dev instructions here assume the existence of a "devenv" script, which is not publicly available (something I wrote at and for work, so I currently can't publish it). However, this is only a fully optional convenience wrapper around docker / compose. Where `devenv` is used in the instructions here you can instead do something like (get the actual current container names with `docker ls`) 
@@ -11,6 +17,7 @@ docker exec --interactive --tty mdagile-dev-container-1 "bash"
 
 
 ### Essential Commands
+
 
 (run in container or host as preferred)
 ```bash
