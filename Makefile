@@ -9,7 +9,9 @@
 #   make build-release  - release-build the cli+lsp (cargo) and the gui (dx bundle)
 #   make package        - assemble mdagile-cli, mdagile-lsp, mdagile-gui, mdagile-autogit .deb/.rpm packages into dist/
 #   make smoketest-install - install the built packages into disposable containers and sanity-check them
-#   make test           - run the full cargo test suite and the autogit bats suite
+#   make test           - run test-mdagile and test-autogit
+#   make test-mdagile   - run the full cargo test suite
+#   make test-autogit   - run the autogit bats suite
 
 SHELL := bash
 
@@ -35,7 +37,7 @@ COMPOSE_RUN := docker compose run --rm -T $(COMPOSE_SERVICE) -c
 
 VERSION := $(shell sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)
 
-.PHONY: help toolchain build-release test package clean-package detect-packaging-system install smoketest-install
+.PHONY: help toolchain build-release test test-mdagile test-autogit package clean-package detect-packaging-system install smoketest-install
 
 .DEFAULT_GOAL := help
 
@@ -55,8 +57,15 @@ build-release: toolchain
 		cd crates/gui && dx bundle --release --platform web"
 
 ## Run the full cargo test suite and the autogit bats suite.
-test: toolchain
-	$(COMPOSE_RUN) "cargo test && bats autogit/tests"
+test: test-mdagile test-autogit
+
+## Run the full cargo test suite (unit, integration, doc tests).
+test-mdagile: toolchain
+	$(COMPOSE_RUN) "cargo test"
+
+## Run the autogit bats suite.
+test-autogit: toolchain
+	$(COMPOSE_RUN) "bats autogit/tests"
 
 ## Assemble mdagile-cli, mdagile-lsp, mdagile-gui .deb/.rpm and mdagile-autogit .deb packages into dist/.
 package: build-release
