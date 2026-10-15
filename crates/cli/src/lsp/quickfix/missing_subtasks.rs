@@ -62,7 +62,12 @@ fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
 /// rooted at `task_line`. A line belongs to the subtree if it is blank or has
 /// indentation strictly greater than `task_indent`. The scan stops at the first
 /// non-blank line whose indentation is ≤ `task_indent`.
-fn find_last_subtree_line(lines: &[&str], task_line: u32, task_indent: usize) -> u32 {
+///
+/// Shared with [`super::missing_neighbor_tasks`], which needs the same "end of
+/// this node's subtree" insertion point, just at `task_indent` itself rather
+/// than `task_indent + 2` (a neighbor task is inserted as a sibling, not a
+/// child).
+pub(super) fn find_last_subtree_line(lines: &[&str], task_line: u32, task_indent: usize) -> u32 {
     let mut last = task_line;
     let mut i = task_line + 1;
     while (i as usize) < lines.len() {

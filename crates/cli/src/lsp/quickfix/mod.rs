@@ -7,6 +7,7 @@ use tower_lsp::lsp_types::{
 };
 
 mod invalid_box;
+mod missing_neighbor_tasks;
 mod missing_space_after_box;
 mod missing_subtasks;
 mod undefined_assignment;
@@ -34,6 +35,10 @@ const REGISTRY: &[(ErrorCode, Builder)] = &[
     (ErrorCode::UndefinedProperty, undefined_property::build),
     (ErrorCode::UndefinedAssignment, undefined_assignment::build),
     (ErrorCode::MissingRequiredSubtasks, missing_subtasks::build),
+    (
+        ErrorCode::MissingNeighborTask,
+        missing_neighbor_tasks::build,
+    ),
     // E001 OrphanedSubtask, E004 IncompleteParent:
     // no quickfix (user has to make a structural decision the linter can't).
 ];
@@ -305,6 +310,7 @@ mod tests {
         assert!(has_quickfix(UndefinedAssignment));
         assert!(has_quickfix(MissingRequiredSubtasks));
         assert!(!has_quickfix(UnrequiredQuotedSubtask));
+        assert!(has_quickfix(MissingNeighborTask));
     }
 
     // --- levenshtein unit tests ---
