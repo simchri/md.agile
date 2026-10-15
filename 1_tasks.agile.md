@@ -1005,6 +1005,7 @@ users don't have to think about it. Design plan: see
   - [x] check rule: resolved branch outcome isn't declared in config (E022), deferring to E008 when the property itself is undefined
   - [x] a resolved branch's own `subtasks`/`neighbortasks` are merged on top of the base property's requirements (E010/E012/E019), only once resolved — not while pending
   - [x] branch-only `neighbortasks` also trip the top-level restriction (E020)
+  - [x] check rule: a property that declares branches must always be used pending or resolved, never plainly (E023)
 
 ## Forms / Form Fields?
 - [ ] Forms & Fields

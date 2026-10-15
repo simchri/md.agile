@@ -1,6 +1,7 @@
-//! E021/E022 — validates the pending/resolved outcome syntax of a Branch
-//! Property (see README.vision.md "Branch Properties"): `#review...` marks an
-//! outcome as not yet chosen, `#review:passed` resolves it to a named branch.
+//! E021/E022/E023 — validates the pending/resolved outcome syntax of a
+//! Branch Property (see README.vision.md "Branch Properties"): `#review...`
+//! marks an outcome as not yet chosen, `#review:passed` resolves it to a
+//! named branch.
 //!
 //! - E021 "Unresolved Branch Property": a task/subtask is marked done while
 //!   still carrying a `BranchPending` property. The outcome must be resolved
@@ -9,6 +10,11 @@
 //! - E022 "Undefined Branch Outcome": a `BranchResolved` property names a
 //!   branch that isn't declared as a `[Properties.X.branch_name]` sub-table
 //!   in `mdagile.toml`.
+//! - E023 "Plain Branching Property": a property that declares at least one
+//!   branch is used in its plain form (`#review`) — neither pending
+//!   (`#review...`) nor resolved (`#review:passed`). Declaring branches at
+//!   all means the property *is* a Branching Workflow property, so it must
+//!   always carry the pending/resolved syntax, never the bare marker.
 //!
 //! Branch-specific `subtasks`/`neighbortasks` requirements (declared on those
 //! same sub-tables) aren't enforced here -- see
@@ -17,7 +23,7 @@
 //! resolves to a known branch.
 
 use crate::config::Config;
-use crate::parser::{FileItem, Location, Marker, PropertyForm, Status};
+use crate::parser::{FileItem, Location, Marker, PropertyForm, Status, TASK_LINE_PREFIX_LEN};
 use crate::rules::{ErrorCode, Issue, for_each_node};
 
 pub fn unresolved_branch_property(items: &[FileItem]) -> Vec<Issue> {
@@ -121,6 +127,71 @@ pub(crate) fn check_undefined_outcome(
                 "Declare it with `[Properties.{}.{branch}]` in mdagile.toml, or use one of its \
                  already-defined outcomes.",
                 prop.name
+            )),
+            data: None,
+        });
+    }
+    issues
+}
+
+pub fn plain_branching_property(items: &[FileItem], config: &Config) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    for_each_node(items, |node| {
+        issues.extend(check_plain_form(
+            node.markers(),
+            node.location(),
+            node.indent(),
+            config,
+        ));
+    });
+    issues
+}
+
+/// Checks `markers` for a property used in its plain form (`#review`) even
+/// though its config declares at least one branch — i.e. it *is* a Branching
+/// Workflow property (see README.vision.md "Branch Properties"), so it must
+/// always be written pending (`#review...`) or resolved (`#review:passed`),
+/// never bare. Reported as E023. Reused by [`crate::rules::check_completable`]
+/// so `agile task done` also refuses this, not just `agile check`.
+pub(crate) fn check_plain_form(
+    markers: &[Marker],
+    location: &Location,
+    indent: usize,
+    config: &Config,
+) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    for marker in markers {
+        let Marker::Property(prop) = marker else {
+            continue;
+        };
+        if prop.form != PropertyForm::Full {
+            continue;
+        }
+        // An undefined property is already reported by E008; don't pile on.
+        let Some(prop_config) = config.properties.get(&prop.name) else {
+            continue;
+        };
+        if prop_config.branches.is_empty() {
+            continue;
+        }
+        // Pick a deterministic example outcome for the help text — branch
+        // names come from a `HashMap`, whose iteration order isn't stable.
+        let mut branch_names: Vec<&String> = prop_config.branches.keys().collect();
+        branch_names.sort();
+        let example = branch_names.first().map(|s| s.as_str()).unwrap_or("passed");
+        issues.push(Issue {
+            location: location.clone(),
+            code: ErrorCode::PlainBranchingProperty,
+            message: format!(
+                "Property #{} declares branches and must be written pending (#{}...) or \
+                 resolved to one of its outcomes, not used plainly",
+                prop.name, prop.name
+            ),
+            column: indent + TASK_LINE_PREFIX_LEN + prop.column,
+            help: Some(format!(
+                "Write `#{}...` while still in progress, or resolve it directly, e.g. \
+                 `#{}:{example}`.",
+                prop.name, prop.name
             )),
             data: None,
         });

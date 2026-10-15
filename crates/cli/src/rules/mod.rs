@@ -28,7 +28,9 @@ mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
 
-pub use branch_properties::{undefined_branch_outcome, unresolved_branch_property};
+pub use branch_properties::{
+    plain_branching_property, undefined_branch_outcome, unresolved_branch_property,
+};
 pub use empty_title::empty_title;
 pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
@@ -102,6 +104,10 @@ pub enum ErrorCode {
     /// E022: A Branch Property was resolved (e.g. `#review:passed`) to a
     /// branch name that isn't declared in config
     UndefinedBranchOutcome,
+    /// E023: A property that declares branches (see README.vision.md
+    /// "Branch Properties") was used in its plain form (`#review`) instead
+    /// of pending (`#review...`) or resolved (`#review:passed`)
+    PlainBranchingProperty,
 }
 
 impl ErrorCode {
@@ -131,6 +137,7 @@ impl ErrorCode {
             ErrorCode::NeighborTaskOnTopLevel => "E020",
             ErrorCode::UnresolvedBranchProperty => "E021",
             ErrorCode::UndefinedBranchOutcome => "E022",
+            ErrorCode::PlainBranchingProperty => "E023",
         }
     }
 }
@@ -168,6 +175,7 @@ impl std::str::FromStr for ErrorCode {
             "E020" => ErrorCode::NeighborTaskOnTopLevel,
             "E021" => ErrorCode::UnresolvedBranchProperty,
             "E022" => ErrorCode::UndefinedBranchOutcome,
+            "E023" => ErrorCode::PlainBranchingProperty,
             _ => return Err(()),
         })
     }
@@ -421,9 +429,9 @@ pub struct Issue {
 /// Runs every lint rule that doesn't need `Config` at all — i.e. everything
 /// except [`undefined_property`], [`undefined_assignment`],
 /// [`missing_required_subtasks`], [`unrequired_quoted_subtask`],
-/// [`neighbor_task_on_top_level`], [`neighbor_tasks`] and
-/// [`undefined_branch_outcome`], which all look up property/user/group
-/// declarations.
+/// [`neighbor_task_on_top_level`], [`neighbor_tasks`],
+/// [`undefined_branch_outcome`] and [`plain_branching_property`], which all
+/// look up property/user/group declarations.
 ///
 /// Used when there's no config to trust yet (e.g. the LSP falls back to this
 /// when `mdagile.toml` failed to load): running the config-dependent checks
@@ -451,6 +459,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(undefined_property(items, config));
     issues.extend(undefined_assignment(items, config));
     issues.extend(undefined_branch_outcome(items, config));
+    issues.extend(plain_branching_property(items, config));
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
     issues.extend(neighbor_task_on_top_level(items, config));
@@ -462,8 +471,9 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
 /// completion-related rule: "incomplete children" (E004), "missing required
 /// subtasks" (E010), "cancelled required subtask not allowed" (E012),
 /// "unauthorized completion" (E013, against `identity`), "unresolved branch
-/// property" (E021), "undefined branch outcome" (E022) — or, if `node` is
-/// an ordered subtask — "out-of-order completion" (E015).
+/// property" (E021), "undefined branch outcome" (E022), "plain branching
+/// property" (E023) — or, if `node` is an ordered subtask — "out-of-order
+/// completion" (E015).
 ///
 /// `items` is the full parsed file `node` came from; it's only used to
 /// locate `node`'s siblings for the ordering check (see
@@ -504,6 +514,12 @@ pub fn check_completable(
         node.indent(),
     ));
     issues.extend(branch_properties::check_undefined_outcome(
+        node.markers(),
+        node.location(),
+        node.indent(),
+        config,
+    ));
+    issues.extend(branch_properties::check_plain_form(
         node.markers(),
         node.location(),
         node.indent(),

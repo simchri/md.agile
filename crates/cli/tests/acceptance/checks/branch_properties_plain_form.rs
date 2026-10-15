@@ -4,13 +4,11 @@
 //! ```toml block) and `tasks.agile.md` (the task tree) — rather than pasted
 //! together into one `.agile.md` file.
 //!
-//! The task here uses the property in its plain form (`#review`, neither the
-//! pending `#review...` nor a resolved `#review:passed`/`#review:failed`),
-//! even though `review` declares branches in config. This only requires the
-//! base property's own `subtasks`/`neighbortasks` ("document review
-//! findings") — it's unrelated to, and doesn't trigger, the Branch
-//! Properties pending/resolved machinery (E021/E022) at all, since those
-//! only apply once a task actually carries the `...`/`:branch` syntax.
+//! `#review` alone is not allowed: declaring `branches` in config (even just
+//! one) turns a property into a Branch Property for good, so it must always
+//! be written pending (`#review...`) or resolved to one of its outcomes
+//! (`#review:passed`/`#review:failed`) — never used in its plain form. Using
+//! the plain form is flagged as E023 "Plain Branching Property".
 
 use crate::helpers::run_check;
 use std::fs;
@@ -31,12 +29,76 @@ subtasks = [\"review failed subtask\"]
 }
 
 #[test]
-fn plain_property_usage_with_its_required_subtask_present_passes_check() {
+fn plain_property_usage_is_flagged_even_with_its_required_subtask_present() {
     let dir = tempdir().unwrap();
     write_review_config(dir.path());
     let file_content = "\
 - [ ] a task
   - [ ] some sub task that needs #review
+    - [ ] \"document review findings\"
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E023"), "stdout: {stdout:?}");
+    assert!(stdout.contains("#review"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn plain_property_usage_still_requires_the_base_propertys_own_subtask() {
+    // Dropping the one required subtask still trips E010 alongside E023 --
+    // the base property's own requirements are enforced regardless of
+    // whether the property also happens to declare branches.
+    let dir = tempdir().unwrap();
+    write_review_config(dir.path());
+    let file_content = "\
+- [ ] a task
+  - [ ] some sub task that needs #review
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E010"), "stdout: {stdout:?}");
+    assert!(stdout.contains("E023"), "stdout: {stdout:?}");
+    assert!(
+        stdout.contains("document review findings"),
+        "stdout: {stdout:?}"
+    );
+}
+
+#[test]
+fn plain_property_usage_is_flagged_regardless_of_done_status() {
+    let dir = tempdir().unwrap();
+    write_review_config(dir.path());
+    let file_content = "\
+- [x] a task
+  - [x] some sub task that needs #review
+    - [x] \"document review findings\"
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E023"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn pending_property_usage_is_not_flagged() {
+    // `#review...` is the correct way to say "still being decided" -- it
+    // must not trip E023.
+    let dir = tempdir().unwrap();
+    write_review_config(dir.path());
+    let file_content = "\
+- [ ] a task
+  - [ ] some sub task that needs #review...
     - [ ] \"document review findings\"
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
@@ -51,53 +113,23 @@ fn plain_property_usage_with_its_required_subtask_present_passes_check() {
 }
 
 #[test]
-fn plain_property_usage_still_requires_the_base_propertys_own_subtask() {
-    // Dropping the one required subtask still trips E010, exactly as it
-    // would for any ordinary (non-branching) property -- the base
-    // property's own requirements are enforced regardless of whether the
-    // property also happens to declare branches.
+fn resolved_property_usage_is_not_flagged_as_plain_branching_property() {
+    // `#review:passed` is the correct way to resolve the outcome, so it must
+    // not be flagged as E023 -- only the base property's own subtask is
+    // exercised here; its resolved branch's own extra requirements are
+    // already covered by the dedicated Branch Properties edge-case tests
+    // (see `checks/branch_properties_edge_cases.rs`).
     let dir = tempdir().unwrap();
     write_review_config(dir.path());
     let file_content = "\
 - [ ] a task
-  - [ ] some sub task that needs #review
+  - [ ] some sub task that needs #review:passed
+    - [ ] \"document review findings\"
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
     let out = run_check(dir.path());
 
-    assert_eq!(out.status.code(), Some(1));
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("E010"), "stdout: {stdout:?}");
-    assert!(
-        stdout.contains("document review findings"),
-        "stdout: {stdout:?}"
-    );
-}
-
-#[test]
-fn plain_property_usage_does_not_enforce_any_branchs_own_requirements() {
-    // Neither branch's own extra requirements ("publish feature"/"create
-    // follow up task for fixes" neighbor tasks, or their own subtasks) are
-    // enforced while the property is used in its plain form -- those only
-    // apply once the property actually resolves to that branch
-    // (`#review:passed`/`#review:failed`), not merely by declaring them in
-    // config. This is not flagged as E021 ("Unresolved Branch Property")
-    // either, since that check only fires for the pending `#review...` form.
-    let dir = tempdir().unwrap();
-    write_review_config(dir.path());
-    let file_content = "\
-- [x] a task
-  - [x] some sub task that needs #review
-    - [x] \"document review findings\"
-";
-    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-
-    let out = run_check(dir.path());
-
-    assert!(
-        out.status.success(),
-        "stdout: {}",
-        String::from_utf8_lossy(&out.stdout)
-    );
+    assert!(!stdout.contains("E023"), "stdout: {stdout:?}");
 }
