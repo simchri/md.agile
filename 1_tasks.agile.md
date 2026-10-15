@@ -1007,9 +1007,12 @@ users don't have to think about it. Design plan: see
   - [ ] config: parse `[Field.X]` entries
   - [ ] config: parse `[Form.X]` entries
   - [ ] config: parse `form` key on `[Properties.X]`
-  - [ ] check: undefined form reference
-  - [ ] check: undefined field in a form
-  - [ ] check: field regex/values conflict
+  - [ ] config: `form` references an existing `[Form.X]`
+  - [ ] config: form's fields reference existing `[Field.X]`
+  - [ ] config: field regex/values conflict (XOR)
+  - [ ] config: field regex compiles
+  - [ ] config: field's own default passes its validation
+  - [ ] config: no duplicate fields within a form
   - [ ] parser: bold `__Label:__` field lines
   - [ ] parser: multiline field + `...`/`\...` escape
   - [ ] check: missing required field
