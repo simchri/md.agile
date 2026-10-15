@@ -5,10 +5,11 @@
 //! A neighbor task is matched the same way a required subtask is: by its
 //! quoted raw title (`SubtaskKind::PropertyRequired`). Only [`Subtask`] (not
 //! [`Task`]) carries that concept at all, so a `neighbortasks`-carrying
-//! property set on a top-level task can never be satisfied — it is always
-//! reported missing here, which is exactly the restriction README.vision.md
-//! documents ("Properties with Neighbor Tasks can not be set at the top
-//! level").
+//! property set on a top-level task can never be satisfied there — but that
+//! case is reported as its own, more specific error instead: see
+//! [`crate::rules::neighbor_task_on_top_level`] (E020), which `check_all`
+//! runs *before* this rule. This rule therefore skips top-level tasks
+//! entirely, so the two checks never both fire for the same task.
 
 use crate::config::Config;
 use crate::parser::{FileItem, Location, Marker, Subtask, SubtaskKind, Task};
@@ -26,15 +27,8 @@ pub fn neighbor_tasks(items: &[FileItem], config: &Config) -> Vec<Issue> {
         .collect();
 
     for task in &top_level_tasks {
-        // Top-level tasks have no quotable siblings at all (see module docs),
-        // so a configured neighbortasks is always reported missing here.
-        issues.extend(check_required(
-            &task.markers,
-            &task.location,
-            task.indent,
-            &[],
-            config,
-        ));
+        // A top-level task's own neighbortasks (if any) is E020's concern,
+        // not this rule's (see module docs) — only recurse into children.
         check_sibling_list(&task.children, config, &mut issues);
     }
 
@@ -104,8 +98,11 @@ fn check_required(
 }
 
 /// Collects all neighbor-task titles contributed by the property markers on
-/// a node, merging across multiple properties and deduplicating.
-fn collect_neighbor_titles(markers: &[Marker], config: &Config) -> Vec<String> {
+/// a node, merging across multiple properties and deduplicating. Exposed at
+/// `pub(crate)` so [`crate::rules::neighbor_task_on_top_level`] (E020) can
+/// detect, by the same logic, whether a top-level task carries a property
+/// that requires neighbor tasks at all.
+pub(crate) fn collect_neighbor_titles(markers: &[Marker], config: &Config) -> Vec<String> {
     let mut required: Vec<String> = Vec::new();
     for marker in markers {
         if let Marker::Property(prop) = marker {
@@ -119,6 +116,27 @@ fn collect_neighbor_titles(markers: &[Marker], config: &Config) -> Vec<String> {
         }
     }
     required
+}
+
+/// Collects the *names* of properties on `markers` whose config declares
+/// `neighbortasks`, deduplicated. Used by
+/// [`crate::rules::neighbor_task_on_top_level`] (E020) to name the offending
+/// propert(y/ies) in its message.
+pub(crate) fn property_names_requiring_neighbors(
+    markers: &[Marker],
+    config: &Config,
+) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for marker in markers {
+        if let Marker::Property(prop) = marker {
+            if let Some(prop_config) = config.properties.get(&prop.name) {
+                if !prop_config.neighbortasks.is_empty() && !names.contains(&prop.name) {
+                    names.push(prop.name.clone());
+                }
+            }
+        }
+    }
+    names
 }
 
 /// Collects all neighbor-task titles required by any member of `siblings`'

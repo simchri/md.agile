@@ -52,15 +52,16 @@ neighbortasks = [\"do the back end implementation also!\"]
 }
 
 #[test]
-fn flags_neighbortasks_property_set_at_top_level_as_always_missing() {
+fn does_not_flag_a_top_level_property_as_missing_neighbor_task() {
     let dir = tempdir().unwrap();
     let config = "\
 [Properties.frontend-implementation]
 neighbortasks = [\"do the back end implementation also!\"]
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
-    // Top-level tasks have no quoted-sibling syntax at all, so this property
-    // can never be satisfied here -- see README.vision.md "Neighbor Tasks".
+    // A property requiring neighbor tasks set at the top level is reported
+    // as E020 "Neighbor Task On Top Level" instead -- see e020.rs -- so
+    // E019 should stay silent about it here.
     let content = "\
 - [ ] #frontend-implementation: top level feature
 - [ ] \"do the back end implementation also!\"
@@ -69,7 +70,6 @@ neighbortasks = [\"do the back end implementation also!\"]
 
     let out = run_check(dir.path());
 
-    assert_eq!(out.status.code(), Some(1));
     let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("E019"), "stdout: {stdout:?}");
+    assert!(!stdout.contains("E019"), "stdout: {stdout:?}");
 }

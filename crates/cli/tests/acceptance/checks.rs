@@ -40,5 +40,7 @@ pub mod e017;
 pub mod e018;
 #[path = "checks/e019.rs"]
 pub mod e019;
+#[path = "checks/e020.rs"]
+pub mod e020;
 #[path = "checks/group_member_validation.rs"]
 pub mod group_member_validation;

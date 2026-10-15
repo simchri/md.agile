@@ -34,7 +34,8 @@ These validate `#property` and `@user`/`@group` markers against
 | E010 | Missing required subtasks | A task has a property (e.g. `#feature`) but is missing one or more of that property's required subtasks. |
 | E011 | Unrequired quoted subtask | A subtask uses the quoted syntax (`- [ ] "some subtask"`) — reserved for required subtasks — but isn't declared as required by any of the task's properties. |
 | E012 | Cancelled required subtask not allowed | A required subtask was cancelled (`[-]`), but the owning property doesn't allow that subtask to be cancelled (see `subtasks_allow_cancel` in [Configuration](config.md)). |
-| E019 | Missing neighbor task | A task/subtask has a property (e.g. `#frontend-implementation`) whose `neighbortasks` entry isn't present as a sibling — see [README.vision.md](../../README.vision.md) "Neighbor Tasks". A `neighbortasks` entry set on a top-level task can never be satisfied, since only subtasks (not top-level tasks) support the required quoted sibling syntax. |
+| E019 | Missing neighbor task | A task/subtask has a property (e.g. `#frontend-implementation`) whose `neighbortasks` entry isn't present as a sibling — see [README.vision.md](../../README.vision.md) "Neighbor Tasks". Not reported for top-level tasks — see E020 instead. |
+| E020 | Neighbor task on top level | A property whose `neighbortasks` entry requires a quoted sibling task was set on a top-level task. Top-level tasks don't support the required quoted sibling syntax, so this can never be satisfied — see [README.vision.md](../../README.vision.md) "Neighbor Tasks". Takes precedence over E019 for the same task. |
 
 In the language server, definition lookup and spelling-correction suggestions
 use the same declarations from the current config, including unsaved edits and

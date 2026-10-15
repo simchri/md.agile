@@ -167,11 +167,13 @@ fn issue_data_lists_missing_neighbor_tasks() {
 // ── top-level restriction ──────────────────────────────────────────────────────
 
 #[test]
-fn property_with_neighbortasks_at_top_level_is_always_flagged_missing() {
+fn property_with_neighbortasks_at_top_level_is_not_flagged_by_this_rule() {
     // A top-level Task has no quotable siblings at all, so a neighbortasks
     // property set at the top level can never be satisfied (see
     // README.vision.md: "Properties with Neighbor Tasks can not be set at
-    // the top level").
+    // the top level") -- but that's reported by the more specific E020
+    // "Neighbor Task On Top Level" rule instead; this rule skips top-level
+    // tasks entirely so the two don't both fire.
     let input = "\
 - [ ] #frontend-implementation: top level feature
 - [ ] \"do the back end implementation also!\"
@@ -180,9 +182,7 @@ fn property_with_neighbortasks_at_top_level_is_always_flagged_missing() {
         "frontend-implementation",
         &["do the back end implementation also!"],
     )]);
-    let issues = neighbor_tasks(&p(input), &config);
-    assert_eq!(issues.len(), 1);
-    assert_eq!(issues[0].code, ErrorCode::MissingNeighborTask);
+    assert!(neighbor_tasks(&p(input), &config).is_empty());
 }
 
 // ── nesting ────────────────────────────────────────────────────────────────────

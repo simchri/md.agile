@@ -15,6 +15,7 @@ mod invalid_milestone;
 mod invalid_order;
 mod missing_required_subtasks;
 mod missing_space_after_box;
+mod neighbor_task_on_top_level;
 mod neighbor_tasks;
 mod next_task;
 mod orphaned_subtask;
@@ -33,6 +34,7 @@ pub use invalid_milestone::invalid_milestone;
 pub use invalid_order::invalid_order;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
+pub use neighbor_task_on_top_level::neighbor_task_on_top_level;
 pub use neighbor_tasks::neighbor_tasks;
 pub use next_task::{
     find_next_actionable, has_closed_work, is_eligible_for, is_next_task, is_previous_task,
@@ -88,6 +90,9 @@ pub enum ErrorCode {
     /// E019: A property's configured `neighbortasks` entry isn't present as a
     /// sibling of the property-carrying task/subtask
     MissingNeighborTask,
+    /// E020: A property requiring neighbor tasks was set on a top-level task,
+    /// where it can never be satisfied
+    NeighborTaskOnTopLevel,
 }
 
 impl ErrorCode {
@@ -114,6 +119,7 @@ impl ErrorCode {
             ErrorCode::DuplicateMilestoneName => "E017",
             ErrorCode::MissingMilestoneName => "E018",
             ErrorCode::MissingNeighborTask => "E019",
+            ErrorCode::NeighborTaskOnTopLevel => "E020",
         }
     }
 }
@@ -148,6 +154,7 @@ impl std::str::FromStr for ErrorCode {
             "E017" => ErrorCode::DuplicateMilestoneName,
             "E018" => ErrorCode::MissingMilestoneName,
             "E019" => ErrorCode::MissingNeighborTask,
+            "E020" => ErrorCode::NeighborTaskOnTopLevel,
             _ => return Err(()),
         })
     }
@@ -429,6 +436,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(undefined_assignment(items, config));
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
+    issues.extend(neighbor_task_on_top_level(items, config));
     issues.extend(neighbor_tasks(items, config));
     issues
 }
