@@ -1014,8 +1014,7 @@ users don't have to think about it. Design plan: see
       - [x] parser
       - [x] checks
     - [x] documentation
-  - [ ] Quickfix actions
-  - [ ] add the completed forms of branch properties to autocomplete proposals
+  - [x] add the completed forms of branch properties to autocomplete proposals
   - [ ] Quickfixes for this error situation: `Task marked done while branch property #review:... still unresolved` -- allow selecting any of the completed forms as a quickfix
 
 ## Forms / Form Fields?

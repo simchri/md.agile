@@ -58,11 +58,13 @@ More about the feature.
 }
 
 #[test]
-fn lsp_completion_suggests_pending_form_for_a_property_that_declares_branches() {
+fn lsp_completion_suggests_pending_and_resolved_forms_for_a_property_that_declares_branches() {
     // A property that declares at least one branch must always be written
     // pending (`#review:...`) or resolved (`#review:branch`), never plainly
     // -- see E023 "Plain Branching Property". Autocomplete must therefore
-    // never suggest the bare `#review` form for it.
+    // never suggest the bare `#review` form for it, but should offer both
+    // the pending form and one resolved form per declared branch (sorted
+    // alphabetically), so the user can jump straight to a known outcome.
     let config = "\
 [Properties.review]
 [Properties.review.passed]
@@ -88,8 +90,13 @@ fn lsp_completion_suggests_pending_form_for_a_property_that_declares_branches() 
         .iter()
         .filter_map(|item| item["label"].as_str())
         .collect();
-    assert_eq!(labels, vec!["#review:..."]);
+    assert_eq!(
+        labels,
+        vec!["#review:...", "#review:failed", "#review:passed"]
+    );
     assert_eq!(items[0]["textEdit"]["newText"], "#review:...");
+    assert_eq!(items[1]["textEdit"]["newText"], "#review:failed");
+    assert_eq!(items[2]["textEdit"]["newText"], "#review:passed");
 }
 
 #[test]

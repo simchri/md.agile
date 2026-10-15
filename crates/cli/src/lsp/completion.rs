@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, PropertyConfig};
 use crate::lsp::hover::{assignment_documentation, property_documentation};
 use crate::lsp::marker::{CursorMode, token_at};
 use crate::parser::MARKER_TRAILING_PUNCT;
@@ -21,40 +21,50 @@ pub(super) fn property_completions(
         .collect();
     properties.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
 
+    let make_item = |name: &str, property: &PropertyConfig, text: String| CompletionItem {
+        label: text.clone(),
+        kind: Some(CompletionItemKind::PROPERTY),
+        documentation: property_documentation(name, property).map(Documentation::MarkupContent),
+        text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+            range: Range {
+                start: Position {
+                    line: position.line,
+                    character: start,
+                },
+                end: Position {
+                    line: position.line,
+                    character: end,
+                },
+            },
+            new_text: text,
+        })),
+        ..CompletionItem::default()
+    };
+
     Some(CompletionResponse::Array(
         properties
             .into_iter()
-            .map(|(name, property)| {
+            .flat_map(|(name, property)| {
                 // A property that declares branches (see README.vision.md
                 // "Branch Properties") must always be written pending
                 // (`#name:...`) or resolved (`#name:branch`), never plainly
                 // -- see E023 "Plain Branching Property". Suggest the
-                // pending form so autocomplete never produces text that's
-                // immediately flagged by that check.
-                let text = if property.branches.is_empty() {
-                    format!("#{name}")
+                // pending form, plus one item per declared branch (sorted
+                // alphabetically) so the user can also jump straight to a
+                // known outcome, instead of the bare `#name` form that
+                // would immediately be flagged by that check.
+                if property.branches.is_empty() {
+                    vec![make_item(name, property, format!("#{name}"))]
                 } else {
-                    format!("#{name}:...")
-                };
-                CompletionItem {
-                    label: text.clone(),
-                    kind: Some(CompletionItemKind::PROPERTY),
-                    documentation: property_documentation(name, property)
-                        .map(Documentation::MarkupContent),
-                    text_edit: Some(CompletionTextEdit::Edit(TextEdit {
-                        range: Range {
-                            start: Position {
-                                line: position.line,
-                                character: start,
-                            },
-                            end: Position {
-                                line: position.line,
-                                character: end,
-                            },
-                        },
-                        new_text: text,
-                    })),
-                    ..CompletionItem::default()
+                    let mut items = vec![make_item(name, property, format!("#{name}:..."))];
+                    let mut branches: Vec<&String> = property.branches.keys().collect();
+                    branches.sort_unstable();
+                    items.extend(
+                        branches
+                            .into_iter()
+                            .map(|branch| make_item(name, property, format!("#{name}:{branch}"))),
+                    );
+                    items
                 }
             })
             .collect(),
