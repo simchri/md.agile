@@ -1,4 +1,4 @@
-use super::helpers::LspSession;
+use super::helpers::{LspSession, start_project_session};
 
 #[test]
 fn lsp_typo_quickfix_suggests_flat_property_declaration() {
@@ -367,4 +367,67 @@ fn lsp_code_action_available_anywhere_on_the_line() {
             .any(|a| a["kind"].as_str() == Some("quickfix")),
         "expected a quickfix action, got: {response}"
     );
+}
+
+#[test]
+fn lsp_code_action_offers_one_quickfix_per_declared_branch_for_e021() {
+    // A task marked done while a branch property is still pending (E021)
+    // should offer one quickfix per branch the property declares, each
+    // resolving the marker to that branch.
+    let config = "\
+[Properties.review]
+[Properties.review.passed]
+[Properties.review.failed]
+";
+    let file_content = "\
+- [x] perform #review:...
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+
+    let diag_notification = session.read_notification("textDocument/publishDiagnostics");
+    let diagnostics = diag_notification["params"]["diagnostics"].clone();
+    assert!(
+        diagnostics.as_array().map_or(false, |a| !a.is_empty()),
+        "expected at least one diagnostic from the server"
+    );
+
+    let code_action_request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "textDocument/codeAction",
+        "params": {
+            "textDocument": { "uri": file_uri },
+            "range": {
+                "start": { "line": 0, "character": 0 },
+                "end":   { "line": 0, "character": 26 }
+            },
+            "context": {
+                "diagnostics": diagnostics,
+                "triggerKind": 1
+            }
+        }
+    });
+    session.send(&code_action_request.to_string());
+
+    let response = session.read_response(2);
+
+    let actions = response["result"]
+        .as_array()
+        .expect("result should be an array");
+    let quickfixes: Vec<_> = actions
+        .iter()
+        .filter(|a| a["kind"].as_str() == Some("quickfix"))
+        .collect();
+    assert_eq!(
+        quickfixes.len(),
+        2,
+        "expected one quickfix per declared branch, got: {response}"
+    );
+
+    let new_texts: Vec<_> = quickfixes
+        .iter()
+        .map(|a| a["edit"]["changes"][&file_uri][0]["newText"].clone())
+        .collect();
+    assert_eq!(new_texts, vec!["#review:failed", "#review:passed"]);
 }

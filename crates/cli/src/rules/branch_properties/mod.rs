@@ -24,7 +24,7 @@
 
 use crate::config::Config;
 use crate::parser::{FileItem, Location, Marker, PropertyForm, Status, TASK_LINE_PREFIX_LEN};
-use crate::rules::{ErrorCode, Issue, for_each_node};
+use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
 
 pub fn unresolved_branch_property(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();
@@ -77,7 +77,9 @@ pub(crate) fn check_unresolved(
             "Resolve the outcome to one of its defined branches first, e.g. `#review:passed`."
                 .to_string(),
         ),
-        data: None,
+        data: Some(IssueData::UnresolvedBranchProperty {
+            properties: pending.iter().map(|p| p.to_string()).collect(),
+        }),
     }]
 }
 

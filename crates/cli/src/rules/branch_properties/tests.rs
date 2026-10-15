@@ -66,6 +66,12 @@ fn flags_done_task_with_pending_branch_property() {
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, ErrorCode::UnresolvedBranchProperty);
     assert!(issues[0].message.contains("#review:..."));
+    assert_eq!(
+        issues[0].data,
+        Some(crate::rules::IssueData::UnresolvedBranchProperty {
+            properties: vec!["review".to_string()],
+        })
+    );
 }
 
 #[test]
@@ -103,6 +109,12 @@ fn flags_done_task_with_multiple_unresolved_branch_properties() {
         issues[0].message.contains("properties"),
         "message should pluralize when more than one branch property is unresolved: {}",
         issues[0].message
+    );
+    assert_eq!(
+        issues[0].data,
+        Some(crate::rules::IssueData::UnresolvedBranchProperty {
+            properties: vec!["review".to_string(), "approval".to_string()],
+        })
     );
 }
 

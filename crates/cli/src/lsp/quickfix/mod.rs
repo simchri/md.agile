@@ -12,6 +12,7 @@ mod missing_space_after_box;
 mod missing_subtasks;
 mod undefined_assignment;
 mod undefined_property;
+mod unresolved_branch_property;
 mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
@@ -39,6 +40,10 @@ const REGISTRY: &[(ErrorCode, Builder)] = &[
         ErrorCode::MissingNeighborTask,
         missing_neighbor_tasks::build,
     ),
+    (
+        ErrorCode::UnresolvedBranchProperty,
+        unresolved_branch_property::build,
+    ),
     // E001 OrphanedSubtask, E004 IncompleteParent:
     // no quickfix (user has to make a structural decision the linter can't).
 ];
@@ -47,7 +52,9 @@ const REGISTRY: &[(ErrorCode, Builder)] = &[
 ///
 /// Returns every [`CodeAction`] produced by the matching builder — usually one,
 /// but E008 (undefined property) can return multiple when a close-match
-/// spelling correction is also available.
+/// spelling correction is also available, and E021 (unresolved branch
+/// property) returns one per declared branch across all still-pending
+/// properties on the flagged node.
 pub fn build_quickfixes(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
     let Some(NumberOrString::String(s)) = &diagnostic.code else {
         return vec![];
@@ -311,6 +318,7 @@ mod tests {
         assert!(has_quickfix(MissingRequiredSubtasks));
         assert!(!has_quickfix(UnrequiredQuotedSubtask));
         assert!(has_quickfix(MissingNeighborTask));
+        assert!(has_quickfix(UnresolvedBranchProperty));
     }
 
     // --- levenshtein unit tests ---

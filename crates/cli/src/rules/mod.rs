@@ -387,6 +387,10 @@ pub enum IssueData {
     /// Payload for E019 "Missing Neighbor Task": list of required neighbor
     /// task titles absent from the property-carrying node's siblings.
     MissingNeighborTask { missing: Vec<String> },
+    /// Payload for E021 "Unresolved Branch Property": base names of every
+    /// still-pending (`BranchPending`) branch property on the flagged node,
+    /// in the order they appear in its markers.
+    UnresolvedBranchProperty { properties: Vec<String> },
 }
 
 /// The result of resolving "who is completing this task" for the E013
