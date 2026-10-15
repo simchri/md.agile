@@ -46,7 +46,7 @@ fn token_name_at_position(text: &str, line: u32, character: u32, sigil: char) ->
 /// or `None` if the cursor is not on a `#property` token.
 ///
 /// Name normalisation mirrors `parse_hash_token` exactly:
-/// - `#review...`   → `"review"` (BranchPending: strip `...` suffix)
+/// - `#review:...`   → `"review"` (BranchPending: strip `:...` suffix)
 /// - `#review:done` → `"review"` (BranchResolved: keep the part before `:`)
 /// - `#feat:`       → `"feat"`   (trailing `:;,.` stripped)
 /// - `#feat`        → `"feat"`   (Full form, no change)
@@ -101,8 +101,8 @@ fn normalize_property_name(raw: &str) -> Option<String> {
         return None;
     }
 
-    // BranchPending: `review...`
-    if let Some(base) = raw.strip_suffix("...") {
+    // BranchPending: `review:...`
+    if let Some(base) = raw.strip_suffix(":...") {
         if !base.is_empty() {
             return Some(base.to_string());
         }
@@ -186,8 +186,8 @@ mod tests {
 
     #[test]
     fn returns_base_name_for_branch_pending() {
-        // #review... — cursor somewhere inside the token
-        let doc = "- [ ] task #review...\n";
+        // #review:... — cursor somewhere inside the token
+        let doc = "- [ ] task #review:...\n";
         assert_eq!(
             property_name_at_position(doc, 0, 13),
             Some("review".to_string())

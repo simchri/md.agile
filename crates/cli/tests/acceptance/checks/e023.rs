@@ -6,7 +6,7 @@
 //!
 //! `#review` alone is not allowed: declaring `branches` in config (even just
 //! one) turns a property into a Branch Property for good, so it must always
-//! be written pending (`#review...`) or resolved to one of its outcomes
+//! be written pending (`#review:...`) or resolved to one of its outcomes
 //! (`#review:passed`/`#review:failed`) — never used in its plain form. Using
 //! the plain form is flagged as E023 "Plain Branching Property".
 
@@ -92,13 +92,13 @@ fn plain_property_usage_is_flagged_regardless_of_done_status() {
 
 #[test]
 fn pending_property_usage_is_not_flagged() {
-    // `#review...` is the correct way to say "still being decided" -- it
+    // `#review:...` is the correct way to say "still being decided" -- it
     // must not trip E023.
     let dir = tempdir().unwrap();
     write_review_config(dir.path());
     let file_content = "\
 - [ ] a task
-  - [ ] some sub task that needs #review...
+  - [ ] some sub task that needs #review:...
     - [ ] \"document review findings\"
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
@@ -175,14 +175,14 @@ fn plain_form_is_flagged_as_e023_even_with_every_requirement_satisfied() {
 
 #[test]
 fn pending_form_is_satisfied_by_only_the_base_propertys_own_requirements() {
-    // `#review...` means "still being decided" -- only the base property's
+    // `#review:...` means "still being decided" -- only the base property's
     // own `subtasks`/`neighbortasks` apply; neither branch's extra
     // requirements are in effect yet.
     let dir = tempdir().unwrap();
     write_full_matrix_review_config(dir.path());
     let file_content = "\
 - [ ] a task
-  - [ ] some sub task that needs #review...
+  - [ ] some sub task that needs #review:...
     - [ ] \"document review findings\"
   - [ ] \"top level common neighbortask\"
 ";
@@ -203,7 +203,7 @@ fn pending_form_missing_the_base_propertys_own_subtask_is_flagged_e010() {
     write_full_matrix_review_config(dir.path());
     let file_content = "\
 - [ ] a task
-  - [ ] some sub task that needs #review...
+  - [ ] some sub task that needs #review:...
   - [ ] \"top level common neighbortask\"
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
@@ -222,7 +222,7 @@ fn pending_form_missing_the_base_propertys_own_neighbortask_is_flagged_e019() {
     write_full_matrix_review_config(dir.path());
     let file_content = "\
 - [ ] a task
-  - [ ] some sub task that needs #review...
+  - [ ] some sub task that needs #review:...
     - [ ] \"document review findings\"
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();

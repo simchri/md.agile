@@ -60,7 +60,7 @@ pub const TASK_LINE_PREFIX_LEN: usize = 6;
 pub enum PropertyForm {
     Full,
     Short,                  // #feat_  -- brainstorm mode; task cannot be marked Done
-    BranchPending,          // #review...  -- outcome not yet chosen
+    BranchPending,          // #review:...  -- outcome not yet chosen
     BranchResolved(String), // #review:passed  -- branch name in the String
 }
 
@@ -843,8 +843,8 @@ fn parse_hash_token(name: &str, column: usize) -> Option<Marker> {
         return Some(Marker::Special(special));
     }
 
-    // `#review...`  -- branch outcome not yet chosen
-    if let Some(base) = name.strip_suffix("...") {
+    // `#review:...`  -- branch outcome not yet chosen
+    if let Some(base) = name.strip_suffix(":...") {
         if !base.is_empty() {
             return Some(Marker::Property(PropertyRef {
                 name: base.to_string(),

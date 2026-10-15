@@ -15,7 +15,7 @@ neighbortasks = [\"publish feature\"]
     // See README.vision.md "Branch Properties": this is the exact invalid
     // example given there.
     let content = "\
-- [x] perform #review...
+- [x] perform #review:...
   - [x] \"document review findings\"
 ";
     fs::write(dir.path().join("a.agile.md"), content).unwrap();
@@ -25,7 +25,7 @@ neighbortasks = [\"publish feature\"]
     assert_eq!(out.status.code(), Some(1));
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("E021"), "stdout: {stdout:?}");
-    assert!(stdout.contains("#review..."), "stdout: {stdout:?}");
+    assert!(stdout.contains("#review:..."), "stdout: {stdout:?}");
 }
 
 #[test]
@@ -39,7 +39,7 @@ neighbortasks = [\"publish feature\"]
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let content = "\
-- [ ] perform #review...
+- [ ] perform #review:...
   - [ ] \"document review findings\"
 ";
     fs::write(dir.path().join("a.agile.md"), content).unwrap();
@@ -84,7 +84,7 @@ fn does_not_flag_a_cancelled_task_with_an_unresolved_branch_property() {
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let content = "\
-- [-] perform #review...
+- [-] perform #review:...
 ";
     fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
@@ -104,7 +104,7 @@ fn flags_a_done_task_with_two_distinct_unresolved_branch_properties_naming_both(
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let content = "\
-- [x] perform #review... and #approval...
+- [x] perform #review:... and #approval:...
 ";
     fs::write(dir.path().join("a.agile.md"), content).unwrap();
 
@@ -113,6 +113,6 @@ fn flags_a_done_task_with_two_distinct_unresolved_branch_properties_naming_both(
     assert_eq!(out.status.code(), Some(1));
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("E021"), "stdout: {stdout:?}");
-    assert!(stdout.contains("#review..."), "stdout: {stdout:?}");
-    assert!(stdout.contains("#approval..."), "stdout: {stdout:?}");
+    assert!(stdout.contains("#review:..."), "stdout: {stdout:?}");
+    assert!(stdout.contains("#approval:..."), "stdout: {stdout:?}");
 }

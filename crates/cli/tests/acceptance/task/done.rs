@@ -92,7 +92,7 @@ fn task_done_refuses_when_a_branch_property_is_still_unresolved() {
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let content = "\
-- [ ] perform #review...
+- [ ] perform #review:...
 ";
     fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
 

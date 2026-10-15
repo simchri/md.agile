@@ -1,5 +1,5 @@
 //! E021/E022/E023 — validates the pending/resolved outcome syntax of a
-//! Branch Property (see README.vision.md "Branch Properties"): `#review...`
+//! Branch Property (see README.vision.md "Branch Properties"): `#review:...`
 //! marks an outcome as not yet chosen, `#review:passed` resolves it to a
 //! named branch.
 //!
@@ -12,7 +12,7 @@
 //!   in `mdagile.toml`.
 //! - E023 "Plain Branching Property": a property that declares at least one
 //!   branch is used in its plain form (`#review`) — neither pending
-//!   (`#review...`) nor resolved (`#review:passed`). Declaring branches at
+//!   (`#review:...`) nor resolved (`#review:passed`). Declaring branches at
 //!   all means the property *is* a Branching Workflow property, so it must
 //!   always carry the pending/resolved syntax, never the bare marker.
 //!
@@ -63,7 +63,7 @@ pub(crate) fn check_unresolved(
         return vec![];
     }
 
-    let quoted: Vec<String> = pending.iter().map(|p| format!("#{p}...")).collect();
+    let quoted: Vec<String> = pending.iter().map(|p| format!("#{p}:...")).collect();
     vec![Issue {
         location: location.clone(),
         code: ErrorCode::UnresolvedBranchProperty,
@@ -150,7 +150,7 @@ pub fn plain_branching_property(items: &[FileItem], config: &Config) -> Vec<Issu
 /// Checks `markers` for a property used in its plain form (`#review`) even
 /// though its config declares at least one branch — i.e. it *is* a Branching
 /// Workflow property (see README.vision.md "Branch Properties"), so it must
-/// always be written pending (`#review...`) or resolved (`#review:passed`),
+/// always be written pending (`#review:...`) or resolved (`#review:passed`),
 /// never bare. Reported as E023. Reused by [`crate::rules::check_completable`]
 /// so `agile task done` also refuses this, not just `agile check`.
 pub(crate) fn check_plain_form(
@@ -183,13 +183,13 @@ pub(crate) fn check_plain_form(
             location: location.clone(),
             code: ErrorCode::PlainBranchingProperty,
             message: format!(
-                "Property #{} declares branches and must be written pending (#{}...) or \
+                "Property #{} declares branches and must be written pending (#{}:...) or \
                  resolved to one of its outcomes, not used plainly",
                 prop.name, prop.name
             ),
             column: indent + TASK_LINE_PREFIX_LEN + prop.column,
             help: Some(format!(
-                "Write `#{}...` while still in progress, or resolve it directly, e.g. \
+                "Write `#{}:...` while still in progress, or resolve it directly, e.g. \
                  `#{}:{example}`.",
                 prop.name, prop.name
             )),

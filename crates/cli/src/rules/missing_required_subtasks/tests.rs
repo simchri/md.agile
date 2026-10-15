@@ -451,7 +451,7 @@ fn pending_branch_property_only_requires_the_base_propertys_own_subtasks() {
         );
     let input = "\
 - [ ] build something
-  - [ ] perform #review...
+  - [ ] perform #review:...
     - [ ] \"document review findings\"
 ";
     assert!(missing_required_subtasks(&p(input), &config).is_empty());

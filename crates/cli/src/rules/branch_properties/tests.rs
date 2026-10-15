@@ -36,7 +36,7 @@ fn config_with_branches(property: &str, branches: &[&str]) -> Config {
 #[test]
 fn no_issue_when_pending_property_is_not_done() {
     let input = "\
-- [ ] perform #review...
+- [ ] perform #review:...
 ";
     assert!(unresolved_branch_property(&p(input)).is_empty());
 }
@@ -60,19 +60,19 @@ fn no_issue_when_done_task_has_no_branch_property() {
 #[test]
 fn flags_done_task_with_pending_branch_property() {
     let input = "\
-- [x] perform #review...
+- [x] perform #review:...
 ";
     let issues = unresolved_branch_property(&p(input));
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, ErrorCode::UnresolvedBranchProperty);
-    assert!(issues[0].message.contains("#review..."));
+    assert!(issues[0].message.contains("#review:..."));
 }
 
 #[test]
 fn flags_done_subtask_with_pending_branch_property() {
     let input = "\
 - [ ] build something
-  - [x] perform #review...
+  - [x] perform #review:...
 ";
     let issues = unresolved_branch_property(&p(input));
     assert_eq!(issues.len(), 1);
@@ -84,7 +84,7 @@ fn does_not_flag_a_cancelled_task_with_an_unresolved_branch_property() {
     // Cancelling a task is a deliberate way to abandon it without resolving
     // its outcome — only completing it (Done) requires resolution.
     let input = "\
-- [-] perform #review...
+- [-] perform #review:...
 ";
     assert!(unresolved_branch_property(&p(input)).is_empty());
 }
@@ -92,13 +92,13 @@ fn does_not_flag_a_cancelled_task_with_an_unresolved_branch_property() {
 #[test]
 fn flags_done_task_with_multiple_unresolved_branch_properties() {
     let input = "\
-- [x] perform #review... and #approval...
+- [x] perform #review:... and #approval:...
 ";
     let issues = unresolved_branch_property(&p(input));
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].code, ErrorCode::UnresolvedBranchProperty);
-    assert!(issues[0].message.contains("#review..."));
-    assert!(issues[0].message.contains("#approval..."));
+    assert!(issues[0].message.contains("#review:..."));
+    assert!(issues[0].message.contains("#approval:..."));
     assert!(
         issues[0].message.contains("properties"),
         "message should pluralize when more than one branch property is unresolved: {}",
@@ -111,7 +111,7 @@ fn check_unresolved_flags_pending_property_regardless_of_status() {
     // Used by check_completable, which validates a node that's still `Todo`
     // and about to *become* done — see the function's own doc comment.
     let input = "\
-- [ ] perform #review...
+- [ ] perform #review:...
 ";
     let task = match &p(input)[0] {
         FileItem::Task(t) => t.clone(),
@@ -136,7 +136,7 @@ fn no_issue_when_resolved_branch_is_defined() {
 #[test]
 fn no_issue_for_pending_property() {
     let input = "\
-- [ ] perform #review...
+- [ ] perform #review:...
 ";
     let config = config_with_branches("review", &["passed", "failed"]);
     assert!(undefined_branch_outcome(&p(input), &config).is_empty());
@@ -180,7 +180,7 @@ fn flags_resolved_branch_when_property_declares_no_branches_at_all() {
 #[test]
 fn no_issue_for_pending_form_on_branching_property() {
     let input = "\
-- [ ] perform #review...
+- [ ] perform #review:...
 ";
     let config = config_with_branches("review", &["passed", "failed"]);
     assert!(plain_branching_property(&p(input), &config).is_empty());

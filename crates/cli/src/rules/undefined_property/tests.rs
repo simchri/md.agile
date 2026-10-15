@@ -139,7 +139,7 @@ fn mix_of_defined_and_undefined_only_flags_undefined() {
 #[test]
 fn branch_form_property_is_also_checked() {
     let input = "\
-- [ ] perform #review...
+- [ ] perform #review:...
 ";
     let issues = undefined_property(&p(input), &Config::default());
     assert_eq!(issues.len(), 1);

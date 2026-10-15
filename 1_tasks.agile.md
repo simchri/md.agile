@@ -998,7 +998,7 @@ users don't have to think about it. Design plan: see
   - [x] lsp autofix for neighbor branches
   - [x] check rule: properties requiring neighbor tasks are not allowed on top-level tasks (E020), takes precedence over the missing-neighbor-task check (E019)
   - [ ] terminology: Sibling task or neighbor task?
-- [x] Branch Properties
+- [ ] Branch Properties
   (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax was already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`).
   - [x] config: parse `[Properties.X.branch_name]` sub-tables (`subtasks`, `subtasks_allow_cancel`, `neighbortasks`)
   - [x] check rule: task marked done while a branch property is still unresolved (E021)
@@ -1006,9 +1006,17 @@ users don't have to think about it. Design plan: see
   - [x] a resolved branch's own `subtasks`/`neighbortasks` are merged on top of the base property's requirements (E010/E012/E019), only once resolved — not while pending
   - [x] branch-only `neighbortasks` also trip the top-level restriction (E020)
   - [x] check rule: a property that declares branches must always be used pending or resolved, never plainly (E023)
-  - [x] lsp: autocomplete for a branching property suggests its pending form (`#name...`), not the plain form
+  - [x] lsp: autocomplete for a branching property suggests its pending form (`#name:...`), not the plain form
   - [x] BUG fix: E011 (unrequired quoted subtask) didn't merge a resolved branch's own required subtasks, only the base property's
   - [x] acceptance tests: edge cases for resolved-branch requirement merging/dedup across base and sibling properties/branches (E010/E012/E019/E021), plus a full requirement matrix for E023 (pending/resolved/cross-branch isolation/shared neighbor-task names)
+  - [x] change branch property syntax from `#review...` to `#review:...` (add colon)
+    - [x] code 
+      - [x] parser
+      - [x] checks
+    - [x] documentation
+  - [ ] Quickfix actions
+  - [ ] add the completed forms of branch properties to autocomplete proposals
+  - [ ] Quickfixes for this error situation: `Task marked done while branch property #review:... still unresolved` -- allow selecting any of the completed forms as a quickfix
 
 ## Forms / Form Fields?
 - [ ] Forms & Fields

@@ -99,14 +99,14 @@ pub enum ErrorCode {
     NeighborTaskOnTopLevel,
     /// E021: A task was marked done while a Branch Property (see
     /// README.vision.md "Branch Properties") is still in its pending form
-    /// (e.g. `#review...`), with no outcome chosen yet
+    /// (e.g. `#review:...`), with no outcome chosen yet
     UnresolvedBranchProperty,
     /// E022: A Branch Property was resolved (e.g. `#review:passed`) to a
     /// branch name that isn't declared in config
     UndefinedBranchOutcome,
     /// E023: A property that declares branches (see README.vision.md
     /// "Branch Properties") was used in its plain form (`#review`) instead
-    /// of pending (`#review...`) or resolved (`#review:passed`)
+    /// of pending (`#review:...`) or resolved (`#review:passed`)
     PlainBranchingProperty,
 }
 

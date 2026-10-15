@@ -57,9 +57,9 @@ on a task is [E008](checks.md).
 
 Declares a branch outcome for a branching property (see "Branch Properties"
 in [README.vision.md](../../README.vision.md)). Declaring at least one
-branch here means `X` must always be used pending (`#X...`) or resolved
+branch here means `X` must always be used pending (`#X:...`) or resolved
 (`#X:branch_name`), never in its plain form (`#X`) — [E023](checks.md)
-reports that. The marker `#X...` is pending until resolved to one of its
+reports that. The marker `#X:...` is pending until resolved to one of its
 declared branches (`#X:branch_name`); [E021](checks.md) reports a task
 marked done while still pending, and [E022](checks.md) reports a resolved
 branch that isn't declared here.

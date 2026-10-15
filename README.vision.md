@@ -275,7 +275,7 @@ Execution is deliberately locked down: the script is invoked directly (no shell)
 
 ## Branch Properties
 
-Branch Properties allow you to implement branching workflows depending on the outcomes of tasks. The following config snippet defines a property `#review...` with two branches `#review:passed` and `#review:failed`:
+Branch Properties allow you to implement branching workflows depending on the outcomes of tasks. The following config snippet defines a property `#review:...` with two branches `#review:passed` and `#review:failed`:
 
 ```toml
 [Properties.review]
@@ -286,12 +286,12 @@ neighbortasks = ["publish feature"]
 neighbortasks = ["create follow up task for fixes"]
 ```
 
-A Branching Workflow property is written in its incomplete form (e.g., `#review...`) while the task is still in progress. When the task is marked as done, this property must be updated to one of its defined outcome states (e.g., `#review:passed`, `#review:failed`). Each outcome can have its own constraints, such as mandatory subtasks or neighbor tasks.
+A Branching Workflow property is written in its incomplete form (e.g., `#review:...`) while the task is still in progress. When the task is marked as done, this property must be updated to one of its defined outcome states (e.g., `#review:passed`, `#review:failed`). Each outcome can have its own constraints, such as mandatory subtasks or neighbor tasks.
 
 While task in progress:
 ```md
 - [ ] build something
-  - [ ] perform #review...
+  - [ ] perform #review:...
     - [ ] "document review findings"
 ```
 Review passed:
@@ -311,7 +311,7 @@ Review failed:
 
 It is not allowed to mark the task as complete without updating the property to one of its defined outcomes. The following will be marked with an error:
 ```md
-- [x] perform #review...
+- [x] perform #review:...
   - [x] "document review findings"
 ```
 

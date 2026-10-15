@@ -480,7 +480,7 @@ fn parse_tasks_with_milestone_between() {
 #[test]
 fn parse_branch_pending_marker() {
     let input = "\
-- [ ] perform #review...
+- [ ] perform #review:...
 ";
     let items = p(input);
     let markers = &task(&items, 0).markers;
@@ -489,6 +489,28 @@ fn parse_branch_pending_marker() {
         &vec![Marker::Property(PropertyRef {
             name: "review".to_string(),
             form: PropertyForm::BranchPending,
+            column: 9,
+        })]
+    );
+}
+
+#[test]
+fn parse_bare_dots_without_a_colon_is_a_plain_property_not_a_pending_branch() {
+    // The old (pre-colon) pending syntax `#review...` no longer means
+    // "pending" -- the trailing dots are just trimmed as trailing
+    // punctuation (see `MARKER_TRAILING_PUNCT`), leaving a plain property.
+    // (Whether a property that declares branches is then used validly is a
+    // checker concern -- see E023 -- not the parser's.)
+    let input = "\
+- [ ] perform #review...
+";
+    let items = p(input);
+    let markers = &task(&items, 0).markers;
+    assert_eq!(
+        markers,
+        &vec![Marker::Property(PropertyRef {
+            name: "review".to_string(),
+            form: PropertyForm::Full,
             column: 9,
         })]
     );

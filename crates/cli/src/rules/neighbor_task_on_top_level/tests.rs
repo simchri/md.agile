@@ -160,7 +160,7 @@ fn flags_a_branch_property_whose_only_neighbortasks_live_on_a_branch() {
         },
     );
     let input = "\
-- [ ] perform #review...
+- [ ] perform #review:...
 ";
     let issues = neighbor_task_on_top_level(&p(input), &config);
     assert_eq!(issues.len(), 1);

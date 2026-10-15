@@ -8,7 +8,7 @@
 //!     (`FileItem::Milestone`) — the `#MILESTONE` keyword is highlighted
 //!     at column 0 of that line.
 //! - User-defined `#property` markers as `property` tokens. For branch-form
-//!   properties (`#review...`, `#review:passed`) only the base name is
+//!   properties (`#review:...`, `#review:passed`) only the base name is
 //!   highlighted.
 //! - `@user`/`@group` assignment markers as `parameter` tokens.
 //! - Digits in an ordered subtask prefix (`1. `) as `number` tokens.
@@ -144,7 +144,7 @@ fn collect_order_prefix(sub: &Subtask, lines: &[&str], raw: &mut Vec<RawToken>) 
 /// line is therefore at byte offset `indent + (TASK_LINE_PREFIX_LEN - 1) + column`.
 ///
 /// Each marker is mapped to `(column, name, token_type)` and pushed once;
-/// for branch-form properties (`#review...`, `#review:passed`) only the base
+/// for branch-form properties (`#review:...`, `#review:passed`) only the base
 /// name is highlighted, not the suffix.
 fn collect_markers(
     markers: &[Marker],
@@ -455,9 +455,9 @@ Something something
 
     #[test]
     fn branch_pending_property_highlights_base_name_only() {
-        // "#review..." → base name "review"; suffix "..." is not highlighted.
-        // Full line: "- [ ] task #review..." → '#' at char 11, length 1+6 = 7.
-        let items = p("- [ ] task #review...\n");
+        // "#review:..." → base name "review"; suffix ":..." is not highlighted.
+        // Full line: "- [ ] task #review:..." → '#' at char 11, length 1+6 = 7.
+        let items = p("- [ ] task #review:...\n");
         let tokens = build_tokens(&items);
         assert_eq!(tokens.len(), 1);
         assert_eq!(tokens[0].delta_start, 11);

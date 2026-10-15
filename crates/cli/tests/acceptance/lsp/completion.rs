@@ -60,7 +60,7 @@ More about the feature.
 #[test]
 fn lsp_completion_suggests_pending_form_for_a_property_that_declares_branches() {
     // A property that declares at least one branch must always be written
-    // pending (`#review...`) or resolved (`#review:branch`), never plainly
+    // pending (`#review:...`) or resolved (`#review:branch`), never plainly
     // -- see E023 "Plain Branching Property". Autocomplete must therefore
     // never suggest the bare `#review` form for it.
     let config = "\
@@ -88,8 +88,8 @@ fn lsp_completion_suggests_pending_form_for_a_property_that_declares_branches() 
         .iter()
         .filter_map(|item| item["label"].as_str())
         .collect();
-    assert_eq!(labels, vec!["#review..."]);
-    assert_eq!(items[0]["textEdit"]["newText"], "#review...");
+    assert_eq!(labels, vec!["#review:..."]);
+    assert_eq!(items[0]["textEdit"]["newText"], "#review:...");
 }
 
 #[test]

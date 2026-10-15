@@ -299,7 +299,7 @@ fn pending_branch_property_does_not_yet_require_an_unchosen_branchs_neighbor() {
     );
     let input = "\
 - [ ] build something
-  - [ ] perform #review...
+  - [ ] perform #review:...
 ";
     assert!(neighbor_tasks(&p(input), &config).is_empty());
 }
