@@ -198,6 +198,9 @@ Neighbor tasks can themselves have their own properties and subtasks. This mecha
 **Properties with Neighbor Tasks can not be set at the top level (only on subtask level 1 and lower).** Neighbor tasks at the top level don't make sense, because the feature would only be usable exactly once for the entire project.
 
 ## Forms & Fields
+
+A Form is attached to a property via a `form` key on its `[Properties.X]` entry — the same way "Property Short Forms" attaches an alias marker via a `short` key. The marker itself (`#personal_info` below) always resolves to its `[Properties.X]` entry as usual; the `form` key then points to a separate `[Form.X]` table that declares which fields the task must carry:
+
 ```toml
 [Field.first_name]
 label = "First Name"
@@ -218,6 +221,9 @@ multiline = true
 [Form.personal_info]
 fields = ["first_name", "email" , "gender", "bio"]
 validation = "validate_personal_info.sh"
+
+[Properties.personal_info]
+form = "personal_info"
 ```
 Default value for any field unless specified explicitly is `___`. 
 
