@@ -1002,6 +1002,26 @@ users don't have to think about it. Design plan: see
   (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
 
 ## Forms / Form Fields?
+- [ ] Forms & Fields
+  (see README.vision.md "Forms & Fields")
+  - [ ] config: parse `[Field.X]` entries
+  - [ ] config: parse `[Form.X]` entries
+  - [ ] config: parse `form` key on `[Properties.X]`
+  - [ ] check: undefined form reference
+  - [ ] check: undefined field in a form
+  - [ ] check: field regex/values conflict
+  - [ ] parser: bold `__Label:__` field lines
+  - [ ] parser: multiline field + `...`/`\...` escape
+  - [ ] check: missing required field
+  - [ ] check: field left unfilled
+  - [ ] check: field fails regex/allowed values
+  - [ ] lsp quickfix: insert missing fields
+  - [ ] `agile trust` command + trust store
+  - [ ] sandboxed per-task script runner
+  - [ ] check: form validation script failure
+  - [ ] wire script validation into `agile check`
+  - [ ] wire script validation into lsp (on save)
+  - [ ] block completion until fields valid
 
 #MILESTONE: Branch Properties V1
 
