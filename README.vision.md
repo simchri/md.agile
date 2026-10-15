@@ -211,8 +211,12 @@ label = "Gender"
 default = "(don't specify)"
 values = ["male", "female", "(don't specify)"]
 
+[Field.bio]
+label = "Personal Biography"
+multiline = true
+
 [Form.personal_info]
-fields = ["first_name", "email" , "gender"]
+fields = ["first_name", "email" , "gender", "bio"]
 validation = "validate_personal_info.sh"
 ```
 Default value for any field unless specified explicitly is `___`. 
@@ -228,11 +232,31 @@ before this can be marked complete, the fields required by the form must exist, 
 
 ```md
 - [ ] provide new user #personal_info 
-  First Name: ___
-  Email: ___
-  Gender: (don't specify)
+  __First Name:__ ___
+  __Email:__ ___
+  __Gender:__ (don't specify)
+  __Bio:__
+  ___
 ```
-The form content is strictly everything after the `<label>: ` (after label, colon and space) until the end of the line. 
+The form content is strictly everything after the `<label>: ` (after label, colon and space) until the end of the line. A label is always bolded with the markdown syntax `__bold__`.
+
+A multiline form field captures anything after the label line. Because this may conflict with custom user notes (normal task body content), multiline Fields can be explicitly closed with ellipses `...` on a new line.
+
+Fully filled out, the form looks like this:
+
+```md
+- [ ] provide new user #personal_info 
+  This task is about collecting the info about a new user.
+  __First Name:__ John
+  I can freely add notes in between fields
+  __Email:__ john.doe@gmail.com
+  __Gender:__ male
+  __Bio:__
+  John doe is an outstanding character.
+  He is well known for his many appearances in sample forms.
+  ...
+  More notes on the task can go here. This sentence is not part of any field.
+```
 
 Validation script: ...
 
