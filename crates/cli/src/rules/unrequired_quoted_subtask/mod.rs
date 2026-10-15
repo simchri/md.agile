@@ -1,13 +1,15 @@
 //! E011 — flags subtasks that use the `"quoted"` syntax but are not declared
-//! as required by any property on their direct parent task or subtask, nor
-//! by any `neighbortasks` entry declared by a sibling's own property (see
+//! as required by any property on their direct parent task or subtask
+//! (including, for a resolved Branch Property, its branch's own `subtasks` —
+//! see [`crate::rules::branch_properties`]), nor by any `neighbortasks`
+//! entry declared by a sibling's own property (see
 //! [`crate::rules::neighbor_tasks`]).
 //!
 //! The `- [ ] "some text"` form is reserved exclusively for property-required
 //! subtasks. Using it outside that context is a syntax error.
 
 use crate::config::Config;
-use crate::parser::{FileItem, Marker, SubtaskKind, TASK_LINE_PREFIX_LEN};
+use crate::parser::{FileItem, Marker, PropertyForm, SubtaskKind, TASK_LINE_PREFIX_LEN};
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node, neighbor_tasks};
 
 pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Issue> {
@@ -53,7 +55,12 @@ pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Iss
 }
 
 /// Collects all required subtask titles contributed by the property markers on
-/// a node, merging across multiple properties and deduplicating.
+/// a node, merging across multiple properties and deduplicating. A property
+/// resolved to a Branch Property outcome (e.g. `#review:passed`) also
+/// contributes that branch's own `subtasks`, on top of the base property's —
+/// mirroring the same merge `missing_required_subtasks` (E010/E012) and
+/// `neighbor_tasks` (E019) already perform. An unknown branch name
+/// contributes nothing extra here; that's E022's concern instead.
 fn collect_required(markers: &[Marker], config: &Config) -> Vec<String> {
     let mut required: Vec<String> = Vec::new();
     for marker in markers {
@@ -62,6 +69,15 @@ fn collect_required(markers: &[Marker], config: &Config) -> Vec<String> {
                 for s in &prop_config.subtasks {
                     if !required.contains(s) {
                         required.push(s.clone());
+                    }
+                }
+                if let PropertyForm::BranchResolved(branch) = &prop.form {
+                    if let Some(branch_config) = prop_config.branches.get(branch) {
+                        for s in &branch_config.subtasks {
+                            if !required.contains(s) {
+                                required.push(s.clone());
+                            }
+                        }
                     }
                 }
             }

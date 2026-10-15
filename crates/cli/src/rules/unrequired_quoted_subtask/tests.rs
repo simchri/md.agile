@@ -295,3 +295,99 @@ fn quoted_sibling_not_matching_any_neighbortasks_is_still_flagged() {
         })
     );
 }
+
+// ── Branch Properties interaction (E023 area) ──────────────────────────────────
+
+#[test]
+fn quoted_subtask_required_only_by_a_resolved_branch_is_not_flagged() {
+    // "review passed subtask" is required by `[Properties.review.passed]`,
+    // not the base `[Properties.review]` -- once resolved to that branch
+    // (`#review:passed`), its own subtasks apply too, exactly like the base
+    // property's.
+    use crate::config::{BranchConfig, Config, PropertyConfig};
+    use std::collections::HashMap;
+
+    let file_content = "\
+- [ ] perform #review:passed
+  - [ ] \"document review findings\"
+  - [ ] \"review passed subtask\"
+";
+    let mut branches = HashMap::new();
+    branches.insert(
+        "passed".to_string(),
+        BranchConfig {
+            subtasks: vec!["review passed subtask".to_string()],
+            ..BranchConfig::default()
+        },
+    );
+    let mut properties = HashMap::new();
+    properties.insert(
+        "review".to_string(),
+        PropertyConfig {
+            name: "review".to_string(),
+            brief: None,
+            description: None,
+            subtasks: vec!["document review findings".to_string()],
+            subtasks_allow_cancel: vec![],
+            neighbortasks: vec![],
+            branches,
+        },
+    );
+    let config = Config {
+        properties,
+        ..Config::default()
+    };
+
+    assert!(unrequired_quoted_subtask(&p(file_content), &config).is_empty());
+}
+
+#[test]
+fn quoted_subtask_required_by_a_different_branch_than_the_resolved_one_is_still_flagged() {
+    use crate::config::{BranchConfig, Config, PropertyConfig};
+    use std::collections::HashMap;
+
+    let file_content = "\
+- [ ] perform #review:passed
+  - [ ] \"review failed subtask\"
+";
+    let mut branches = HashMap::new();
+    branches.insert(
+        "passed".to_string(),
+        BranchConfig {
+            subtasks: vec!["review passed subtask".to_string()],
+            ..BranchConfig::default()
+        },
+    );
+    branches.insert(
+        "failed".to_string(),
+        BranchConfig {
+            subtasks: vec!["review failed subtask".to_string()],
+            ..BranchConfig::default()
+        },
+    );
+    let mut properties = HashMap::new();
+    properties.insert(
+        "review".to_string(),
+        PropertyConfig {
+            name: "review".to_string(),
+            brief: None,
+            description: None,
+            subtasks: vec![],
+            subtasks_allow_cancel: vec![],
+            neighbortasks: vec![],
+            branches,
+        },
+    );
+    let config = Config {
+        properties,
+        ..Config::default()
+    };
+
+    let issues = unrequired_quoted_subtask(&p(file_content), &config);
+    assert_eq!(issues.len(), 1);
+    assert!(
+        issues[0].message.contains("review failed subtask"),
+        "{}",
+        issues[0].message
+    );
+}
