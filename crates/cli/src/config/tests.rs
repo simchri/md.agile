@@ -79,6 +79,27 @@ fn property_without_subtasks_allow_cancel_has_empty_vec() {
 }
 
 #[test]
+fn property_with_neighbortasks_field_is_parsed() {
+    let input = "\
+[Properties.frontend-implementation]
+neighbortasks = [\"do the back end implementation also!\"]
+";
+    let config = Config::from_str(input).unwrap();
+    let prop = config.properties.get("frontend-implementation").unwrap();
+    assert_eq!(
+        prop.neighbortasks,
+        vec!["do the back end implementation also!"]
+    );
+}
+
+#[test]
+fn property_without_neighbortasks_has_empty_vec() {
+    let config = Config::from_str("[Properties.bug]\n").unwrap();
+    let prop = config.properties.get("bug").unwrap();
+    assert!(prop.neighbortasks.is_empty());
+}
+
+#[test]
 fn property_with_subtasks_allow_cancel_field_is_parsed() {
     let input = "\
 [Properties.feature]

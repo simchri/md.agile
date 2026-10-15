@@ -20,6 +20,7 @@ fn config_with_subtasks(entries: &[(&str, &[&str])]) -> Config {
                         description: None,
                         subtasks: subs.iter().map(|s| s.to_string()).collect(),
                         subtasks_allow_cancel: vec![],
+                        neighbortasks: vec![],
                     },
                 )
             })
@@ -43,6 +44,7 @@ fn config_with_cancellable_subtasks(entries: &[(&str, &[&str], &[bool])]) -> Con
                         description: None,
                         subtasks: subs.iter().map(|s| s.to_string()).collect(),
                         subtasks_allow_cancel: allow_cancel.to_vec(),
+                        neighbortasks: vec![],
                     },
                 )
             })

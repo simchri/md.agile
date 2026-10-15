@@ -70,6 +70,10 @@ pub struct PropertyConfig {
     /// of completing it. Empty when not configured (no required subtask may be
     /// cancelled).
     pub subtasks_allow_cancel: Vec<bool>,
+    /// Sibling task titles (see README.vision.md "Neighbor Tasks") that must be
+    /// present at the same level as the task/subtask carrying this property.
+    /// Empty when not configured.
+    pub neighbortasks: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -178,6 +182,8 @@ struct RawPropertyConfig {
     subtasks: Vec<String>,
     #[serde(default)]
     subtasks_allow_cancel: Vec<bool>,
+    #[serde(default)]
+    neighbortasks: Vec<String>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -300,6 +306,7 @@ impl Config {
                         description: raw_prop.description,
                         subtasks: raw_prop.subtasks,
                         subtasks_allow_cancel: raw_prop.subtasks_allow_cancel,
+                        neighbortasks: raw_prop.neighbortasks,
                     },
                 ))
             })

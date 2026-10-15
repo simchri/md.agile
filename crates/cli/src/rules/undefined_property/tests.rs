@@ -21,6 +21,7 @@ fn config_with(names: &[&str]) -> Config {
                         description: None,
                         subtasks: vec![],
                         subtasks_allow_cancel: vec![],
+                        neighbortasks: vec![],
                     },
                 )
             })

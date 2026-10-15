@@ -20,6 +20,7 @@ fn config_with_subtasks(entries: &[(&str, &[&str])]) -> Config {
                         description: None,
                         subtasks: subs.iter().map(|s| s.to_string()).collect(),
                         subtasks_allow_cancel: vec![],
+                        neighbortasks: vec![],
                     },
                 )
             })

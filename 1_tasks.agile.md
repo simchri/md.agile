@@ -992,8 +992,12 @@ users don't have to think about it. Design plan: see
 - [x] removed bats tests asserting exact log *message* wording (auth-diagnostics/self-heal log-line tests, and the "error logging: ... records ... in the log" tests in `autogit.bats`/`autogit-daemon-sync.bats`) from the autogit test suite; log *file* location/retention tests (e.g. weekly log rotation, default log dir under `XDG_STATE_HOME`) were kept since they don't assert on log content/wording. The underlying auth-diagnostics/self-heal logging feature itself is unchanged, just no longer covered by content-asserting bats tests
 
 ## Neighbor Tasks / Branch Properties / Workflows
-- [ ] Neighbor Tasks: a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks"), requiring a specific sibling task to exist alongside the property-carrying task/subtask. Not present in the config schema; no corresponding validation rule.
-- [ ] Branch Properties (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
+- [ ] Neighbor Tasks: 
+  - [x] a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks") parsed
+  - [ ] check rule: If key exists; requiring a specific neighbor task to exist alongside the property-carrying task/subtask.
+  - [ ] lsp autofix for neighbor branches
+- [ ] Branch Properties 
+  (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
 
 ## Forms / Form Fields?
 
