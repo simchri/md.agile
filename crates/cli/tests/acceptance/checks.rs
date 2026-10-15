@@ -48,5 +48,7 @@ pub mod e020;
 pub mod e021;
 #[path = "checks/e022.rs"]
 pub mod e022;
+#[path = "checks/embedded_toml_fence.rs"]
+pub mod embedded_toml_fence;
 #[path = "checks/group_member_validation.rs"]
 pub mod group_member_validation;
