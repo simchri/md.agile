@@ -994,8 +994,9 @@ users don't have to think about it. Design plan: see
 ## Neighbor Tasks / Branch Properties / Workflows
 - [ ] Neighbor Tasks: 
   - [x] a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks") parsed
-  - [ ] check rule: If key exists; requiring a specific neighbor task to exist alongside the property-carrying task/subtask.
+  - [x] check rule: If key exists; requiring a specific neighbor task to exist alongside the property-carrying task/subtask.
   - [ ] lsp autofix for neighbor branches
+  - [ ] terminology: Sibling task or neighbor task?
 - [ ] Branch Properties 
   (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
 

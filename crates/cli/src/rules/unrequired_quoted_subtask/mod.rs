@@ -1,17 +1,24 @@
 //! E011 — flags subtasks that use the `"quoted"` syntax but are not declared
-//! as required by any property on their direct parent task or subtask.
+//! as required by any property on their direct parent task or subtask, nor
+//! by any `neighbortasks` entry declared by a sibling's own property (see
+//! [`crate::rules::neighbor_tasks`]).
 //!
 //! The `- [ ] "some text"` form is reserved exclusively for property-required
 //! subtasks. Using it outside that context is a syntax error.
 
 use crate::config::Config;
 use crate::parser::{FileItem, Marker, SubtaskKind, TASK_LINE_PREFIX_LEN};
-use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
+use crate::rules::{ErrorCode, Issue, IssueData, for_each_node, neighbor_tasks};
 
 pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
     for_each_node(items, |node| {
-        let required = collect_required(node.markers(), config);
+        let mut required = collect_required(node.markers(), config);
+        for title in neighbor_tasks::required_by_siblings(node.children(), config) {
+            if !required.contains(&title) {
+                required.push(title);
+            }
+        }
         issues.extend(
             node.children()
                 .iter()

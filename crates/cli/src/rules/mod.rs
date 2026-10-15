@@ -15,6 +15,7 @@ mod invalid_milestone;
 mod invalid_order;
 mod missing_required_subtasks;
 mod missing_space_after_box;
+mod neighbor_tasks;
 mod next_task;
 mod orphaned_subtask;
 mod unauthorized_completion;
@@ -32,6 +33,7 @@ pub use invalid_milestone::invalid_milestone;
 pub use invalid_order::invalid_order;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
+pub use neighbor_tasks::neighbor_tasks;
 pub use next_task::{
     find_next_actionable, has_closed_work, is_eligible_for, is_next_task, is_previous_task,
 };
@@ -83,6 +85,9 @@ pub enum ErrorCode {
     DuplicateMilestoneName,
     /// E018: A `#MILESTONE` header has no name
     MissingMilestoneName,
+    /// E019: A property's configured `neighbortasks` entry isn't present as a
+    /// sibling of the property-carrying task/subtask
+    MissingNeighborTask,
 }
 
 impl ErrorCode {
@@ -108,6 +113,7 @@ impl ErrorCode {
             ErrorCode::EmptyTitle => "E016",
             ErrorCode::DuplicateMilestoneName => "E017",
             ErrorCode::MissingMilestoneName => "E018",
+            ErrorCode::MissingNeighborTask => "E019",
         }
     }
 }
@@ -141,6 +147,7 @@ impl std::str::FromStr for ErrorCode {
             "E016" => ErrorCode::EmptyTitle,
             "E017" => ErrorCode::DuplicateMilestoneName,
             "E018" => ErrorCode::MissingMilestoneName,
+            "E019" => ErrorCode::MissingNeighborTask,
             _ => return Err(()),
         })
     }
@@ -349,6 +356,9 @@ pub enum IssueData {
     /// Payload for E013 "Unauthorized Completion": the sorted list of user/group
     /// names that were authorized to complete this task.
     UnauthorizedCompletion { authorized: Vec<String> },
+    /// Payload for E019 "Missing Neighbor Task": list of required neighbor
+    /// task titles absent from the property-carrying node's siblings.
+    MissingNeighborTask { missing: Vec<String> },
 }
 
 /// The result of resolving "who is completing this task" for the E013
@@ -419,6 +429,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(undefined_assignment(items, config));
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
+    issues.extend(neighbor_tasks(items, config));
     issues
 }
 

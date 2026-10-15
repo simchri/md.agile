@@ -29,6 +29,28 @@ fn config_with_subtasks(entries: &[(&str, &[&str])]) -> Config {
     }
 }
 
+fn config_with_neighbors(entries: &[(&str, &[&str])]) -> Config {
+    Config {
+        properties: entries
+            .iter()
+            .map(|&(name, neighbors)| {
+                (
+                    name.to_string(),
+                    PropertyConfig {
+                        name: name.to_string(),
+                        brief: None,
+                        description: None,
+                        subtasks: vec![],
+                        subtasks_allow_cancel: vec![],
+                        neighbortasks: neighbors.iter().map(|s| s.to_string()).collect(),
+                    },
+                )
+            })
+            .collect(),
+        ..Config::default()
+    }
+}
+
 // ── no-issue cases ────────────────────────────────────────────────────────────
 
 #[test]
@@ -228,6 +250,46 @@ fn issue_data_carries_raw_title() {
         issues[0].data,
         Some(IssueData::UnrequiredQuotedSubtask {
             title: "my extra".to_string()
+        })
+    );
+}
+
+// ── neighbor tasks (E019 interaction) ──────────────────────────────────────────
+
+#[test]
+fn quoted_sibling_satisfying_a_siblings_neighbortasks_is_not_flagged() {
+    // "do the back end implementation also!" is required as a *neighbor task*
+    // by its sibling's #frontend-implementation property, not as a *subtask*
+    // of their shared parent -- it must not be flagged as "unrequired".
+    let file_content = "\
+- [ ] let's build a feature and
+  - [ ] ..first do the #frontend-implementation
+  - [ ] \"do the back end implementation also!\"
+";
+    let config = config_with_neighbors(&[(
+        "frontend-implementation",
+        &["do the back end implementation also!"],
+    )]);
+    assert!(unrequired_quoted_subtask(&p(file_content), &config).is_empty());
+}
+
+#[test]
+fn quoted_sibling_not_matching_any_neighbortasks_is_still_flagged() {
+    let file_content = "\
+- [ ] let's build a feature and
+  - [ ] ..first do the #frontend-implementation
+  - [ ] \"unrelated quoted sibling\"
+";
+    let config = config_with_neighbors(&[(
+        "frontend-implementation",
+        &["do the back end implementation also!"],
+    )]);
+    let issues = unrequired_quoted_subtask(&p(file_content), &config);
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::UnrequiredQuotedSubtask {
+            title: "unrelated quoted sibling".to_string()
         })
     );
 }
