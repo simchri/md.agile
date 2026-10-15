@@ -222,7 +222,7 @@ validation = "validate_personal_info.sh"
 Default value for any field unless specified explicitly is `___`. 
 
 - validation:
-  - first via regex, per field OR match against allowed values.
+  - first via regex, per field XOR match against allowed values.
   - second via user defined validation script on the form level. Script gets all properties and fields of a task, json.
 
 ```md
@@ -240,7 +240,7 @@ before this can be marked complete, the fields required by the form must exist, 
 ```
 The form content is strictly everything after the `<label>: ` (after label, colon and space) until the end of the line. A label is always bolded with the markdown syntax `__bold__`.
 
-A multiline form field captures anything after the label line. Because this may conflict with custom user notes (normal task body content), multiline Fields can be explicitly closed with ellipses `...` on a new line.
+A multiline form field captures everything after the label line until the next task or explicit closing marker `...` (elipses). This allows to add normal task body content after a multiline field. You can add `...` on a  new line inside a form using escape syntax: `\...`
 
 Fully filled out, the form looks like this:
 
