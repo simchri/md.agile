@@ -21,6 +21,7 @@ fn config_with_subtasks(entries: &[(&str, &[&str])]) -> Config {
                         subtasks: subs.iter().map(|s| s.to_string()).collect(),
                         subtasks_allow_cancel: vec![],
                         neighbortasks: vec![],
+                        branches: Default::default(),
                     },
                 )
             })
@@ -45,6 +46,7 @@ fn config_with_cancellable_subtasks(entries: &[(&str, &[&str], &[bool])]) -> Con
                         subtasks: subs.iter().map(|s| s.to_string()).collect(),
                         subtasks_allow_cancel: allow_cancel.to_vec(),
                         neighbortasks: vec![],
+                        branches: Default::default(),
                     },
                 )
             })
@@ -396,4 +398,74 @@ fn missing_required_subtask_with_order_prefix_is_still_reported() {
         "{}",
         issues[0].message
     );
+}
+
+// ── Branch Properties ──────────────────────────────────────────────────────────
+
+#[test]
+fn resolved_branch_adds_its_own_required_subtasks_on_top_of_the_base_property() {
+    use crate::config::BranchConfig;
+    let mut config = config_with_subtasks(&[("review", &["document review findings"])]);
+    config
+        .properties
+        .get_mut("review")
+        .unwrap()
+        .branches
+        .insert(
+            "passed".to_string(),
+            BranchConfig {
+                subtasks: vec!["notify stakeholders".to_string()],
+                ..Default::default()
+            },
+        );
+    let input = "\
+- [ ] build something
+  - [ ] perform #review:passed
+    - [ ] \"document review findings\"
+";
+    let issues = missing_required_subtasks(&p(input), &config);
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].code, ErrorCode::MissingRequiredSubtasks);
+    assert!(
+        issues[0].message.contains("notify stakeholders"),
+        "{}",
+        issues[0].message
+    );
+}
+
+#[test]
+fn pending_branch_property_only_requires_the_base_propertys_own_subtasks() {
+    use crate::config::BranchConfig;
+    let mut config = config_with_subtasks(&[("review", &["document review findings"])]);
+    config
+        .properties
+        .get_mut("review")
+        .unwrap()
+        .branches
+        .insert(
+            "passed".to_string(),
+            BranchConfig {
+                subtasks: vec!["notify stakeholders".to_string()],
+                ..Default::default()
+            },
+        );
+    let input = "\
+- [ ] build something
+  - [ ] perform #review...
+    - [ ] \"document review findings\"
+";
+    assert!(missing_required_subtasks(&p(input), &config).is_empty());
+}
+
+#[test]
+fn undefined_resolved_branch_contributes_no_extra_required_subtasks() {
+    // E022 ("Undefined Branch Outcome") handles the invalid branch name
+    // itself; this rule simply has nothing extra to require.
+    let config = config_with_subtasks(&[("review", &["document review findings"])]);
+    let input = "\
+- [ ] build something
+  - [ ] perform #review:bogus
+    - [ ] \"document review findings\"
+";
+    assert!(missing_required_subtasks(&p(input), &config).is_empty());
 }

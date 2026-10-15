@@ -8,6 +8,7 @@
 //! Each rule lives in its own submodule and is re-exported from this module
 //! for convenience.
 
+mod branch_properties;
 mod empty_title;
 mod incomplete_parent;
 mod invalid_box;
@@ -27,6 +28,7 @@ mod uppercase_x;
 mod wrong_body_indent;
 mod wrong_indentation;
 
+pub use branch_properties::{undefined_branch_outcome, unresolved_branch_property};
 pub use empty_title::empty_title;
 pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
@@ -93,6 +95,13 @@ pub enum ErrorCode {
     /// E020: A property requiring neighbor tasks was set on a top-level task,
     /// where it can never be satisfied
     NeighborTaskOnTopLevel,
+    /// E021: A task was marked done while a Branch Property (see
+    /// README.vision.md "Branch Properties") is still in its pending form
+    /// (e.g. `#review...`), with no outcome chosen yet
+    UnresolvedBranchProperty,
+    /// E022: A Branch Property was resolved (e.g. `#review:passed`) to a
+    /// branch name that isn't declared in config
+    UndefinedBranchOutcome,
 }
 
 impl ErrorCode {
@@ -120,6 +129,8 @@ impl ErrorCode {
             ErrorCode::MissingMilestoneName => "E018",
             ErrorCode::MissingNeighborTask => "E019",
             ErrorCode::NeighborTaskOnTopLevel => "E020",
+            ErrorCode::UnresolvedBranchProperty => "E021",
+            ErrorCode::UndefinedBranchOutcome => "E022",
         }
     }
 }
@@ -155,6 +166,8 @@ impl std::str::FromStr for ErrorCode {
             "E018" => ErrorCode::MissingMilestoneName,
             "E019" => ErrorCode::MissingNeighborTask,
             "E020" => ErrorCode::NeighborTaskOnTopLevel,
+            "E021" => ErrorCode::UnresolvedBranchProperty,
+            "E022" => ErrorCode::UndefinedBranchOutcome,
             _ => return Err(()),
         })
     }
@@ -407,8 +420,10 @@ pub struct Issue {
 
 /// Runs every lint rule that doesn't need `Config` at all — i.e. everything
 /// except [`undefined_property`], [`undefined_assignment`],
-/// [`missing_required_subtasks`] and [`unrequired_quoted_subtask`], which all
-/// look up property/user/group declarations.
+/// [`missing_required_subtasks`], [`unrequired_quoted_subtask`],
+/// [`neighbor_task_on_top_level`], [`neighbor_tasks`] and
+/// [`undefined_branch_outcome`], which all look up property/user/group
+/// declarations.
 ///
 /// Used when there's no config to trust yet (e.g. the LSP falls back to this
 /// when `mdagile.toml` failed to load): running the config-dependent checks
@@ -426,6 +441,7 @@ pub fn check_config_independent(items: &[FileItem]) -> Vec<Issue> {
     issues.extend(invalid_order(items));
     issues.extend(empty_title(items));
     issues.extend(invalid_milestone(items));
+    issues.extend(unresolved_branch_property(items));
     issues
 }
 
@@ -434,6 +450,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     let mut issues = check_config_independent(items);
     issues.extend(undefined_property(items, config));
     issues.extend(undefined_assignment(items, config));
+    issues.extend(undefined_branch_outcome(items, config));
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
     issues.extend(neighbor_task_on_top_level(items, config));
@@ -444,7 +461,8 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
 /// Checks whether marking `node` done right now would violate any
 /// completion-related rule: "incomplete children" (E004), "missing required
 /// subtasks" (E010), "cancelled required subtask not allowed" (E012),
-/// "unauthorized completion" (E013, against `identity`) — or, if `node` is
+/// "unauthorized completion" (E013, against `identity`), "unresolved branch
+/// property" (E021), "undefined branch outcome" (E022) — or, if `node` is
 /// an ordered subtask — "out-of-order completion" (E015).
 ///
 /// `items` is the full parsed file `node` came from; it's only used to
@@ -476,6 +494,17 @@ pub fn check_completable(
     issues.extend(missing_required_subtasks::check_node(
         node.markers(),
         node.children(),
+        node.location(),
+        node.indent(),
+        config,
+    ));
+    issues.extend(branch_properties::check_unresolved(
+        node.markers(),
+        node.location(),
+        node.indent(),
+    ));
+    issues.extend(branch_properties::check_undefined_outcome(
+        node.markers(),
         node.location(),
         node.indent(),
         config,

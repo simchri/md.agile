@@ -48,6 +48,23 @@ on a task is [E008](checks.md).
   `subtasks[i]` may be satisfied by cancelling it (`[-]`) instead of
   completing it. Defaults to "not allowed" for any subtask not covered.
   Mismatched array lengths are a config validation error.
+- `neighbortasks` — a list of required sibling task titles. A task carrying
+  this property must have a matching (quoted or unquoted) sibling task for
+  each entry, or [E019](checks.md) is reported. Not supported on top-level
+  tasks — see [E020](checks.md).
+
+### `[Properties.X.branch_name]`
+
+Declares a branch outcome for a branching property (see "Branch Properties"
+in [README.vision.md](../../README.vision.md)). The marker `#X...` is
+pending until resolved to one of its declared branches (`#X:branch_name`);
+[E021](checks.md) reports a task marked done while still pending, and
+[E022](checks.md) reports a resolved branch that isn't declared here.
+
+Each `[Properties.X.branch_name]` sub-table accepts the same `subtasks`,
+`subtasks_allow_cancel`, and `neighbortasks` keys as `[Properties.X]` itself.
+Once a property resolves to a given branch, that branch's requirements apply
+*in addition to* the base property's own requirements.
 
 ## `[Users.X]`
 
@@ -95,7 +112,8 @@ checks — in these cases:
 - **Unknown group members** — a `[Groups.X]` `members` entry that doesn't
   match any `[Users.X]` key.
 - **Mismatched `subtasks_allow_cancel` length** — must be empty, or exactly
-  as long as `subtasks`.
+  as long as `subtasks`. Applies the same way to a branch's own `subtasks`/
+  `subtasks_allow_cancel` pair within `[Properties.X.branch_name]`.
 - **Duplicate identity** — the same `git_emails`/`git_names` value listed on
   more than one `[Users.X]` entry.
 

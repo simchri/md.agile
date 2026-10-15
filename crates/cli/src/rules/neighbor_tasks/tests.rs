@@ -21,6 +21,7 @@ fn config_with_neighbors(entries: &[(&str, &[&str])]) -> Config {
                         subtasks: vec![],
                         subtasks_allow_cancel: vec![],
                         neighbortasks: neighbors.iter().map(|s| s.to_string()).collect(),
+                        branches: Default::default(),
                     },
                 )
             })
@@ -227,5 +228,78 @@ fn multiple_properties_merge_required_neighbors_without_duplicates() {
         ("frontend-implementation", &["shared neighbor"]),
         ("backend-implementation", &["shared neighbor"]),
     ]);
+    assert!(neighbor_tasks(&p(input), &config).is_empty());
+}
+
+// ── Branch Properties ──────────────────────────────────────────────────────────
+
+#[test]
+fn resolved_branch_adds_its_own_required_neighbor_on_top_of_the_base_property() {
+    use crate::config::BranchConfig;
+    let mut config = Config::default();
+    config.properties.insert(
+        "review".to_string(),
+        PropertyConfig {
+            name: "review".to_string(),
+            brief: None,
+            description: None,
+            subtasks: vec![],
+            subtasks_allow_cancel: vec![],
+            neighbortasks: vec![],
+            branches: [(
+                "passed".to_string(),
+                BranchConfig {
+                    neighbortasks: vec!["publish feature".to_string()],
+                    ..Default::default()
+                },
+            )]
+            .into_iter()
+            .collect(),
+        },
+    );
+    let input = "\
+- [ ] build something
+  - [ ] perform #review:passed
+  - [ ] \"publish feature\"
+";
+    assert!(neighbor_tasks(&p(input), &config).is_empty());
+
+    let input_missing = "\
+- [ ] build something
+  - [ ] perform #review:passed
+";
+    let issues = neighbor_tasks(&p(input_missing), &config);
+    assert_eq!(issues.len(), 1);
+    assert!(issues[0].message.contains("publish feature"));
+}
+
+#[test]
+fn pending_branch_property_does_not_yet_require_an_unchosen_branchs_neighbor() {
+    use crate::config::BranchConfig;
+    let mut config = Config::default();
+    config.properties.insert(
+        "review".to_string(),
+        PropertyConfig {
+            name: "review".to_string(),
+            brief: None,
+            description: None,
+            subtasks: vec![],
+            subtasks_allow_cancel: vec![],
+            neighbortasks: vec![],
+            branches: [(
+                "passed".to_string(),
+                BranchConfig {
+                    neighbortasks: vec!["publish feature".to_string()],
+                    ..Default::default()
+                },
+            )]
+            .into_iter()
+            .collect(),
+        },
+    );
+    let input = "\
+- [ ] build something
+  - [ ] perform #review...
+";
     assert!(neighbor_tasks(&p(input), &config).is_empty());
 }

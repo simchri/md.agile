@@ -12,7 +12,7 @@
 //! entirely, so the two checks never both fire for the same task.
 
 use crate::config::Config;
-use crate::parser::{FileItem, Location, Marker, Subtask, SubtaskKind, Task};
+use crate::parser::{FileItem, Location, Marker, PropertyForm, Subtask, SubtaskKind, Task};
 use crate::rules::{ErrorCode, Issue, IssueData};
 
 pub fn neighbor_tasks(items: &[FileItem], config: &Config) -> Vec<Issue> {
@@ -112,6 +112,19 @@ pub(crate) fn collect_neighbor_titles(markers: &[Marker], config: &Config) -> Ve
                         required.push(s.clone());
                     }
                 }
+                // A property resolved to a Branch Property outcome (e.g.
+                // `#review:passed`) also requires that branch's own
+                // `neighbortasks` (see README.vision.md "Branch
+                // Properties"), in addition to the base property's own.
+                if let PropertyForm::BranchResolved(branch) = &prop.form {
+                    if let Some(branch_config) = prop_config.branches.get(branch) {
+                        for s in &branch_config.neighbortasks {
+                            if !required.contains(s) {
+                                required.push(s.clone());
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -119,7 +132,11 @@ pub(crate) fn collect_neighbor_titles(markers: &[Marker], config: &Config) -> Ve
 }
 
 /// Collects the *names* of properties on `markers` whose config declares
-/// `neighbortasks`, deduplicated. Used by
+/// `neighbortasks` -- on the base property itself, or on *any* of its
+/// declared branches (see README.vision.md "Branch Properties"): a
+/// branch-specific `neighbortasks` requirement is just as structurally
+/// unsatisfiable on a top-level task as the base property's own, regardless
+/// of which outcome (if any) is currently chosen. Deduplicated. Used by
 /// [`crate::rules::neighbor_task_on_top_level`] (E020) to name the offending
 /// propert(y/ies) in its message.
 pub(crate) fn property_names_requiring_neighbors(
@@ -130,7 +147,12 @@ pub(crate) fn property_names_requiring_neighbors(
     for marker in markers {
         if let Marker::Property(prop) = marker {
             if let Some(prop_config) = config.properties.get(&prop.name) {
-                if !prop_config.neighbortasks.is_empty() && !names.contains(&prop.name) {
+                let requires_neighbors = !prop_config.neighbortasks.is_empty()
+                    || prop_config
+                        .branches
+                        .values()
+                        .any(|b| !b.neighbortasks.is_empty());
+                if requires_neighbors && !names.contains(&prop.name) {
                     names.push(prop.name.clone());
                 }
             }

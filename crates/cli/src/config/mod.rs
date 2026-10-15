@@ -74,6 +74,25 @@ pub struct PropertyConfig {
     /// present at the same level as the task/subtask carrying this property.
     /// Empty when not configured.
     pub neighbortasks: Vec<String>,
+    /// Outcome-specific requirements for a Branch Property (see
+    /// README.vision.md "Branch Properties"), keyed by branch/outcome name
+    /// (e.g. `"passed"`, `"failed"`). Declared as `[Properties.X.branch_name]`
+    /// sub-tables in `mdagile.toml`. Empty when this property declares no
+    /// branches at all (an ordinary, non-branching property).
+    pub branches: HashMap<String, BranchConfig>,
+}
+
+/// Outcome-specific requirements for one branch/outcome of a Branch Property
+/// (see README.vision.md "Branch Properties"). These are *additional* to the
+/// owning `[Properties.X]`'s own `subtasks`/`neighbortasks` — both apply once
+/// the property marker is resolved to this branch (e.g. `#review:passed`).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct BranchConfig {
+    pub subtasks: Vec<String>,
+    /// Parallel array to `subtasks`, same semantics as
+    /// [`PropertyConfig::subtasks_allow_cancel`].
+    pub subtasks_allow_cancel: Vec<bool>,
+    pub neighbortasks: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -171,13 +190,31 @@ impl From<toml::de::Error> for ConfigError {
     }
 }
 
+// Can't `#[serde(deny_unknown_fields)]` alongside `#[serde(flatten)]` (serde
+// doesn't support combining the two): any key that isn't one of the explicit
+// fields below is captured by `branches` instead, and must itself deserialize
+// as a `RawBranchConfig` sub-table (see README.vision.md "Branch
+// Properties") -- e.g. a genuine typo'd field holding a scalar/array value
+// still surfaces as a `Parse` error, just with a less specific message.
 #[derive(serde::Deserialize, Default)]
-#[serde(deny_unknown_fields)]
 struct RawPropertyConfig {
     #[serde(default)]
     brief: Option<String>,
     #[serde(default)]
     description: Option<String>,
+    #[serde(default)]
+    subtasks: Vec<String>,
+    #[serde(default)]
+    subtasks_allow_cancel: Vec<bool>,
+    #[serde(default)]
+    neighbortasks: Vec<String>,
+    #[serde(flatten)]
+    branches: HashMap<String, RawBranchConfig>,
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct RawBranchConfig {
     #[serde(default)]
     subtasks: Vec<String>,
     #[serde(default)]
@@ -298,6 +335,32 @@ impl Config {
                         ),
                     });
                 }
+                let branches = raw_prop
+                    .branches
+                    .into_iter()
+                    .map(|(branch, raw_branch)| {
+                        if !raw_branch.subtasks_allow_cancel.is_empty()
+                            && raw_branch.subtasks_allow_cancel.len() != raw_branch.subtasks.len()
+                        {
+                            return Err(ConfigError::PropertyValidation {
+                                property: name.clone(),
+                                message: format!(
+                                    "branch '{branch}': subtasks_allow_cancel has {} entries but subtasks has {}; they must match in length",
+                                    raw_branch.subtasks_allow_cancel.len(),
+                                    raw_branch.subtasks.len(),
+                                ),
+                            });
+                        }
+                        Ok((
+                            branch,
+                            BranchConfig {
+                                subtasks: raw_branch.subtasks,
+                                subtasks_allow_cancel: raw_branch.subtasks_allow_cancel,
+                                neighbortasks: raw_branch.neighbortasks,
+                            },
+                        ))
+                    })
+                    .collect::<Result<_, ConfigError>>()?;
                 Ok((
                     name.clone(),
                     PropertyConfig {
@@ -307,6 +370,7 @@ impl Config {
                         subtasks: raw_prop.subtasks,
                         subtasks_allow_cancel: raw_prop.subtasks_allow_cancel,
                         neighbortasks: raw_prop.neighbortasks,
+                        branches,
                     },
                 ))
             })

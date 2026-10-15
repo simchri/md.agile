@@ -998,8 +998,13 @@ users don't have to think about it. Design plan: see
   - [x] lsp autofix for neighbor branches
   - [x] check rule: properties requiring neighbor tasks are not allowed on top-level tasks (E020), takes precedence over the missing-neighbor-task check (E019)
   - [ ] terminology: Sibling task or neighbor task?
-- [ ] Branch Properties 
-  (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax is already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`), but nothing acts on it yet — no rule requires resolving to a defined outcome before marking the task done, and outcome-specific `neighbortasks`/`subtasks` (e.g. a `[Properties.review.passed]` sub-table) aren't read from config at all.
+- [x] Branch Properties
+  (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax was already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`).
+  - [x] config: parse `[Properties.X.branch_name]` sub-tables (`subtasks`, `subtasks_allow_cancel`, `neighbortasks`)
+  - [x] check rule: task marked done while a branch property is still unresolved (E021)
+  - [x] check rule: resolved branch outcome isn't declared in config (E022), deferring to E008 when the property itself is undefined
+  - [x] a resolved branch's own `subtasks`/`neighbortasks` are merged on top of the base property's requirements (E010/E012/E019), only once resolved — not while pending
+  - [x] branch-only `neighbortasks` also trip the top-level restriction (E020)
 
 ## Forms / Form Fields?
 - [ ] Forms & Fields

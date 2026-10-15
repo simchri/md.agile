@@ -2,7 +2,7 @@
 //! E012 — flags a required subtask that was cancelled without the property allowing it.
 
 use crate::config::Config;
-use crate::parser::{FileItem, Marker, Status, Subtask, SubtaskKind};
+use crate::parser::{FileItem, Marker, PropertyForm, Status, Subtask, SubtaskKind};
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
 use std::collections::HashMap;
 
@@ -52,6 +52,29 @@ pub(crate) fn check_node(
                         .unwrap_or(false);
                     let entry = allow_cancel.entry(s.clone()).or_insert(false);
                     *entry = *entry || allowed;
+                }
+                // A property resolved to a Branch Property outcome (e.g.
+                // `#review:passed`) also requires that branch's own
+                // `subtasks` (see README.vision.md "Branch Properties"), in
+                // addition to the base property's own -- both apply once an
+                // outcome is chosen. An unknown branch name contributes
+                // nothing extra here; that's E022's concern instead (see
+                // `crate::rules::branch_properties`).
+                if let PropertyForm::BranchResolved(branch) = &prop.form {
+                    if let Some(branch_config) = prop_config.branches.get(branch) {
+                        for (i, s) in branch_config.subtasks.iter().enumerate() {
+                            if !required.contains(s) {
+                                required.push(s.clone());
+                            }
+                            let allowed = branch_config
+                                .subtasks_allow_cancel
+                                .get(i)
+                                .copied()
+                                .unwrap_or(false);
+                            let entry = allow_cancel.entry(s.clone()).or_insert(false);
+                            *entry = *entry || allowed;
+                        }
+                    }
                 }
             }
         }

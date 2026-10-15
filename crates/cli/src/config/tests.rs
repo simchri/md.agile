@@ -123,6 +123,78 @@ subtasks_allow_cancel = [false]
 }
 
 #[test]
+fn property_without_branches_has_empty_branches_map() {
+    let config = Config::from_str("[Properties.bug]\n").unwrap();
+    let prop = config.properties.get("bug").unwrap();
+    assert!(prop.branches.is_empty());
+}
+
+#[test]
+fn property_branch_sub_tables_are_parsed() {
+    let input = "\
+[Properties.review]
+subtasks = [\"document review findings\"]
+[Properties.review.passed]
+neighbortasks = [\"publish feature\"]
+[Properties.review.failed]
+neighbortasks = [\"create follow up task for fixes\"]
+";
+    let config = Config::from_str(input).unwrap();
+    let prop = config.properties.get("review").unwrap();
+    assert_eq!(prop.subtasks, vec!["document review findings"]);
+    assert_eq!(prop.branches.len(), 2);
+    assert_eq!(
+        prop.branches.get("passed").unwrap().neighbortasks,
+        vec!["publish feature"]
+    );
+    assert_eq!(
+        prop.branches.get("failed").unwrap().neighbortasks,
+        vec!["create follow up task for fixes"]
+    );
+}
+
+#[test]
+fn property_branch_can_declare_its_own_subtasks_and_allow_cancel() {
+    let input = "\
+[Properties.review]
+[Properties.review.passed]
+subtasks = [\"notify stakeholders\"]
+subtasks_allow_cancel = [true]
+";
+    let config = Config::from_str(input).unwrap();
+    let prop = config.properties.get("review").unwrap();
+    let branch = prop.branches.get("passed").unwrap();
+    assert_eq!(branch.subtasks, vec!["notify stakeholders"]);
+    assert_eq!(branch.subtasks_allow_cancel, vec![true]);
+}
+
+#[test]
+fn mismatched_branch_subtasks_allow_cancel_length_is_an_error() {
+    let input = "\
+[Properties.review]
+[Properties.review.passed]
+subtasks = [\"notify stakeholders\", \"close ticket\"]
+subtasks_allow_cancel = [true]
+";
+    let err = Config::from_str(input).unwrap_err();
+    assert!(matches!(err, ConfigError::PropertyValidation { .. }));
+}
+
+#[test]
+fn unknown_scalar_key_in_property_is_still_rejected_alongside_branches() {
+    // `subtsaks` is a typo of `subtasks`; since it's a plain array (not a
+    // table), it can't be mistaken for a branch sub-table either, so it must
+    // still surface as a parse error, even though branches are now parsed via
+    // `#[serde(flatten)]` instead of `deny_unknown_fields`.
+    let input = "\
+[Properties.feature]
+subtsaks = [\"dev implementation\"]
+";
+    let result = Config::from_str(input);
+    assert!(matches!(result, Err(ConfigError::Parse(_))));
+}
+
+#[test]
 fn single_user_is_parsed() {
     let config = Config::from_str("[Users.alice]\n").unwrap();
     assert_eq!(config.users.len(), 1);

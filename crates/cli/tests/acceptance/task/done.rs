@@ -84,6 +84,29 @@ subtasks = [\"code review\"]
 }
 
 #[test]
+fn task_done_refuses_when_a_branch_property_is_still_unresolved() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.review]
+[Properties.review.passed]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] perform #review...
+";
+    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "1"]);
+
+    assert!(!out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E021"), "stdout: {stdout:?}");
+    // File must be left untouched.
+    let new_content = fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap();
+    assert_eq!(new_content, content);
+}
+
+#[test]
 fn task_done_invalid_address_exits_nonzero() {
     let dir = tempdir().unwrap();
     let file_content = "\
