@@ -1,3 +1,5 @@
+#[path = "checks/branch_properties_edge_cases.rs"]
+pub mod branch_properties_edge_cases;
 #[path = "checks/clean.rs"]
 pub mod clean;
 #[path = "checks/config_unknown_keys.rs"]

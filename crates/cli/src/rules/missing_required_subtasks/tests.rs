@@ -469,3 +469,89 @@ fn undefined_resolved_branch_contributes_no_extra_required_subtasks() {
 ";
     assert!(missing_required_subtasks(&p(input), &config).is_empty());
 }
+
+#[test]
+fn resolved_branchs_required_subtask_identical_to_the_base_propertys_own_is_not_duplicated() {
+    // The branch and the base property both require "sign off" — a single
+    // quoted subtask must satisfy both, not be reported as two instances.
+    use crate::config::BranchConfig;
+    let mut config = config_with_subtasks(&[("review", &["sign off"])]);
+    config
+        .properties
+        .get_mut("review")
+        .unwrap()
+        .branches
+        .insert(
+            "passed".to_string(),
+            BranchConfig {
+                subtasks: vec!["sign off".to_string()],
+                ..Default::default()
+            },
+        );
+    let input = "\
+- [ ] build something
+  - [ ] perform #review:passed
+    - [ ] \"sign off\"
+";
+    assert!(missing_required_subtasks(&p(input), &config).is_empty());
+}
+
+#[test]
+fn resolved_branchs_required_subtask_identical_to_a_different_propertys_own_is_not_duplicated() {
+    // #feature requires "test", and #review's "passed" branch also requires
+    // "test" — a single quoted subtask must satisfy both properties at once.
+    use crate::config::BranchConfig;
+    let mut config = config_with_subtasks(&[
+        ("feature", &["test"]),
+        ("review", &["document review findings"]),
+    ]);
+    config
+        .properties
+        .get_mut("review")
+        .unwrap()
+        .branches
+        .insert(
+            "passed".to_string(),
+            BranchConfig {
+                subtasks: vec!["test".to_string()],
+                ..Default::default()
+            },
+        );
+    let input = "\
+- [ ] #feature and #review:passed task
+  - [ ] \"document review findings\"
+  - [ ] \"test\"
+";
+    assert!(missing_required_subtasks(&p(input), &config).is_empty());
+}
+
+#[test]
+fn branchs_allow_cancel_merges_with_the_base_propertys_for_an_identical_title() {
+    // The base property disallows cancelling "sign off", but the resolved
+    // branch's own copy of the same required title allows it — the more
+    // permissive setting should win (OR-merge), so cancelling is accepted.
+    use crate::config::BranchConfig;
+    let config = {
+        let mut config = config_with_cancellable_subtasks(&[("review", &["sign off"], &[false])]);
+        config
+            .properties
+            .get_mut("review")
+            .unwrap()
+            .branches
+            .insert(
+                "passed".to_string(),
+                BranchConfig {
+                    subtasks: vec!["sign off".to_string()],
+                    subtasks_allow_cancel: vec![true],
+                    ..Default::default()
+                },
+            );
+        config
+    };
+    let input = "\
+- [ ] build something
+  - [ ] perform #review:passed
+    - [-] \"sign off\"
+";
+    assert!(missing_required_subtasks(&p(input), &config).is_empty());
+}

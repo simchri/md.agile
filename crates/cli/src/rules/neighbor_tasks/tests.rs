@@ -303,3 +303,74 @@ fn pending_branch_property_does_not_yet_require_an_unchosen_branchs_neighbor() {
 ";
     assert!(neighbor_tasks(&p(input), &config).is_empty());
 }
+
+#[test]
+fn resolved_branchs_required_neighbor_identical_to_the_base_propertys_own_is_not_duplicated() {
+    // The base property and the "passed" branch both require "sign off
+    // meeting" as a neighbor — a single sibling must satisfy both, not be
+    // reported as two separate requirements.
+    use crate::config::BranchConfig;
+    let mut config = Config::default();
+    config.properties.insert(
+        "review".to_string(),
+        PropertyConfig {
+            name: "review".to_string(),
+            brief: None,
+            description: None,
+            subtasks: vec![],
+            subtasks_allow_cancel: vec![],
+            neighbortasks: vec!["sign off meeting".to_string()],
+            branches: [(
+                "passed".to_string(),
+                BranchConfig {
+                    neighbortasks: vec!["sign off meeting".to_string()],
+                    ..Default::default()
+                },
+            )]
+            .into_iter()
+            .collect(),
+        },
+    );
+    let input = "\
+- [ ] build something
+  - [ ] perform #review:passed
+  - [ ] \"sign off meeting\"
+";
+    assert!(neighbor_tasks(&p(input), &config).is_empty());
+}
+
+#[test]
+fn resolved_branchs_required_neighbor_identical_to_a_different_propertys_own_is_not_duplicated() {
+    // #frontend-implementation requires "shared neighbor", and #review's
+    // "passed" branch also requires "shared neighbor" — a single sibling
+    // must satisfy both properties at once.
+    use crate::config::BranchConfig;
+    let config = config_with_neighbors(&[("frontend-implementation", &["shared neighbor"])]);
+    let mut config = config;
+    config.properties.insert(
+        "review".to_string(),
+        PropertyConfig {
+            name: "review".to_string(),
+            brief: None,
+            description: None,
+            subtasks: vec![],
+            subtasks_allow_cancel: vec![],
+            neighbortasks: vec![],
+            branches: [(
+                "passed".to_string(),
+                BranchConfig {
+                    neighbortasks: vec!["shared neighbor".to_string()],
+                    ..Default::default()
+                },
+            )]
+            .into_iter()
+            .collect(),
+        },
+    );
+    let input = "\
+- [ ] outer task
+  - [ ] #frontend-implementation and #review:passed task
+  - [ ] \"shared neighbor\"
+";
+    assert!(neighbor_tasks(&p(input), &config).is_empty());
+}

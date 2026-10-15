@@ -80,6 +80,33 @@ fn flags_done_subtask_with_pending_branch_property() {
 }
 
 #[test]
+fn does_not_flag_a_cancelled_task_with_an_unresolved_branch_property() {
+    // Cancelling a task is a deliberate way to abandon it without resolving
+    // its outcome — only completing it (Done) requires resolution.
+    let input = "\
+- [-] perform #review...
+";
+    assert!(unresolved_branch_property(&p(input)).is_empty());
+}
+
+#[test]
+fn flags_done_task_with_multiple_unresolved_branch_properties() {
+    let input = "\
+- [x] perform #review... and #approval...
+";
+    let issues = unresolved_branch_property(&p(input));
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].code, ErrorCode::UnresolvedBranchProperty);
+    assert!(issues[0].message.contains("#review..."));
+    assert!(issues[0].message.contains("#approval..."));
+    assert!(
+        issues[0].message.contains("properties"),
+        "message should pluralize when more than one branch property is unresolved: {}",
+        issues[0].message
+    );
+}
+
+#[test]
 fn check_unresolved_flags_pending_property_regardless_of_status() {
     // Used by check_completable, which validates a node that's still `Todo`
     // and about to *become* done — see the function's own doc comment.
