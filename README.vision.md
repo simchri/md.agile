@@ -199,7 +199,9 @@ Neighbor tasks can themselves have their own properties and subtasks. This mecha
 
 ## Forms & Fields
 
-A Form is attached to a property via a `form` key on its `[Properties.X]` entry — the same way "Property Short Forms" attaches an alias marker via a `short` key. The marker itself (`#personal_info` below) always resolves to its `[Properties.X]` entry as usual; the `form` key then points to a separate `[Form.X]` table that declares which fields the task must carry:
+Forms are a structured and repeatable way to require information on tasks. Forms are a collection of _fields_ and attached to _#properties_.
+
+The intention of forms is to give structure to the information recorded on tasks. They allow you to build workflows, where specific pieces of information need to be provided. E.g. During onboarding of a new employee a sysadmin may have to collect some personal details and record them on the task. You can define _fields_ `name`, `email` etc. and collect them in the _form_ `personal_info`. This form is made a part of all `onboarding` tasks:  
 
 ```toml
 [Field.first_name]
@@ -222,42 +224,33 @@ multiline = true
 fields = ["first_name", "email" , "gender", "bio"]
 validation = "validate_personal_info.sh"
 
-[Properties.personal_info]
+[Properties.onboarding]
 form = "personal_info"
 ```
 Default value for any field unless specified explicitly is `___`. 
 
-- validation:
-  - first via regex, per field XOR match against allowed values.
-  - second via a user-defined validation script declared on the form (`validation` key above). The script runs once per task that carries the form (one process per task — no batching, to keep the implementation simple for script authors), and receives **only that form's own fields** as JSON on stdin — never the task's other properties/fields, since a form's validation is only ever concerned with its own data.
-
-Running a validation script is a trust decision: the first time a project declares a `validation` script, `agile check`/the editor refuses to run it until the user approves it via `agile trust` (keyed by project + script path + script content hash — editing the script revokes trust and re-prompts). Once trusted:
-  - `agile check` always runs it.
-  - The editor (LSP) runs it only when the file is **saved**, not on every keystroke, to bound the performance impact of spawning a process per edit.
-
-Execution is deliberately locked down: the script is invoked directly (no shell), its JSON input arrives on stdin (never interpolated into a command line or argument), its path must resolve inside the project (no absolute paths or `..` traversal), it runs with a minimal environment (no inherited secrets), and it's subject to a timeout and an output-size cap — a hung or runaway script is killed and reported as a validation error rather than blocking the check/editor indefinitely.
-
 ```md
-- [ ] provide new user #personal_info 
+- [ ] new colleague: John #onboarding 
 ```
-before this can be marked complete, the fields required by the form must exist, be filled out and pass validation (Quick fix to add fields)
+before this can be marked complete, the fields required by the form must exist, be filled out and pass validation (more on validation further below).
+Missing form fields can be added via quick fix action.
 
 ```md
-- [ ] provide new user #personal_info 
+- [ ] new colleague: John #onboarding 
   __First Name:__ ___
   __Email:__ ___
   __Gender:__ (don't specify)
   __Bio:__
   ___
 ```
-The form content is strictly everything after the `<label>: ` (after label, colon and space) until the end of the line. A label is always bolded with the markdown syntax `__bold__`.
+The field value is strictly everything after the `<label>: ` (after label, colon and space) until the end of the line. A label is always bolded with the markdown syntax `__bold__`.
 
 A multiline form field captures everything after the label line until the next task or explicit closing marker `...` (elipses). This allows to add normal task body content after a multiline field. You can add `...` on a  new line inside a form using escape syntax: `\...`
 
 Fully filled out, the form looks like this:
 
 ```md
-- [ ] provide new user #personal_info 
+- [ ] new colleague: John #onboarding 
   This task is about collecting the info about a new user.
   __First Name:__ John
   I can freely add notes in between fields
@@ -269,6 +262,16 @@ Fully filled out, the form looks like this:
   ...
   More notes on the task can go here. This sentence is not part of any field.
 ```
+
+- validation:
+  - first via regex, per field XOR match against allowed values.
+  - second via a user-defined validation script declared on the form (`validation` key above). The script runs once per task that carries the form (one process per task — no batching, to keep the implementation simple for script authors), and receives **only that form's own fields** as JSON on stdin — never the task's other properties/fields, since a form's validation is only ever concerned with its own data.
+
+Running a validation script is a trust decision: the first time a project declares a `validation` script, `agile check`/the editor refuses to run it until the user approves it via `agile trust` (keyed by project + script path + script content hash — editing the script revokes trust and re-prompts). Once trusted:
+  - `agile check` always runs it.
+  - The editor (LSP) runs it only when the file is **saved**, not on every keystroke, to bound the performance impact of spawning a process per edit.
+
+Execution is deliberately locked down: the script is invoked directly (no shell), its JSON input arrives on stdin (never interpolated into a command line or argument), its path must resolve inside the project (no absolute paths or `..` traversal), it runs with a minimal environment (no inherited secrets), and it's subject to a timeout and an output-size cap — a hung or runaway script is killed and reported as a validation error rather than blocking the check/editor indefinitely.
 
 ## Branch Properties
 
