@@ -1008,10 +1008,14 @@ users don't have to think about it. Design plan: see
   - [ ] config: parse `[Form.X]` entries
   - [ ] config: parse `form` key on `[Properties.X]`
   - [ ] config: `form` references an existing `[Form.X]`
+    - [ ] check
   - [ ] config: form's fields reference existing `[Field.X]`
+    - [ ] check
   - [ ] config: field regex/values conflict (XOR)
+    - [ ] check
   - [ ] config: field regex compiles
-  - [ ] config: field's own default passes its validation
+    - [ ] check
+  - [-] NOT A REQUIREMENT: config: field's own default passes its validation -- it is ok if defaults are invalid
   - [ ] config: no duplicate fields within a form
   - [ ] parser: bold `__Label:__` field lines
   - [ ] parser: multiline field + `...`/`\...` escape
@@ -1020,6 +1024,11 @@ users don't have to think about it. Design plan: see
   - [ ] check: field fails regex/allowed values
   - [ ] lsp quickfix: insert missing fields
   - [ ] `agile trust` command + trust store
+  - [ ] define script interface (json schema)
+    convention: A successfully running script shall always return 0, but output some json indication validation passed / failed failure message and location (which field).
+    This allows to distinguish "validation failed" from "script failed to execute properly".
+    - [ ] input
+    - [ ] output
   - [ ] sandboxed per-task script runner
   - [ ] check: form validation script failure
   - [ ] wire script validation into `agile check`
