@@ -73,3 +73,27 @@ neighbortasks = [\"do the back end implementation also!\"]
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(!stdout.contains("E019"), "stdout: {stdout:?}");
 }
+
+#[test]
+fn a_resolved_branchs_required_neighbor_identical_to_the_base_propertys_own_is_satisfied_once() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.review]
+neighbortasks = [\"sign off meeting\"]
+[Properties.review.passed]
+neighbortasks = [\"sign off meeting\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] build something
+  - [ ] perform #review:passed
+  - [ ] \"sign off meeting\"
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!stdout.contains("E019"), "stdout: {stdout:?}");
+}

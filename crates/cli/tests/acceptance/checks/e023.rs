@@ -118,7 +118,7 @@ fn resolved_property_usage_is_not_flagged_as_plain_branching_property() {
     // not be flagged as E023 -- only the base property's own subtask is
     // exercised here; its resolved branch's own extra requirements are
     // already covered by the dedicated Branch Properties edge-case tests
-    // (see `checks/branch_properties_edge_cases.rs`).
+    // in `checks/e010.rs`/`checks/e012.rs`/`checks/e019.rs`/`checks/e021.rs`.
     let dir = tempdir().unwrap();
     write_review_config(dir.path());
     let file_content = "\

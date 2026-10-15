@@ -47,3 +47,32 @@ subtasks_allow_cancel = [true]
         String::from_utf8_lossy(&out.stdout)
     );
 }
+
+#[test]
+fn branchs_allow_cancel_merges_with_the_base_propertys_for_an_identical_title() {
+    // The base property disallows cancelling "sign off", but the resolved
+    // branch's own copy of that same required title allows it. The more
+    // permissive setting wins, so cancelling it must not trip E012.
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.review]
+subtasks = [\"sign off\"]
+subtasks_allow_cancel = [false]
+[Properties.review.passed]
+subtasks = [\"sign off\"]
+subtasks_allow_cancel = [true]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let content = "\
+- [ ] build something
+  - [ ] perform #review:passed
+    - [-] \"sign off\"
+";
+    fs::write(dir.path().join("a.agile.md"), content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!stdout.contains("E012"), "stdout: {stdout:?}");
+}
