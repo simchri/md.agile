@@ -24,25 +24,38 @@ pub(super) fn property_completions(
     Some(CompletionResponse::Array(
         properties
             .into_iter()
-            .map(|(name, property)| CompletionItem {
-                label: format!("#{name}"),
-                kind: Some(CompletionItemKind::PROPERTY),
-                documentation: property_documentation(name, property)
-                    .map(Documentation::MarkupContent),
-                text_edit: Some(CompletionTextEdit::Edit(TextEdit {
-                    range: Range {
-                        start: Position {
-                            line: position.line,
-                            character: start,
+            .map(|(name, property)| {
+                // A property that declares branches (see README.vision.md
+                // "Branch Properties") must always be written pending
+                // (`#name...`) or resolved (`#name:branch`), never plainly
+                // -- see E023 "Plain Branching Property". Suggest the
+                // pending form so autocomplete never produces text that's
+                // immediately flagged by that check.
+                let text = if property.branches.is_empty() {
+                    format!("#{name}")
+                } else {
+                    format!("#{name}...")
+                };
+                CompletionItem {
+                    label: text.clone(),
+                    kind: Some(CompletionItemKind::PROPERTY),
+                    documentation: property_documentation(name, property)
+                        .map(Documentation::MarkupContent),
+                    text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                        range: Range {
+                            start: Position {
+                                line: position.line,
+                                character: start,
+                            },
+                            end: Position {
+                                line: position.line,
+                                character: end,
+                            },
                         },
-                        end: Position {
-                            line: position.line,
-                            character: end,
-                        },
-                    },
-                    new_text: format!("#{name}"),
-                })),
-                ..CompletionItem::default()
+                        new_text: text,
+                    })),
+                    ..CompletionItem::default()
+                }
             })
             .collect(),
     ))

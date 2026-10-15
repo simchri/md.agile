@@ -58,6 +58,41 @@ More about the feature.
 }
 
 #[test]
+fn lsp_completion_suggests_pending_form_for_a_property_that_declares_branches() {
+    // A property that declares at least one branch must always be written
+    // pending (`#review...`) or resolved (`#review:branch`), never plainly
+    // -- see E023 "Plain Branching Property". Autocomplete must therefore
+    // never suggest the bare `#review` form for it.
+    let config = "\
+[Properties.review]
+[Properties.review.passed]
+[Properties.review.failed]
+
+[Properties.feature]
+";
+    let file_content = "\
+- [ ] task #re
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.completion(&file_uri, 2, 0, 14);
+
+    // Assert
+    let items = response["result"]
+        .as_array()
+        .expect("expected completion item array");
+    let labels: Vec<_> = items
+        .iter()
+        .filter_map(|item| item["label"].as_str())
+        .collect();
+    assert_eq!(labels, vec!["#review..."]);
+    assert_eq!(items[0]["textEdit"]["newText"], "#review...");
+}
+
+#[test]
 fn lsp_completion_uses_utf16_replacement_range_after_emoji() {
     // Arrange
     let config = "\
