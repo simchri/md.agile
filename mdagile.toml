@@ -1,8 +1,5 @@
 [Properties]
 
-[Properties.frontend-implementation]
-neighbortasks = ["do the back end implementation also!"]
-
 [Properties.feature]
 brief = "New end-user visible functionality of the product"
 description = "Not considered \"features\" are bugfixes, refactorings, and other internal changes. Features are usually requested by the product owner or the customer."
@@ -14,6 +11,13 @@ subtasks = [
 [Properties.feat]
 
 [Properties.bug]
+subtasks = ["report #bugreport", "analysis #buganalysis"]
+
+[Properties.bugreport]
+subtasks = ["observed version", "steps to reproduce", "expected result", "actual result"]
+
+[Properties.buganalysis]
+subtasks = ["first affected version", "root cause analysis", "proposed strategy for fix"]
 
 [Properties.foo]
 subtasks = ["bar", "baz"]

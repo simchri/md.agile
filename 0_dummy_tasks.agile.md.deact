@@ -1,3 +1,22 @@
+- [ ] I saw some problem! #bug
+  - [x] "report #bugreport"
+    - [x] "observed version"
+      1.2.4
+    - [x] "steps to reproduce"
+      1. do thing
+      2. then do another thing
+    - [x] "expected result"
+      it works
+    - [x] "actual result"
+      it doesn't
+  - [ ] "analysis #buganalysis"
+    - [ ] "first affected version"
+      1.2.3
+    - [ ] "root cause analysis"
+      buggy code
+    - [ ] "proposed strategy for fix"
+      fix the buggy code
+
 - [ ] some #feature --> not eligible
   - [ ] "1. (feature) implementation" @alice
   - [ ] "2. (feature) validation by programmer" @alice
