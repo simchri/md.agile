@@ -1,5 +1,7 @@
 #[path = "checks/branch_properties_edge_cases.rs"]
 pub mod branch_properties_edge_cases;
+#[path = "checks/branch_properties_plain_form.rs"]
+pub mod branch_properties_plain_form;
 #[path = "checks/clean.rs"]
 pub mod clean;
 #[path = "checks/config_unknown_keys.rs"]
@@ -48,7 +50,5 @@ pub mod e020;
 pub mod e021;
 #[path = "checks/e022.rs"]
 pub mod e022;
-#[path = "checks/embedded_toml_fence.rs"]
-pub mod embedded_toml_fence;
 #[path = "checks/group_member_validation.rs"]
 pub mod group_member_validation;
