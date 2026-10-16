@@ -12,7 +12,8 @@
 //! entirely, so the two checks never both fire for the same task.
 
 use crate::config::Config;
-use crate::parser::{FileItem, Location, Marker, PropertyForm, Subtask, SubtaskKind, Task};
+use crate::parser::{FileItem, Location, Marker, Subtask, SubtaskKind, Task};
+use crate::rules::branch_properties::merge_property_and_branch_strings;
 use crate::rules::{ErrorCode, Issue, IssueData};
 
 pub fn neighbor_tasks(items: &[FileItem], config: &Config) -> Vec<Issue> {
@@ -103,32 +104,7 @@ fn check_required(
 /// detect, by the same logic, whether a top-level task carries a property
 /// that requires neighbor tasks at all.
 pub(crate) fn collect_neighbor_titles(markers: &[Marker], config: &Config) -> Vec<String> {
-    let mut required: Vec<String> = Vec::new();
-    for marker in markers {
-        if let Marker::Property(prop) = marker {
-            if let Some(prop_config) = config.properties.get(&prop.name) {
-                for s in &prop_config.neighbortasks {
-                    if !required.contains(s) {
-                        required.push(s.clone());
-                    }
-                }
-                // A property resolved to a Branch Property outcome (e.g.
-                // `#review:passed`) also requires that branch's own
-                // `neighbortasks` (see README.vision.md "Branch
-                // Properties"), in addition to the base property's own.
-                if let PropertyForm::BranchResolved(branch) = &prop.form {
-                    if let Some(branch_config) = prop_config.branches.get(branch) {
-                        for s in &branch_config.neighbortasks {
-                            if !required.contains(s) {
-                                required.push(s.clone());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    required
+    merge_property_and_branch_strings(markers, config, |p| &p.neighbortasks, |b| &b.neighbortasks)
 }
 
 /// Collects the *names* of properties on `markers` whose config declares

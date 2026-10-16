@@ -20,11 +20,59 @@
 //! same sub-tables) aren't enforced here -- see
 //! [`crate::rules::missing_required_subtasks`] and
 //! [`crate::rules::neighbor_tasks`], which merge them in once a property
-//! resolves to a known branch.
+//! resolves to a known branch, via [`merge_property_and_branch_strings`].
 
-use crate::config::Config;
+use crate::config::{BranchConfig, Config, PropertyConfig};
 use crate::parser::{FileItem, Location, Marker, PropertyForm, Status, TASK_LINE_PREFIX_LEN};
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
+
+/// Collects string values contributed by every `Marker::Property` on
+/// `markers`, merging across multiple properties and deduplicating:
+/// `prop_field` is read from the base `[Properties.X]` config unconditionally,
+/// and, if the marker is resolved to a known branch (`#name:branch`, see
+/// README.vision.md "Branch Properties"), `branch_field` is also read from
+/// that branch's own `[Properties.X.branch]` config and merged in. An
+/// unresolved or undefined branch name contributes nothing extra -- that's
+/// E021/E022's concern instead (see [`check_unresolved`],
+/// [`check_undefined_outcome`]).
+///
+/// Shared by [`crate::rules::neighbor_tasks::collect_neighbor_titles`]
+/// (`neighbortasks`) and [`crate::rules::unrequired_quoted_subtask`]'s
+/// required-subtask collection (`subtasks`). Not used by
+/// [`crate::rules::missing_required_subtasks`], which needs to merge the
+/// parallel `subtasks_allow_cancel` array alongside `subtasks` and so keeps
+/// its own bespoke traversal.
+pub(crate) fn merge_property_and_branch_strings(
+    markers: &[Marker],
+    config: &Config,
+    prop_field: impl Fn(&PropertyConfig) -> &[String],
+    branch_field: impl Fn(&BranchConfig) -> &[String],
+) -> Vec<String> {
+    let mut merged: Vec<String> = Vec::new();
+    for marker in markers {
+        let Marker::Property(prop) = marker else {
+            continue;
+        };
+        let Some(prop_config) = config.properties.get(&prop.name) else {
+            continue;
+        };
+        for s in prop_field(prop_config) {
+            if !merged.contains(s) {
+                merged.push(s.clone());
+            }
+        }
+        if let PropertyForm::BranchResolved(branch) = &prop.form {
+            if let Some(branch_config) = prop_config.branches.get(branch) {
+                for s in branch_field(branch_config) {
+                    if !merged.contains(s) {
+                        merged.push(s.clone());
+                    }
+                }
+            }
+        }
+    }
+    merged
+}
 
 pub fn unresolved_branch_property(items: &[FileItem]) -> Vec<Issue> {
     let mut issues = Vec::new();

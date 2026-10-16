@@ -9,7 +9,8 @@
 //! subtasks. Using it outside that context is a syntax error.
 
 use crate::config::Config;
-use crate::parser::{FileItem, Marker, PropertyForm, SubtaskKind, TASK_LINE_PREFIX_LEN};
+use crate::parser::{FileItem, Marker, SubtaskKind, TASK_LINE_PREFIX_LEN};
+use crate::rules::branch_properties::merge_property_and_branch_strings;
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node, neighbor_tasks};
 
 pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Issue> {
@@ -62,28 +63,7 @@ pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Iss
 /// `neighbor_tasks` (E019) already perform. An unknown branch name
 /// contributes nothing extra here; that's E022's concern instead.
 fn collect_required(markers: &[Marker], config: &Config) -> Vec<String> {
-    let mut required: Vec<String> = Vec::new();
-    for marker in markers {
-        if let Marker::Property(prop) = marker {
-            if let Some(prop_config) = config.properties.get(&prop.name) {
-                for s in &prop_config.subtasks {
-                    if !required.contains(s) {
-                        required.push(s.clone());
-                    }
-                }
-                if let PropertyForm::BranchResolved(branch) = &prop.form {
-                    if let Some(branch_config) = prop_config.branches.get(branch) {
-                        for s in &branch_config.subtasks {
-                            if !required.contains(s) {
-                                required.push(s.clone());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    required
+    merge_property_and_branch_strings(markers, config, |p| &p.subtasks, |b| &b.subtasks)
 }
 
 #[cfg(test)]
