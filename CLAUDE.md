@@ -151,6 +151,14 @@ devenv . --no-tty -s dev-container-no-gpu -c  "cd crates/gui && dx build --platf
 
 When working on the GUI, generally skip visual testing/inspection (e.g. spawning `dx serve`/the GUI server process, or inspecting with headless Chrome) unless the user explicitly raises a problem that needs it. A successful `dx build --platform web` is enough by default.
 
+### Checking for warnings
+
+The `mdagile-gui` crate has a non-default `server` feature (`dioxus/server`, `mdagile`, `dioxus-cli-config`) gating `src/server/mod.rs`, which is the sole caller of several `src/settings.rs`/`src/lock.rs` functions. Running `cargo check`/`cargo check --workspace` with default features only therefore reports those functions as dead code — this is a build-config artifact, not a real issue. To get an accurate warning picture for the GUI crate, always check with the `server` feature enabled:
+```bash
+devenv . --no-tty -s dev-container-no-gpu -c "cd crates && cargo check -p mdagile-gui --features server"
+```
+Only treat warnings as real/actionable if they still appear with `--features server` included.
+
 ### Auto-commit
 
 Whenever a prompt results in code changes (modifications to versioned files or new files to be versioned), **automatically create a commit**

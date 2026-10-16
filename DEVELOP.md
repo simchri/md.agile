@@ -30,6 +30,14 @@ cargo test                       # Run full test suite
 cargo test --lib -- test_name    # Run single test
 ```
 
+#### Checking for warnings
+
+The `mdagile-gui` crate has a non-default `server` feature (`dioxus/server`, `mdagile`, `dioxus-cli-config`) gating `crates/gui/src/server/mod.rs`, which is the sole caller of several `crates/gui/src/settings.rs`/`crates/gui/src/lock.rs` functions. Running plain `cargo check`/`cargo check --workspace` (default features only) therefore reports those functions as dead code — this is a build-config artifact, not a real issue. To get an accurate warning picture for the GUI crate, always check with the `server` feature enabled:
+```bash
+cargo check -p mdagile-gui --features server
+```
+Only treat warnings as real/actionable if they still appear with `--features server` included.
+
 ### GUI
 
 run board (GUI):
