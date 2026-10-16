@@ -992,13 +992,13 @@ users don't have to think about it. Design plan: see
 - [x] removed bats tests asserting exact log *message* wording (auth-diagnostics/self-heal log-line tests, and the "error logging: ... records ... in the log" tests in `autogit.bats`/`autogit-daemon-sync.bats`) from the autogit test suite; log *file* location/retention tests (e.g. weekly log rotation, default log dir under `XDG_STATE_HOME`) were kept since they don't assert on log content/wording. The underlying auth-diagnostics/self-heal logging feature itself is unchanged, just no longer covered by content-asserting bats tests
 
 ## Neighbor Tasks / Branch Properties / Workflows
-- [ ] Neighbor Tasks: 
+- [x] Neighbor Tasks: 
   - [x] a `neighbortasks` config key on a `[Properties.X]` entry (see README.vision.md "Neighbor Tasks") parsed
   - [x] check rule: If key exists; requiring a specific neighbor task to exist alongside the property-carrying task/subtask.
   - [x] lsp autofix for neighbor branches
   - [x] check rule: properties requiring neighbor tasks are not allowed on top-level tasks (E020), takes precedence over the missing-neighbor-task check (E019)
   - [-] terminology: Sibling task or neighbor task?
-- [ ] Branch Properties
+- [x] Branch Properties
   (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax was already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`).
   - [x] config: parse `[Properties.X.branch_name]` sub-tables (`subtasks`, `subtasks_allow_cancel`, `neighbortasks`)
   - [x] check rule: task marked done while a branch property is still unresolved (E021)
@@ -1016,6 +1016,9 @@ users don't have to think about it. Design plan: see
     - [x] documentation
   - [x] add the completed forms of branch properties to autocomplete proposals
   - [x] Quickfixes for this error situation: `Task marked done while branch property #review:... still unresolved` -- allow selecting any of the completed forms as a quickfix
+
+- [ ] Branch props and neighbor tasks doc
+  - [ ] README.md
 
 ## Forms / Form Fields?
 - [ ] Forms & Fields
