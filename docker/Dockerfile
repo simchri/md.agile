@@ -44,6 +44,9 @@ RUN cargo binstall dioxus-cli@0.7.7
 RUN rustup component add rust-analyzer
 RUN rust-analyzer --version
 
+RUN rustup component add rustfmt
+RUN cargo fmt --version
+
 RUN chown -R ${UID} /usr/local/cargo/
 
 ENTRYPOINT ["/bin/bash"]
