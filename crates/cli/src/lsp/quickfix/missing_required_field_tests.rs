@@ -116,6 +116,44 @@ default = \"unknown@example.com\"
 }
 
 #[test]
+fn known_gap_default_value_containing_a_newline_breaks_the_inserted_single_line() {
+    // KNOWN LIMITATION (not fixed here -- flagged for a design decision):
+    // the quickfix always inserts `__Label:__ <value>` as one single-line
+    // field, regardless of the field's `multiline` flag or whether its
+    // configured `default` itself embeds a newline (via a TOML triple-quoted
+    // string). When the default contains '\n', the inserted text splits
+    // into two raw lines, the second of which has no `__Label:__` prefix
+    // and is therefore NOT re-parsed back as part of the same field --
+    // producing a structurally broken / silently-truncated field. A real
+    // fix would need to detect `field.multiline` (or a multi-line default)
+    // and emit the `__Label:__` / value lines / `...` multiline form
+    // instead.
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+    let toml = "\
+[Field.bio]
+label = \"Bio\"
+multiline = true
+default = \"\"\"
+line one
+line two\"\"\"
+";
+    std::fs::write(project_dir.join("mdagile.toml"), toml).unwrap();
+    let uri = Url::from_file_path(project_dir.join("tasks.agile.md")).unwrap();
+    let doc = "\
+- [ ] #onboarding: add basket
+";
+    let diag = diag_e024(0, vec!["Bio"]);
+    let action = build_quickfix(&diag, doc, &uri).unwrap();
+    let edits = get_edits(&action, &uri);
+
+    // This is the *current*, undesirable behavior: a single `TextEdit`
+    // whose `new_text` embeds a raw newline, producing an unparseable
+    // second line once applied (`line two` with no `__Bio:__` marker).
+    assert_eq!(edits[0].new_text, "\n  __Bio:__ line one\nline two");
+}
+
+#[test]
 fn field_without_matching_label_falls_back_to_placeholder() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = temp_dir.path();
@@ -193,4 +231,51 @@ fn nested_subtask_uses_correct_field_indent() {
     assert_eq!(edits.len(), 1);
     assert_eq!(edits[0].range.start.line, 1);
     assert_eq!(edits[0].new_text, "\n    __Email:__ ___");
+}
+
+// ── config edge cases ────────────────────────────────────────────────────────
+
+#[test]
+fn malformed_toml_on_disk_falls_back_to_placeholder() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+    // Invalid TOML (unterminated string) -- `read_toml` should fail to
+    // parse it and the quickfix should degrade to the plain placeholder
+    // rather than panicking or propagating the error.
+    std::fs::write(project_dir.join("mdagile.toml"), "[Field.email\nlabel = ").unwrap();
+    let uri = Url::from_file_path(project_dir.join("tasks.agile.md")).unwrap();
+    let doc = "\
+- [ ] #onboarding: add basket
+";
+    let diag = diag_e024(0, vec!["Email"]);
+    let action = build_quickfix(&diag, doc, &uri).unwrap();
+    let edits = get_edits(&action, &uri);
+
+    assert_eq!(edits[0].new_text, "\n  __Email:__ ___");
+}
+
+#[test]
+fn conflicting_config_files_on_disk_falls_back_to_placeholder() {
+    // Both `mdagile.toml` and `.mdagile.toml` present is a conflicting-config
+    // error from `config_source::resolve`; the quickfix must not use either
+    // and should still produce the plain-placeholder action rather than
+    // returning no quickfix at all.
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+    let toml = "\
+[Field.email]
+label = \"Email\"
+default = \"unknown@example.com\"
+";
+    std::fs::write(project_dir.join("mdagile.toml"), toml).unwrap();
+    std::fs::write(project_dir.join(".mdagile.toml"), toml).unwrap();
+    let uri = Url::from_file_path(project_dir.join("tasks.agile.md")).unwrap();
+    let doc = "\
+- [ ] #onboarding: add basket
+";
+    let diag = diag_e024(0, vec!["Email"]);
+    let action = build_quickfix(&diag, doc, &uri).unwrap();
+    let edits = get_edits(&action, &uri);
+
+    assert_eq!(edits[0].new_text, "\n  __Email:__ ___");
 }

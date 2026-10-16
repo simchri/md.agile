@@ -791,6 +791,162 @@ more info
     assert!(task(&items, 0).fields.is_empty());
 }
 
+// ── field parsing edge cases ─────────────────────────────────────────────────
+
+#[test]
+fn label_marker_without_a_following_space_is_not_recognized_as_a_field() {
+    // Missing the single required space after `:__` -- neither the
+    // single-line nor the multiline grammar matches, so this stays plain
+    // body text.
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Email:__john.doe@gmail.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(t.fields.is_empty());
+    assert_eq!(t.body, vec!["  __Email:__john.doe@gmail.com"]);
+}
+
+#[test]
+fn label_marker_with_only_a_trailing_space_is_a_single_line_field_with_empty_value() {
+    // Exactly one trailing space and nothing else still matches the
+    // single-line grammar (not the bare-label multiline grammar), yielding
+    // an empty value rather than opening a multiline capture.
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Gender:__ 
+  __Email:__ a@b.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![
+            FieldLine {
+                label: "Gender".to_string(),
+                value: String::new(),
+                location: loc(2),
+            },
+            FieldLine {
+                label: "Email".to_string(),
+                value: "a@b.com".to_string(),
+                location: loc(3),
+            },
+        ]
+    );
+}
+
+#[test]
+fn empty_label_is_not_recognized_as_a_single_line_field() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __:__ value
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(t.fields.is_empty());
+}
+
+#[test]
+fn empty_label_is_not_recognized_as_a_multiline_field() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __:__
+  some content
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(t.fields.is_empty());
+}
+
+#[test]
+fn label_without_a_closing_marker_is_not_recognized_as_a_field() {
+    // `__Bio` has no closing `:__` at all -- plain body text.
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio
+  some content
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(t.fields.is_empty());
+}
+
+#[test]
+fn duplicate_field_labels_are_both_captured_independently() {
+    // The parser does not deduplicate repeated labels within a node's body
+    // -- both `FieldLine`s are kept, in source order. (It's up to a
+    // not-yet-implemented check to flag this as a config/authoring mistake,
+    // if ever desired; the parser itself stays purely structural.)
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Email:__ first@example.com
+  __Email:__ second@example.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![
+            FieldLine {
+                label: "Email".to_string(),
+                value: "first@example.com".to_string(),
+                location: loc(2),
+            },
+            FieldLine {
+                label: "Email".to_string(),
+                value: "second@example.com".to_string(),
+                location: loc(3),
+            },
+        ]
+    );
+}
+
+#[test]
+fn multiline_field_may_start_with_an_escaped_ellipsis_line() {
+    // The very first captured line is itself an escaped `\...` -- it should
+    // still be unescaped into a literal "..." without prematurely closing
+    // the field.
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  \\...
+  real content after the literal ellipsis.
+  ...
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Bio".to_string(),
+            value: "  ...\n  real content after the literal ellipsis.".to_string(),
+            location: loc(2),
+        }]
+    );
+}
+
+#[test]
+fn field_line_with_deeper_indentation_than_the_task_is_still_recognized() {
+    // Recognition is purely content-based (via trim), independent of how
+    // deeply the line happens to be indented.
+    let input = "\
+- [ ] new colleague: John #onboarding
+      __Email:__ a@b.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Email".to_string(),
+            value: "a@b.com".to_string(),
+            location: loc(2),
+        }]
+    );
+}
+
 #[test]
 fn parse_records_task_locations() {
     let input = "\
