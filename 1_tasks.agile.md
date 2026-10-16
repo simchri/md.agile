@@ -997,7 +997,7 @@ users don't have to think about it. Design plan: see
   - [x] check rule: If key exists; requiring a specific neighbor task to exist alongside the property-carrying task/subtask.
   - [x] lsp autofix for neighbor branches
   - [x] check rule: properties requiring neighbor tasks are not allowed on top-level tasks (E020), takes precedence over the missing-neighbor-task check (E019)
-  - [ ] terminology: Sibling task or neighbor task?
+  - [-] terminology: Sibling task or neighbor task?
 - [ ] Branch Properties
   (see README.vision.md "Branch Properties"): the pending/resolved outcome syntax was already recognized by the parser (`PropertyForm::BranchPending`/`BranchResolved`).
   - [x] config: parse `[Properties.X.branch_name]` sub-tables (`subtasks`, `subtasks_allow_cancel`, `neighbortasks`)
