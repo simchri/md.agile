@@ -21,6 +21,7 @@ fn config_with_neighbors(entries: &[(&str, &[&str])]) -> Config {
                         subtasks: vec![],
                         subtasks_allow_cancel: vec![],
                         neighbortasks: neighbors.iter().map(|s| s.to_string()).collect(),
+                        form: None,
                         branches: Default::default(),
                     },
                 )
@@ -246,6 +247,7 @@ fn resolved_branch_adds_its_own_required_neighbor_on_top_of_the_base_property() 
             subtasks: vec![],
             subtasks_allow_cancel: vec![],
             neighbortasks: vec![],
+            form: None,
             branches: [(
                 "passed".to_string(),
                 BranchConfig {
@@ -286,6 +288,7 @@ fn pending_branch_property_does_not_yet_require_an_unchosen_branchs_neighbor() {
             subtasks: vec![],
             subtasks_allow_cancel: vec![],
             neighbortasks: vec![],
+            form: None,
             branches: [(
                 "passed".to_string(),
                 BranchConfig {
@@ -320,6 +323,7 @@ fn resolved_branchs_required_neighbor_identical_to_the_base_propertys_own_is_not
             subtasks: vec![],
             subtasks_allow_cancel: vec![],
             neighbortasks: vec!["sign off meeting".to_string()],
+            form: None,
             branches: [(
                 "passed".to_string(),
                 BranchConfig {
@@ -356,6 +360,7 @@ fn resolved_branchs_required_neighbor_identical_to_a_different_propertys_own_is_
             subtasks: vec![],
             subtasks_allow_cancel: vec![],
             neighbortasks: vec![],
+            form: None,
             branches: [(
                 "passed".to_string(),
                 BranchConfig {

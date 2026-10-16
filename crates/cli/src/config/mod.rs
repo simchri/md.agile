@@ -37,6 +37,8 @@ pub struct Config {
     pub properties: HashMap<String, PropertyConfig>,
     pub users: HashMap<String, UserConfig>,
     pub groups: HashMap<String, GroupConfig>,
+    pub fields: HashMap<String, FieldConfig>,
+    pub forms: HashMap<String, FormConfig>,
     pub general: GeneralConfig,
 }
 
@@ -80,6 +82,11 @@ pub struct PropertyConfig {
     /// sub-tables in `mdagile.toml`. Empty when this property declares no
     /// branches at all (an ordinary, non-branching property).
     pub branches: HashMap<String, BranchConfig>,
+    /// The `[Form.X]` this property's marker renders/validates against (see
+    /// README.vision.md "Forms & Fields"), or `None` for an ordinary property
+    /// with no form attached. Resolution always goes through this key on the
+    /// property itself -- there is no separate `#form_name` marker path.
+    pub form: Option<String>,
 }
 
 /// Outcome-specific requirements for one branch/outcome of a Branch Property
@@ -93,6 +100,41 @@ pub struct BranchConfig {
     /// [`PropertyConfig::subtasks_allow_cancel`].
     pub subtasks_allow_cancel: Vec<bool>,
     pub neighbortasks: Vec<String>,
+}
+
+/// A `[Field.X]` entry (see README.vision.md "Forms & Fields"): one named,
+/// typed input collected by a `[Form.X]`. Attached to properties indirectly,
+/// via a `[Form.X]`'s `fields` list.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldConfig {
+    pub name: String,
+    /// Display label shown next to the field's value. Falls back to `name`
+    /// when not configured.
+    pub label: String,
+    /// Value substituted for the unfilled placeholder (`___`) when the field
+    /// has one. `None` means the plain `___` placeholder is used as-is.
+    pub default: Option<String>,
+    /// A regex the field's value must match. Mutually exclusive with
+    /// `values` -- at most one of the two may be set.
+    pub validation_regex: Option<String>,
+    /// A closed set of allowed values. Mutually exclusive with
+    /// `validation_regex` -- at most one of the two may be set.
+    pub values: Option<Vec<String>>,
+    pub multiline: bool,
+}
+
+/// A `[Form.X]` entry (see README.vision.md "Forms & Fields"): a named,
+/// ordered group of `[Field.X]` entries, attached to a property via that
+/// property's `form` key.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FormConfig {
+    pub name: String,
+    /// `[Field.X]` names making up this form's body, in declaration order.
+    pub fields: Vec<String>,
+    /// Path to an external script that performs whole-form validation (see
+    /// README.vision.md "Forms & Fields"). Only stored here for now -- the
+    /// trust/execution machinery is a later task.
+    pub validation: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -134,6 +176,20 @@ pub enum ConfigError {
         group: String,
         message: String,
     },
+    /// A `[Field.X]` entry has conflicting or invalid validation settings:
+    /// both `validation_regex` and `values` set, or `validation_regex`
+    /// doesn't compile as a regex.
+    FieldValidation {
+        field: String,
+        message: String,
+    },
+    /// A `[Form.X]` entry's `fields` list references a name that isn't
+    /// defined as a `[Field.X]` entry, or lists the same field name more
+    /// than once.
+    FormValidation {
+        form: String,
+        message: String,
+    },
     /// The same `git_emails`/`git_names` value is listed on more than one
     /// `[Users.X]` entry. Left unchecked, [`crate::git::resolve_identity_user`]
     /// would pick one of the matching users based on `HashMap` iteration
@@ -162,6 +218,12 @@ impl std::fmt::Display for ConfigError {
             }
             ConfigError::GroupValidation { group, message } => {
                 write!(f, "invalid config for group '{group}': {message}")
+            }
+            ConfigError::FieldValidation { field, message } => {
+                write!(f, "invalid config for field '{field}': {message}")
+            }
+            ConfigError::FormValidation { form, message } => {
+                write!(f, "invalid config for form '{form}': {message}")
             }
             ConfigError::DuplicateIdentity {
                 field,
@@ -208,6 +270,8 @@ struct RawPropertyConfig {
     subtasks_allow_cancel: Vec<bool>,
     #[serde(default)]
     neighbortasks: Vec<String>,
+    #[serde(default)]
+    form: Option<String>,
     #[serde(flatten)]
     branches: HashMap<String, RawBranchConfig>,
 }
@@ -221,6 +285,30 @@ struct RawBranchConfig {
     subtasks_allow_cancel: Vec<bool>,
     #[serde(default)]
     neighbortasks: Vec<String>,
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct RawFieldConfig {
+    #[serde(default)]
+    label: Option<String>,
+    #[serde(default)]
+    default: Option<String>,
+    #[serde(default)]
+    validation_regex: Option<String>,
+    #[serde(default)]
+    values: Option<Vec<String>>,
+    #[serde(default)]
+    multiline: bool,
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct RawFormConfig {
+    #[serde(default)]
+    fields: Vec<String>,
+    #[serde(default)]
+    validation: Option<String>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -271,6 +359,10 @@ struct RawConfig {
     users: HashMap<String, RawUserConfig>,
     #[serde(rename = "Groups", default)]
     groups: HashMap<String, RawGroupConfig>,
+    #[serde(rename = "Field", default)]
+    fields: HashMap<String, RawFieldConfig>,
+    #[serde(rename = "Form", default)]
+    forms: HashMap<String, RawFormConfig>,
     #[serde(rename = "General", default)]
     general: RawGeneralConfig,
 }
@@ -319,6 +411,82 @@ fn find_duplicate_identity(
 impl Config {
     pub fn from_str(s: &str) -> Result<Self, ConfigError> {
         let raw: RawConfig = toml::from_str(s)?;
+
+        let fields: HashMap<String, FieldConfig> = raw
+            .fields
+            .into_iter()
+            .map(|(name, raw_field)| {
+                if raw_field.validation_regex.is_some() && raw_field.values.is_some() {
+                    return Err(ConfigError::FieldValidation {
+                        field: name,
+                        message:
+                            "validation_regex and values are mutually exclusive; set at most one"
+                                .to_string(),
+                    });
+                }
+                if let Some(pattern) = &raw_field.validation_regex {
+                    if let Err(e) = regex::Regex::new(pattern) {
+                        return Err(ConfigError::FieldValidation {
+                            field: name,
+                            message: format!(
+                                "validation_regex '{pattern}' is not a valid regex: {e}"
+                            ),
+                        });
+                    }
+                }
+                let label = raw_field.label.unwrap_or_else(|| name.clone());
+                Ok((
+                    name.clone(),
+                    FieldConfig {
+                        name,
+                        label,
+                        default: raw_field.default,
+                        validation_regex: raw_field.validation_regex,
+                        values: raw_field.values,
+                        multiline: raw_field.multiline,
+                    },
+                ))
+            })
+            .collect::<Result<_, ConfigError>>()?;
+
+        let forms: HashMap<String, FormConfig> = raw
+            .forms
+            .into_iter()
+            .map(|(name, raw_form)| {
+                if let Some(unknown) = raw_form
+                    .fields
+                    .iter()
+                    .find(|field| !fields.contains_key(field.as_str()))
+                {
+                    return Err(ConfigError::FormValidation {
+                        form: name,
+                        message: format!(
+                            "field '{unknown}' is not a defined '[Field.{unknown}]' entry"
+                        ),
+                    });
+                }
+                let mut seen = std::collections::HashSet::new();
+                if let Some(duplicate) = raw_form
+                    .fields
+                    .iter()
+                    .find(|field| !seen.insert(field.as_str()))
+                {
+                    return Err(ConfigError::FormValidation {
+                        form: name,
+                        message: format!("field '{duplicate}' is listed more than once"),
+                    });
+                }
+                Ok((
+                    name.clone(),
+                    FormConfig {
+                        name,
+                        fields: raw_form.fields,
+                        validation: raw_form.validation,
+                    },
+                ))
+            })
+            .collect::<Result<_, ConfigError>>()?;
+
         let properties = raw
             .properties
             .into_iter()
@@ -334,6 +502,16 @@ impl Config {
                             raw_prop.subtasks.len(),
                         ),
                     });
+                }
+                if let Some(form) = &raw_prop.form {
+                    if !forms.contains_key(form.as_str()) {
+                        return Err(ConfigError::PropertyValidation {
+                            property: name.clone(),
+                            message: format!(
+                                "form '{form}' is not a defined '[Form.{form}]' entry"
+                            ),
+                        });
+                    }
                 }
                 let branches = raw_prop
                     .branches
@@ -371,6 +549,7 @@ impl Config {
                         subtasks_allow_cancel: raw_prop.subtasks_allow_cancel,
                         neighbortasks: raw_prop.neighbortasks,
                         branches,
+                        form: raw_prop.form,
                     },
                 ))
             })
@@ -436,6 +615,8 @@ impl Config {
             properties,
             users,
             groups,
+            fields,
+            forms,
             general: GeneralConfig {
                 warn_when_not_a_git_repo: raw.general.warn_when_not_a_git_repo,
             },

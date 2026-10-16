@@ -21,6 +21,7 @@ fn config_with_neighbors(entries: &[(&str, &[&str])]) -> Config {
                         subtasks: vec![],
                         subtasks_allow_cancel: vec![],
                         neighbortasks: neighbors.iter().map(|s| s.to_string()).collect(),
+                        form: None,
                         branches: Default::default(),
                     },
                 )
@@ -148,6 +149,7 @@ fn flags_a_branch_property_whose_only_neighbortasks_live_on_a_branch() {
             subtasks: vec![],
             subtasks_allow_cancel: vec![],
             neighbortasks: vec![],
+            form: None,
             branches: [(
                 "passed".to_string(),
                 BranchConfig {

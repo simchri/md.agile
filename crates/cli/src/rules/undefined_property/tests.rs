@@ -22,6 +22,7 @@ fn config_with(names: &[&str]) -> Config {
                         subtasks: vec![],
                         subtasks_allow_cancel: vec![],
                         neighbortasks: vec![],
+                        form: None,
                         branches: Default::default(),
                     },
                 )

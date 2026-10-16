@@ -19,6 +19,7 @@ fn config_with_branches(property: &str, branches: &[&str]) -> Config {
             subtasks: vec![],
             subtasks_allow_cancel: vec![],
             neighbortasks: vec![],
+            form: None,
             branches: branches
                 .iter()
                 .map(|&b| (b.to_string(), BranchConfig::default()))

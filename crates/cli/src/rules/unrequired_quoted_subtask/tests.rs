@@ -21,6 +21,7 @@ fn config_with_subtasks(entries: &[(&str, &[&str])]) -> Config {
                         subtasks: subs.iter().map(|s| s.to_string()).collect(),
                         subtasks_allow_cancel: vec![],
                         neighbortasks: vec![],
+                        form: None,
                         branches: Default::default(),
                     },
                 )
@@ -44,6 +45,7 @@ fn config_with_neighbors(entries: &[(&str, &[&str])]) -> Config {
                         subtasks: vec![],
                         subtasks_allow_cancel: vec![],
                         neighbortasks: neighbors.iter().map(|s| s.to_string()).collect(),
+                        form: None,
                         branches: Default::default(),
                     },
                 )
@@ -330,6 +332,7 @@ fn quoted_subtask_required_only_by_a_resolved_branch_is_not_flagged() {
             subtasks: vec!["document review findings".to_string()],
             subtasks_allow_cancel: vec![],
             neighbortasks: vec![],
+            form: None,
             branches,
         },
     );
@@ -375,6 +378,7 @@ fn quoted_subtask_required_by_a_different_branch_than_the_resolved_one_is_still_
             subtasks: vec![],
             subtasks_allow_cancel: vec![],
             neighbortasks: vec![],
+            form: None,
             branches,
         },
     );

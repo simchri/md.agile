@@ -1023,19 +1023,19 @@ users don't have to think about it. Design plan: see
 ## Forms / Form Fields?
 - [ ] Forms & Fields
   (see README.vision.md "Forms & Fields")
-  - [ ] config: parse `[Field.X]` entries
-  - [ ] config: parse `[Form.X]` entries
-  - [ ] config: parse `form` key on `[Properties.X]`
-  - [ ] config: `form` references an existing `[Form.X]`
-    - [ ] check
-  - [ ] config: form's fields reference existing `[Field.X]`
-    - [ ] check
-  - [ ] config: field regex/values conflict (XOR)
-    - [ ] check
-  - [ ] config: field regex compiles
-    - [ ] check
+  - [x] config: parse `[Field.X]` entries
+  - [x] config: parse `[Form.X]` entries
+  - [x] config: parse `form` key on `[Properties.X]`
+  - [x] config: `form` references an existing `[Form.X]`
+    - [x] check
+  - [x] config: form's fields reference existing `[Field.X]`
+    - [x] check
+  - [x] config: field regex/values conflict (XOR)
+    - [x] check
+  - [x] config: field regex compiles
+    - [x] check
   - [-] NOT A REQUIREMENT: config: field's own default passes its validation -- it is ok if defaults are invalid
-  - [ ] config: no duplicate fields within a form
+  - [x] config: no duplicate fields within a form
   - [ ] parser: bold `__Label:__` field lines
   - [ ] parser: multiline field + `...`/`\...` escape
   - [ ] check: missing required field

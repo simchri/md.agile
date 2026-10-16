@@ -565,3 +565,250 @@ bogus_key = true
     let result = Config::from_str(input);
     assert!(result.is_err());
 }
+
+// ── [Field.X] parsing ───────────────────────────────────────────────────────
+
+#[test]
+fn empty_toml_gives_empty_fields_and_forms() {
+    let config = Config::from_str("").unwrap();
+    assert!(config.fields.is_empty());
+    assert!(config.forms.is_empty());
+}
+
+#[test]
+fn field_with_all_keys_is_parsed() {
+    let input = "\
+[Field.gender]
+label = \"Gender\"
+default = \"(don't specify)\"
+values = [\"male\", \"female\", \"other\"]
+multiline = false
+";
+    let config = Config::from_str(input).unwrap();
+    let field = config.fields.get("gender").unwrap();
+    assert_eq!(field.name, "gender");
+    assert_eq!(field.label, "Gender");
+    assert_eq!(field.default.as_deref(), Some("(don't specify)"));
+    assert_eq!(
+        field.values,
+        Some(vec![
+            "male".to_string(),
+            "female".to_string(),
+            "other".to_string()
+        ])
+    );
+    assert!(!field.multiline);
+}
+
+#[test]
+fn field_without_label_falls_back_to_field_name() {
+    let config = Config::from_str("[Field.gender]\n").unwrap();
+    let field = config.fields.get("gender").unwrap();
+    assert_eq!(field.label, "gender");
+}
+
+#[test]
+fn field_without_optional_keys_has_sensible_defaults() {
+    let config = Config::from_str("[Field.gender]\n").unwrap();
+    let field = config.fields.get("gender").unwrap();
+    assert_eq!(field.default, None);
+    assert_eq!(field.validation_regex, None);
+    assert_eq!(field.values, None);
+    assert!(!field.multiline);
+}
+
+#[test]
+fn field_with_validation_regex_is_parsed() {
+    let input = "\
+[Field.email]
+validation_regex = \"^[^@]+@[^@]+$\"
+";
+    let config = Config::from_str(input).unwrap();
+    let field = config.fields.get("email").unwrap();
+    assert_eq!(field.validation_regex.as_deref(), Some("^[^@]+@[^@]+$"));
+}
+
+#[test]
+fn field_with_multiline_true_is_parsed() {
+    let input = "\
+[Field.notes]
+multiline = true
+";
+    let config = Config::from_str(input).unwrap();
+    let field = config.fields.get("notes").unwrap();
+    assert!(field.multiline);
+}
+
+#[test]
+fn field_with_unknown_key_is_rejected() {
+    let input = "\
+[Field.gender]
+bogus_key = true
+";
+    let result = Config::from_str(input);
+    assert!(result.is_err());
+}
+
+#[test]
+fn field_with_both_validation_regex_and_values_is_rejected() {
+    let input = "\
+[Field.gender]
+validation_regex = \"^(male|female)$\"
+values = [\"male\", \"female\"]
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::FieldValidation { field, message }) => {
+            assert_eq!(field, "gender");
+            assert!(message.contains("validation_regex"), "message: {message:?}");
+            assert!(message.contains("values"), "message: {message:?}");
+        }
+        other => panic!("expected FieldValidation error, got {other:?}"),
+    }
+}
+
+#[test]
+fn field_with_neither_validation_regex_nor_values_is_accepted() {
+    let config = Config::from_str("[Field.notes]\n").unwrap();
+    assert!(config.fields.contains_key("notes"));
+}
+
+#[test]
+fn field_with_invalid_validation_regex_is_rejected() {
+    let input = "\
+[Field.email]
+validation_regex = \"[\"
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::FieldValidation { field, message }) => {
+            assert_eq!(field, "email");
+            assert!(message.contains("regex"), "message: {message:?}");
+        }
+        other => panic!("expected FieldValidation error, got {other:?}"),
+    }
+}
+
+// ── [Form.X] parsing ────────────────────────────────────────────────────────
+
+#[test]
+fn form_with_fields_and_validation_is_parsed() {
+    let input = "\
+[Field.first_name]
+[Field.last_name]
+
+[Form.personal_info]
+fields = [\"first_name\", \"last_name\"]
+validation = \"scripts/validate_personal_info.sh\"
+";
+    let config = Config::from_str(input).unwrap();
+    let form = config.forms.get("personal_info").unwrap();
+    assert_eq!(form.name, "personal_info");
+    assert_eq!(form.fields, vec!["first_name", "last_name"]);
+    assert_eq!(
+        form.validation.as_deref(),
+        Some("scripts/validate_personal_info.sh")
+    );
+}
+
+#[test]
+fn form_without_validation_has_none() {
+    let input = "\
+[Field.first_name]
+
+[Form.personal_info]
+fields = [\"first_name\"]
+";
+    let config = Config::from_str(input).unwrap();
+    let form = config.forms.get("personal_info").unwrap();
+    assert_eq!(form.validation, None);
+}
+
+#[test]
+fn form_without_fields_has_empty_vec() {
+    let config = Config::from_str("[Form.empty_form]\n").unwrap();
+    let form = config.forms.get("empty_form").unwrap();
+    assert!(form.fields.is_empty());
+}
+
+#[test]
+fn form_with_unknown_key_is_rejected() {
+    let input = "\
+[Form.personal_info]
+bogus_key = true
+";
+    let result = Config::from_str(input);
+    assert!(result.is_err());
+}
+
+#[test]
+fn form_field_referencing_undefined_field_is_rejected() {
+    let input = "\
+[Form.personal_info]
+fields = [\"ghost\"]
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::FormValidation { form, message }) => {
+            assert_eq!(form, "personal_info");
+            assert!(message.contains("ghost"), "message: {message:?}");
+        }
+        other => panic!("expected FormValidation error, got {other:?}"),
+    }
+}
+
+#[test]
+fn form_with_duplicate_field_names_is_rejected() {
+    let input = "\
+[Field.first_name]
+
+[Form.personal_info]
+fields = [\"first_name\", \"first_name\"]
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::FormValidation { form, message }) => {
+            assert_eq!(form, "personal_info");
+            assert!(message.contains("first_name"), "message: {message:?}");
+        }
+        other => panic!("expected FormValidation error, got {other:?}"),
+    }
+}
+
+// ── `form` key on [Properties.X] ─────────────────────────────────────────────
+
+#[test]
+fn property_without_form_key_has_none() {
+    let config = Config::from_str("[Properties.bug]\n").unwrap();
+    let prop = config.properties.get("bug").unwrap();
+    assert_eq!(prop.form, None);
+}
+
+#[test]
+fn property_form_referencing_defined_form_is_accepted() {
+    let input = "\
+[Form.personal_info]
+
+[Properties.customer]
+form = \"personal_info\"
+";
+    let config = Config::from_str(input).unwrap();
+    let prop = config.properties.get("customer").unwrap();
+    assert_eq!(prop.form.as_deref(), Some("personal_info"));
+}
+
+#[test]
+fn property_form_referencing_undefined_form_is_rejected() {
+    let input = "\
+[Properties.customer]
+form = \"ghost_form\"
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::PropertyValidation { property, message }) => {
+            assert_eq!(property, "customer");
+            assert!(message.contains("ghost_form"), "message: {message:?}");
+        }
+        other => panic!("expected PropertyValidation error, got {other:?}"),
+    }
+}
