@@ -600,9 +600,7 @@ fn parse_single_line_field_with_unfilled_placeholder_value() {
 }
 
 #[test]
-fn bare_label_with_no_trailing_value_is_not_recognized_as_a_field_yet() {
-    // Reserved for the not-yet-implemented multiline field form -- a label
-    // with nothing after it (not even a trailing space) stays plain body text.
+fn bare_label_with_no_trailing_value_opens_a_multiline_field() {
     let input = "\
 - [ ] new colleague: John #onboarding
   __Bio:__
@@ -610,10 +608,156 @@ fn bare_label_with_no_trailing_value_is_not_recognized_as_a_field_yet() {
 ";
     let items = p(input);
     let t = task(&items, 0);
-    assert!(t.fields.is_empty());
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Bio".to_string(),
+            value: "  John doe is an outstanding character.".to_string(),
+            location: loc(2),
+        }]
+    );
+    // The raw body lines are kept unchanged alongside the parsed field.
     assert_eq!(
         t.body,
         vec!["  __Bio:__", "  John doe is an outstanding character."]
+    );
+}
+
+#[test]
+fn multiline_field_stops_at_closing_ellipsis_marker() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  John doe is an outstanding character.
+  He is well known for his many appearances in sample forms.
+  ...
+  More notes on the task can go here. This sentence is not part of any field.
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Bio".to_string(),
+            value: "  John doe is an outstanding character.\n  He is well known for his many appearances in sample forms.".to_string(),
+            location: loc(2),
+        }]
+    );
+}
+
+#[test]
+fn multiline_field_keeps_a_literal_ellipsis_line_via_escape() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  Before the escaped line.
+  \\...
+  After the escaped line.
+  ...
+  Not part of the field.
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Bio".to_string(),
+            value: "  Before the escaped line.\n  ...\n  After the escaped line.".to_string(),
+            location: loc(2),
+        }]
+    );
+}
+
+#[test]
+fn multiline_field_stops_at_the_next_field_line_without_a_closing_ellipsis() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  John doe is an outstanding character.
+  __Email:__ john.doe@gmail.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![
+            FieldLine {
+                label: "Bio".to_string(),
+                value: "  John doe is an outstanding character.".to_string(),
+                location: loc(2),
+            },
+            FieldLine {
+                label: "Email".to_string(),
+                value: "john.doe@gmail.com".to_string(),
+                location: loc(4),
+            },
+        ]
+    );
+}
+
+#[test]
+fn multiline_field_stops_at_the_start_of_another_multiline_field() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  First field's content.
+  __Notes:__
+  Second field's content.
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![
+            FieldLine {
+                label: "Bio".to_string(),
+                value: "  First field's content.".to_string(),
+                location: loc(2),
+            },
+            FieldLine {
+                label: "Notes".to_string(),
+                value: "  Second field's content.".to_string(),
+                location: loc(4),
+            },
+        ]
+    );
+}
+
+#[test]
+fn multiline_field_with_no_closing_marker_captures_to_the_end_of_the_body() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  Line one.
+  Line two.
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Bio".to_string(),
+            value: "  Line one.\n  Line two.".to_string(),
+            location: loc(2),
+        }]
+    );
+}
+
+#[test]
+fn multiline_field_with_nothing_after_it_has_an_empty_value() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Bio".to_string(),
+            value: String::new(),
+            location: loc(2),
+        }]
     );
 }
 

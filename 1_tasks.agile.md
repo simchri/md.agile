@@ -1037,7 +1037,7 @@ users don't have to think about it. Design plan: see
   - [-] NOT A REQUIREMENT: config: field's own default passes its validation -- it is ok if defaults are invalid
   - [x] config: no duplicate fields within a form
   - [x] parser: bold `__Label:__` field lines
-  - [ ] parser: multiline field + `...`/`\...` escape
+  - [x] parser: multiline field + `...`/`\...` escape
   - [ ] check: missing required field
     - [ ] quickfix
   - [ ] check: field left unfilled

@@ -365,25 +365,69 @@ impl PartialItem {
     }
 }
 
-/// Recognizes single-line form field lines (see README.vision.md "Forms &
-/// Fields") among `body`'s lines. `first_line` is the source line number of
-/// `body[0]` (body lines are always contiguous, so `body[i]` is on line
-/// `first_line + i`).
+/// Recognizes form field lines (see README.vision.md "Forms & Fields") among
+/// `body`'s lines -- both single-line fields and multiline fields.
+/// `first_line` is the source line number of `body[0]` (body lines are
+/// always contiguous, so `body[i]` is on line `first_line + i`).
 fn parse_field_lines(body: &[String], path: &std::path::Path, first_line: usize) -> Vec<FieldLine> {
-    body.iter()
-        .enumerate()
-        .filter_map(|(i, line)| {
-            let (label, value) = parse_single_line_field(line)?;
-            Some(FieldLine {
+    let mut fields = Vec::new();
+    let mut i = 0;
+    while i < body.len() {
+        let line = &body[i];
+        if let Some((label, value)) = parse_single_line_field(line) {
+            fields.push(FieldLine {
                 label,
                 value,
                 location: Location {
                     path: path.to_path_buf(),
                     line: first_line + i,
                 },
-            })
-        })
-        .collect()
+            });
+            i += 1;
+            continue;
+        }
+        if let Some(label) = parse_multiline_field_label(line) {
+            let field_line = first_line + i;
+            let mut value_lines: Vec<String> = Vec::new();
+            let mut j = i + 1;
+            while j < body.len() {
+                let candidate = &body[j];
+                if candidate.trim() == "..." {
+                    j += 1; // consume the closing marker
+                    break;
+                }
+                // A new field line (single-line or the start of another
+                // multiline field) ends this field's capture without being
+                // consumed, so the outer loop re-processes it as its own
+                // field on the next iteration.
+                if parse_single_line_field(candidate).is_some()
+                    || parse_multiline_field_label(candidate).is_some()
+                {
+                    break;
+                }
+                if candidate.trim() == "\\..." {
+                    // Escaped closing marker: a literal "..." line within
+                    // the field's value, preserving the line's indentation.
+                    value_lines.push(candidate.replacen("\\...", "...", 1));
+                } else {
+                    value_lines.push(candidate.clone());
+                }
+                j += 1;
+            }
+            fields.push(FieldLine {
+                label,
+                value: value_lines.join("\n"),
+                location: Location {
+                    path: path.to_path_buf(),
+                    line: field_line,
+                },
+            });
+            i = j;
+            continue;
+        }
+        i += 1;
+    }
+    fields
 }
 
 /// Parses a single body line as a single-line form field: a bolded label
@@ -392,9 +436,7 @@ fn parse_field_lines(body: &[String], path: &std::path::Path, first_line: usize)
 /// `(label, value)` on a match.
 ///
 /// A bare `__Label:__` with nothing after it (not even a trailing space) is
-/// *not* recognized here -- that's reserved for the not-yet-implemented
-/// multiline field form, so such lines return `None` and are left as plain
-/// body text.
+/// *not* recognized here -- see [`parse_multiline_field_label`] instead.
 fn parse_single_line_field(line: &str) -> Option<(String, String)> {
     let trimmed = line.trim_start();
     let rest = trimmed.strip_prefix("__")?;
@@ -405,6 +447,21 @@ fn parse_single_line_field(line: &str) -> Option<(String, String)> {
     }
     let value = &rest[marker_pos + ":__ ".len()..];
     Some((label.to_string(), value.to_string()))
+}
+
+/// Parses a single body line as the opening label of a multiline form field:
+/// a bolded label (`__<label>:__`) with nothing else on the line (not even
+/// trailing whitespace content), e.g. `__Bio:__`. The field's value is every
+/// following body line, verbatim, until a line consisting solely of `...`
+/// (consumed, not part of the value), the next field line, or the end of the
+/// body -- see README.vision.md "Forms & Fields".
+fn parse_multiline_field_label(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    let label = trimmed.strip_prefix("__")?.strip_suffix(":__")?;
+    if label.is_empty() {
+        return None;
+    }
+    Some(label.to_string())
 }
 
 /// Parses a single `.agile.md` file's text into a sequence of [`FileItem`]s.
