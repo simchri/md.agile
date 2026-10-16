@@ -689,6 +689,50 @@ validation_regex = \"[\"
     }
 }
 
+#[test]
+fn field_with_multiline_default_but_multiline_false_is_rejected() {
+    let input = "\
+[Field.bio]
+default = \"\"\"
+line one
+line two\"\"\"
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::FieldValidation { field, message }) => {
+            assert_eq!(field, "bio");
+            assert!(message.contains("newline"), "message: {message:?}");
+            assert!(message.contains("multiline"), "message: {message:?}");
+        }
+        other => panic!("expected FieldValidation error, got {other:?}"),
+    }
+}
+
+#[test]
+fn field_with_multiline_default_and_multiline_true_is_accepted() {
+    let input = "\
+[Field.bio]
+multiline = true
+default = \"\"\"
+line one
+line two\"\"\"
+";
+    let config = Config::from_str(input).unwrap();
+    let field = config.fields.get("bio").unwrap();
+    assert_eq!(field.default.as_deref(), Some("line one\nline two"));
+}
+
+#[test]
+fn field_with_single_line_default_and_multiline_false_is_accepted() {
+    let input = "\
+[Field.email]
+default = \"placeholder\"
+";
+    let config = Config::from_str(input).unwrap();
+    let field = config.fields.get("email").unwrap();
+    assert_eq!(field.default.as_deref(), Some("placeholder"));
+}
+
 // ── [Form.X] parsing ────────────────────────────────────────────────────────
 
 #[test]

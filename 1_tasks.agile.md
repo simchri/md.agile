@@ -1040,6 +1040,8 @@ users don't have to think about it. Design plan: see
   - [x] parser: multiline field + `...`/`\...` escape
   - [x] check: missing required field
     - [x] quickfix
+  - [x] check: malformed field label (missing space between label and value), suppresses "missing required field" for that label
+  - [x] config: reject multiline `default` value for a field not marked `multiline = true`
   - [ ] check: field left unfilled
   - [ ] check: field fails regex/allowed values
   - [x] lsp quickfix: insert missing fields

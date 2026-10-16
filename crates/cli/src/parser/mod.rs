@@ -226,6 +226,11 @@ pub struct Subtask {
     /// recognized within `body`, e.g. `__Email:__ john@example.com`. Parsed
     /// in addition to -- not instead of -- the raw `body` lines.
     pub fields: Vec<FieldLine>,
+    /// Body lines that look like a form field label (`__Label:__`) but are
+    /// missing the required space before the value, e.g.
+    /// `__Email:__john@example.com`. Not counted among `fields` -- see
+    /// [`parse_malformed_field_label`].
+    pub malformed_fields: Vec<MalformedFieldLine>,
     pub markers: Vec<Marker>,
     pub children: Vec<Subtask>,
     pub parsing_issues: Vec<ParsingIssue>,
@@ -252,6 +257,8 @@ pub struct Task {
     /// Single-line form fields recognized within `body` -- see
     /// [`Subtask::fields`].
     pub fields: Vec<FieldLine>,
+    /// See [`Subtask::malformed_fields`].
+    pub malformed_fields: Vec<MalformedFieldLine>,
     pub markers: Vec<Marker>,
     pub children: Vec<Subtask>,
     pub parsing_issues: Vec<ParsingIssue>,
@@ -272,6 +279,15 @@ pub struct FieldLine {
     /// Everything after the single space following `:__`, to the end of the
     /// line. May be the unfilled placeholder (`___`) or any other text.
     pub value: String,
+    pub location: Location,
+}
+
+/// A body line that has a valid-looking field label (`__Label:__`) but is
+/// missing the required single space before its value, e.g.
+/// `__Email:__john@example.com` -- see [`parse_malformed_field_label`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct MalformedFieldLine {
+    pub label: String,
     pub location: Location,
 }
 
@@ -332,7 +348,8 @@ impl PartialItem {
         // following the task's own line (see `parse`'s blank-line handling,
         // which always flushes the stack), so body index `i` is always
         // exactly `self.location.line + 1 + i`.
-        let fields = parse_field_lines(&self.body, &self.location.path, self.location.line + 1);
+        let (fields, malformed_fields) =
+            parse_field_lines(&self.body, &self.location.path, self.location.line + 1);
         Task {
             location: self.location,
             indent: self.indent,
@@ -341,13 +358,15 @@ impl PartialItem {
             title: self.title,
             body: self.body,
             fields,
+            malformed_fields,
             markers: self.markers,
             children: self.children,
             parsing_issues: self.parsing_issues,
         }
     }
     fn into_subtask(self) -> Subtask {
-        let fields = parse_field_lines(&self.body, &self.location.path, self.location.line + 1);
+        let (fields, malformed_fields) =
+            parse_field_lines(&self.body, &self.location.path, self.location.line + 1);
         Subtask {
             location: self.location,
             indent: self.indent,
@@ -358,6 +377,7 @@ impl PartialItem {
             title: self.title,
             body: self.body,
             fields,
+            malformed_fields,
             markers: self.markers,
             children: self.children,
             parsing_issues: self.parsing_issues,
@@ -366,11 +386,18 @@ impl PartialItem {
 }
 
 /// Recognizes form field lines (see README.vision.md "Forms & Fields") among
-/// `body`'s lines -- both single-line fields and multiline fields.
-/// `first_line` is the source line number of `body[0]` (body lines are
-/// always contiguous, so `body[i]` is on line `first_line + i`).
-fn parse_field_lines(body: &[String], path: &std::path::Path, first_line: usize) -> Vec<FieldLine> {
+/// `body`'s lines -- both single-line fields and multiline fields. Also
+/// collects malformed "missing space" field lines separately (see
+/// [`parse_malformed_field_label`]). `first_line` is the source line number
+/// of `body[0]` (body lines are always contiguous, so `body[i]` is on line
+/// `first_line + i`).
+fn parse_field_lines(
+    body: &[String],
+    path: &std::path::Path,
+    first_line: usize,
+) -> (Vec<FieldLine>, Vec<MalformedFieldLine>) {
     let mut fields = Vec::new();
+    let mut malformed = Vec::new();
     let mut i = 0;
     while i < body.len() {
         let line = &body[i];
@@ -396,12 +423,13 @@ fn parse_field_lines(body: &[String], path: &std::path::Path, first_line: usize)
                     j += 1; // consume the closing marker
                     break;
                 }
-                // A new field line (single-line or the start of another
-                // multiline field) ends this field's capture without being
-                // consumed, so the outer loop re-processes it as its own
-                // field on the next iteration.
+                // A new field line (single-line, the start of another
+                // multiline field, or a malformed one) ends this field's
+                // capture without being consumed, so the outer loop
+                // re-processes it as its own field on the next iteration.
                 if parse_single_line_field(candidate).is_some()
                     || parse_multiline_field_label(candidate).is_some()
+                    || parse_malformed_field_label(candidate).is_some()
                 {
                     break;
                 }
@@ -425,9 +453,20 @@ fn parse_field_lines(body: &[String], path: &std::path::Path, first_line: usize)
             i = j;
             continue;
         }
+        if let Some(label) = parse_malformed_field_label(line) {
+            malformed.push(MalformedFieldLine {
+                label,
+                location: Location {
+                    path: path.to_path_buf(),
+                    line: first_line + i,
+                },
+            });
+            i += 1;
+            continue;
+        }
         i += 1;
     }
-    fields
+    (fields, malformed)
 }
 
 /// Parses a single body line as a single-line form field: a bolded label
@@ -459,6 +498,33 @@ fn parse_multiline_field_label(line: &str) -> Option<String> {
     let trimmed = line.trim();
     let label = trimmed.strip_prefix("__")?.strip_suffix(":__")?;
     if label.is_empty() {
+        return None;
+    }
+    Some(label.to_string())
+}
+
+/// Parses a single body line as a form field label that's missing the
+/// required space before its value, e.g. `__Email:__john@example.com` (the
+/// well-formed line would be `__Email:__ john@example.com`). Only matches
+/// when the line has a valid, nonempty label glued directly to a nonempty
+/// value with no separating whitespace at all -- neither
+/// [`parse_single_line_field`] (requires a space) nor
+/// [`parse_multiline_field_label`] (requires nothing after `:__`) matches
+/// this case, so it would otherwise silently fall through as plain body text
+/// and the field would be (misleadingly) reported as entirely missing.
+fn parse_malformed_field_label(line: &str) -> Option<String> {
+    let trimmed = line.trim_start();
+    let rest = trimmed.strip_prefix("__")?;
+    let marker_pos = rest.find(":__")?;
+    let label = &rest[..marker_pos];
+    if label.is_empty() {
+        return None;
+    }
+    let after = &rest[marker_pos + ":__".len()..];
+    if after.is_empty() || after.starts_with(' ') {
+        // Either the valid bare-multiline-label case (nothing after, once
+        // trailing whitespace is trimmed away) or a case already matched by
+        // `parse_single_line_field`.
         return None;
     }
     Some(label.to_string())

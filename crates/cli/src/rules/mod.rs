@@ -17,6 +17,7 @@ mod invalid_order;
 mod missing_required_field;
 mod missing_required_subtasks;
 mod missing_space_after_box;
+mod missing_space_after_field_label;
 mod neighbor_task_on_top_level;
 mod neighbor_tasks;
 mod next_task;
@@ -40,6 +41,7 @@ pub use invalid_order::invalid_order;
 pub use missing_required_field::missing_required_field;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
+pub use missing_space_after_field_label::missing_space_after_field_label;
 pub use neighbor_task_on_top_level::neighbor_task_on_top_level;
 pub use neighbor_tasks::neighbor_tasks;
 pub use next_task::{
@@ -114,6 +116,10 @@ pub enum ErrorCode {
     /// "Forms & Fields") is missing one or more of that form's fields
     /// entirely -- no matching `__Label:__ value` line at all
     MissingRequiredField,
+    /// E025: A field label line is missing the required space before its
+    /// value, e.g. `__Email:__john@example.com` instead of
+    /// `__Email:__ john@example.com`
+    MissingSpaceAfterFieldLabel,
 }
 
 impl ErrorCode {
@@ -145,6 +151,7 @@ impl ErrorCode {
             ErrorCode::UndefinedBranchOutcome => "E022",
             ErrorCode::PlainBranchingProperty => "E023",
             ErrorCode::MissingRequiredField => "E024",
+            ErrorCode::MissingSpaceAfterFieldLabel => "E025",
         }
     }
 }
@@ -184,6 +191,7 @@ impl std::str::FromStr for ErrorCode {
             "E022" => ErrorCode::UndefinedBranchOutcome,
             "E023" => ErrorCode::PlainBranchingProperty,
             "E024" => ErrorCode::MissingRequiredField,
+            "E025" => ErrorCode::MissingSpaceAfterFieldLabel,
             _ => return Err(()),
         })
     }
@@ -191,7 +199,8 @@ impl std::str::FromStr for ErrorCode {
 
 use crate::config::Config;
 use crate::parser::{
-    FieldLine, FileItem, Location, Marker, Order, ParsingIssue, Status, Subtask, Task,
+    FieldLine, FileItem, Location, MalformedFieldLine, Marker, Order, ParsingIssue, Status,
+    Subtask, Task,
 };
 use serde::{Deserialize, Serialize};
 
@@ -245,6 +254,13 @@ impl<'a> NodeRef<'a> {
         match self {
             NodeRef::Task(t) => &t.fields,
             NodeRef::Subtask(s) => &s.fields,
+        }
+    }
+
+    pub fn malformed_fields(&self) -> &'a [MalformedFieldLine] {
+        match self {
+            NodeRef::Task(t) => &t.malformed_fields,
+            NodeRef::Subtask(s) => &s.malformed_fields,
         }
     }
 
@@ -411,6 +427,9 @@ pub enum IssueData {
     /// Payload for E024 "Missing Required Field": labels of the form fields
     /// entirely absent from the property-carrying node's body.
     MissingRequiredField { missing: Vec<String> },
+    /// Payload for E025 "Missing Space After Field Label": the field label
+    /// that's missing its separating space before the value.
+    MissingSpaceAfterFieldLabel { label: String },
 }
 
 /// The result of resolving "who is completing this task" for the E013
@@ -469,6 +488,7 @@ pub fn check_config_independent(items: &[FileItem]) -> Vec<Issue> {
     issues.extend(wrong_body_indent(items));
     issues.extend(incomplete_parent(items));
     issues.extend(missing_space_after_box(items));
+    issues.extend(missing_space_after_field_label(items));
     issues.extend(invalid_box(items));
     issues.extend(uppercase_x(items));
     issues.extend(invalid_order(items));

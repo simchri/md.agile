@@ -292,3 +292,39 @@ fn field_present_on_subtask_is_checked_independently_of_its_parent() {
         })
     );
 }
+
+#[test]
+fn label_with_a_malformed_field_line_is_excluded_from_missing_and_not_double_reported() {
+    // "Email" has a field line, just a malformed one (missing space after
+    // the label) -- E025 (missing_space_after_field_label) is responsible
+    // for flagging that; E024 must not also list "Email" as missing.
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Email:__john@example.com
+";
+    let items = p(input);
+    let config = config_with_onboarding_form();
+    let issues = missing_required_field(&items, &config);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::MissingRequiredField {
+            missing: vec!["First Name".to_string()]
+        })
+    );
+}
+
+#[test]
+fn all_labels_malformed_reports_no_e024_issue_at_all() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __First Name:__John
+  __Email:__john@example.com
+";
+    let items = p(input);
+    let config = config_with_onboarding_form();
+    let issues = missing_required_field(&items, &config);
+
+    assert_eq!(issues.len(), 0);
+}

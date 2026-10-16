@@ -434,6 +434,18 @@ impl Config {
                         });
                     }
                 }
+                if !raw_field.multiline
+                    && raw_field
+                        .default
+                        .as_deref()
+                        .is_some_and(|d| d.contains('\n'))
+                {
+                    return Err(ConfigError::FieldValidation {
+                        field: name,
+                        message: "default contains a newline, but multiline is not set to true"
+                            .to_string(),
+                    });
+                }
                 let label = raw_field.label.unwrap_or_else(|| name.clone());
                 Ok((
                     name.clone(),

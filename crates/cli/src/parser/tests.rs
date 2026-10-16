@@ -29,6 +29,7 @@ fn can_construct_task_with_all_node_kinds() {
         title: "add item to basket".to_string(),
         body: vec![],
         fields: vec![],
+        malformed_fields: vec![],
         markers: vec![Marker::Property(PropertyRef {
             name: "feature".to_string(),
             form: PropertyForm::Full,
@@ -45,6 +46,7 @@ fn can_construct_task_with_all_node_kinds() {
                 title: "PO review".to_string(),
                 body: vec![],
                 fields: vec![],
+                malformed_fields: vec![],
                 markers: vec![],
                 children: vec![],
                 parsing_issues: vec![],
@@ -59,6 +61,7 @@ fn can_construct_task_with_all_node_kinds() {
                 title: "extra polish".to_string(),
                 body: vec![],
                 fields: vec![],
+                malformed_fields: vec![],
                 markers: vec![Marker::Special(SpecialMarker {
                     column: 1,
                     kind: SpecialMarkerKind::Opt,
@@ -76,6 +79,7 @@ fn can_construct_task_with_all_node_kinds() {
                 title: "first step".to_string(),
                 body: vec![],
                 fields: vec![],
+                malformed_fields: vec![],
                 markers: vec![],
                 children: vec![],
                 parsing_issues: vec![],
@@ -90,6 +94,7 @@ fn can_construct_task_with_all_node_kinds() {
                 title: "implement".to_string(),
                 body: vec![],
                 fields: vec![],
+                malformed_fields: vec![],
                 markers: vec![Marker::Assignment(AssignmentRef {
                     name: "markus".to_string(),
                     column: 11,
@@ -115,6 +120,7 @@ fn file_items_interleave_tasks_and_milestones() {
             title: "ship MVP".to_string(),
             body: vec![],
             fields: vec![],
+            malformed_fields: vec![],
             markers: vec![],
             children: vec![],
             parsing_issues: vec![],
@@ -131,6 +137,7 @@ fn file_items_interleave_tasks_and_milestones() {
             title: "gather feedback".to_string(),
             body: vec![],
             fields: vec![],
+            malformed_fields: vec![],
             markers: vec![],
             children: vec![],
             parsing_issues: vec![],
@@ -794,10 +801,12 @@ more info
 // ── field parsing edge cases ─────────────────────────────────────────────────
 
 #[test]
-fn label_marker_without_a_following_space_is_not_recognized_as_a_field() {
+fn label_marker_without_a_following_space_is_recognized_as_a_malformed_field() {
     // Missing the single required space after `:__` -- neither the
-    // single-line nor the multiline grammar matches, so this stays plain
-    // body text.
+    // single-line nor the multiline grammar matches (both require either a
+    // space or nothing at all after the marker), but it's still recognized
+    // as a *malformed* field (not an ordinary `fields` entry, not silently
+    // treated as plain body text either).
     let input = "\
 - [ ] new colleague: John #onboarding
   __Email:__john.doe@gmail.com
@@ -805,7 +814,76 @@ fn label_marker_without_a_following_space_is_not_recognized_as_a_field() {
     let items = p(input);
     let t = task(&items, 0);
     assert!(t.fields.is_empty());
+    assert_eq!(
+        t.malformed_fields,
+        vec![MalformedFieldLine {
+            label: "Email".to_string(),
+            location: loc(2),
+        }]
+    );
+    // The raw body line is kept unchanged alongside the parsed malformed field.
     assert_eq!(t.body, vec!["  __Email:__john.doe@gmail.com"]);
+}
+
+#[test]
+fn malformed_field_with_empty_label_is_not_recognized() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __:__value
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(t.fields.is_empty());
+    assert!(t.malformed_fields.is_empty());
+}
+
+#[test]
+fn malformed_field_on_subtask_is_parsed_too() {
+    let input = "\
+- [ ] parent
+  - [ ] sub #onboarding
+    __Email:__a@b.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.children[0].malformed_fields,
+        vec![MalformedFieldLine {
+            label: "Email".to_string(),
+            location: loc(3),
+        }]
+    );
+}
+
+#[test]
+fn malformed_field_stops_an_in_progress_multiline_field_capture() {
+    // A malformed line also ends a multiline field's capture (without being
+    // consumed by it), same as a valid single-line/multiline field line
+    // would -- it's re-processed by the outer loop as its own (malformed)
+    // field on the next iteration.
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  First field's content.
+  __Email:__a@b.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Bio".to_string(),
+            value: "  First field's content.".to_string(),
+            location: loc(2),
+        }]
+    );
+    assert_eq!(
+        t.malformed_fields,
+        vec![MalformedFieldLine {
+            label: "Email".to_string(),
+            location: loc(4),
+        }]
+    );
 }
 
 #[test]
