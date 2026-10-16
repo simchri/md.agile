@@ -14,6 +14,7 @@ mod incomplete_parent;
 mod invalid_box;
 mod invalid_milestone;
 mod invalid_order;
+mod missing_required_field;
 mod missing_required_subtasks;
 mod missing_space_after_box;
 mod neighbor_task_on_top_level;
@@ -36,6 +37,7 @@ pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
 pub use invalid_milestone::invalid_milestone;
 pub use invalid_order::invalid_order;
+pub use missing_required_field::missing_required_field;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
 pub use neighbor_task_on_top_level::neighbor_task_on_top_level;
@@ -108,6 +110,10 @@ pub enum ErrorCode {
     /// "Branch Properties") was used in its plain form (`#review`) instead
     /// of pending (`#review:...`) or resolved (`#review:passed`)
     PlainBranchingProperty,
+    /// E024: A property attaching a `[Form.X]` (see README.vision.md
+    /// "Forms & Fields") is missing one or more of that form's fields
+    /// entirely -- no matching `__Label:__ value` line at all
+    MissingRequiredField,
 }
 
 impl ErrorCode {
@@ -138,6 +144,7 @@ impl ErrorCode {
             ErrorCode::UnresolvedBranchProperty => "E021",
             ErrorCode::UndefinedBranchOutcome => "E022",
             ErrorCode::PlainBranchingProperty => "E023",
+            ErrorCode::MissingRequiredField => "E024",
         }
     }
 }
@@ -176,13 +183,16 @@ impl std::str::FromStr for ErrorCode {
             "E021" => ErrorCode::UnresolvedBranchProperty,
             "E022" => ErrorCode::UndefinedBranchOutcome,
             "E023" => ErrorCode::PlainBranchingProperty,
+            "E024" => ErrorCode::MissingRequiredField,
             _ => return Err(()),
         })
     }
 }
 
 use crate::config::Config;
-use crate::parser::{FileItem, Location, Marker, Order, ParsingIssue, Status, Subtask, Task};
+use crate::parser::{
+    FieldLine, FileItem, Location, Marker, Order, ParsingIssue, Status, Subtask, Task,
+};
 use serde::{Deserialize, Serialize};
 
 /// A read-only view over a [`Task`] or [`Subtask`] that exposes the fields
@@ -228,6 +238,13 @@ impl<'a> NodeRef<'a> {
         match self {
             NodeRef::Task(t) => &t.body,
             NodeRef::Subtask(s) => &s.body,
+        }
+    }
+
+    pub fn fields(&self) -> &'a [FieldLine] {
+        match self {
+            NodeRef::Task(t) => &t.fields,
+            NodeRef::Subtask(s) => &s.fields,
         }
     }
 
@@ -391,6 +408,9 @@ pub enum IssueData {
     /// still-pending (`BranchPending`) branch property on the flagged node,
     /// in the order they appear in its markers.
     UnresolvedBranchProperty { properties: Vec<String> },
+    /// Payload for E024 "Missing Required Field": labels of the form fields
+    /// entirely absent from the property-carrying node's body.
+    MissingRequiredField { missing: Vec<String> },
 }
 
 /// The result of resolving "who is completing this task" for the E013
@@ -432,7 +452,8 @@ pub struct Issue {
 
 /// Runs every lint rule that doesn't need `Config` at all — i.e. everything
 /// except [`undefined_property`], [`undefined_assignment`],
-/// [`missing_required_subtasks`], [`unrequired_quoted_subtask`],
+/// [`missing_required_subtasks`], [`missing_required_field`],
+/// [`unrequired_quoted_subtask`],
 /// [`neighbor_task_on_top_level`], [`neighbor_tasks`],
 /// [`undefined_branch_outcome`] and [`plain_branching_property`], which all
 /// look up property/user/group declarations.
@@ -465,6 +486,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(undefined_branch_outcome(items, config));
     issues.extend(plain_branching_property(items, config));
     issues.extend(missing_required_subtasks(items, config));
+    issues.extend(missing_required_field(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
     issues.extend(neighbor_task_on_top_level(items, config));
     issues.extend(neighbor_tasks(items, config));

@@ -222,6 +222,10 @@ pub struct Subtask {
     pub raw_title: Option<String>,
     pub title: String,
     pub body: Vec<String>, // lines preserve structure for LSP range calculation
+    /// Single-line form fields (see README.vision.md "Forms & Fields")
+    /// recognized within `body`, e.g. `__Email:__ john@example.com`. Parsed
+    /// in addition to -- not instead of -- the raw `body` lines.
+    pub fields: Vec<FieldLine>,
     pub markers: Vec<Marker>,
     pub children: Vec<Subtask>,
     pub parsing_issues: Vec<ParsingIssue>,
@@ -245,9 +249,30 @@ pub struct Task {
     pub status: Status,
     pub title: String,
     pub body: Vec<String>,
+    /// Single-line form fields recognized within `body` -- see
+    /// [`Subtask::fields`].
+    pub fields: Vec<FieldLine>,
     pub markers: Vec<Marker>,
     pub children: Vec<Subtask>,
     pub parsing_issues: Vec<ParsingIssue>,
+}
+
+// ── Form fields ───────────────────────────────────────────────────────────────
+
+/// A single-line form field (see README.vision.md "Forms & Fields"), parsed
+/// out of a task/subtask's body, e.g. `__Email:__ john@example.com`.
+///
+/// Multiline fields (a bold label with nothing after it, whose value runs
+/// until a closing `...`) aren't recognized yet -- such a label line is left
+/// as plain body text until that form is implemented.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldLine {
+    /// The bolded label text between `__` and `:__` (e.g. `"Email"`).
+    pub label: String,
+    /// Everything after the single space following `:__`, to the end of the
+    /// line. May be the unfilled placeholder (`___`) or any other text.
+    pub value: String,
+    pub location: Location,
 }
 
 // ── File-level items ──────────────────────────────────────────────────────────
@@ -303,6 +328,11 @@ struct PartialItem {
 
 impl PartialItem {
     fn into_task(self) -> Task {
+        // Body lines are always contiguous source lines immediately
+        // following the task's own line (see `parse`'s blank-line handling,
+        // which always flushes the stack), so body index `i` is always
+        // exactly `self.location.line + 1 + i`.
+        let fields = parse_field_lines(&self.body, &self.location.path, self.location.line + 1);
         Task {
             location: self.location,
             indent: self.indent,
@@ -310,12 +340,14 @@ impl PartialItem {
             status: self.status,
             title: self.title,
             body: self.body,
+            fields,
             markers: self.markers,
             children: self.children,
             parsing_issues: self.parsing_issues,
         }
     }
     fn into_subtask(self) -> Subtask {
+        let fields = parse_field_lines(&self.body, &self.location.path, self.location.line + 1);
         Subtask {
             location: self.location,
             indent: self.indent,
@@ -325,11 +357,54 @@ impl PartialItem {
             raw_title: self.raw_title,
             title: self.title,
             body: self.body,
+            fields,
             markers: self.markers,
             children: self.children,
             parsing_issues: self.parsing_issues,
         }
     }
+}
+
+/// Recognizes single-line form field lines (see README.vision.md "Forms &
+/// Fields") among `body`'s lines. `first_line` is the source line number of
+/// `body[0]` (body lines are always contiguous, so `body[i]` is on line
+/// `first_line + i`).
+fn parse_field_lines(body: &[String], path: &std::path::Path, first_line: usize) -> Vec<FieldLine> {
+    body.iter()
+        .enumerate()
+        .filter_map(|(i, line)| {
+            let (label, value) = parse_single_line_field(line)?;
+            Some(FieldLine {
+                label,
+                value,
+                location: Location {
+                    path: path.to_path_buf(),
+                    line: first_line + i,
+                },
+            })
+        })
+        .collect()
+}
+
+/// Parses a single body line as a single-line form field: a bolded label
+/// (`__<label>:__`) followed by exactly one space and a value extending to
+/// the end of the line, e.g. `__Email:__ john@example.com`. Returns
+/// `(label, value)` on a match.
+///
+/// A bare `__Label:__` with nothing after it (not even a trailing space) is
+/// *not* recognized here -- that's reserved for the not-yet-implemented
+/// multiline field form, so such lines return `None` and are left as plain
+/// body text.
+fn parse_single_line_field(line: &str) -> Option<(String, String)> {
+    let trimmed = line.trim_start();
+    let rest = trimmed.strip_prefix("__")?;
+    let marker_pos = rest.find(":__ ")?;
+    let label = &rest[..marker_pos];
+    if label.is_empty() {
+        return None;
+    }
+    let value = &rest[marker_pos + ":__ ".len()..];
+    Some((label.to_string(), value.to_string()))
 }
 
 /// Parses a single `.agile.md` file's text into a sequence of [`FileItem`]s.

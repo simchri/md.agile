@@ -28,6 +28,7 @@ fn can_construct_task_with_all_node_kinds() {
         status: Status::Todo,
         title: "add item to basket".to_string(),
         body: vec![],
+        fields: vec![],
         markers: vec![Marker::Property(PropertyRef {
             name: "feature".to_string(),
             form: PropertyForm::Full,
@@ -43,6 +44,7 @@ fn can_construct_task_with_all_node_kinds() {
                 raw_title: Some("PO review".to_string()),
                 title: "PO review".to_string(),
                 body: vec![],
+                fields: vec![],
                 markers: vec![],
                 children: vec![],
                 parsing_issues: vec![],
@@ -56,6 +58,7 @@ fn can_construct_task_with_all_node_kinds() {
                 raw_title: None,
                 title: "extra polish".to_string(),
                 body: vec![],
+                fields: vec![],
                 markers: vec![Marker::Special(SpecialMarker {
                     column: 1,
                     kind: SpecialMarkerKind::Opt,
@@ -72,6 +75,7 @@ fn can_construct_task_with_all_node_kinds() {
                 raw_title: None,
                 title: "first step".to_string(),
                 body: vec![],
+                fields: vec![],
                 markers: vec![],
                 children: vec![],
                 parsing_issues: vec![],
@@ -85,6 +89,7 @@ fn can_construct_task_with_all_node_kinds() {
                 raw_title: None,
                 title: "implement".to_string(),
                 body: vec![],
+                fields: vec![],
                 markers: vec![Marker::Assignment(AssignmentRef {
                     name: "markus".to_string(),
                     column: 11,
@@ -109,6 +114,7 @@ fn file_items_interleave_tasks_and_milestones() {
             status: Status::Done,
             title: "ship MVP".to_string(),
             body: vec![],
+            fields: vec![],
             markers: vec![],
             children: vec![],
             parsing_issues: vec![],
@@ -124,6 +130,7 @@ fn file_items_interleave_tasks_and_milestones() {
             status: Status::Todo,
             title: "gather feedback".to_string(),
             body: vec![],
+            fields: vec![],
             markers: vec![],
             children: vec![],
             parsing_issues: vec![],
@@ -546,6 +553,98 @@ more info
     assert_eq!(items.len(), 2);
     assert_eq!(task(&items, 0).body, vec!["some details here", "more info"]);
     assert!(task(&items, 1).body.is_empty());
+}
+
+#[test]
+fn parse_single_line_field() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __First Name:__ John
+  __Email:__ john.doe@gmail.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![
+            FieldLine {
+                label: "First Name".to_string(),
+                value: "John".to_string(),
+                location: loc(2),
+            },
+            FieldLine {
+                label: "Email".to_string(),
+                value: "john.doe@gmail.com".to_string(),
+                location: loc(3),
+            },
+        ]
+    );
+}
+
+#[test]
+fn parse_single_line_field_with_unfilled_placeholder_value() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Gender:__ ___
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.fields,
+        vec![FieldLine {
+            label: "Gender".to_string(),
+            value: "___".to_string(),
+            location: loc(2),
+        }]
+    );
+}
+
+#[test]
+fn bare_label_with_no_trailing_value_is_not_recognized_as_a_field_yet() {
+    // Reserved for the not-yet-implemented multiline field form -- a label
+    // with nothing after it (not even a trailing space) stays plain body text.
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  John doe is an outstanding character.
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert!(t.fields.is_empty());
+    assert_eq!(
+        t.body,
+        vec!["  __Bio:__", "  John doe is an outstanding character."]
+    );
+}
+
+#[test]
+fn field_line_on_subtask_is_parsed_too() {
+    let input = "\
+- [ ] parent
+  - [ ] sub #onboarding
+    __Email:__ a@b.com
+";
+    let items = p(input);
+    let t = task(&items, 0);
+    assert_eq!(
+        t.children[0].fields,
+        vec![FieldLine {
+            label: "Email".to_string(),
+            value: "a@b.com".to_string(),
+            location: loc(3),
+        }]
+    );
+}
+
+#[test]
+fn non_field_body_text_is_unaffected() {
+    let input = "\
+- [ ] do the thing
+some details here
+more info
+";
+    let items = p(input);
+    assert!(task(&items, 0).fields.is_empty());
 }
 
 #[test]

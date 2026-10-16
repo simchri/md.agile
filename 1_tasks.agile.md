@@ -1036,9 +1036,10 @@ users don't have to think about it. Design plan: see
     - [x] check
   - [-] NOT A REQUIREMENT: config: field's own default passes its validation -- it is ok if defaults are invalid
   - [x] config: no duplicate fields within a form
-  - [ ] parser: bold `__Label:__` field lines
+  - [x] parser: bold `__Label:__` field lines
   - [ ] parser: multiline field + `...`/`\...` escape
   - [ ] check: missing required field
+    - [ ] quickfix
   - [ ] check: field left unfilled
   - [ ] check: field fails regex/allowed values
   - [ ] lsp quickfix: insert missing fields
