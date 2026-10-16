@@ -42,7 +42,7 @@
 
 - Short Form: An alias for a Property (e.g. `#feat`) that marks a Task as "brainstormed" without requiring its Subtasks. A Task that has one or more Properties in Short Form cannot be marked complete.
 - Branch Property: A Property with named outcome branches (e.g. `#review:...` resolves to `#review:passed` or `#review:failed`). The outcome must be set before the Task can be completed.
-- Neighbor Task (!= Sibling (Task)): A Task that must exist at the same Sibling level as the Task bearing a Property that declares it. Mainly used with Branch Properties but applicable to any Property.
+- Neighbor Task (!= Sibling (Task)): (required sibling task) A Task that must exist at the same Sibling level as the Task bearing a Property that declares it. Mainly used with Branch Properties but applicable to any Property.
 - Nested Property: A Property referenced by name within another Property's subtask list (e.g. `subtasks = ["developer #review"]`). When the outer Property is applied to a Task, the inner Property's own Subtasks become required at the next nesting level. Enables reuse of common workflow steps across multiple Properties.
 - Required Property: A Property declared mandatory for all Tasks in a file via `#MDAGILE.file.mandatory_property=...`.
 - Ordered Task: A Subtask prefixed with a number and `.` (e.g. `1.`) — its Order Number — to enforce execution sequence among direct siblings. Do not confuse with "Rank".
