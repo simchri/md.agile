@@ -1038,11 +1038,11 @@ users don't have to think about it. Design plan: see
   - [x] config: no duplicate fields within a form
   - [x] parser: bold `__Label:__` field lines
   - [x] parser: multiline field + `...`/`\...` escape
-  - [ ] check: missing required field
-    - [ ] quickfix
+  - [x] check: missing required field
+    - [x] quickfix
   - [ ] check: field left unfilled
   - [ ] check: field fails regex/allowed values
-  - [ ] lsp quickfix: insert missing fields
+  - [x] lsp quickfix: insert missing fields
   - [ ] `agile trust` command + trust store
   - [ ] define script interface (json schema)
     convention: A successfully running script shall always return 0, but output some json indication validation passed / failed failure message and location (which field).
