@@ -404,6 +404,65 @@ You can tag multiple people or groups on the same task. In this case any person 
 ```
 If you want an AND connection instead, create subtasks for each person!
 
+### Neighbor Tasks
+
+Neighbor tasks define mandatory subtasks at the same subtask-level. (Unlike mandatory sub-tasks, which define required tasks on the next lower sub-task level).
+A property that requires neighbor tasks can not be set at the top level.
+
+```toml
+[Properties.ui_change]
+neighbortasks = ["inform UI/UX"]
+```
+
+```md
+- [ ] de-clutter UI 
+  - [ ] Move options into a sub-menu #ui_change
+  - [ ] "inform UI/UX"
+```
+
+
+### Branch Properties
+
+Branch Properties allow you to implement branching workflows depending on the outcomes of tasks. The following config snippet defines a property `#review:...` with two branches `#review:passed` and `#review:failed`:
+
+```toml
+[Properties.review]
+subtasks = ["document review findings"]
+[Properties.review.passed]
+neighbortasks = ["publish feature"]
+[Properties.review.failed]
+neighbortasks = ["create follow up task for fixes"]
+```
+
+A Branching Workflow property is written in its incomplete form (e.g., `#review:...`) while the task is still in progress. When the task is marked as done, this property must be updated to one of its defined outcome states (e.g., `#review:passed`, `#review:failed`). Each outcome can have its own constraints, such as mandatory subtasks or neighbor tasks.
+
+While task in progress:
+```md
+- [ ] build something
+  - [ ] perform #review:...
+    - [ ] "document review findings"
+```
+Review passed:
+```md
+- [ ] build something
+- [x] perform #review:passed
+    - [x] "document review findings"
+  - [ ] "publish feature"
+```
+Review failed:
+```md
+- [ ] build something
+  - [x] perform #review:failed
+    - [x] "document review findings"
+  - [ ] "create follow up task for fixes"
+```
+
+It is not allowed to mark the task as complete without updating the property to one of its defined outcomes. The following will be marked with an error:
+```md
+- [x] perform #review:...
+  - [x] "document review findings"
+```
+
 ### Milestones and ETA to Milestone
 
 Mdagile supports agile planning and time estimation via milestones:
