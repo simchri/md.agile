@@ -27,10 +27,12 @@ devenv <directory> [options] -c "<command>"
 ```
 This is done **from the project root**, any changes of directory can be done inside of the command, .e.g:
 ```
-devenv . --no-tty -a -c "cd crates && ls"
-devenv . --no-tty -a -c "cargo install --path crates/cli"
+devenv . --no-tty -s dev-container-no-gpu -c "cd crates && ls"
+devenv . --no-tty -s dev-container-no-gpu -c "cargo install --path crates/cli"
 ```
-Where `devenv` is not available, docker compose can instead be used directly.
+When invoking `devenv` directly (as above), always select the `dev-container-no-gpu` service explicitly with `-s dev-container-no-gpu` rather than `-a`/auto-select. The `build-container` service is reserved for `make` targets (e.g. `make test`) — don't select it directly via `devenv -s build-container` or let auto-select pick it; it isn't kept running as a persistent dev shell and exits immediately if started outside of `make`'s own invocation path.
+
+Where `devenv` is not available, docker compose can instead be used directly (e.g. `docker compose exec dev-container-no-gpu ...`).
 
 **Options:**
 - `-a, --auto-select-service` — Auto-select service (use this for CI/automated scripts)
@@ -42,19 +44,19 @@ Where `devenv` is not available, docker compose can instead be used directly.
 
 ### Run / develop
 ```bash
-devenv . --no-tty -a -c "cargo run --bin agile"
+devenv . --no-tty -s dev-container-no-gpu -c "cargo run --bin agile"
 ```
 
 ### Test
 ```bash
-devenv . --no-tty -a -c  "cargo test"                               # full suite
-devenv . --no-tty -a -c  "cargo test --lib [test_name]"             # single unit test
-devenv . --no-tty -a -c  'cargo test --test [file] [case] '         # specific test from specific file 
+devenv . --no-tty -s dev-container-no-gpu -c  "cargo test"                               # full suite
+devenv . --no-tty -s dev-container-no-gpu -c  "cargo test --lib [test_name]"             # single unit test
+devenv . --no-tty -s dev-container-no-gpu -c  'cargo test --test [file] [case] '         # specific test from specific file 
 ```
 
 count tests in the project: (don't run)
 ```bash
-devenv . --no-tty -a -c 'cargo test -- --list 2>/dev/null | grep -c ": test$"' # count tests
+devenv . --no-tty -s dev-container-no-gpu -c 'cargo test -- --list 2>/dev/null | grep -c ": test$"' # count tests
 ```
 Before every commit, write the current date (format YYYY-MM-DD) and the result of this "count tests command" to a new line of file `tests_count.txt` at the project root.
 
@@ -144,7 +146,7 @@ Never write production code without a failing test that justifies it.
 
 Always confirm the GUI target still compiles after a change
 ```
-devenv . --no-tty -a -c  "cd crates/gui && dx build --platform web"
+devenv . --no-tty -s dev-container-no-gpu -c  "cd crates/gui && dx build --platform web"
 ```
 
 When working on the GUI, generally skip visual testing/inspection (e.g. spawning `dx serve`/the GUI server process, or inspecting with headless Chrome) unless the user explicitly raises a problem that needs it. A successful `dx build --platform web` is enough by default.
