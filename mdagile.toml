@@ -8,16 +8,18 @@ subtasks = [
   "2. (feature) validation by programmer",
 ]
 
+[Properties.review]
+subtasks = ["document review findings"]
+[Properties.review.passed]
+neighbortasks = ["publish feature"]
+subtasks = ["review passed subtask"]
+[Properties.review.failed]
+neighbortasks = ["create follow up task for fixes"]
+subtasks = ["review failed subtask"]
+
 [Properties.feat]
 
 [Properties.bug]
-subtasks = ["report #bugreport", "analysis #buganalysis"]
-
-[Properties.bugreport]
-subtasks = ["observed version", "steps to reproduce", "expected result", "actual result"]
-
-[Properties.buganalysis]
-subtasks = ["first affected version", "root cause analysis", "proposed strategy for fix"]
 
 [Properties.foo]
 subtasks = ["bar", "baz"]
@@ -51,4 +53,3 @@ members = ["alice"]
 brief = "Quality management"
 description = "Contributors responsible for reviewing and validating changes."
 members = ["smassa"]
-[Properties.review]
