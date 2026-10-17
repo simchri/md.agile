@@ -1064,6 +1064,7 @@ users don't have to think about it. Design plan: see
 
 - [x] basic validation (selectable values)
 - [ ] completion suggestion for selectable values (suggest any selectable value)
+- [ ] show "help" on hover for fields
 
 - [ ] remove regex validation
   remove all implementation artifacts for regex validation.

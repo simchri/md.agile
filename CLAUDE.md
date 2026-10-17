@@ -123,6 +123,10 @@ Learnings from refactoring the acceptance tests in `crates/cli/tests/acceptance/
 - **Readable expected output**: don't build expected CLI output as a dense `format!("...\n...")` one-liner with embedded `\n` escapes. Introduce an intermediate `let expected = format!("\ ...")` variable using the same multi-line continuation style as `file_content`/`config` (see "Sample text in tests" above), so the expected output's indentation and structure are visible at a glance.
 - **Arrange/Act/Assert structure**: every test should be split into three clearly separated sections via `Arrange`, `Act`, `Assert`  — setup (tempdir, git config, writing files/config), the CLI invocation, and the output assertion, respectively. It is sufficient to separate sections with an empty line.
 
+### Config reference documentation
+
+`doc/usage/config.md` is the reference for all valid `mdagile.toml` keys. Whenever a config key or table is added, removed, or changed in a significant way (schema in `crates/cli/src/config/mod.rs`), update that document in the same change (including its "Overview of valid keys" table and Validation section).
+
 ### Formatting
 
 After adding or editing any `.rs` file, run `cargo fmt` before committing.
