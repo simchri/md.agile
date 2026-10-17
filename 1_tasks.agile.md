@@ -1052,12 +1052,14 @@ users don't have to think about it. Design plan: see
   - [x] disallow two properties with forms on the same task, if two fields their field labels collide (i.e. `#propertyA` and `#propertyB` both come with a form. In both forms there is a field with label `Name` --> collision. Disallow this via a check.
   - [x] disallow identical field "ids" within one form
     already satisfied via toml directly - can not declare the same key twice
-  - [ ] configuration option: Field is optional. If true, field may be empty
+  - [-] configuration option: Field is optional. If true, field may be empty
   - [x] lsp quickfix: insert missing fields
+
+- [ ] hints for unfilled fields. Configureable helptexts, that are displayed alongside the error message in the LSP
 
 - [ ] proper multiline handling
   - [x] multiline field content empty properly flagged
-  - [ ] multiline fields added via quickfix: The default value is placed on a new line
+  - [ ] multiline fields added via quickfix: The default value is placed on a new line, consistent with validation checks
   - [x] check - multiline fields: The remainder of the line must be empty, any content must be on a new line
 
 - [ ] advanced validation (selectable values)
