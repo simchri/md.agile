@@ -1062,7 +1062,7 @@ users don't have to think about it. Design plan: see
   - [x] multiline fields added via quickfix: The default value is placed on a new line, consistent with validation checks
   - [x] check - multiline fields: The remainder of the line must be empty, any content must be on a new line
 
-- [ ] advanced validation (selectable values)
+- [x] advanced validation (selectable values)
 
 - [ ] regex validation
   - [ ] check: field fails regex/allowed values
