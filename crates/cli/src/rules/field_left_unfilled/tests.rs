@@ -72,7 +72,7 @@ fn config_with_onboarding_form() -> Config {
 #[test]
 fn flags_a_field_still_at_the_plain_underscore_placeholder() {
     let input = "\
-- [ ] new colleague: John #onboarding
+- [x] new colleague: John #onboarding
   __First Name:__ ___
   __Gender:__ male
 ";
@@ -97,7 +97,7 @@ fn flags_a_field_still_at_its_custom_default() {
     // that resolved placeholder counts as unfilled, same as the plain
     // `___` case.
     let input = "\
-- [ ] new colleague: John #onboarding
+- [x] new colleague: John #onboarding
   __First Name:__ John
   __Gender:__ (don't specify)
 ";
@@ -117,7 +117,7 @@ fn flags_a_field_still_at_its_custom_default() {
 #[test]
 fn no_issue_when_every_present_field_has_a_real_value() {
     let input = "\
-- [ ] new colleague: John #onboarding
+- [x] new colleague: John #onboarding
   __First Name:__ John
   __Gender:__ male
 ";
@@ -132,7 +132,7 @@ fn no_issue_when_every_present_field_has_a_real_value() {
 fn no_issue_for_a_field_that_is_entirely_absent() {
     // Absence is E024's concern (missing_required_field), not this rule's.
     let input = "\
-- [ ] new colleague: John #onboarding
+- [x] new colleague: John #onboarding
   __First Name:__ John
 ";
     let items = p(input);
@@ -145,7 +145,7 @@ fn no_issue_for_a_field_that_is_entirely_absent() {
 #[test]
 fn no_issue_for_a_property_with_no_form() {
     let input = "\
-- [ ] a plain task #onboarding
+- [x] a plain task #onboarding
   __First Name:__ ___
 ";
     let items = p(input);
@@ -159,7 +159,7 @@ fn no_issue_for_a_property_with_no_form() {
 #[test]
 fn no_issue_when_form_reference_is_undefined() {
     let input = "\
-- [ ] new colleague: John #onboarding
+- [x] new colleague: John #onboarding
   __First Name:__ ___
 ";
     let items = p(input);
@@ -173,7 +173,7 @@ fn no_issue_when_form_reference_is_undefined() {
 #[test]
 fn reports_multiple_unfilled_fields_in_one_issue() {
     let input = "\
-- [ ] new colleague: John #onboarding
+- [x] new colleague: John #onboarding
   __First Name:__ ___
   __Gender:__ (don't specify)
 ";
@@ -194,7 +194,7 @@ fn reports_multiple_unfilled_fields_in_one_issue() {
 fn field_present_on_subtask_is_checked_independently_of_its_parent() {
     let input = "\
 - [ ] parent
-  - [ ] sub #onboarding
+  - [x] sub #onboarding
     __First Name:__ ___
     __Gender:__ male
 ";
@@ -228,7 +228,7 @@ fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property() {
         },
     );
     let input = "\
-- [ ] new colleague: John #onboarding #relocation
+- [x] new colleague: John #onboarding #relocation
   __First Name:__ ___
   __Gender:__ male
 ";
@@ -244,4 +244,51 @@ fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property() {
             })
         );
     }
+}
+
+#[test]
+fn no_issue_for_a_todo_task_with_an_unfilled_field() {
+    // This check only matters at the moment a task is (about to be) marked
+    // done -- see `check_node`/`check_completable` below for the
+    // preventive half of this rule. The full-project scan here stays quiet
+    // for a still-open task, same as E004 (`incomplete_parent`).
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __First Name:__ ___
+  __Gender:__ male
+";
+    let items = p(input);
+    let config = config_with_onboarding_form();
+    let issues = field_left_unfilled(&items, &config);
+
+    assert!(issues.is_empty());
+}
+
+#[test]
+fn check_node_flags_an_unfilled_field_regardless_of_status() {
+    // `check_node` is the unconditional half of this rule, reused by
+    // `check_completable` to validate a node *before* it's marked done --
+    // it doesn't look at the node's current status at all.
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __First Name:__ ___
+  __Gender:__ male
+";
+    let items = p(input);
+    let config = config_with_onboarding_form();
+    let node = crate::rules::find_node_by_line(&items, 1).unwrap();
+    let issues = check_node(
+        node.markers(),
+        node.fields(),
+        node.location(),
+        node.indent(),
+        &config,
+    );
+
+    assert_eq!(
+        issues.into_iter().map(|i| i.data).collect::<Vec<_>>(),
+        vec![Some(IssueData::FieldLeftUnfilled {
+            unfilled: vec!["First Name".to_string()]
+        })]
+    );
 }

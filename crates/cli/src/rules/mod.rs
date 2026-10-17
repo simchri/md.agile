@@ -528,11 +528,11 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
 
 /// Checks whether marking `node` done right now would violate any
 /// completion-related rule: "incomplete children" (E004), "missing required
-/// subtasks" (E010), "cancelled required subtask not allowed" (E012),
-/// "unauthorized completion" (E013, against `identity`), "unresolved branch
-/// property" (E021), "undefined branch outcome" (E022), "plain branching
-/// property" (E023) — or, if `node` is an ordered subtask — "out-of-order
-/// completion" (E015).
+/// subtasks" (E010), "field left unfilled" (E026), "cancelled required
+/// subtask not allowed" (E012), "unauthorized completion" (E013, against
+/// `identity`), "unresolved branch property" (E021), "undefined branch
+/// outcome" (E022), "plain branching property" (E023) — or, if `node` is an
+/// ordered subtask — "out-of-order completion" (E015).
 ///
 /// `items` is the full parsed file `node` came from; it's only used to
 /// locate `node`'s siblings for the ordering check (see
@@ -563,6 +563,13 @@ pub fn check_completable(
     issues.extend(missing_required_subtasks::check_node(
         node.markers(),
         node.children(),
+        node.location(),
+        node.indent(),
+        config,
+    ));
+    issues.extend(field_left_unfilled::check_node(
+        node.markers(),
+        node.fields(),
         node.location(),
         node.indent(),
         config,

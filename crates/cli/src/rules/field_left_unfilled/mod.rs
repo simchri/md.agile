@@ -17,62 +17,97 @@
 //! present. Likewise a *malformed* field line (missing the space before its
 //! value -- see [`crate::rules::missing_space_after_field_label`], E025) has
 //! no parsed value at all, so it can't be checked here either.
+//!
+//! Unlike E024, this check only matters at the moment a task is (about to
+//! be) marked done -- a form field is allowed to sit unfilled for as long
+//! as the task stays open. So, same as [`crate::rules::incomplete_parent`]
+//! (E004), it's gated on `Status::Done` in the full-project scan here (to
+//! retroactively catch an already-done task whose field was never filled
+//! in), and reused unconditionally via [`check_node`] by
+//! [`crate::rules::check_completable`], which validates a node *before* the
+//! write that would mark it done.
 
 use crate::config::Config;
-use crate::parser::Marker;
+use crate::parser::{FieldLine, Marker, Status};
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
 
 pub fn field_left_unfilled(items: &[crate::parser::FileItem], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
     for_each_node(items, |node| {
-        for marker in node.markers() {
-            let Marker::Property(prop) = marker else {
-                continue;
-            };
-            let Some(prop_config) = config.properties.get(&prop.name) else {
-                continue;
-            };
-            let Some(form_name) = &prop_config.form else {
-                continue;
-            };
-            let Some(form_config) = config.forms.get(form_name) else {
-                // Undefined form reference is a separate config-validation
-                // check's concern -- not reported here.
-                continue;
-            };
-
-            let unfilled: Vec<String> = form_config
-                .fields
-                .iter()
-                .filter_map(|field_name| config.fields.get(field_name))
-                .filter_map(|field_config| {
-                    let placeholder = field_config.default.as_deref().unwrap_or("___");
-                    node.fields()
-                        .iter()
-                        .find(|f| f.label == field_config.label)
-                        .filter(|f| f.value == placeholder)
-                        .map(|_| field_config.label.clone())
-                })
-                .collect();
-
-            if !unfilled.is_empty() {
-                let unfilled_quoted: Vec<String> =
-                    unfilled.iter().map(|s| format!("\"{s}\"")).collect();
-                issues.push(Issue {
-                    location: node.location().clone(),
-                    code: ErrorCode::FieldLeftUnfilled,
-                    message: format!(
-                        "Field{} left unfilled: {}",
-                        if unfilled.len() == 1 { "" } else { "s" },
-                        unfilled_quoted.join(", "),
-                    ),
-                    column: node.indent() + 1,
-                    help: Some("Fill in the field's value".to_string()),
-                    data: Some(IssueData::FieldLeftUnfilled { unfilled }),
-                });
-            }
+        if *node.status() != Status::Done {
+            return;
         }
+        issues.extend(check_node(
+            node.markers(),
+            node.fields(),
+            node.location(),
+            node.indent(),
+            config,
+        ));
     });
+    issues
+}
+
+/// Checks a single node's `markers`/`fields` for form fields left unfilled
+/// (E026). Exposed at `pub(crate)` so `agile task done <address>` can reuse
+/// this exact rule, via [`crate::rules::check_completable`], to validate a
+/// single addressed node *before* it's marked done, without duplicating the
+/// logic or running the full rule over an entire project.
+pub(crate) fn check_node(
+    markers: &[Marker],
+    fields: &[FieldLine],
+    location: &crate::parser::Location,
+    indent: usize,
+    config: &Config,
+) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    for marker in markers {
+        let Marker::Property(prop) = marker else {
+            continue;
+        };
+        let Some(prop_config) = config.properties.get(&prop.name) else {
+            continue;
+        };
+        let Some(form_name) = &prop_config.form else {
+            continue;
+        };
+        let Some(form_config) = config.forms.get(form_name) else {
+            // Undefined form reference is a separate config-validation
+            // check's concern -- not reported here.
+            continue;
+        };
+
+        let unfilled: Vec<String> = form_config
+            .fields
+            .iter()
+            .filter_map(|field_name| config.fields.get(field_name))
+            .filter_map(|field_config| {
+                let placeholder = field_config.default.as_deref().unwrap_or("___");
+                fields
+                    .iter()
+                    .find(|f| f.label == field_config.label)
+                    .filter(|f| f.value == placeholder)
+                    .map(|_| field_config.label.clone())
+            })
+            .collect();
+
+        if !unfilled.is_empty() {
+            let unfilled_quoted: Vec<String> =
+                unfilled.iter().map(|s| format!("\"{s}\"")).collect();
+            issues.push(Issue {
+                location: location.clone(),
+                code: ErrorCode::FieldLeftUnfilled,
+                message: format!(
+                    "Field{} left unfilled: {}",
+                    if unfilled.len() == 1 { "" } else { "s" },
+                    unfilled_quoted.join(", "),
+                ),
+                column: indent + 1,
+                help: Some("Fill in the field's value".to_string()),
+                data: Some(IssueData::FieldLeftUnfilled { unfilled }),
+            });
+        }
+    }
     issues
 }
 

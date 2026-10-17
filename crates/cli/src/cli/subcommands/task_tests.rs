@@ -158,6 +158,91 @@ fn mark_node_done_rejects_a_task_with_incomplete_required_children() {
     assert_eq!(std::fs::read_to_string(&file).unwrap(), content);
 }
 
+/// Builds a `Config` with one property (`onboarding`) carrying a form
+/// (`personal_info`) whose only field is `first_name` (label "First Name",
+/// no custom default -- plain `___` placeholder).
+fn config_with_onboarding_form() -> Config {
+    use crate::config::{FieldConfig, FormConfig, PropertyConfig};
+    use std::collections::HashMap;
+
+    let mut fields = HashMap::new();
+    fields.insert(
+        "first_name".to_string(),
+        FieldConfig {
+            name: "first_name".to_string(),
+            label: "First Name".to_string(),
+            default: None,
+            validation_regex: None,
+            values: None,
+            multiline: false,
+        },
+    );
+
+    let mut forms = HashMap::new();
+    forms.insert(
+        "personal_info".to_string(),
+        FormConfig {
+            name: "personal_info".to_string(),
+            fields: vec!["first_name".to_string()],
+            validation: None,
+        },
+    );
+
+    let mut properties = HashMap::new();
+    properties.insert(
+        "onboarding".to_string(),
+        PropertyConfig {
+            name: "onboarding".to_string(),
+            brief: None,
+            description: None,
+            subtasks: vec![],
+            subtasks_allow_cancel: vec![],
+            neighbortasks: vec![],
+            form: Some("personal_info".to_string()),
+            branches: Default::default(),
+        },
+    );
+
+    Config {
+        properties,
+        fields,
+        forms,
+        ..Config::default()
+    }
+}
+
+#[test]
+fn mark_node_done_rejects_a_task_with_a_field_left_unfilled() {
+    let content = "\
+- [ ] new colleague: John #onboarding
+  __First Name:__ ___
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+    let config = config_with_onboarding_form();
+
+    match mark_node_done(&file, &items, 1, &config, &ResolvedIdentity::Unrecognized) {
+        Err(MarkDoneError::RuleViolations(issues)) => assert!(!issues.is_empty()),
+        other => panic!("expected RuleViolations, got {other:?}"),
+    }
+    // file must be untouched
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), content);
+}
+
+#[test]
+fn mark_node_done_allows_a_task_with_the_form_field_actually_filled_in() {
+    let content = "\
+- [ ] new colleague: John #onboarding
+  __First Name:__ John
+";
+    let (_dir, file) = write_temp_file(content);
+    let items = parse_file(&file);
+    let config = config_with_onboarding_form();
+
+    let result = mark_node_done(&file, &items, 1, &config, &ResolvedIdentity::Unrecognized);
+    assert_eq!(result.as_deref(), Ok("new colleague: John #onboarding"));
+}
+
 #[test]
 fn mark_node_done_rejects_out_of_order_subtask_completion() {
     let content = "\
