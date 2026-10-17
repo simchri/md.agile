@@ -418,3 +418,64 @@ fn placeholder_value_with_incidental_trailing_whitespace_is_still_flagged() {
         })
     );
 }
+
+#[test]
+fn flags_a_multiline_field_whose_captured_content_is_empty() {
+    let mut fields = std::collections::HashMap::new();
+    fields.insert(
+        "bio".to_string(),
+        FieldConfig {
+            name: "bio".to_string(),
+            label: "Bio".to_string(),
+            default: None,
+            validation_regex: None,
+            values: None,
+            multiline: true,
+            default_is_valid_entry: false,
+        },
+    );
+    let mut forms = std::collections::HashMap::new();
+    forms.insert(
+        "personal_info".to_string(),
+        FormConfig {
+            name: "personal_info".to_string(),
+            fields: vec!["bio".to_string()],
+            validation: None,
+        },
+    );
+    let mut properties = std::collections::HashMap::new();
+    properties.insert(
+        "onboarding".to_string(),
+        PropertyConfig {
+            name: "onboarding".to_string(),
+            brief: None,
+            description: None,
+            subtasks: vec![],
+            subtasks_allow_cancel: vec![],
+            neighbortasks: vec![],
+            form: Some("personal_info".to_string()),
+            branches: Default::default(),
+        },
+    );
+    let config = Config {
+        properties,
+        fields,
+        forms,
+        ..Config::default()
+    };
+    let input = "\
+- [x] new colleague: John #onboarding
+  __Bio:__
+  ...
+";
+    let items = p(input);
+    let issues = field_left_unfilled(&items, &config);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::FieldLeftUnfilled {
+            unfilled: vec!["Bio".to_string()]
+        })
+    );
+}

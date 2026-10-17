@@ -234,3 +234,118 @@ form = \"personal_info\"
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("First Name"), "stderr: {stderr:?}");
 }
+
+fn write_multiline_bio_config(dir: &std::path::Path) {
+    let config = "\
+[Field.bio]
+label = \"Bio\"
+multiline = true
+[Form.personal_info]
+fields = [\"bio\"]
+[Properties.onboarding]
+form = \"personal_info\"
+";
+    fs::write(dir.join("mdagile.toml"), config).unwrap();
+}
+
+#[test]
+fn flags_a_done_task_whose_multiline_field_has_no_content_before_the_closing_marker() {
+    let dir = tempdir().unwrap();
+    write_multiline_bio_config(dir.path());
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __Bio:__
+  ...
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E026"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Bio"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn flags_a_done_task_whose_multiline_field_has_only_blank_lines_before_the_closing_marker() {
+    let dir = tempdir().unwrap();
+    write_multiline_bio_config(dir.path());
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __Bio:__
+
+  ...
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E026"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Bio"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn flags_a_done_task_whose_multiline_field_has_nothing_after_the_label_and_no_closing_marker() {
+    // No closing `...` at all, and the field is the last line in the
+    // node's body -- the value is still the empty string, same as the
+    // other "no content" variants above.
+    let dir = tempdir().unwrap();
+    write_multiline_bio_config(dir.path());
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __Bio:__
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E026"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Bio"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn does_not_flag_a_done_task_whose_multiline_field_has_real_content() {
+    let dir = tempdir().unwrap();
+    write_multiline_bio_config(dir.path());
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __Bio:__
+  Grew up in Portland, now leads the platform team.
+  ...
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[test]
+fn does_not_flag_an_open_task_with_an_empty_multiline_field() {
+    // Same "only matters at completion" rule as single-line fields.
+    let dir = tempdir().unwrap();
+    write_multiline_bio_config(dir.path());
+    let file_content = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__
+  ...
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}

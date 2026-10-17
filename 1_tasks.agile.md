@@ -1056,7 +1056,7 @@ users don't have to think about it. Design plan: see
   - [x] lsp quickfix: insert missing fields
 
 - [ ] proper multiline handling
-  - [ ] multiline field content empty properly flagged
+  - [x] multiline field content empty properly flagged
   - [ ] multiline fields added via quickfix: The default value is placed on a new line
   - [ ] check - multiline fields: The remainder of the line must be empty, any content must be on a new line
 

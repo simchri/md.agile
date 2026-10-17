@@ -25,6 +25,12 @@
 //! value -- see [`crate::rules::missing_space_after_field_label`], E025) has
 //! no parsed value at all, so it can't be checked here either.
 //!
+//! This applies equally to multiline fields (see [`crate::config::FieldConfig::multiline`]):
+//! a multiline field whose captured content is empty or holds only blank
+//! lines resolves to the empty string, same as a blank single-line value,
+//! so it's flagged the same way -- "blank" here means "no real content",
+//! not "no text on the opening `__Label:__` line".
+//!
 //! Unlike E024, this check only matters at the moment a task is (about to
 //! be) marked done -- a form field is allowed to sit unfilled for as long
 //! as the task stays open. So, same as [`crate::rules::incomplete_parent`]
