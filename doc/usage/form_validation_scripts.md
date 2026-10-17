@@ -57,3 +57,73 @@ valid, and prints:
 
 A non-zero exit, a timeout, oversized output, or output that isn't this JSON
 means the script *failed to run properly*, which is distinct from "validation failed".
+
+## Example: basic email check
+
+A readable, regex-free syntax check. It does not prove an address exists, it
+only catches obvious typos.
+
+`mdagile.toml`:
+
+```toml
+[Field.email]
+label = "Email"
+
+[Form.personal_info]
+fields = ["email"]
+validation = "scripts/validate_email.py"
+
+[Properties.onboarding]
+form = "personal_info"
+```
+
+`scripts/validate_email.py` (make it executable: `chmod +x`, then `agile trust`):
+
+```python
+#!/usr/bin/env python3
+# Validates the "Email" field of a form. See form_validation_scripts.md.
+import json
+import sys
+
+
+def email_problem(email):
+    """Returns a message describing what is wrong, or None if it looks fine."""
+    if email == "":
+        return "email address is missing"
+    if " " in email:
+        return "email address must not contain spaces"
+
+    # Exactly one "@" separates the local part from the domain.
+    if email.count("@") != 1:
+        return "email address must contain exactly one '@'"
+    local, domain = email.split("@")
+
+    if local == "":
+        return "nothing before the '@'"
+    if domain == "":
+        return "nothing after the '@'"
+
+    # The domain needs at least one dot ("example.com"), and no empty
+    # labels ("example..com", ".example.com", "example.com.").
+    labels = domain.split(".")
+    if len(labels) < 2:
+        return "domain must contain a '.' (e.g. example.com)"
+    if "" in labels:
+        return "domain must not have empty parts around a '.'"
+    return None
+
+
+# The script receives the form's data as JSON on stdin.
+data = json.load(sys.stdin)
+email = data["fields"].get("Email", "").strip()
+
+problem = email_problem(email)
+if problem is None:
+    result = {"valid": True}
+else:
+    # "field" ties the error to the "Email" line in the task file.
+    result = {"valid": False, "errors": [{"field": "Email", "message": problem}]}
+
+# A script that ran properly always prints the verdict and exits 0,
+# even when the form is invalid.
+print(json.dumps(result))
