@@ -11,8 +11,10 @@
 //! external programs and needs the project root and trust store, so callers
 //! opt in explicitly (`agile check` does; the LSP does not run it on edits).
 
-use crate::config::Config;
-use crate::form_script::{Limits, ScriptError, ScriptInput, TaskInfo, run_script};
+use crate::config::{Config, FormConfig};
+use crate::form_script::{
+    Limits, RunError, ScriptError, ScriptInput, ScriptOutput, TaskInfo, run_script,
+};
 use crate::parser::{FileItem, Marker};
 use crate::rules::{ErrorCode, Issue, IssueData, NodeRef, for_each_node};
 use crate::trust::{TrustStore, user_store_path};
@@ -67,55 +69,82 @@ pub fn check_form_scripts(
                 continue;
             }
 
-            // (toml key, display label) of each field of the form.
-            let form_fields: Vec<(&str, &str)> = form
-                .fields
-                .iter()
-                .filter_map(|key| {
-                    config
-                        .fields
-                        .get(key)
-                        .map(|f| (key.as_str(), f.label.as_str()))
-                })
-                .collect();
-            let fields: BTreeMap<String, String> = form_fields
-                .iter()
-                .filter_map(|(key, label)| {
-                    node.fields()
-                        .iter()
-                        .find(|line| line.label == *label)
-                        .map(|line| (key.to_string(), line.value.trim().to_string()))
-                })
-                .collect();
-            let input = ScriptInput {
-                form: form_name.clone(),
-                task: TaskInfo {
-                    title: node.title().to_string(),
-                    line: node.location().line,
-                },
-                fields,
-            };
-
-            match run_script(root, script, &input, store, limits) {
-                Ok(output) if output.valid => {}
-                Ok(output) => {
-                    let errors = if output.errors.is_empty() {
-                        vec![ScriptError {
-                            field: None,
-                            message: "the form is not valid".to_string(),
-                        }]
-                    } else {
-                        output.errors
-                    };
-                    for error in errors {
-                        issues.push(validation_failed(node, form_name, &form_fields, error));
-                    }
-                }
-                Err(error) => issues.push(script_failed(node, form_name, script, &error)),
-            }
+            let form_fields = form_fields(form, config);
+            let input = build_script_input(node, form_name, &form_fields);
+            let result = run_script(root, script, &input, store, limits);
+            issues.extend(verdict_issues(
+                node,
+                form_name,
+                script,
+                &form_fields,
+                result,
+            ));
         }
     });
     issues
+}
+
+/// (toml key, display label) of each field of the form.
+fn form_fields<'a>(form: &'a FormConfig, config: &'a Config) -> Vec<(&'a str, &'a str)> {
+    form.fields
+        .iter()
+        .filter_map(|key| {
+            config
+                .fields
+                .get(key)
+                .map(|f| (key.as_str(), f.label.as_str()))
+        })
+        .collect()
+}
+
+/// The data sent to the script: the form's own fields, keyed by toml key.
+fn build_script_input(node: NodeRef, form_name: &str, form_fields: &[(&str, &str)]) -> ScriptInput {
+    let fields: BTreeMap<String, String> = form_fields
+        .iter()
+        .filter_map(|(key, label)| {
+            node.fields()
+                .iter()
+                .find(|line| line.label == *label)
+                .map(|line| (key.to_string(), line.value.trim().to_string()))
+        })
+        .collect();
+    ScriptInput {
+        form: form_name.to_string(),
+        task: TaskInfo {
+            title: node.title().to_string(),
+            line: node.location().line,
+        },
+        fields,
+    }
+}
+
+/// Turns the outcome of one script run into issues: none when valid, E030
+/// per reported error when invalid, E031 when the script could not run.
+fn verdict_issues(
+    node: NodeRef,
+    form_name: &str,
+    script: &str,
+    form_fields: &[(&str, &str)],
+    result: Result<ScriptOutput, RunError>,
+) -> Vec<Issue> {
+    match result {
+        Ok(output) if output.valid => vec![],
+        Ok(output) => {
+            let errors = if output.errors.is_empty() {
+                vec![ScriptError {
+                    field: None,
+                    message: "the form is not valid".to_string(),
+                }]
+            } else {
+                output.errors
+            };
+            errors
+                .into_iter()
+                .map(|error| validation_failed(node, form_name, form_fields, error))
+                .collect()
+        }
+        Err(error) => vec![script_failed(node, form_name, script, &error)],
+    }
 }
 
 /// `form_fields` maps the form's toml keys to display labels; the script
@@ -161,14 +190,9 @@ fn validation_failed(
     }
 }
 
-fn script_failed(
-    node: NodeRef,
-    form: &str,
-    script: &str,
-    error: &crate::form_script::RunError,
-) -> Issue {
+fn script_failed(node: NodeRef, form: &str, script: &str, error: &RunError) -> Issue {
     let help = match error {
-        crate::form_script::RunError::Untrusted => Some(format!(
+        RunError::Untrusted => Some(format!(
             "Review `{script}`, then approve it with `agile trust`. \
              On a CI runner use `agile trust --yes` before `agile check`."
         )),

@@ -1116,7 +1116,7 @@ users don't have to think about it. Design plan: see
     - [ ] docs: state that trust only covers the script file itself, not files it imports
       trust/mod.rs: only the content of the script file is hashed. Imports and helper files the script uses are not covered; editing them does not revoke trust.
   - [ ] refactoring
-    - [ ] split `check_form_scripts` into building the script input and mapping the verdict to issues
+    - [x] split `check_form_scripts` into building the script input and mapping the verdict to issues
       checker/form_validation.rs `check_form_scripts` (about 75 lines) finds the form, builds the input, runs the script and turns the verdict into issues.
       Proposed: extract `build_script_input(node, form, form_fields)` and a verdict-to-issues function.
     - [-] extract a shared `forms_of(node, config)` (node -> property -> form -> fields) used by the form rules and the script check
