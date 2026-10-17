@@ -1090,6 +1090,33 @@ users don't have to think about it. Design plan: see
     note: the LSP has no `did_save` handler / save capability yet -- needs adding. Do not run scripts on keystrokes.
   - [ ] block completion until fields valid
 
+- [ ] review findings: form validation feature (review-recent-changes, commits fe34e71..3686efc)
+  - [ ] bugs
+    - [ ] LSP: discard script results if the document changed while the scripts ran (stale-result race in `run_form_scripts`); add a test
+    - [ ] LSP: don't swallow `spawn_blocking` join errors/panics (`unwrap_or_default`); log them
+    - [ ] LSP: scripts run sequentially per task, so a save can delay diagnostics by minutes -- decide on a total time budget / parallelism / publishing partial results
+    - [ ] runner: on timeout also kill the script's child processes (own process group), not just the direct child
+    - [ ] runner: close the gap between hashing and executing the script (execute exactly the bytes that were hashed)
+    - [ ] trust: make `TrustStore::save` atomic (write temp file + rename)
+    - [ ] docs: state that trust only covers the script file itself, not files it imports
+  - [ ] refactoring
+    - [ ] split `check_form_scripts` into building the script input and mapping the verdict to issues
+    - [ ] extract a shared `forms_of(node, config)` (node -> property -> form -> fields) used by the form rules and the script check
+    - [ ] LSP: extract `project_root(source)` (duplicated in `validate` and `run_form_scripts`)
+    - [ ] add `TrustStore::load_default()` (store path resolution is duplicated in `agile trust` and the checker)
+    - [ ] add `trust::fingerprint(root, script)` (resolve + read + hash is duplicated in `agile trust` and `run_script`)
+    - [ ] move trust store loading (env/IO) out of the checker; callers pass the store in
+    - [ ] rename `RunError::Spawn` (also used for read/wait errors) to `Io` or split it
+    - [ ] rename `IssueData::FormValidationFailed.field` to `field_key` (other variants carry labels)
+    - [ ] optional: `FieldKey` newtype for script input/output field keys
+    - [ ] optional: split `form_script/mod.rs` into types and runner
+  - [ ] tests
+    - [ ] cover subtask nodes, an unknown field key reported by a script, and the stale-result race
+  - [ ] design decisions to settle
+    - [ ] report one E031 per script per file instead of one per task
+    - [ ] docs: the script gets a minimal `PATH` (`/usr/local/bin:/usr/bin:/bin`); mention this for interpreters installed elsewhere (e.g. Homebrew)
+    - [ ] update `README.vision.md` to the decided trust key (project-relative path + content hash)
+
 #MILESTONE: Branch Properties V1
 
 
