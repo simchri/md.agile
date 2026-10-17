@@ -9,6 +9,7 @@
 //! for convenience.
 
 mod branch_properties;
+mod colliding_field_labels;
 mod empty_title;
 mod field_left_unfilled;
 mod incomplete_parent;
@@ -34,6 +35,7 @@ mod wrong_indentation;
 pub use branch_properties::{
     plain_branching_property, undefined_branch_outcome, unresolved_branch_property,
 };
+pub use colliding_field_labels::colliding_field_labels;
 pub use empty_title::empty_title;
 pub use field_left_unfilled::field_left_unfilled;
 pub use incomplete_parent::incomplete_parent;
@@ -127,6 +129,12 @@ pub enum ErrorCode {
     /// generic `___` when it has none) -- i.e. the field line exists but
     /// nobody has actually filled it out yet.
     FieldLeftUnfilled,
+    /// E027: Two distinct properties on the same task/subtask each attach a
+    /// `[Form.X]` (see README.vision.md "Forms & Fields"), and those two
+    /// forms declare a field with the same display label -- the one
+    /// `__Label:__ value` body line could never unambiguously satisfy both
+    /// forms at once.
+    CollidingFieldLabels,
 }
 
 impl ErrorCode {
@@ -160,6 +168,7 @@ impl ErrorCode {
             ErrorCode::MissingRequiredField => "E024",
             ErrorCode::MissingSpaceAfterFieldLabel => "E025",
             ErrorCode::FieldLeftUnfilled => "E026",
+            ErrorCode::CollidingFieldLabels => "E027",
         }
     }
 }
@@ -201,6 +210,7 @@ impl std::str::FromStr for ErrorCode {
             "E024" => ErrorCode::MissingRequiredField,
             "E025" => ErrorCode::MissingSpaceAfterFieldLabel,
             "E026" => ErrorCode::FieldLeftUnfilled,
+            "E027" => ErrorCode::CollidingFieldLabels,
             _ => return Err(()),
         })
     }
@@ -442,6 +452,13 @@ pub enum IssueData {
     /// Payload for E026 "Field Left Unfilled": labels of the present form
     /// fields whose value still equals their resolved unfilled placeholder.
     FieldLeftUnfilled { unfilled: Vec<String> },
+    /// Payload for E027 "Colliding Field Labels": the shared display label,
+    /// and the names of the two (or more) properties on the node whose
+    /// attached forms each declare a field with that label.
+    CollidingFieldLabels {
+        label: String,
+        properties: Vec<String>,
+    },
 }
 
 /// The result of resolving "who is completing this task" for the E013
@@ -484,10 +501,11 @@ pub struct Issue {
 /// Runs every lint rule that doesn't need `Config` at all — i.e. everything
 /// except [`undefined_property`], [`undefined_assignment`],
 /// [`missing_required_subtasks`], [`missing_required_field`],
-/// [`field_left_unfilled`], [`unrequired_quoted_subtask`],
-/// [`neighbor_task_on_top_level`], [`neighbor_tasks`],
-/// [`undefined_branch_outcome`] and [`plain_branching_property`], which all
-/// look up property/user/group declarations.
+/// [`field_left_unfilled`], [`colliding_field_labels`],
+/// [`unrequired_quoted_subtask`], [`neighbor_task_on_top_level`],
+/// [`neighbor_tasks`], [`undefined_branch_outcome`] and
+/// [`plain_branching_property`], which all look up property/user/group
+/// declarations.
 ///
 /// Used when there's no config to trust yet (e.g. the LSP falls back to this
 /// when `mdagile.toml` failed to load): running the config-dependent checks
@@ -519,6 +537,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(plain_branching_property(items, config));
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(missing_required_field(items, config));
+    issues.extend(colliding_field_labels(items, config));
     issues.extend(field_left_unfilled(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
     issues.extend(neighbor_task_on_top_level(items, config));
