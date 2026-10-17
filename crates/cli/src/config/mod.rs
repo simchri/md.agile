@@ -500,6 +500,21 @@ impl Config {
                         message: format!("field '{duplicate}' is listed more than once"),
                     });
                 }
+                let mut seen_labels = std::collections::HashSet::new();
+                if let Some(duplicate_label) = raw_form
+                    .fields
+                    .iter()
+                    .filter_map(|field| fields.get(field))
+                    .find(|field_config| !seen_labels.insert(field_config.label.as_str()))
+                    .map(|field_config| field_config.label.clone())
+                {
+                    return Err(ConfigError::FormValidation {
+                        form: name,
+                        message: format!(
+                            "two fields share the label '{duplicate_label}' -- field labels must be unique within a form"
+                        ),
+                    });
+                }
                 Ok((
                     name.clone(),
                     FormConfig {

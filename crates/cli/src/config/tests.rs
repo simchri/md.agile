@@ -832,6 +832,70 @@ fields = [\"first_name\", \"first_name\"]
     }
 }
 
+#[test]
+fn form_with_two_different_fields_sharing_the_same_explicit_label_is_rejected() {
+    let input = "\
+[Field.first_name]
+label = \"Name\"
+
+[Field.company_name]
+label = \"Name\"
+
+[Form.personal_info]
+fields = [\"first_name\", \"company_name\"]
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::FormValidation { form, message }) => {
+            assert_eq!(form, "personal_info");
+            assert!(message.contains("Name"), "message: {message:?}");
+        }
+        other => panic!("expected FormValidation error, got {other:?}"),
+    }
+}
+
+#[test]
+fn form_with_two_different_fields_sharing_a_label_via_the_default_label_fallback_is_rejected() {
+    // Neither field declares an explicit `label`, so each falls back to its
+    // own key name -- "name" -- as its label. Collision still applies.
+    let input = "\
+[Field.name]
+
+[Form.form_a]
+fields = [\"name\"]
+
+[Field.other]
+label = \"name\"
+
+[Form.form_b]
+fields = [\"name\", \"other\"]
+";
+    let result = Config::from_str(input);
+    match result {
+        Err(ConfigError::FormValidation { form, message }) => {
+            assert_eq!(form, "form_b");
+            assert!(message.contains("name"), "message: {message:?}");
+        }
+        other => panic!("expected FormValidation error, got {other:?}"),
+    }
+}
+
+#[test]
+fn form_with_fields_having_distinct_labels_is_accepted() {
+    let input = "\
+[Field.first_name]
+label = \"First Name\"
+
+[Field.last_name]
+label = \"Last Name\"
+
+[Form.personal_info]
+fields = [\"first_name\", \"last_name\"]
+";
+    let config = Config::from_str(input).unwrap();
+    assert!(config.forms.contains_key("personal_info"));
+}
+
 // ── `form` key on [Properties.X] ─────────────────────────────────────────────
 
 #[test]

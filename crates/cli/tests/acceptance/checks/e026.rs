@@ -201,10 +201,15 @@ fn a_truly_blank_value_is_flagged_even_without_default_is_valid_entry() {
 }
 
 #[test]
-fn two_fields_sharing_the_same_label_report_the_unfilled_label_only_once() {
-    // Regression test: several `[Field.X]` entries may share one display
-    // `label` so a single physical field line satisfies all of them. Left
-    // unfilled, that one line must only be reported once.
+fn two_fields_sharing_the_same_label_within_one_form_is_rejected_at_config_load() {
+    // Field labels must be unique within a single form (see
+    // `config::tests::form_with_two_different_fields_sharing_the_same_explicit_label_is_rejected`):
+    // this previously used to be a silently-deduped "aliasing" feature --
+    // a single physical field line satisfying two distinct `[Field.X]`
+    // entries that happen to share a label -- which this check rule relied
+    // on to avoid reporting the same unfilled line twice. Now that the
+    // config itself refuses to load such a form, that scenario can no
+    // longer reach this check at all.
     let dir = tempdir().unwrap();
     let config = "\
 [Field.first_name]
@@ -225,8 +230,7 @@ form = \"personal_info\"
 
     let out = run_check(dir.path());
 
-    assert_eq!(out.status.code(), Some(1));
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    let occurrences = stdout.matches("First Name").count();
-    assert_eq!(occurrences, 1, "stdout: {stdout:?}");
+    assert_ne!(out.status.code(), Some(0), "expected non-zero exit");
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("First Name"), "stderr: {stderr:?}");
 }

@@ -61,6 +61,32 @@ fn valid_config_does_not_prevent_normal_operation() {
 }
 
 #[test]
+fn form_with_two_fields_sharing_the_same_label_is_rejected() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.first_name]
+label = \"Name\"
+
+[Field.company_name]
+label = \"Name\"
+
+[Form.personal_info]
+fields = [\"first_name\", \"company_name\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_ne!(out.status.code(), Some(0), "expected non-zero exit");
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("Name"), "stderr: {stderr:?}");
+    assert!(
+        stderr.contains("personal_info"),
+        "stderr should name the offending form: {stderr:?}"
+    );
+}
+
+#[test]
 fn config_error_is_reported_regardless_of_subcommand() {
     let dir = tempdir().unwrap();
     let config = "\
