@@ -1072,15 +1072,21 @@ users don't have to think about it. Design plan: see
 
 - [ ] advanced validation (script)
   - [ ] `agile trust` command + trust store
+    decided: store lives per-user (`~/.config/mdagile/trust.json`), not in the repo, so a cloned repo can not pre-trust itself. Key = project + script path + sha256(script content); editing the script revokes trust.
+    decided: untrusted script in `agile check` is an error (non-zero exit), not a skip. The error must print clear, copy-pasteable instructions (exact `agile trust` command) incl. how to create the trust entry on a CI runner.
+    open: CI strategy. Trust file is plain JSON, so CI can create it non-interactively (e.g. `agile trust --yes`, or a `MDAGILE_TRUST_FILE` override). The checkout path differs per runner, so keying on the absolute project path breaks on CI -> consider keying on project-relative script path + content hash.
   - [ ] define script interface (json schema)
+    decided: scripts are invoked directly (must be executable, shebang) -- no interpreter-by-extension.
     convention: A successfully running script shall always return 0, but output some json indication validation passed / failed failure message and location (which field).
     This allows to distinguish "validation failed" from "script failed to execute properly".
     - [ ] input
     - [ ] output
   - [ ] sandboxed per-task script runner
+    decided: first version is portable hardening only (no shell, cleared env, cwd/path confined to project, timeout, output cap, one process per task). It does NOT block the script's own file/network access. Linux OS-level isolation (bwrap/landlock) is a possible later step.
   - [ ] check: form validation script failure
   - [ ] wire script validation into `agile check`
   - [ ] wire script validation into lsp (on save)
+    note: the LSP has no `did_save` handler / save capability yet -- needs adding. Do not run scripts on keystrokes.
   - [ ] block completion until fields valid
 
 #MILESTONE: Branch Properties V1
