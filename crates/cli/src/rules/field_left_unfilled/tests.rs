@@ -87,7 +87,7 @@ fn flags_a_field_still_at_the_plain_underscore_placeholder() {
     assert_eq!(
         issues[0].data,
         Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["First Name".to_string()]
+            label: "First Name".to_string()
         })
     );
 }
@@ -111,7 +111,7 @@ fn flags_a_field_still_at_its_custom_default() {
     assert_eq!(
         issues[0].data,
         Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["Gender".to_string()]
+            label: "Gender".to_string()
         })
     );
 }
@@ -173,7 +173,7 @@ fn no_issue_when_form_reference_is_undefined() {
 }
 
 #[test]
-fn reports_multiple_unfilled_fields_in_one_issue() {
+fn reports_one_issue_per_unfilled_field_anchored_at_its_own_line() {
     let input = "\
 - [x] new colleague: John #onboarding
   __First Name:__ ___
@@ -183,13 +183,23 @@ fn reports_multiple_unfilled_fields_in_one_issue() {
     let config = config_with_onboarding_form();
     let issues = field_left_unfilled(&items, &config);
 
-    assert_eq!(issues.len(), 1);
+    assert_eq!(issues.len(), 2);
     assert_eq!(
         issues[0].data,
         Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["First Name".to_string(), "Gender".to_string()]
+            label: "First Name".to_string()
         })
     );
+    // Line 1 is the task; line 2 is `__First Name:__ ___`.
+    assert_eq!(issues[0].location.line, 2);
+    assert_eq!(
+        issues[1].data,
+        Some(IssueData::FieldLeftUnfilled {
+            label: "Gender".to_string()
+        })
+    );
+    // Line 3 is `__Gender:__ (don't specify)`.
+    assert_eq!(issues[1].location.line, 3);
 }
 
 #[test]
@@ -208,13 +218,13 @@ fn field_present_on_subtask_is_checked_independently_of_its_parent() {
     assert_eq!(
         issues[0].data,
         Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["First Name".to_string()]
+            label: "First Name".to_string()
         })
     );
 }
 
 #[test]
-fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property() {
+fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property_per_field() {
     let mut config = config_with_onboarding_form();
     config.properties.insert(
         "relocation".to_string(),
@@ -242,7 +252,7 @@ fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property() {
         assert_eq!(
             issue.data,
             Some(IssueData::FieldLeftUnfilled {
-                unfilled: vec!["First Name".to_string()]
+                label: "First Name".to_string()
             })
         );
     }
@@ -279,18 +289,12 @@ fn check_node_flags_an_unfilled_field_regardless_of_status() {
     let items = p(input);
     let config = config_with_onboarding_form();
     let node = crate::rules::find_node_by_line(&items, 1).unwrap();
-    let issues = check_node(
-        node.markers(),
-        node.fields(),
-        node.location(),
-        node.indent(),
-        &config,
-    );
+    let issues = check_node(node.markers(), node.fields(), &config);
 
     assert_eq!(
         issues.into_iter().map(|i| i.data).collect::<Vec<_>>(),
         vec![Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["First Name".to_string()]
+            label: "First Name".to_string()
         })]
     );
 }
@@ -366,7 +370,7 @@ fn default_is_valid_entry_true_does_not_suppress_a_truly_blank_value() {
     assert_eq!(
         issues[0].data,
         Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["Gender".to_string()]
+            label: "Gender".to_string()
         })
     );
 }
@@ -389,7 +393,7 @@ fn a_truly_blank_value_is_flagged_even_without_default_is_valid_entry() {
     assert_eq!(
         issues[0].data,
         Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["First Name".to_string()]
+            label: "First Name".to_string()
         })
     );
 }
@@ -414,7 +418,7 @@ fn placeholder_value_with_incidental_trailing_whitespace_is_still_flagged() {
     assert_eq!(
         issues[0].data,
         Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["First Name".to_string()]
+            label: "First Name".to_string()
         })
     );
 }
@@ -475,7 +479,7 @@ fn flags_a_multiline_field_whose_captured_content_is_empty() {
     assert_eq!(
         issues[0].data,
         Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["Bio".to_string()]
+            label: "Bio".to_string()
         })
     );
 }

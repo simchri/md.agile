@@ -459,9 +459,10 @@ pub enum IssueData {
     /// Payload for E025 "Missing Space After Field Label": the field label
     /// that's missing its separating space before the value.
     MissingSpaceAfterFieldLabel { label: String },
-    /// Payload for E026 "Field Left Unfilled": labels of the present form
-    /// fields whose value still equals their resolved unfilled placeholder.
-    FieldLeftUnfilled { unfilled: Vec<String> },
+    /// Payload for E026 "Field Left Unfilled": the label of the present
+    /// form field whose value still equals its resolved unfilled
+    /// placeholder.
+    FieldLeftUnfilled { label: String },
     /// Payload for E027 "Colliding Field Labels": the shared display label,
     /// and the names of the two (or more) properties on the node whose
     /// attached forms each declare a field with that label.
@@ -604,8 +605,6 @@ pub fn check_completable(
     issues.extend(field_left_unfilled::check_node(
         node.markers(),
         node.fields(),
-        node.location(),
-        node.indent(),
         config,
     ));
     issues.extend(branch_properties::check_unresolved(

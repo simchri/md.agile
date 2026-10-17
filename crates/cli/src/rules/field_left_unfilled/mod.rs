@@ -31,6 +31,11 @@
 //! so it's flagged the same way -- "blank" here means "no real content",
 //! not "no text on the opening `__Label:__` line".
 //!
+//! Each unfilled field gets its own issue, anchored at that field's own
+//! `__Label:__` line (same as E025/E028), rather than one issue per
+//! property aggregating every unfilled field at the task/subtask line --
+//! each field line is where the fix actually has to happen.
+//!
 //! Unlike E024, this check only matters at the moment a task is (about to
 //! be) marked done -- a form field is allowed to sit unfilled for as long
 //! as the task stays open. So, same as [`crate::rules::incomplete_parent`]
@@ -50,13 +55,7 @@ pub fn field_left_unfilled(items: &[crate::parser::FileItem], config: &Config) -
         if *node.status() != Status::Done {
             return;
         }
-        issues.extend(check_node(
-            node.markers(),
-            node.fields(),
-            node.location(),
-            node.indent(),
-            config,
-        ));
+        issues.extend(check_node(node.markers(), node.fields(), config));
     });
     issues
 }
@@ -66,13 +65,7 @@ pub fn field_left_unfilled(items: &[crate::parser::FileItem], config: &Config) -
 /// this exact rule, via [`crate::rules::check_completable`], to validate a
 /// single addressed node *before* it's marked done, without duplicating the
 /// logic or running the full rule over an entire project.
-pub(crate) fn check_node(
-    markers: &[Marker],
-    fields: &[FieldLine],
-    location: &crate::parser::Location,
-    indent: usize,
-    config: &Config,
-) -> Vec<Issue> {
+pub(crate) fn check_node(markers: &[Marker], fields: &[FieldLine], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
     for marker in markers {
         let Marker::Property(prop) = marker else {
@@ -98,42 +91,39 @@ pub(crate) fn check_node(
         // label, is `crate::rules::colliding_field_labels`'s concern (E027),
         // not this rule's), so no dedup is needed here: each iteration below
         // reports a distinct label.
-        let unfilled: Vec<String> = form_config
+        for field_config in form_config
             .fields
             .iter()
             .filter_map(|field_name| config.fields.get(field_name))
-            .filter_map(|field_config| {
-                let field_line = fields.iter().find(|f| f.label == field_config.label)?;
-                let placeholder = field_config.default.as_deref().unwrap_or("___");
-                // A field left entirely blank is never a legitimate answer,
-                // regardless of `default_is_valid_entry` -- that flag only
-                // says the *placeholder itself* counts as a deliberately
-                // chosen value, not that the check is disabled outright.
-                // Both sides are trimmed before comparing so incidental
-                // whitespace around the placeholder (e.g. a stray trailing
-                // space) doesn't let a still-unfilled value slip through.
-                let trimmed_value = field_line.value.trim();
-                let is_blank = trimmed_value.is_empty();
-                let still_at_placeholder =
-                    !field_config.default_is_valid_entry && trimmed_value == placeholder.trim();
-                (is_blank || still_at_placeholder).then(|| field_config.label.clone())
-            })
-            .collect();
+        {
+            let Some(field_line) = fields.iter().find(|f| f.label == field_config.label) else {
+                continue;
+            };
+            let placeholder = field_config.default.as_deref().unwrap_or("___");
+            // A field left entirely blank is never a legitimate answer,
+            // regardless of `default_is_valid_entry` -- that flag only
+            // says the *placeholder itself* counts as a deliberately
+            // chosen value, not that the check is disabled outright.
+            // Both sides are trimmed before comparing so incidental
+            // whitespace around the placeholder (e.g. a stray trailing
+            // space) doesn't let a still-unfilled value slip through.
+            let trimmed_value = field_line.value.trim();
+            let is_blank = trimmed_value.is_empty();
+            let still_at_placeholder =
+                !field_config.default_is_valid_entry && trimmed_value == placeholder.trim();
+            if !(is_blank || still_at_placeholder) {
+                continue;
+            }
 
-        if !unfilled.is_empty() {
-            let unfilled_quoted: Vec<String> =
-                unfilled.iter().map(|s| format!("\"{s}\"")).collect();
             issues.push(Issue {
-                location: location.clone(),
+                location: field_line.location.clone(),
                 code: ErrorCode::FieldLeftUnfilled,
-                message: format!(
-                    "Field{} left unfilled: {}",
-                    if unfilled.len() == 1 { "" } else { "s" },
-                    unfilled_quoted.join(", "),
-                ),
-                column: indent + 1,
+                message: format!("Field \"{}\" left unfilled", field_config.label),
+                column: 1,
                 help: Some("Fill in the field's value".to_string()),
-                data: Some(IssueData::FieldLeftUnfilled { unfilled }),
+                data: Some(IssueData::FieldLeftUnfilled {
+                    label: field_config.label.clone(),
+                }),
             });
         }
     }
