@@ -1042,9 +1042,16 @@ users don't have to think about it. Design plan: see
     - [x] quickfix
   - [x] check: malformed field label (missing space between label and value), suppresses "missing required field" for that label
   - [x] config: reject multiline `default` value for a field not marked `multiline = true`
-  - [x] check: field left unfilled
+  - [ ] check: field left unfilled
+    - [ ] initial impl
+    - [ ] fire only, when task is marked done! Otherwise ignore (tasks can only be marked done, when all required fields are filled!)
+  - [ ] configuration option: Field is optional. If true, field may be empty
   - [ ] check: field fails regex/allowed values
+  - [ ] multiline fields added via quickfix: The default value is placed on a new line
+  - [ ] check - multiline fields: The remainder of the line must be empty, any content must be on a new line
   - [x] lsp quickfix: insert missing fields
+
+- [ ] validation
   - [ ] `agile trust` command + trust store
   - [ ] define script interface (json schema)
     convention: A successfully running script shall always return 0, but output some json indication validation passed / failed failure message and location (which field).
