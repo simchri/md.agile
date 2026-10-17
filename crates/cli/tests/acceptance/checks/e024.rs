@@ -99,3 +99,96 @@ fn a_malformed_field_line_is_reported_as_e025_not_also_as_missing() {
     assert!(stdout.contains("E025"), "stdout: {stdout:?}");
     assert!(!stdout.contains("E024"), "stdout: {stdout:?}");
 }
+
+/// Two distinct properties (`onboarding`/`personal_info` as above, plus
+/// `equipment`/`equipment_request`), each attaching its own, entirely
+/// separate form -- both can be declared on the same task at once. No
+/// label/field-name collisions between the two forms are assumed here.
+fn write_two_property_config(dir: &std::path::Path) {
+    let config = "\
+[Field.first_name]
+label = \"First Name\"
+[Field.email]
+label = \"Email\"
+[Form.personal_info]
+fields = [\"first_name\", \"email\"]
+[Properties.onboarding]
+form = \"personal_info\"
+[Field.device]
+label = \"Device\"
+[Field.os]
+label = \"OS\"
+[Form.equipment_request]
+fields = [\"device\", \"os\"]
+[Properties.equipment]
+form = \"equipment_request\"
+";
+    fs::write(dir.join("mdagile.toml"), config).unwrap();
+}
+
+#[test]
+fn two_properties_with_two_forms_on_the_same_task_are_each_flagged_independently() {
+    let dir = tempdir().unwrap();
+    write_two_property_config(dir.path());
+    let file_content = "\
+- [ ] new colleague: John #onboarding #equipment
+  __First Name:__ John
+  __Device:__ laptop
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E024"), "stdout: {stdout:?}");
+    // Missing from `personal_info` and from `equipment_request` respectively.
+    assert!(stdout.contains("Email"), "stdout: {stdout:?}");
+    assert!(stdout.contains("OS"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn two_properties_with_two_forms_only_the_unsatisfied_one_is_flagged() {
+    let dir = tempdir().unwrap();
+    write_two_property_config(dir.path());
+    let file_content = "\
+- [ ] new colleague: John #onboarding #equipment
+  __First Name:__ John
+  __Email:__ john@example.com
+  __Device:__ laptop
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E024"), "stdout: {stdout:?}");
+    assert!(stdout.contains("OS"), "stdout: {stdout:?}");
+    // `personal_info`'s fields are all present -- its labels must not show
+    // up as missing.
+    assert!(!stdout.contains("Missing required field: \"Email\""));
+    assert!(!stdout.contains("Missing required field: \"First Name\""));
+}
+
+#[test]
+fn two_properties_with_two_forms_both_fully_satisfied_is_clean() {
+    let dir = tempdir().unwrap();
+    write_two_property_config(dir.path());
+    let file_content = "\
+- [ ] new colleague: John #onboarding #equipment
+  __First Name:__ John
+  __Email:__ john@example.com
+  __Device:__ laptop
+  __OS:__ Linux
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
