@@ -1091,31 +1091,67 @@ users don't have to think about it. Design plan: see
   - [ ] block completion until fields valid
 
 - [ ] review findings: form validation feature (review-recent-changes, commits fe34e71..3686efc)
+  Findings of the review of the script validation feature (trust store, runner, E030/E031 check, LSP on save).
   - [ ] bugs
     - [ ] LSP: discard script results if the document changed while the scripts ran (stale-result race in `run_form_scripts`); add a test
+      lsp/mod.rs, `run_form_scripts`: reads the text, runs the scripts (up to 10 s each) and only then writes the cache.
+      If the user edits during the run, `did_change` clears the cache, then the late write puts the results back:
+      old line numbers are shown on the new text.
+      Fix: only store the result if the document text is still the text the scripts ran on.
     - [ ] LSP: don't swallow `spawn_blocking` join errors/panics (`unwrap_or_default`); log them
+      lsp/mod.rs, `run_form_scripts`: a panic or join error in the blocking task is silently turned into "no issues".
     - [ ] LSP: scripts run sequentially per task, so a save can delay diagnostics by minutes -- decide on a total time budget / parallelism / publishing partial results
+      One process per task, run one after another, each with up to 10 s timeout.
+      A file with 30 tasks and a slow script can delay the diagnostics by minutes.
+      Design decision needed: total time budget, parallel runs, or publishing partial results.
     - [ ] runner: on timeout also kill the script's child processes (own process group), not just the direct child
+      form_script/mod.rs: a timeout kills only the direct child, so a script that starts its own subprocess leaves that process running.
+      Fix: run the script in its own process group and kill the group.
     - [ ] runner: close the gap between hashing and executing the script (execute exactly the bytes that were hashed)
+      form_script/mod.rs: the script is hashed and then executed as two separate steps.
+      Already noted as a known gap in the plan, but real if the file is writable by others.
+      Ties in with the `trust::fingerprint` refactoring below.
     - [ ] trust: make `TrustStore::save` atomic (write temp file + rename)
+      trust/mod.rs: `save` is not atomic, so two concurrent `agile trust` runs can lose an entry.
     - [ ] docs: state that trust only covers the script file itself, not files it imports
+      trust/mod.rs: only the content of the script file is hashed. Imports and helper files the script uses are not covered; editing them does not revoke trust.
   - [ ] refactoring
     - [ ] split `check_form_scripts` into building the script input and mapping the verdict to issues
+      checker/form_validation.rs `check_form_scripts` (about 75 lines) finds the form, builds the input, runs the script and turns the verdict into issues.
+      Proposed: extract `build_script_input(node, form, form_fields)` and a verdict-to-issues function.
     - [ ] extract a shared `forms_of(node, config)` (node -> property -> form -> fields) used by the form rules and the script check
+      The node -> property -> form -> fields walk is repeated in 7 rules (`field_value_not_allowed`, `missing_required_field`, `field_left_unfilled`, ...) and in checker/form_validation.rs.
+      Proposed: a shared iterator. Touches several rules, so check the design with the user first.
     - [ ] LSP: extract `project_root(source)` (duplicated in `validate` and `run_form_scripts`)
+      lsp/mod.rs: "project root = directory of the config file, else the workspace root" is written twice.
     - [ ] add `TrustStore::load_default()` (store path resolution is duplicated in `agile trust` and the checker)
+      cli/subcommands/trust.rs and checker/form_validation.rs both resolve the trust store path from the environment.
     - [ ] add `trust::fingerprint(root, script)` (resolve + read + hash is duplicated in `agile trust` and `run_script`)
+      cli/subcommands/trust.rs and form_script/mod.rs both resolve a script, read it and hash it.
+      Could also close the hash-then-execute gap (see bugs).
     - [ ] move trust store loading (env/IO) out of the checker; callers pass the store in
+      checker/form_validation.rs `check_form_scripts_default` reads environment variables and the trust store (I/O) inside the checker.
+      It belongs in the CLI/LSP layer; the checker would only keep `check_form_scripts`.
     - [ ] rename `RunError::Spawn` (also used for read/wait errors) to `Io` or split it
+      form_script/mod.rs: `RunError::Spawn` is also used for read and wait errors, so its message "could not start script" is wrong for them.
     - [ ] rename `IssueData::FormValidationFailed.field` to `field_key` (other variants carry labels)
+      rules/mod.rs: this variant holds a field key, while the other `IssueData` variants hold labels.
     - [ ] optional: `FieldKey` newtype for script input/output field keys
+      `ScriptInput.form`, the script path and the field keys are plain `String`s. Passing a label where a key is expected compiles fine -- exactly the bug fixed in 3686efc.
     - [ ] optional: split `form_script/mod.rs` into types and runner
+      form_script/mod.rs (209 lines) mixes the JSON types, the error type and the process runner. Borderline.
   - [ ] tests
     - [ ] cover subtask nodes, an unknown field key reported by a script, and the stale-result race
+      Current gaps in the unit/acceptance tests of the validation feature.
+      Also: acceptance tests e030.rs and the trust acceptance test repeat a lot of project setup (allowed by the project's independence rule, no action needed).
   - [ ] design decisions to settle
     - [ ] report one E031 per script per file instead of one per task
+      An untrusted or failing script currently gives one E031 per task, so a file with 50 tasks shows 50 identical errors.
+      Proposed: one E031 per script per file.
     - [ ] docs: the script gets a minimal `PATH` (`/usr/local/bin:/usr/bin:/bin`); mention this for interpreters installed elsewhere (e.g. Homebrew)
+      On macOS with Homebrew, `/usr/bin/env python3` may not be found, which shows up as E031.
     - [ ] update `README.vision.md` to the decided trust key (project-relative path + content hash)
+      README.vision.md still says the trust key includes the project path. Do not edit it without explicit request.
 
 #MILESTONE: Branch Properties V1
 
