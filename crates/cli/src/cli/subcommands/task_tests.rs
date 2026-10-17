@@ -175,7 +175,6 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
-            optional: false,
             default_is_valid_entry: false,
         },
     );

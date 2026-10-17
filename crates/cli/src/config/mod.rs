@@ -130,12 +130,6 @@ pub struct FieldConfig {
     /// `validation_regex` -- at most one of the two may be set.
     pub values: Option<Vec<String>>,
     pub multiline: bool,
-    /// Whether this field may be left entirely absent/unfilled without
-    /// being flagged. Defaults to `false` -- a field is required by
-    /// default, so [`crate::rules::missing_required_field`] (E024) and
-    /// [`crate::rules::field_left_unfilled`] (E026) both apply as normal
-    /// unless a project explicitly opts a field out here.
-    pub optional: bool,
 }
 
 /// A `[Form.X]` entry (see README.vision.md "Forms & Fields"): a named,
@@ -317,8 +311,6 @@ struct RawFieldConfig {
     values: Option<Vec<String>>,
     #[serde(default)]
     multiline: bool,
-    #[serde(default)]
-    optional: bool,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -476,7 +468,6 @@ impl Config {
                         validation_regex: raw_field.validation_regex,
                         values: raw_field.values,
                         multiline: raw_field.multiline,
-                        optional: raw_field.optional,
                     },
                 ))
             })

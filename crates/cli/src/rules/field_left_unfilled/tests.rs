@@ -22,7 +22,6 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
-            optional: false,
             default_is_valid_entry: false,
         },
     );
@@ -35,7 +34,6 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
-            optional: false,
             default_is_valid_entry: false,
         },
     );
@@ -141,38 +139,6 @@ fn no_issue_for_a_field_that_is_entirely_absent() {
 ";
     let items = p(input);
     let config = config_with_onboarding_form();
-    let issues = field_left_unfilled(&items, &config);
-
-    assert!(issues.is_empty());
-}
-
-#[test]
-fn no_issue_for_an_optional_field_still_at_its_placeholder() {
-    // A field marked optional may be left unfilled (and, via E024, left
-    // absent entirely) without being flagged.
-    let mut config = config_with_onboarding_form();
-    config.fields.get_mut("gender").unwrap().optional = true;
-    let input = "\
-- [x] new colleague: John #onboarding
-  __First Name:__ John
-  __Gender:__ (don't specify)
-";
-    let items = p(input);
-    let issues = field_left_unfilled(&items, &config);
-
-    assert!(issues.is_empty());
-}
-
-#[test]
-fn no_issue_for_an_optional_field_left_entirely_blank() {
-    let mut config = config_with_onboarding_form();
-    config.fields.get_mut("gender").unwrap().optional = true;
-    let input = "\
-- [x] new colleague: John #onboarding
-  __First Name:__ John
-  __Gender:__ 
-";
-    let items = p(input);
     let issues = field_left_unfilled(&items, &config);
 
     assert!(issues.is_empty());

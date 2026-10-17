@@ -21,7 +21,6 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
-            optional: false,
             default_is_valid_entry: false,
         },
     );
@@ -34,7 +33,6 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
-            optional: false,
             default_is_valid_entry: false,
         },
     );
@@ -87,25 +85,6 @@ fn flags_a_task_missing_every_form_field() {
         issues[0].data,
         Some(IssueData::MissingRequiredField {
             missing: vec!["First Name".to_string(), "Email".to_string()]
-        })
-    );
-}
-
-#[test]
-fn a_field_marked_optional_is_never_reported_missing() {
-    let input = "\
-- [ ] new colleague: John #onboarding
-";
-    let items = p(input);
-    let mut config = config_with_onboarding_form();
-    config.fields.get_mut("email").unwrap().optional = true;
-    let issues = missing_required_field(&items, &config);
-
-    assert_eq!(issues.len(), 1);
-    assert_eq!(
-        issues[0].data,
-        Some(IssueData::MissingRequiredField {
-            missing: vec!["First Name".to_string()]
         })
     );
 }
@@ -276,7 +255,6 @@ fn two_fields_sharing_the_same_label_let_one_field_line_satisfy_both() {
             validation_regex: None,
             values: None,
             multiline: false,
-            optional: false,
             default_is_valid_entry: false,
         },
     );
