@@ -67,17 +67,25 @@ pub fn check_form_scripts(
                 continue;
             }
 
-            let labels: Vec<&str> = form
+            // (toml key, display label) of each field of the form.
+            let form_fields: Vec<(&str, &str)> = form
                 .fields
                 .iter()
-                .filter_map(|name| config.fields.get(name))
-                .map(|field| field.label.as_str())
+                .filter_map(|key| {
+                    config
+                        .fields
+                        .get(key)
+                        .map(|f| (key.as_str(), f.label.as_str()))
+                })
                 .collect();
-            let fields: BTreeMap<String, String> = node
-                .fields()
+            let fields: BTreeMap<String, String> = form_fields
                 .iter()
-                .filter(|line| labels.contains(&line.label.as_str()))
-                .map(|line| (line.label.clone(), line.value.trim().to_string()))
+                .filter_map(|(key, label)| {
+                    node.fields()
+                        .iter()
+                        .find(|line| line.label == *label)
+                        .map(|line| (key.to_string(), line.value.trim().to_string()))
+                })
                 .collect();
             let input = ScriptInput {
                 form: form_name.clone(),
@@ -100,7 +108,7 @@ pub fn check_form_scripts(
                         output.errors
                     };
                     for error in errors {
-                        issues.push(validation_failed(node, form_name, error));
+                        issues.push(validation_failed(node, form_name, &form_fields, error));
                     }
                 }
                 Err(error) => issues.push(script_failed(node, form_name, script, &error)),
@@ -110,16 +118,33 @@ pub fn check_form_scripts(
     issues
 }
 
-fn validation_failed(node: NodeRef, form: &str, error: ScriptError) -> Issue {
-    let line_of_field = error.field.as_ref().and_then(|label| {
+/// `form_fields` maps the form's toml keys to display labels; the script
+/// names fields by key.
+fn validation_failed(
+    node: NodeRef,
+    form: &str,
+    form_fields: &[(&str, &str)],
+    error: ScriptError,
+) -> Issue {
+    let label_of_field = error.field.as_ref().and_then(|key| {
+        form_fields
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, label)| *label)
+    });
+    let line_of_field = label_of_field.and_then(|label| {
         node.fields()
             .iter()
-            .find(|f| &f.label == label)
+            .find(|f| f.label == label)
             .map(|f| f.location.clone())
     });
     let location = line_of_field.unwrap_or_else(|| node.location().clone());
     let message = match &error.field {
-        Some(field) => format!("Field \"{field}\" is invalid: {}", error.message),
+        Some(key) => format!(
+            "Field \"{}\" is invalid: {}",
+            label_of_field.unwrap_or(key),
+            error.message
+        ),
         None => format!("Form \"{form}\" is invalid: {}", error.message),
     };
     Issue {

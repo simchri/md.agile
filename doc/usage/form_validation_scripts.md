@@ -36,11 +36,11 @@ Only the form's own fields are sent, never other properties or fields of the tas
 {
   "form": "personal_info",
   "task": { "title": "new colleague: John #onboarding", "line": 12 },
-  "fields": { "First Name": "John", "Email": "john@example.com" }
+  "fields": { "first_name": "John", "email": "john@example.com" }
 }
 ```
 
-`fields` maps each field label to its value; `line` is the 1-based source line of the task.
+`fields` maps each field's `[Field.X]` key from `mdagile.toml` (not its display label, which may change) to its value; `line` is the 1-based source line of the task.
 
 ## Output (stdout)
 
@@ -48,11 +48,11 @@ A script that ran properly **always exits 0**, whether or not the form is
 valid, and prints:
 
 ```json
-{ "valid": false, "errors": [ { "field": "Email", "message": "not an email address" } ] }
+{ "valid": false, "errors": [ { "field": "email", "message": "not an email address" } ] }
 ```
 
 - `valid` — required.
-- `errors` — optional list; `field` (a field label) is optional and omitted for
+- `errors` — optional list; `field` (a field key, as in `fields`) is optional and omitted for
   errors about the form as a whole.
 
 A non-zero exit, a timeout, oversized output, or output that isn't this JSON
@@ -81,7 +81,7 @@ form = "personal_info"
 
 ```python
 #!/usr/bin/env python3
-# Validates the "Email" field of a form. See form_validation_scripts.md.
+# Validates the "email" field of a form. See form_validation_scripts.md.
 import json
 import sys
 
@@ -115,14 +115,14 @@ def email_problem(email):
 
 # The script receives the form's data as JSON on stdin.
 data = json.load(sys.stdin)
-email = data["fields"].get("Email", "").strip()
+email = data["fields"].get("email", "").strip()
 
 problem = email_problem(email)
 if problem is None:
     result = {"valid": True}
 else:
-    # "field" ties the error to the "Email" line in the task file.
-    result = {"valid": False, "errors": [{"field": "Email", "message": problem}]}
+    # "field" ties the error to the Email line in the task file.
+    result = {"valid": False, "errors": [{"field": "email", "message": problem}]}
 
 # A script that ran properly always prints the verdict and exits 0,
 # even when the form is invalid.

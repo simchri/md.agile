@@ -36,7 +36,7 @@ form = \"personal_info\"
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
     let script_content = "\
 #!/bin/sh
-echo '{\"valid\": false, \"errors\": [{\"field\": \"Email\", \"message\": \"not an email\"}]}'
+echo '{\"valid\": false, \"errors\": [{\"field\": \"email\", \"message\": \"not an email\"}]}'
 ";
     let script = dir.path().join("validate.sh");
     fs::write(&script, script_content).unwrap();

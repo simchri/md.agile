@@ -45,7 +45,7 @@ fn a_trusted_script_reporting_a_field_error_fails_the_check() {
     let config_home = tempdir().unwrap();
     let script_content = "\
 #!/bin/sh
-echo '{\"valid\": false, \"errors\": [{\"field\": \"Email\", \"message\": \"not an email\"}]}'
+echo '{\"valid\": false, \"errors\": [{\"field\": \"email\", \"message\": \"not an email\"}]}'
 ";
     write_project(project.path(), script_content);
     let trust = run_agile_clean_env(

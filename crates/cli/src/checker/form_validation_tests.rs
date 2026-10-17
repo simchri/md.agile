@@ -68,7 +68,7 @@ echo '{\"valid\": true}'
 fn a_field_error_is_anchored_at_the_field_line() {
     let script_content = "\
 #!/bin/sh
-echo '{\"valid\": false, \"errors\": [{\"field\": \"Email\", \"message\": \"not an email\"}]}'
+echo '{\"valid\": false, \"errors\": [{\"field\": \"email\", \"message\": \"not an email\"}]}'
 ";
     let (dir, store) = project(script_content);
     let file_content = "\
@@ -93,7 +93,7 @@ echo '{\"valid\": false, \"errors\": [{\"field\": \"Email\", \"message\": \"not 
         issues[0].data,
         Some(IssueData::FormValidationFailed {
             form: "personal_info".to_string(),
-            field: Some("Email".to_string()),
+            field: Some("email".to_string()),
             message: "not an email".to_string(),
         })
     );
@@ -128,7 +128,7 @@ echo '{\"valid\": false, \"errors\": [{\"message\": \"inconsistent\"}]}'
 fn an_error_naming_an_absent_field_falls_back_to_the_task_line() {
     let script_content = "\
 #!/bin/sh
-echo '{\"valid\": false, \"errors\": [{\"field\": \"Email\", \"message\": \"required\"}]}'
+echo '{\"valid\": false, \"errors\": [{\"field\": \"email\", \"message\": \"required\"}]}'
 ";
     let (dir, store) = project(script_content);
     let file_content = "\
@@ -201,7 +201,7 @@ echo '{\"valid\": true}'
     assert_eq!(received["task"]["line"], 1);
     assert_eq!(
         received["fields"],
-        serde_json::json!({"Name": "John", "Email": "john@example.com"})
+        serde_json::json!({"name": "John", "email": "john@example.com"})
     );
 }
 

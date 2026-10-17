@@ -23,7 +23,7 @@ use std::time::{Duration, Instant};
 pub struct ScriptInput {
     pub form: String,
     pub task: TaskInfo,
-    /// Field label -> value.
+    /// Field `[Field.X]` key -> value.
     pub fields: BTreeMap<String, String>,
 }
 
@@ -45,7 +45,7 @@ pub struct ScriptOutput {
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ScriptError {
-    /// Label of the offending field, if the error is about one field.
+    /// Key of the offending field, if the error is about one field.
     #[serde(default)]
     pub field: Option<String>,
     pub message: String,
