@@ -1086,7 +1086,7 @@ users don't have to think about it. Design plan: see
     decided: first version is portable hardening only (no shell, cleared env, cwd/path confined to project, timeout, output cap, one process per task). It does NOT block the script's own file/network access. Linux OS-level isolation (bwrap/landlock) is a possible later step.
   - [x] check: form validation script failure
   - [x] wire script validation into `agile check`
-  - [ ] wire script validation into lsp (on save)
+  - [x] wire script validation into lsp (on save)
     note: the LSP has no `did_save` handler / save capability yet -- needs adding. Do not run scripts on keystrokes.
   - [ ] block completion until fields valid
 

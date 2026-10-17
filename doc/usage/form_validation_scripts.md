@@ -15,7 +15,8 @@ content hash, so editing a script revokes it.
 
 `agile check` runs the script once per task carrying the form and reports
 E030 (form invalid) or E031 (script could not run, e.g. untrusted). In CI run
-`agile trust --yes` first. See [checks.md](checks.md).
+`agile trust --yes` first. The language server runs scripts only on save; results disappear on the next
+edit. See [checks.md](checks.md).
 
 ## Execution
 

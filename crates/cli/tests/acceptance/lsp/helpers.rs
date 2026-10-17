@@ -12,7 +12,13 @@ impl LspSession {
     /// Spawn the LSP server without performing any handshake.
     /// Use this when the test needs to observe the initialize exchange itself.
     pub fn start_raw() -> Self {
+        Self::start_raw_with_env(&[])
+    }
+
+    /// Like [`Self::start_raw`], with extra environment variables set.
+    pub fn start_raw_with_env(env: &[(&str, &str)]) -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_agilels"))
+            .envs(env.iter().copied())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -39,7 +45,12 @@ impl LspSession {
     /// Spawn the LSP server and complete the initialize/initialized handshake
     /// with the given rootUri.
     pub fn start_with_root_uri(root_uri: Option<&str>) -> Self {
-        let mut session = Self::start_raw();
+        Self::start_with_root_uri_and_env(root_uri, &[])
+    }
+
+    /// Like [`Self::start_with_root_uri`], with extra environment variables set.
+    pub fn start_with_root_uri_and_env(root_uri: Option<&str>, env: &[(&str, &str)]) -> Self {
+        let mut session = Self::start_raw_with_env(env);
 
         let root_uri_json = match root_uri {
             Some(uri) => format!("\"{}\"", uri),
@@ -74,6 +85,27 @@ impl LspSession {
             }
         });
         send_lsp_message(&mut self.stdin, &did_open.to_string()).unwrap();
+    }
+
+    pub fn save_document(&mut self, uri: &str) {
+        let did_save = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didSave",
+            "params": { "textDocument": { "uri": uri } }
+        });
+        send_lsp_message(&mut self.stdin, &did_save.to_string()).unwrap();
+    }
+
+    pub fn change_document(&mut self, uri: &str, version: u64, text: &str) {
+        let did_change = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didChange",
+            "params": {
+                "textDocument": { "uri": uri, "version": version },
+                "contentChanges": [{ "text": text }]
+            }
+        });
+        send_lsp_message(&mut self.stdin, &did_change.to_string()).unwrap();
     }
 
     pub fn send(&mut self, message: &str) {

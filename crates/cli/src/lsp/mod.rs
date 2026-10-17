@@ -65,6 +65,10 @@ struct Backend {
     /// broken → fixed → broken *transition*, not on every keystroke while
     /// the config stays broken.
     config_error: Arc<RwLock<Option<String>>>,
+    /// Form validation script issues (E030/E031) from the last save of each
+    /// document. Scripts run only on save; the cache is dropped as soon as the
+    /// document is edited, since the issues' line numbers would go stale.
+    script_issues: Arc<RwLock<HashMap<Url, Vec<Issue>>>>,
 }
 
 impl Backend {
@@ -287,6 +291,11 @@ impl Backend {
                 &root, &path, text, &config,
             ));
         }
+        if !config_load_failed {
+            if let Some(cached) = self.script_issues.read().await.get(&uri) {
+                issues.extend(cached.iter().cloned());
+            }
+        }
         let mut diagnostics: Vec<Diagnostic> = issues
             .into_iter()
             .filter_map(|issue| issue_to_diagnostic(issue, text))
@@ -301,6 +310,35 @@ impl Backend {
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;
+    }
+
+    /// Runs the form validation scripts for the saved document and caches
+    /// their issues, then republishes the diagnostics.
+    async fn run_form_scripts(&self, uri: Url) {
+        let Some(text) = self.docs.read().await.get(&uri).cloned() else {
+            return;
+        };
+        let path = uri
+            .to_file_path()
+            .unwrap_or_else(|_| PathBuf::from(uri.path()));
+        let (config, config_load_failed, source, _) = self.load_config_with_source(&uri).await;
+        let root = source
+            .as_ref()
+            .and_then(|source| source.path.parent().map(|p| p.to_path_buf()))
+            .or(self.root.read().await.clone());
+        let issues = match (root, config_load_failed) {
+            (Some(root), false) => {
+                let items = parser::parse(&text, path);
+                tokio::task::spawn_blocking(move || {
+                    checker::check_form_scripts_default(&items, &root, &config)
+                })
+                .await
+                .unwrap_or_default()
+            }
+            _ => vec![],
+        };
+        self.script_issues.write().await.insert(uri.clone(), issues);
+        self.validate(uri, &text, None).await;
     }
 
     /// Records that config loading failed with `message`, and — only on the
@@ -488,8 +526,15 @@ impl LanguageServer for Backend {
         *self.root.write().await = root;
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions {
+                        open_close: Some(true),
+                        change: Some(TextDocumentSyncKind::FULL),
+                        save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                            include_text: Some(false),
+                        })),
+                        ..Default::default()
+                    },
                 )),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions {
@@ -538,6 +583,7 @@ impl LanguageServer for Backend {
         let diagnostics = self.diagnostics.clone();
         let config_snapshots = self.config_snapshots.clone();
         let config_error = self.config_error.clone();
+        let script_issues = self.script_issues.clone();
 
         tokio::spawn(async move {
             loop {
@@ -550,6 +596,7 @@ impl LanguageServer for Backend {
                     diagnostics: diagnostics.clone(),
                     config_snapshots: config_snapshots.clone(),
                     config_error: config_error.clone(),
+                    script_issues: script_issues.clone(),
                 };
                 backend.check_config_changed().await;
             }
@@ -580,6 +627,10 @@ impl LanguageServer for Backend {
             .write()
             .await
             .insert(params.text_document.uri.clone(), change.text.clone());
+        self.script_issues
+            .write()
+            .await
+            .remove(&params.text_document.uri);
         if Self::is_config_uri(&params.text_document.uri) {
             self.revalidate_task_documents().await;
         } else {
@@ -592,11 +643,20 @@ impl LanguageServer for Backend {
         }
     }
 
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        let uri = params.text_document.uri;
+        info!("did_save {uri}");
+        if !Self::is_config_uri(&uri) {
+            self.run_form_scripts(uri).await;
+        }
+    }
+
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         self.docs.write().await.remove(&uri);
         self.diagnostics.write().await.remove(&uri);
         self.config_snapshots.write().await.remove(&uri);
+        self.script_issues.write().await.remove(&uri);
         self.client
             .publish_diagnostics(uri.clone(), vec![], None)
             .await;
@@ -900,6 +960,7 @@ pub fn run() -> std::io::Result<()> {
             diagnostics: Arc::new(RwLock::new(HashMap::new())),
             config_snapshots: Arc::new(RwLock::new(HashMap::new())),
             config_error: Arc::new(RwLock::new(None)),
+            script_issues: Arc::new(RwLock::new(HashMap::new())),
         });
         Server::new(stdin, stdout, socket).serve(service).await;
     });

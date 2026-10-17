@@ -143,7 +143,7 @@ property's `form` key.
   validation. It must stay inside the project and may only run once approved
   with `agile trust` (see README); see
   [form_validation_scripts.md](form_validation_scripts.md) for the interface.
-  `agile check` runs trusted scripts ([E030/E031](checks.md)); the LSP doesn't yet.
+  `agile check` runs trusted scripts ([E030/E031](checks.md)); the language server runs them on save only.
 
 ## `[General]`
 

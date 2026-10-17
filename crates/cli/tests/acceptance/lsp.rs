@@ -8,6 +8,8 @@ mod config_error;
 mod diagnostics;
 #[path = "lsp/e013.rs"]
 mod e013;
+#[path = "lsp/form_validation.rs"]
+mod form_validation;
 #[path = "lsp/goto_declaration.rs"]
 mod goto_declaration;
 #[path = "lsp/goto_definition.rs"]

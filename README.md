@@ -149,6 +149,8 @@ Requesting completion (no automatic trigger) on the value of a form field that d
 
 The language server uses open, unsaved `mdagile.toml` changes for diagnostics, navigation, hover, completion, and quick fixes; invalid configuration is reported and config-dependent actions are unavailable until it is fixed.
 
+Form validation scripts (see [form_validation_scripts.md](doc/usage/form_validation_scripts.md)) run in the language server only when a document is saved (never while typing); their results (E030/E031) are cleared on the next edit and refreshed on the next save. Scripts must be approved with `agile trust` first.
+
 ## GUI
 
 Use the installed shortcuts - just search "mdagile Board". This opens a browser view to your tasks - Don't be confused: Your browser is connecting to a program running fully locally on your machine. We simply use the browser as a powerful "UI framework" so to say.
