@@ -607,6 +607,13 @@ For the purpose of ETA estimation only, the tool assigns different weights to ta
 
 Whenever the tool needs to "count" tasks, for the purpose of time estimation, task weights are used instead of the raw count. Subtasks that are required by a property are counted in exactly the same way as custom tasks.
 
+## Documentation
+
+- [Configuration reference (`mdagile.toml`)](doc/usage/config.md): all valid config tables and keys
+- [Checks](doc/usage/checks.md)
+- [Task navigation in the language server](doc/usage/lsp_task_navigation.md)
+- [Auto-Git](doc/usage/autogit.md)
+
 ## Project Philosophy
 
 See [MANIFESTO.md](MANIFESTO.md). Term definitions (Marker, Property, Assignment, Special Marker, etc.) are in [GLOSSARY.md](GLOSSARY.md).

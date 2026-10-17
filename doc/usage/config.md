@@ -1,6 +1,7 @@
 # Configuration: `mdagile.toml`
 
-Project-level configuration — properties, users, and groups — lives in a
+Project-level configuration — properties, users, groups, fields, forms and
+general settings — lives in a
 `mdagile.toml` file at the project root. A hidden `.mdagile.toml` is also
 recognized; having both `mdagile.toml` and `.mdagile.toml` in the same root is
 a conflict error. If neither file exists, an empty (all-defaults) config is
@@ -31,6 +32,20 @@ description = "Contributors responsible for implementing product changes."
 members = ["alice", "bob"]
 ```
 
+## Overview of valid keys
+
+Only the following top-level tables are valid; anything else is a parse error.
+
+| Table | Keys |
+|-------|------|
+| `[Properties.X]` | `brief`, `description`, `subtasks`, `subtasks_allow_cancel`, `neighbortasks`, `form`, plus `[Properties.X.branch_name]` sub-tables |
+| `[Properties.X.branch_name]` | `subtasks`, `subtasks_allow_cancel`, `neighbortasks` |
+| `[Users.X]` | `git_emails`, `git_names` |
+| `[Groups.X]` | `brief`, `description`, `members` |
+| `[Field.X]` | `label`, `default`, `default_is_valid_entry`, `validation_regex`, `values`, `multiline`, `help` |
+| `[Form.X]` | `fields`, `validation` |
+| `[General]` | `warn_when_not_a_git_repo` |
+
 ## `[Properties.X]`
 
 Declares a `#marker` usable on tasks (see the marker syntax in
@@ -52,6 +67,9 @@ on a task is [E008](checks.md).
   this property must have a matching (quoted or unquoted) sibling task for
   each entry, or [E019](checks.md) is reported. Not supported on top-level
   tasks — see [E020](checks.md).
+- `form` — optional name of a `[Form.X]` this property's marker renders and
+  validates against. It must refer to a defined `[Form.X]`, otherwise it is a
+  config validation error.
 
 ### `[Properties.X.branch_name]`
 
@@ -95,6 +113,38 @@ authorization to every listed member for E013 purposes.
   listed must correspond to an actually-defined user — an unknown member
   name is a config validation error.
 
+## `[Field.X]`
+
+Declares a named, typed input, collected by a `[Form.X]` (see "Forms & Fields"
+in [README.vision.md](../../README.vision.md)). All keys are optional.
+
+- `label` — display label shown next to the value. Defaults to the field name.
+  Labels must be unique within a form.
+- `default` — value substituted for the unfilled placeholder (`___`). Without
+  it, the plain `___` is used. A value containing a newline requires
+  `multiline = true`.
+- `default_is_valid_entry` — whether the placeholder (the `default`, or `___`)
+  counts as a deliberately filled-out value. Defaults to `false`: a field still
+  at its placeholder is reported as unfilled ([E026](checks.md)). A blank value
+  is always reported.
+- `validation_regex` — a regex the value must match. Must compile, and is
+  mutually exclusive with `values`.
+- `values` — a closed list of allowed values. Mutually exclusive with
+  `validation_regex`.
+- `multiline` — whether the value may span multiple lines. Defaults to `false`.
+- `help` — hint shown with the unfilled-field error in the language server.
+  Defaults to a generic "Fill in the field's value".
+
+## `[Form.X]`
+
+Declares a named, ordered group of fields, attached to a property through that
+property's `form` key.
+
+- `fields` — ordered list of `[Field.X]` names making up the form. Every name
+  must be a defined field and may be listed only once.
+- `validation` — path to an external script for whole-form validation. Currently
+  only stored; it is not executed yet.
+
 ## `[General]`
 
 Project-wide settings that don't belong to any single property/user/group.
@@ -117,6 +167,9 @@ checks — in these cases:
 - **Mismatched `subtasks_allow_cancel` length** — must be empty, or exactly
   as long as `subtasks`. Applies the same way to a branch's own `subtasks`/
   `subtasks_allow_cancel` pair within `[Properties.X.branch_name]`.
+- **Invalid fields/forms** — a `[Field.X]` with both `validation_regex` and
+  `values` (or an uncompilable regex), a `[Form.X]` listing an unknown or
+  duplicate field, a `[Properties.X]` `form` naming an undefined form.
 - **Duplicate identity** — the same `git_emails`/`git_names` value listed on
   more than one `[Users.X]` entry.
 
