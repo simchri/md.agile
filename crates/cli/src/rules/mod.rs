@@ -20,6 +20,7 @@ mod missing_required_field;
 mod missing_required_subtasks;
 mod missing_space_after_box;
 mod missing_space_after_field_label;
+mod multiline_field_filled_inline;
 mod neighbor_task_on_top_level;
 mod neighbor_tasks;
 mod next_task;
@@ -46,6 +47,7 @@ pub use missing_required_field::missing_required_field;
 pub use missing_required_subtasks::missing_required_subtasks;
 pub use missing_space_after_box::missing_space_after_box;
 pub use missing_space_after_field_label::missing_space_after_field_label;
+pub use multiline_field_filled_inline::multiline_field_filled_inline;
 pub use neighbor_task_on_top_level::neighbor_task_on_top_level;
 pub use neighbor_tasks::neighbor_tasks;
 pub use next_task::{
@@ -135,6 +137,12 @@ pub enum ErrorCode {
     /// `__Label:__ value` body line could never unambiguously satisfy both
     /// forms at once.
     CollidingFieldLabels,
+    /// E028: A field configured as multiline (see
+    /// [`crate::config::FieldConfig::multiline`]) was instead written
+    /// inline, i.e. using the single-line grammar (`__Label:__ value`)
+    /// rather than opening the label on its own line with the content on
+    /// the line(s) below it.
+    MultilineFieldFilledInline,
 }
 
 impl ErrorCode {
@@ -169,6 +177,7 @@ impl ErrorCode {
             ErrorCode::MissingSpaceAfterFieldLabel => "E025",
             ErrorCode::FieldLeftUnfilled => "E026",
             ErrorCode::CollidingFieldLabels => "E027",
+            ErrorCode::MultilineFieldFilledInline => "E028",
         }
     }
 }
@@ -211,6 +220,7 @@ impl std::str::FromStr for ErrorCode {
             "E025" => ErrorCode::MissingSpaceAfterFieldLabel,
             "E026" => ErrorCode::FieldLeftUnfilled,
             "E027" => ErrorCode::CollidingFieldLabels,
+            "E028" => ErrorCode::MultilineFieldFilledInline,
             _ => return Err(()),
         })
     }
@@ -459,6 +469,9 @@ pub enum IssueData {
         label: String,
         properties: Vec<String>,
     },
+    /// Payload for E028 "Multiline Field Filled Inline": the label of the
+    /// multiline-configured field that was instead written inline.
+    MultilineFieldFilledInline { label: String },
 }
 
 /// The result of resolving "who is completing this task" for the E013
@@ -502,6 +515,7 @@ pub struct Issue {
 /// except [`undefined_property`], [`undefined_assignment`],
 /// [`missing_required_subtasks`], [`missing_required_field`],
 /// [`field_left_unfilled`], [`colliding_field_labels`],
+/// [`multiline_field_filled_inline`],
 /// [`unrequired_quoted_subtask`], [`neighbor_task_on_top_level`],
 /// [`neighbor_tasks`], [`undefined_branch_outcome`] and
 /// [`plain_branching_property`], which all look up property/user/group
@@ -539,6 +553,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(missing_required_field(items, config));
     issues.extend(colliding_field_labels(items, config));
     issues.extend(field_left_unfilled(items, config));
+    issues.extend(multiline_field_filled_inline(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
     issues.extend(neighbor_task_on_top_level(items, config));
     issues.extend(neighbor_tasks(items, config));

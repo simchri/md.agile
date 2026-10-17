@@ -578,11 +578,13 @@ fn parse_single_line_field() {
                 label: "First Name".to_string(),
                 value: "John".to_string(),
                 location: loc(2),
+                multiline: false,
             },
             FieldLine {
                 label: "Email".to_string(),
                 value: "john.doe@gmail.com".to_string(),
                 location: loc(3),
+                multiline: false,
             },
         ]
     );
@@ -602,6 +604,7 @@ fn parse_single_line_field_with_unfilled_placeholder_value() {
             label: "Gender".to_string(),
             value: "___".to_string(),
             location: loc(2),
+            multiline: false,
         }]
     );
 }
@@ -621,6 +624,7 @@ fn bare_label_with_no_trailing_value_opens_a_multiline_field() {
             label: "Bio".to_string(),
             value: "  John doe is an outstanding character.".to_string(),
             location: loc(2),
+            multiline: true,
         }]
     );
     // The raw body lines are kept unchanged alongside the parsed field.
@@ -648,6 +652,7 @@ fn multiline_field_stops_at_closing_ellipsis_marker() {
             label: "Bio".to_string(),
             value: "  John doe is an outstanding character.\n  He is well known for his many appearances in sample forms.".to_string(),
             location: loc(2),
+            multiline: true,
         }]
     );
 }
@@ -671,6 +676,7 @@ fn multiline_field_keeps_a_literal_ellipsis_line_via_escape() {
             label: "Bio".to_string(),
             value: "  Before the escaped line.\n  ...\n  After the escaped line.".to_string(),
             location: loc(2),
+            multiline: true,
         }]
     );
 }
@@ -692,11 +698,13 @@ fn multiline_field_stops_at_the_next_field_line_without_a_closing_ellipsis() {
                 label: "Bio".to_string(),
                 value: "  John doe is an outstanding character.".to_string(),
                 location: loc(2),
+                multiline: true,
             },
             FieldLine {
                 label: "Email".to_string(),
                 value: "john.doe@gmail.com".to_string(),
                 location: loc(4),
+                multiline: false,
             },
         ]
     );
@@ -720,11 +728,13 @@ fn multiline_field_stops_at_the_start_of_another_multiline_field() {
                 label: "Bio".to_string(),
                 value: "  First field's content.".to_string(),
                 location: loc(2),
+                multiline: true,
             },
             FieldLine {
                 label: "Notes".to_string(),
                 value: "  Second field's content.".to_string(),
                 location: loc(4),
+                multiline: true,
             },
         ]
     );
@@ -746,6 +756,7 @@ fn multiline_field_with_no_closing_marker_captures_to_the_end_of_the_body() {
             label: "Bio".to_string(),
             value: "  Line one.\n  Line two.".to_string(),
             location: loc(2),
+            multiline: true,
         }]
     );
 }
@@ -764,6 +775,7 @@ fn multiline_field_with_nothing_after_it_has_an_empty_value() {
             label: "Bio".to_string(),
             value: String::new(),
             location: loc(2),
+            multiline: true,
         }]
     );
 }
@@ -783,6 +795,7 @@ fn field_line_on_subtask_is_parsed_too() {
             label: "Email".to_string(),
             value: "a@b.com".to_string(),
             location: loc(3),
+            multiline: false,
         }]
     );
 }
@@ -875,6 +888,7 @@ fn malformed_field_stops_an_in_progress_multiline_field_capture() {
             label: "Bio".to_string(),
             value: "  First field's content.".to_string(),
             location: loc(2),
+            multiline: true,
         }]
     );
     assert_eq!(
@@ -905,11 +919,13 @@ fn label_marker_with_only_a_trailing_space_is_a_single_line_field_with_empty_val
                 label: "Gender".to_string(),
                 value: String::new(),
                 location: loc(2),
+                multiline: false,
             },
             FieldLine {
                 label: "Email".to_string(),
                 value: "a@b.com".to_string(),
                 location: loc(3),
+                multiline: false,
             },
         ]
     );
@@ -971,11 +987,13 @@ fn duplicate_field_labels_are_both_captured_independently() {
                 label: "Email".to_string(),
                 value: "first@example.com".to_string(),
                 location: loc(2),
+                multiline: false,
             },
             FieldLine {
                 label: "Email".to_string(),
                 value: "second@example.com".to_string(),
                 location: loc(3),
+                multiline: false,
             },
         ]
     );
@@ -1001,6 +1019,7 @@ fn multiline_field_may_start_with_an_escaped_ellipsis_line() {
             label: "Bio".to_string(),
             value: "  ...\n  real content after the literal ellipsis.".to_string(),
             location: loc(2),
+            multiline: true,
         }]
     );
 }
@@ -1021,6 +1040,7 @@ fn field_line_with_deeper_indentation_than_the_task_is_still_recognized() {
             label: "Email".to_string(),
             value: "a@b.com".to_string(),
             location: loc(2),
+            multiline: false,
         }]
     );
 }

@@ -266,12 +266,11 @@ pub struct Task {
 
 // ── Form fields ───────────────────────────────────────────────────────────────
 
-/// A single-line form field (see README.vision.md "Forms & Fields"), parsed
-/// out of a task/subtask's body, e.g. `__Email:__ john@example.com`.
-///
-/// Multiline fields (a bold label with nothing after it, whose value runs
-/// until a closing `...`) aren't recognized yet -- such a label line is left
-/// as plain body text until that form is implemented.
+/// A form field (see README.vision.md "Forms & Fields"), parsed out of a
+/// task/subtask's body -- either single-line (e.g. `__Email:__
+/// john@example.com`) or multiline (a bare `__Label:__` with its value on
+/// the following lines, until a closing `...`). See [`FieldLine::multiline`]
+/// to tell which grammar actually produced a given instance.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldLine {
     /// The bolded label text between `__` and `:__` (e.g. `"Email"`).
@@ -280,6 +279,14 @@ pub struct FieldLine {
     /// line. May be the unfilled placeholder (`___`) or any other text.
     pub value: String,
     pub location: Location,
+    /// Whether this field line was written using the multiline grammar
+    /// (bare `__Label:__` with its value on following lines) rather than
+    /// the single-line grammar (`__Label:__ value` all on one line). Purely
+    /// about *how the line was written*, independent of the field's
+    /// configured [`crate::config::FieldConfig::multiline`] -- see
+    /// [`crate::rules::multiline_field_filled_inline`] (E028), which flags
+    /// a mismatch between the two.
+    pub multiline: bool,
 }
 
 /// A body line that has a valid-looking field label (`__Label:__`) but is
@@ -409,6 +416,7 @@ fn parse_field_lines(
                     path: path.to_path_buf(),
                     line: first_line + i,
                 },
+                multiline: false,
             });
             i += 1;
             continue;
@@ -449,6 +457,7 @@ fn parse_field_lines(
                     path: path.to_path_buf(),
                     line: field_line,
                 },
+                multiline: true,
             });
             i = j;
             continue;
