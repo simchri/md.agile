@@ -16,5 +16,7 @@ mod lsp;
 mod milestones;
 #[path = "acceptance/task.rs"]
 mod task;
+#[path = "acceptance/trust.rs"]
+mod trust;
 #[path = "acceptance/when.rs"]
 mod when;

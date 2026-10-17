@@ -204,6 +204,17 @@ pub enum Command {
 
     /// Show currently closed tasks with completion date when known
     History,
+
+    /// Approve the form validation scripts declared in mdagile.toml
+    ///
+    /// Scripts only run once approved. Approval is stored per user and keyed
+    /// by the script's project-relative path and content hash, so editing a
+    /// script revokes it. Without a terminal, `--yes` is required.
+    Trust {
+        /// Approve all declared scripts without prompting (e.g. on CI)
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -485,6 +496,9 @@ pub fn run() {
         }
         Some(Command::History) => {
             subcommands::history::run(root);
+        }
+        Some(Command::Trust { yes }) => {
+            subcommands::trust::run(root, &config, yes);
         }
         Some(Command::Milestones { next, count }) => {
             subcommands::milestones::run(root, next, count);

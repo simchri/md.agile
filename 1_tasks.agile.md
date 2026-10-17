@@ -1071,7 +1071,7 @@ users don't have to think about it. Design plan: see
   Why? Functionally fully covered by scripts. Keep only scripts and value lists
 
 - [ ] advanced validation (script)
-  - [ ] `agile trust` command + trust store
+  - [x] `agile trust` command + trust store
     decided: store lives per-user (`~/.config/mdagile/trust.json`), not in the repo, so a cloned repo can not pre-trust itself. Key = project + script path + sha256(script content); editing the script revokes trust.
     decided: untrusted script in `agile check` is an error (non-zero exit), not a skip. The error must print clear, copy-pasteable instructions (exact `agile trust` command) incl. how to create the trust entry on a CI runner.
     decided: CI strategy: `agile trust --yes` approves all pending scripts non-interactively; the untrusted-script error tells users to run it on the CI runner (before `agile check`).

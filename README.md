@@ -129,6 +129,13 @@ agile check
 ```
 Parses all `*.agile.md` files and reports validation issues. See [doc/usage/checks.md](doc/usage/checks.md) for the full list of checks.
 
+### Trust Form Validation Scripts
+```bash
+agile trust        # review and approve scripts declared via `[Form.X] validation`
+agile trust --yes  # approve all without prompting (e.g. on a CI runner)
+```
+Form validation scripts only run once approved. Approval is stored per user (`~/.config/mdagile/trust.json`), keyed by the script's project-relative path and content hash, so editing a script revokes it.
+
 ## Language Server: `agilels`
 
 A minimal LSP server that offers real-time diagnostics as you edit, quickfix code actions for fixable issues and jump actions! See [checks.md](doc/usage/checks.md), [lsp_task_navigation.md](doc/usage/lsp_task_navigation.md).

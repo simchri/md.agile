@@ -71,6 +71,12 @@ Status markers used below (always at the start of the bullet):
     logic as `agile check`. Resolving the address parses task files one at
     a time, stopping as soon as the addressed task is found, so this stays
     cheap regardless of project size
+- done: `trust`
+  - Approves the form validation scripts (`[Form.X] validation`) declared in
+    `mdagile.toml`; approvals are stored per user in
+    `$XDG_CONFIG_HOME/mdagile/trust.json` (else `~/.config/mdagile/trust.json`),
+    keyed by project-relative script path + sha256 of the content
+  - done: `--yes` — approve all without prompting (required without a terminal, e.g. CI)
 - done: `check`
   - Validates all `*.agile.md` files against the built-in rule set (E001-E016,
     see `doc/checks.md`); prints `<path>:<line>: <message>` per issue; exits 1

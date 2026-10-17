@@ -139,8 +139,9 @@ property's `form` key.
 
 - `fields` — ordered list of `[Field.X]` names making up the form. Every name
   must be a defined field and may be listed only once.
-- `validation` — path to an external script for whole-form validation. Currently
-  only stored; it is not executed yet.
+- `validation` — project-relative path to an external script for whole-form
+  validation. It must stay inside the project and may only run once approved
+  with `agile trust` (see README); running scripts is not implemented yet.
 
 ## `[General]`
 

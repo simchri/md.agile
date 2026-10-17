@@ -13,3 +13,4 @@ pub mod lifecycle_cache;
 pub mod lsp;
 pub mod parser;
 pub mod rules;
+pub mod trust;
