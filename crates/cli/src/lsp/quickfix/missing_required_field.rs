@@ -22,7 +22,10 @@ use tower_lsp::lsp_types::*;
 /// it (or no content line at all when there's no configured default -- a
 /// blank multiline field is recognized as unfilled by
 /// [`crate::rules::field_left_unfilled`], E026, same as an inline field left
-/// at the generic `___` placeholder), and a closing `...` line.
+/// at the generic `___` placeholder). No closing `...` marker is added --
+/// per the multiline field grammar, the field's content runs until the
+/// next task or an explicit closing marker, so it is still correctly
+/// terminated by whatever follows.
 pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
     build_one(diagnostic, doc_text, uri).into_iter().collect()
 }
@@ -87,13 +90,16 @@ fn format_field_insertion(config: Option<&Config>, label: &str, field_indent: us
     let default = field_config.and_then(|f| f.default.clone());
 
     if field_config.is_some_and(|f| f.multiline) {
+        // No closing `...` marker is inserted: per the multiline field
+        // grammar, the field's content runs until the next task or an
+        // explicit closing marker, so the field is still correctly
+        // terminated by whatever follows (next task, or end of file).
         let mut block = format!("\n{indent}__{label}:__");
         if let Some(default) = &default {
             for line in default.lines() {
                 block.push_str(&format!("\n{indent}{line}"));
             }
         }
-        block.push_str(&format!("\n{indent}..."));
         block
     } else {
         let value = default.unwrap_or_else(|| "___".to_string());

@@ -136,13 +136,11 @@ line two\"\"\"
     let action = build_quickfix(&diag, doc, &uri).unwrap();
     let edits = get_edits(&action, &uri);
 
-    // Opens the label on its own line, places each default line below it
-    // indented to match, and closes with `...` -- re-parsing this back
-    // recovers exactly the configured default as the field's value.
-    assert_eq!(
-        edits[0].new_text,
-        "\n  __Bio:__\n  line one\n  line two\n  ..."
-    );
+    // Opens the label on its own line and places each default line below
+    // it indented to match -- no closing `...` marker is needed since the
+    // field is terminated by the next task or end of file. Re-parsing
+    // this back recovers the configured default as the field's value.
+    assert_eq!(edits[0].new_text, "\n  __Bio:__\n  line one\n  line two");
 }
 
 #[test]
@@ -163,11 +161,10 @@ multiline = true
     let action = build_quickfix(&diag, doc, &uri).unwrap();
     let edits = get_edits(&action, &uri);
 
-    // No configured default -- open and close the field with nothing in
-    // between, same as a plain blank multiline field (recognized as
-    // unfilled by E026, same as the generic `___` placeholder is for a
-    // single-line field).
-    assert_eq!(edits[0].new_text, "\n  __Bio:__\n  ...");
+    // No configured default -- open the field with nothing after it, same
+    // as a plain blank multiline field (recognized as unfilled by E026,
+    // same as the generic `___` placeholder is for a single-line field).
+    assert_eq!(edits[0].new_text, "\n  __Bio:__");
 }
 
 #[test]
