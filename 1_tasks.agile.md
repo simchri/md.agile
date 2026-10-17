@@ -1051,7 +1051,12 @@ users don't have to think about it. Design plan: see
   - [ ] check - multiline fields: The remainder of the line must be empty, any content must be on a new line
   - [x] lsp quickfix: insert missing fields
 
-- [ ] validation
+
+- [ ] advanced validation (selectable values)
+
+- [ ] regex validation
+
+- [ ] advanced validation (script)
   - [ ] `agile trust` command + trust store
   - [ ] define script interface (json schema)
     convention: A successfully running script shall always return 0, but output some json indication validation passed / failed failure message and location (which field).
