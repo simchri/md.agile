@@ -15,7 +15,7 @@ use crate::config::Config;
 use crate::form_script::{Limits, ScriptError, ScriptInput, TaskInfo, run_script};
 use crate::parser::{FileItem, Marker};
 use crate::rules::{ErrorCode, Issue, IssueData, NodeRef, for_each_node};
-use crate::trust::{TrustStore, default_store_path};
+use crate::trust::{TrustStore, user_store_path};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -25,7 +25,7 @@ pub fn check_form_scripts_default(items: &[FileItem], root: &Path, config: &Conf
     if !config.forms.values().any(|f| f.validation.is_some()) {
         return vec![];
     }
-    let store = default_store_path(|name| std::env::var_os(name))
+    let store = user_store_path()
         .map(|path| TrustStore::load(&path))
         .transpose()
         .unwrap_or_else(|e| {

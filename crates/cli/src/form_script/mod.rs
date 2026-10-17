@@ -8,7 +8,7 @@
 //! hung or runaway script can do. This does NOT block the script's own file
 //! or network access -- it is not an OS-level sandbox.
 
-use crate::trust::{ScriptPathError, TrustStore, resolve_script, sha256_hex};
+use crate::trust::{FingerprintError, ScriptPathError, TrustStore, fingerprint};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -126,9 +126,11 @@ pub fn run_script(
     store: &TrustStore,
     limits: &Limits,
 ) -> Result<ScriptOutput, RunError> {
-    let path = resolve_script(root, script).map_err(RunError::Path)?;
-    let content = std::fs::read(&path).map_err(RunError::Spawn)?;
-    if !store.is_trusted(script, &sha256_hex(&content)) {
+    let (path, hash) = fingerprint(root, script).map_err(|e| match e {
+        FingerprintError::Path(e) => RunError::Path(e),
+        FingerprintError::Read(e) => RunError::Spawn(e),
+    })?;
+    if !store.is_trusted(script, &hash) {
         return Err(RunError::Untrusted);
     }
 

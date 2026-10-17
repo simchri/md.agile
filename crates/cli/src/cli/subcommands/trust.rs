@@ -2,7 +2,7 @@
 //! `mdagile.toml` so they may be run (see [`crate::trust`]).
 
 use crate::config::Config;
-use crate::trust::{TrustStore, default_store_path, resolve_script, sha256_hex};
+use crate::trust::{FingerprintError, TrustStore, fingerprint, user_store_path};
 use std::collections::BTreeSet;
 use std::io::{BufRead, IsTerminal, Write};
 use std::path::Path;
@@ -15,7 +15,7 @@ pub struct Options<'a> {
 
 /// `agile trust` entry point. Exits 1 on any error.
 pub fn run(root: &Path, config: &Config, yes: bool) {
-    let Some(store_path) = default_store_path(|name| std::env::var_os(name)) else {
+    let Some(store_path) = user_store_path() else {
         log::error!("cannot locate the trust store: neither XDG_CONFIG_HOME nor HOME is set");
         std::process::exit(1);
     };
@@ -57,11 +57,10 @@ pub fn run_with(
     let mut store = TrustStore::load(options.store_path).map_err(|e| e.to_string())?;
     let mut pending = Vec::new();
     for script in &scripts {
-        let path = resolve_script(root, script)
-            .map_err(|e| format!("invalid validation script '{script}': {e}"))?;
-        let content =
-            std::fs::read(&path).map_err(|e| format!("cannot read script '{script}': {e}"))?;
-        let hash = sha256_hex(&content);
+        let (_, hash) = fingerprint(root, script).map_err(|e| match e {
+            FingerprintError::Path(e) => format!("invalid validation script '{script}': {e}"),
+            FingerprintError::Read(e) => format!("cannot read script '{script}': {e}"),
+        })?;
         if store.is_trusted(script, &hash) {
             writeln!(out, "already trusted: {script}").map_err(|e| e.to_string())?;
         } else {

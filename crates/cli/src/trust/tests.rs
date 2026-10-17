@@ -143,3 +143,41 @@ fn resolve_script_rejects_a_symlink_escaping_the_project() {
         Err(ScriptPathError::OutsideProject)
     );
 }
+
+#[test]
+fn fingerprint_returns_the_resolved_path_and_content_hash() {
+    let dir = tempdir().unwrap();
+    let script_content = "abc";
+    fs::write(dir.path().join("validate.sh"), script_content).unwrap();
+
+    let (path, hash) = fingerprint(dir.path(), "validate.sh").unwrap();
+
+    assert_eq!(path, dir.path().join("validate.sh").canonicalize().unwrap());
+    assert_eq!(hash, sha256_hex(b"abc"));
+}
+
+#[test]
+fn fingerprint_reports_an_unresolvable_path() {
+    let dir = tempdir().unwrap();
+
+    let error = fingerprint(dir.path(), "../validate.sh").unwrap_err();
+
+    assert!(matches!(
+        error,
+        FingerprintError::Path(ScriptPathError::OutsideProject)
+    ));
+}
+
+#[test]
+fn fingerprint_reports_an_unreadable_script() {
+    let dir = tempdir().unwrap();
+    fs::create_dir(dir.path().join("validate.sh")).unwrap();
+
+    let error = fingerprint(dir.path(), "validate.sh").unwrap_err();
+
+    // A directory is not a file the script resolver accepts.
+    assert!(matches!(
+        error,
+        FingerprintError::Path(ScriptPathError::NotFound)
+    ));
+}

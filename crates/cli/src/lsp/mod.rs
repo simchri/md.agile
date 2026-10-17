@@ -255,6 +255,16 @@ impl Backend {
         Ok(Some(Value::Bool(true)))
     }
 
+    /// The project root commands and scripts run from: the directory of the
+    /// resolved config file, falling back to the editor-supplied workspace
+    /// root when no config file was found (same root the CLI uses).
+    async fn project_root(&self, source: Option<&Source>) -> Option<PathBuf> {
+        match source.and_then(|source| source.path.parent()) {
+            Some(dir) => Some(dir.to_path_buf()),
+            None => self.root.read().await.clone(),
+        }
+    }
+
     async fn validate(&self, uri: Url, text: &str, version: Option<i32>) {
         let path = uri
             .to_file_path()
@@ -282,10 +292,7 @@ impl Backend {
         // workspace root if no config file was found. Also depends on
         // `[Users.X]`/`[Groups.X]` declarations, so it's skipped for the same
         // reason as the config-dependent rule checks above.
-        let git_root = source
-            .as_ref()
-            .and_then(|source| source.path.parent().map(|p| p.to_path_buf()))
-            .or(self.root.read().await.clone());
+        let git_root = self.project_root(source.as_ref()).await;
         if let (Some(root), false) = (git_root, config_load_failed) {
             issues.extend(checker::check_authorization_for_document(
                 &root, &path, text, &config,
@@ -322,10 +329,7 @@ impl Backend {
             .to_file_path()
             .unwrap_or_else(|_| PathBuf::from(uri.path()));
         let (config, config_load_failed, source, _) = self.load_config_with_source(&uri).await;
-        let root = source
-            .as_ref()
-            .and_then(|source| source.path.parent().map(|p| p.to_path_buf()))
-            .or(self.root.read().await.clone());
+        let root = self.project_root(source.as_ref()).await;
         let issues = match (root, config_load_failed) {
             (Some(root), false) => {
                 let items = parser::parse(&text, path);

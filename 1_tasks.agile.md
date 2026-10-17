@@ -1119,14 +1119,14 @@ users don't have to think about it. Design plan: see
     - [ ] split `check_form_scripts` into building the script input and mapping the verdict to issues
       checker/form_validation.rs `check_form_scripts` (about 75 lines) finds the form, builds the input, runs the script and turns the verdict into issues.
       Proposed: extract `build_script_input(node, form, form_fields)` and a verdict-to-issues function.
-    - [ ] extract a shared `forms_of(node, config)` (node -> property -> form -> fields) used by the form rules and the script check
+    - [-] extract a shared `forms_of(node, config)` (node -> property -> form -> fields) used by the form rules and the script check
       The node -> property -> form -> fields walk is repeated in 7 rules (`field_value_not_allowed`, `missing_required_field`, `field_left_unfilled`, ...) and in checker/form_validation.rs.
       Proposed: a shared iterator. Touches several rules, so check the design with the user first.
-    - [ ] LSP: extract `project_root(source)` (duplicated in `validate` and `run_form_scripts`)
+    - [x] LSP: extract `project_root(source)` (duplicated in `validate` and `run_form_scripts`)
       lsp/mod.rs: "project root = directory of the config file, else the workspace root" is written twice.
-    - [ ] add `TrustStore::load_default()` (store path resolution is duplicated in `agile trust` and the checker)
+    - [x] add `TrustStore::load_default()` (store path resolution is duplicated in `agile trust` and the checker)
       cli/subcommands/trust.rs and checker/form_validation.rs both resolve the trust store path from the environment.
-    - [ ] add `trust::fingerprint(root, script)` (resolve + read + hash is duplicated in `agile trust` and `run_script`)
+    - [x] add `trust::fingerprint(root, script)` (resolve + read + hash is duplicated in `agile trust` and `run_script`)
       cli/subcommands/trust.rs and form_script/mod.rs both resolve a script, read it and hash it.
       Could also close the hash-then-execute gap (see bugs).
     - [ ] move trust store loading (env/IO) out of the checker; callers pass the store in

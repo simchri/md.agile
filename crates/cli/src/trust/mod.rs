@@ -135,5 +135,33 @@ pub fn resolve_script(root: &Path, script: &str) -> Result<PathBuf, ScriptPathEr
     Ok(resolved)
 }
 
+#[derive(Debug)]
+pub enum FingerprintError {
+    Path(ScriptPathError),
+    Read(std::io::Error),
+}
+
+impl std::fmt::Display for FingerprintError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FingerprintError::Path(e) => write!(f, "{e}"),
+            FingerprintError::Read(e) => write!(f, "cannot read script: {e}"),
+        }
+    }
+}
+
+/// Resolves `script` inside `root` and returns the file path together with
+/// the sha256 of its content -- the identity the trust store approves.
+pub fn fingerprint(root: &Path, script: &str) -> Result<(PathBuf, String), FingerprintError> {
+    let path = resolve_script(root, script).map_err(FingerprintError::Path)?;
+    let content = std::fs::read(&path).map_err(FingerprintError::Read)?;
+    Ok((path, sha256_hex(&content)))
+}
+
+/// The current user's trust store location, from the process environment.
+pub fn user_store_path() -> Option<PathBuf> {
+    default_store_path(|name| std::env::var_os(name))
+}
+
 #[cfg(test)]
 mod tests;

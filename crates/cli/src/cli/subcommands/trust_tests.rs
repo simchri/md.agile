@@ -1,5 +1,6 @@
 use super::*;
 use crate::config::Config;
+use crate::trust::sha256_hex;
 use std::fs;
 use std::io::Cursor;
 use tempfile::tempdir;
