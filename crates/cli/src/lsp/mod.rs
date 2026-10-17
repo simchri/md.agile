@@ -687,13 +687,17 @@ impl LanguageServer for Backend {
             None => return Ok(Some(CompletionResponse::Array(Vec::new()))),
         };
         let marker = completion::marker_at_position(&doc_text, position);
-        if marker.is_none() {
-            return Ok(Some(CompletionResponse::Array(Vec::new())));
-        }
 
         let (config, config_load_failed) = self.load_config(uri).await;
         if config_load_failed {
             return Ok(Some(CompletionResponse::Array(Vec::new())));
+        }
+
+        if marker.is_none() {
+            return Ok(Some(
+                completion::field_value_completions(&doc_text, position, &config)
+                    .unwrap_or_else(|| CompletionResponse::Array(Vec::new())),
+            ));
         }
 
         Ok(match marker {

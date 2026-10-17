@@ -118,6 +118,100 @@ pub(super) fn assignment_completions(
     ))
 }
 
+/// Completes the value of a single-line form field (`__Label:__ value`) from
+/// its configured closed set of `values`. The edit replaces the whole current
+/// value. If several of the task's forms declare a field with the same label
+/// (an already-flagged collision), the first matching one wins.
+pub(super) fn field_value_completions(
+    text: &str,
+    position: Position,
+    config: &Config,
+) -> Option<CompletionResponse> {
+    let items = crate::parser::parse(text, std::path::PathBuf::new());
+    let mut result = None;
+    crate::rules::for_each_node(&items, |node| {
+        if result.is_some() {
+            return;
+        }
+        let Some(field_line) = node
+            .fields()
+            .iter()
+            .find(|f| !f.multiline && f.location.line == position.line as usize + 1)
+        else {
+            return;
+        };
+        let allowed = node.markers().iter().find_map(|marker| {
+            let crate::parser::Marker::Property(prop) = marker else {
+                return None;
+            };
+            let form = config
+                .forms
+                .get(config.properties.get(&prop.name)?.form.as_ref()?)?;
+            form.fields
+                .iter()
+                .filter_map(|name| config.fields.get(name))
+                .find(|f| f.label == field_line.label && !f.multiline)?
+                .values
+                .as_ref()
+        });
+        if let Some(allowed) = allowed {
+            result = Some((field_line, allowed));
+        }
+    });
+    let (field_line, allowed) = result?;
+
+    let line = text.lines().nth(position.line as usize)?;
+    let indent = line.len() - line.trim_start().len();
+    let value_start_bytes = indent + "__".len() + field_line.label.len() + ":__ ".len();
+    let utf16_len = |s: &str| s.encode_utf16().count() as u32;
+    let start = utf16_len(line.get(..value_start_bytes)?);
+    if position.character < start {
+        return None;
+    }
+    let end = utf16_len(line);
+    let current = &field_line.value;
+    let typed = current.trim();
+    let range = Range {
+        start: Position {
+            line: position.line,
+            character: start,
+        },
+        end: Position {
+            line: position.line,
+            character: end,
+        },
+    };
+
+    // The placeholder (`___`, or a configured default) isn't a typed prefix.
+    let is_placeholder = typed.is_empty()
+        || typed == "___"
+        || config.fields.values().any(|f| {
+            f.label == field_line.label && f.default.as_deref().map(str::trim) == Some(typed)
+        });
+    let typed_lower = typed.to_lowercase();
+
+    Some(CompletionResponse::Array(
+        allowed
+            .iter()
+            .enumerate()
+            .filter(|(_, value)| is_placeholder || value.to_lowercase().starts_with(&typed_lower))
+            .map(|(index, value)| CompletionItem {
+                label: value.clone(),
+                kind: Some(CompletionItemKind::ENUM_MEMBER),
+                sort_text: Some(format!("{index:04}")),
+                // Server already filtered; keep clients from re-filtering
+                // against the existing value (e.g. the `___` placeholder).
+                filter_text: Some(current.clone()),
+                text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                    range,
+                    new_text: value.clone(),
+                })),
+                ..CompletionItem::default()
+            })
+            .collect(),
+    ))
+}
+
 pub(super) fn marker_at_position(text: &str, position: Position) -> Option<char> {
     for sigil in ['#', '@'] {
         if marker_prefix_at_position(text, position, sigil).is_some() {
@@ -146,3 +240,7 @@ fn marker_prefix_at_position(
         .trim_end_matches(|c: char| MARKER_TRAILING_PUNCT.contains(c));
     Some((prefix.to_string(), token.start, token.end))
 }
+
+#[cfg(test)]
+#[path = "completion_tests.rs"]
+mod tests;

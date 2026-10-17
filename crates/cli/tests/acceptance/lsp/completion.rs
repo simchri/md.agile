@@ -411,3 +411,44 @@ fn lsp_completion_does_not_suggest_special_markers_or_code_span_content() {
     assert_eq!(start_of_special_marker["result"], serde_json::json!([]));
     assert_eq!(code_span["result"], serde_json::json!([]));
 }
+
+#[test]
+fn lsp_completion_suggests_selectable_field_values_and_replaces_the_current_value() {
+    // Arrange
+    let config = "\
+[Field.gender]
+label = \"Gender\"
+values = [\"male\", \"female\", \"(don't specify)\"]
+
+[Form.personal_info]
+fields = [\"gender\"]
+
+[Properties.onboarding]
+form = \"personal_info\"
+";
+    let file_content = "\
+- [ ] new colleague #onboarding
+  __Gender:__ ___
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.completion(&file_uri, 2, 1, 17);
+
+    // Assert
+    let items = response["result"]
+        .as_array()
+        .expect("expected completion item array");
+    let labels: Vec<_> = items
+        .iter()
+        .filter_map(|item| item["label"].as_str())
+        .collect();
+    assert_eq!(labels, vec!["male", "female", "(don't specify)"]);
+    for item in items {
+        assert_eq!(item["textEdit"]["newText"], item["label"]);
+        assert_eq!(item["textEdit"]["range"]["start"]["character"], 14);
+        assert_eq!(item["textEdit"]["range"]["end"]["character"], 17);
+    }
+}
