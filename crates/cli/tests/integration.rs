@@ -2,6 +2,8 @@
 mod find_next_task;
 #[path = "integration/find_task_files.rs"]
 mod find_task_files;
+#[path = "integration/form_script.rs"]
+mod form_script;
 #[path = "integration/list_limits.rs"]
 mod list_limits;
 #[path = "integration/list_tasks.rs"]

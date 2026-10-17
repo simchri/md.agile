@@ -141,7 +141,9 @@ property's `form` key.
   must be a defined field and may be listed only once.
 - `validation` — project-relative path to an external script for whole-form
   validation. It must stay inside the project and may only run once approved
-  with `agile trust` (see README); running scripts is not implemented yet.
+  with `agile trust` (see README); see
+  [form_validation_scripts.md](form_validation_scripts.md) for the interface.
+  `agile check` doesn't run scripts yet.
 
 ## `[General]`
 

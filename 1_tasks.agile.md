@@ -1076,13 +1076,13 @@ users don't have to think about it. Design plan: see
     decided: untrusted script in `agile check` is an error (non-zero exit), not a skip. The error must print clear, copy-pasteable instructions (exact `agile trust` command) incl. how to create the trust entry on a CI runner.
     decided: CI strategy: `agile trust --yes` approves all pending scripts non-interactively; the untrusted-script error tells users to run it on the CI runner (before `agile check`).
     decided: trust key = project-relative script path + sha256(script content) (not the absolute project path, which differs per CI runner). Consequence: two projects with an identical script at the same relative path share trust, which is fine since the content is identical.
-  - [ ] define script interface (json schema)
+  - [x] define script interface (json schema)
     decided: scripts are invoked directly (must be executable, shebang) -- no interpreter-by-extension.
     convention: A successfully running script shall always return 0, but output some json indication validation passed / failed failure message and location (which field).
     This allows to distinguish "validation failed" from "script failed to execute properly".
-    - [ ] input
-    - [ ] output
-  - [ ] sandboxed per-task script runner
+    - [x] input
+    - [x] output
+  - [x] sandboxed per-task script runner
     decided: first version is portable hardening only (no shell, cleared env, cwd/path confined to project, timeout, output cap, one process per task). It does NOT block the script's own file/network access. Linux OS-level isolation (bwrap/landlock) is a possible later step.
   - [ ] check: form validation script failure
   - [ ] wire script validation into `agile check`
