@@ -84,12 +84,14 @@ pub(crate) fn check_node(
             continue;
         };
 
-        // Several `[Field.X]` entries may share one display `label` so that
-        // a single physical `__Label:__ value` line satisfies all of them
-        // (see `missing_required_field`'s label-aliasing support). Track
-        // already-reported labels so that aliasing doesn't surface the same
-        // unfilled line more than once.
-        let mut seen_labels = std::collections::HashSet::new();
+        // Field labels are guaranteed unique within a single form (two
+        // `[Field.X]` entries resolving to the same label inside one
+        // `[Form.X]` is rejected outright at config-load time -- see
+        // `crate::config::ConfigError::FormValidation` -- and a cross-form
+        // collision, where *two different* forms on the same node share a
+        // label, is `crate::rules::colliding_field_labels`'s concern (E027),
+        // not this rule's), so no dedup is needed here: each iteration below
+        // reports a distinct label.
         let unfilled: Vec<String> = form_config
             .fields
             .iter()
@@ -101,12 +103,15 @@ pub(crate) fn check_node(
                 // regardless of `default_is_valid_entry` -- that flag only
                 // says the *placeholder itself* counts as a deliberately
                 // chosen value, not that the check is disabled outright.
-                let is_blank = field_line.value.trim().is_empty();
+                // Both sides are trimmed before comparing so incidental
+                // whitespace around the placeholder (e.g. a stray trailing
+                // space) doesn't let a still-unfilled value slip through.
+                let trimmed_value = field_line.value.trim();
+                let is_blank = trimmed_value.is_empty();
                 let still_at_placeholder =
-                    !field_config.default_is_valid_entry && field_line.value == placeholder;
+                    !field_config.default_is_valid_entry && trimmed_value == placeholder.trim();
                 (is_blank || still_at_placeholder).then(|| field_config.label.clone())
             })
-            .filter(|label| seen_labels.insert(label.clone()))
             .collect();
 
         if !unfilled.is_empty() {

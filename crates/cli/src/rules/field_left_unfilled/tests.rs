@@ -320,49 +320,6 @@ fn no_issue_when_field_opts_in_to_default_is_valid_entry() {
 }
 
 #[test]
-fn two_fields_sharing_the_same_label_report_the_unfilled_label_only_once() {
-    // Several `[Field.X]` entries may share one display `label` so a single
-    // physical `__Label:__ value` line satisfies all of them (same aliasing
-    // `missing_required_field` supports). Left unfilled, that one line must
-    // still only be reported once, not once per aliasing field config.
-    let mut config = config_with_onboarding_form();
-    config.fields.insert(
-        "first_name_alias".to_string(),
-        FieldConfig {
-            name: "first_name_alias".to_string(),
-            label: "First Name".to_string(),
-            default: None,
-            validation_regex: None,
-            values: None,
-            multiline: false,
-            default_is_valid_entry: false,
-        },
-    );
-    config
-        .forms
-        .get_mut("personal_info")
-        .unwrap()
-        .fields
-        .push("first_name_alias".to_string());
-
-    let input = "\
-- [x] new colleague: John #onboarding
-  __First Name:__ ___
-  __Gender:__ male
-";
-    let items = p(input);
-    let issues = field_left_unfilled(&items, &config);
-
-    assert_eq!(issues.len(), 1);
-    assert_eq!(
-        issues[0].data,
-        Some(IssueData::FieldLeftUnfilled {
-            unfilled: vec!["First Name".to_string()]
-        })
-    );
-}
-
-#[test]
 fn default_is_valid_entry_true_also_suppresses_the_plain_underscore_placeholder() {
     // Per the confirmed design decision, the flag governs the field's
     // *resolved* placeholder -- the plain generic `___` when the field has
@@ -422,6 +379,31 @@ fn a_truly_blank_value_is_flagged_even_without_default_is_valid_entry() {
     let input = "\
 - [x] new colleague: John #onboarding
   __First Name:__ 
+  __Gender:__ male
+";
+    let items = p(input);
+    let config = config_with_onboarding_form();
+    let issues = field_left_unfilled(&items, &config);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::FieldLeftUnfilled {
+            unfilled: vec!["First Name".to_string()]
+        })
+    );
+}
+
+#[test]
+fn placeholder_value_with_incidental_trailing_whitespace_is_still_flagged() {
+    // A value that's the resolved placeholder plus stray trailing
+    // whitespace (easy to introduce by accident when editing the body
+    // line) is just as "unfilled" as the bare placeholder -- it must not
+    // slip through just because it isn't byte-for-byte equal to the
+    // placeholder text.
+    let input = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ ___ 
   __Gender:__ male
 ";
     let items = p(input);
