@@ -615,6 +615,19 @@ fn field_without_optional_keys_has_sensible_defaults() {
     assert_eq!(field.validation_regex, None);
     assert_eq!(field.values, None);
     assert!(!field.multiline);
+    assert!(!field.default_is_valid_entry);
+}
+
+#[test]
+fn field_with_default_is_valid_entry_true_is_parsed() {
+    let input = "\
+[Field.gender]
+default = \"(don't specify)\"
+default_is_valid_entry = true
+";
+    let config = Config::from_str(input).unwrap();
+    let field = config.fields.get("gender").unwrap();
+    assert!(field.default_is_valid_entry);
 }
 
 #[test]

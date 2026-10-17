@@ -22,6 +22,7 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
+            default_is_valid_entry: false,
         },
     );
     fields.insert(
@@ -33,6 +34,7 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
+            default_is_valid_entry: false,
         },
     );
 
@@ -291,4 +293,50 @@ fn check_node_flags_an_unfilled_field_regardless_of_status() {
             unfilled: vec!["First Name".to_string()]
         })]
     );
+}
+
+#[test]
+fn no_issue_when_field_opts_in_to_default_is_valid_entry() {
+    // "Gender"'s custom default "(don't specify)" is itself a legitimate,
+    // deliberately chosen answer (one of the field's allowed `values`) when
+    // `default_is_valid_entry = true` -- it must never be flagged as
+    // unfilled, even if the task is done and the value still equals that
+    // default exactly.
+    let mut config = config_with_onboarding_form();
+    config
+        .fields
+        .get_mut("gender")
+        .unwrap()
+        .default_is_valid_entry = true;
+    let input = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ John
+  __Gender:__ (don't specify)
+";
+    let items = p(input);
+    let issues = field_left_unfilled(&items, &config);
+
+    assert!(issues.is_empty());
+}
+
+#[test]
+fn default_is_valid_entry_true_also_suppresses_the_plain_underscore_placeholder() {
+    // Per the confirmed design decision, the flag governs the field's
+    // *resolved* placeholder -- the plain generic `___` when the field has
+    // no custom `default` at all -- exactly the same as a custom default.
+    let mut config = config_with_onboarding_form();
+    config
+        .fields
+        .get_mut("first_name")
+        .unwrap()
+        .default_is_valid_entry = true;
+    let input = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ ___
+  __Gender:__ male
+";
+    let items = p(input);
+    let issues = field_left_unfilled(&items, &config);
+
+    assert!(issues.is_empty());
 }

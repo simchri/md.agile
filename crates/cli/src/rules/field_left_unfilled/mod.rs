@@ -10,7 +10,11 @@
 //! ([`crate::lsp::quickfix::missing_required_field`]) inserts for a brand
 //! new field line. This mirrors that module's terminology: a field counts
 //! as "unfilled" whenever it still carries exactly what would have been
-//! auto-inserted, custom default included.
+//! auto-inserted, custom default included -- unless
+//! [`crate::config::FieldConfig::default_is_valid_entry`] opts the field out
+//! of this check entirely by treating its placeholder as a legitimate,
+//! deliberately chosen value (e.g. a default like `"(don't specify)"` that's
+//! itself one of the field's allowed `values`).
 //!
 //! A field line that's entirely absent is [`crate::rules::missing_required_field`]'s
 //! concern (E024), not this rule's -- this only looks at fields that *are*
@@ -81,6 +85,7 @@ pub(crate) fn check_node(
             .fields
             .iter()
             .filter_map(|field_name| config.fields.get(field_name))
+            .filter(|field_config| !field_config.default_is_valid_entry)
             .filter_map(|field_config| {
                 let placeholder = field_config.default.as_deref().unwrap_or("___");
                 fields

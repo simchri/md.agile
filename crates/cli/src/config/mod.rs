@@ -114,6 +114,13 @@ pub struct FieldConfig {
     /// Value substituted for the unfilled placeholder (`___`) when the field
     /// has one. `None` means the plain `___` placeholder is used as-is.
     pub default: Option<String>,
+    /// Whether the field's resolved placeholder (`default` above, or the
+    /// generic `___` when it has none) counts as a legitimate, deliberately
+    /// chosen "filled out" value rather than "left unfilled" (see
+    /// [`crate::rules::field_left_unfilled`], E026). Defaults to `false` --
+    /// a field still at its placeholder is flagged as unfilled unless a
+    /// project explicitly opts in.
+    pub default_is_valid_entry: bool,
     /// A regex the field's value must match. Mutually exclusive with
     /// `values` -- at most one of the two may be set.
     pub validation_regex: Option<String>,
@@ -295,6 +302,8 @@ struct RawFieldConfig {
     #[serde(default)]
     default: Option<String>,
     #[serde(default)]
+    default_is_valid_entry: bool,
+    #[serde(default)]
     validation_regex: Option<String>,
     #[serde(default)]
     values: Option<Vec<String>>,
@@ -453,6 +462,7 @@ impl Config {
                         name,
                         label,
                         default: raw_field.default,
+                        default_is_valid_entry: raw_field.default_is_valid_entry,
                         validation_regex: raw_field.validation_regex,
                         values: raw_field.values,
                         multiline: raw_field.multiline,
