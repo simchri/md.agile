@@ -18,7 +18,6 @@ fn config_with_onboarding_form() -> Config {
             name: "first_name".to_string(),
             label: "First Name".to_string(),
             default: None,
-            validation_regex: None,
             values: None,
             multiline: false,
             help: None,
@@ -31,7 +30,6 @@ fn config_with_onboarding_form() -> Config {
             name: "email".to_string(),
             label: "Email".to_string(),
             default: None,
-            validation_regex: None,
             values: None,
             multiline: false,
             help: None,
@@ -254,7 +252,6 @@ fn two_fields_sharing_the_same_label_let_one_field_line_satisfy_both() {
             name: "preferred_name".to_string(),
             label: "First Name".to_string(), // duplicate label, different field
             default: None,
-            validation_regex: None,
             values: None,
             multiline: false,
             help: None,

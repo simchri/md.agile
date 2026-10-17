@@ -612,7 +612,6 @@ fn field_without_optional_keys_has_sensible_defaults() {
     let config = Config::from_str("[Field.gender]\n").unwrap();
     let field = config.fields.get("gender").unwrap();
     assert_eq!(field.default, None);
-    assert_eq!(field.validation_regex, None);
     assert_eq!(field.values, None);
     assert!(!field.multiline);
     assert!(!field.default_is_valid_entry);
@@ -631,14 +630,13 @@ default_is_valid_entry = true
 }
 
 #[test]
-fn field_with_validation_regex_is_parsed() {
+fn field_with_validation_regex_is_rejected_as_unknown_key() {
     let input = "\
 [Field.email]
 validation_regex = \"^[^@]+@[^@]+$\"
 ";
-    let config = Config::from_str(input).unwrap();
-    let field = config.fields.get("email").unwrap();
-    assert_eq!(field.validation_regex.as_deref(), Some("^[^@]+@[^@]+$"));
+    let result = Config::from_str(input);
+    assert!(matches!(result, Err(ConfigError::Parse(_))));
 }
 
 #[test]
@@ -660,46 +658,6 @@ bogus_key = true
 ";
     let result = Config::from_str(input);
     assert!(result.is_err());
-}
-
-#[test]
-fn field_with_both_validation_regex_and_values_is_rejected() {
-    let input = "\
-[Field.gender]
-validation_regex = \"^(male|female)$\"
-values = [\"male\", \"female\"]
-";
-    let result = Config::from_str(input);
-    match result {
-        Err(ConfigError::FieldValidation { field, message }) => {
-            assert_eq!(field, "gender");
-            assert!(message.contains("validation_regex"), "message: {message:?}");
-            assert!(message.contains("values"), "message: {message:?}");
-        }
-        other => panic!("expected FieldValidation error, got {other:?}"),
-    }
-}
-
-#[test]
-fn field_with_neither_validation_regex_nor_values_is_accepted() {
-    let config = Config::from_str("[Field.notes]\n").unwrap();
-    assert!(config.fields.contains_key("notes"));
-}
-
-#[test]
-fn field_with_invalid_validation_regex_is_rejected() {
-    let input = "\
-[Field.email]
-validation_regex = \"[\"
-";
-    let result = Config::from_str(input);
-    match result {
-        Err(ConfigError::FieldValidation { field, message }) => {
-            assert_eq!(field, "email");
-            assert!(message.contains("regex"), "message: {message:?}");
-        }
-        other => panic!("expected FieldValidation error, got {other:?}"),
-    }
 }
 
 #[test]

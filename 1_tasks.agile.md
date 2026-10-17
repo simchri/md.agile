@@ -1066,7 +1066,7 @@ users don't have to think about it. Design plan: see
 - [x] completion suggestion for selectable values (suggest any selectable value)
 - [x] show "help" on hover for fields
 
-- [ ] remove regex validation
+- [x] remove regex validation
   remove all implementation artifacts for regex validation.
   Why? Functionally fully covered by scripts. Keep only scripts and value lists
 

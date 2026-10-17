@@ -20,7 +20,6 @@ fn config_with_gender_field() -> Config {
             name: "gender".to_string(),
             label: "Gender".to_string(),
             default: Some("(don't specify)".to_string()),
-            validation_regex: None,
             values: Some(vec![
                 "male".to_string(),
                 "female".to_string(),
@@ -161,7 +160,6 @@ fn does_not_flag_a_field_with_no_configured_values() {
             name: "first_name".to_string(),
             label: "First Name".to_string(),
             default: None,
-            validation_regex: None,
             values: None,
             multiline: false,
             help: None,

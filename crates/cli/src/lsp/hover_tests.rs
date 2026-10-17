@@ -46,7 +46,6 @@ fn config_with_field(help: Option<&str>) -> Config {
             label: "Name".to_string(),
             default: None,
             default_is_valid_entry: false,
-            validation_regex: None,
             values: None,
             multiline: false,
             help: help.map(String::from),

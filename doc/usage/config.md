@@ -42,7 +42,7 @@ Only the following top-level tables are valid; anything else is a parse error.
 | `[Properties.X.branch_name]` | `subtasks`, `subtasks_allow_cancel`, `neighbortasks` |
 | `[Users.X]` | `git_emails`, `git_names` |
 | `[Groups.X]` | `brief`, `description`, `members` |
-| `[Field.X]` | `label`, `default`, `default_is_valid_entry`, `validation_regex`, `values`, `multiline`, `help` |
+| `[Field.X]` | `label`, `default`, `default_is_valid_entry`, `values`, `multiline`, `help` |
 | `[Form.X]` | `fields`, `validation` |
 | `[General]` | `warn_when_not_a_git_repo` |
 
@@ -127,10 +127,7 @@ in [README.vision.md](../../README.vision.md)). All keys are optional.
   counts as a deliberately filled-out value. Defaults to `false`: a field still
   at its placeholder is reported as unfilled ([E026](checks.md)). A blank value
   is always reported.
-- `validation_regex` — a regex the value must match. Must compile, and is
-  mutually exclusive with `values`.
-- `values` — a closed list of allowed values. Mutually exclusive with
-  `validation_regex`.
+- `values` — a closed list of allowed values.
 - `multiline` — whether the value may span multiple lines. Defaults to `false`.
 - `help` — hint shown with the unfilled-field error in the language server.
   Defaults to a generic "Fill in the field's value".
@@ -167,8 +164,8 @@ checks — in these cases:
 - **Mismatched `subtasks_allow_cancel` length** — must be empty, or exactly
   as long as `subtasks`. Applies the same way to a branch's own `subtasks`/
   `subtasks_allow_cancel` pair within `[Properties.X.branch_name]`.
-- **Invalid fields/forms** — a `[Field.X]` with both `validation_regex` and
-  `values` (or an uncompilable regex), a `[Form.X]` listing an unknown or
+- **Invalid fields/forms** — a `[Field.X]` with a multiline `default` but
+  without `multiline = true`, a `[Form.X]` listing an unknown or
   duplicate field, a `[Properties.X]` `form` naming an undefined form.
 - **Duplicate identity** — the same `git_emails`/`git_names` value listed on
   more than one `[Users.X]` entry.

@@ -10,7 +10,6 @@ fn config_with_gender(values: Option<Vec<&str>>, multiline: bool) -> Config {
             label: "Gender".to_string(),
             default: None,
             default_is_valid_entry: false,
-            validation_regex: None,
             values: values.map(|v| v.into_iter().map(String::from).collect()),
             multiline,
             help: None,

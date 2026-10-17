@@ -33,4 +33,3 @@ test-log = "0.2.21"
 textplots = "0.8"
 rgb = "0.8"
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
-regex = "1"

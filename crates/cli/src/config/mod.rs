@@ -123,11 +123,7 @@ pub struct FieldConfig {
     /// itself: the field is still flagged if its value is entirely blank,
     /// regardless of this setting.
     pub default_is_valid_entry: bool,
-    /// A regex the field's value must match. Mutually exclusive with
-    /// `values` -- at most one of the two may be set.
-    pub validation_regex: Option<String>,
-    /// A closed set of allowed values. Mutually exclusive with
-    /// `validation_regex` -- at most one of the two may be set.
+    /// A closed set of allowed values.
     pub values: Option<Vec<String>>,
     pub multiline: bool,
     /// A configurable hint shown alongside [`crate::rules::field_left_unfilled`]'s
@@ -190,9 +186,8 @@ pub enum ConfigError {
         group: String,
         message: String,
     },
-    /// A `[Field.X]` entry has conflicting or invalid validation settings:
-    /// both `validation_regex` and `values` set, or `validation_regex`
-    /// doesn't compile as a regex.
+    /// A `[Field.X]` entry has invalid settings (e.g. a multiline `default`
+    /// without `multiline = true`).
     FieldValidation {
         field: String,
         message: String,
@@ -310,8 +305,6 @@ struct RawFieldConfig {
     default: Option<String>,
     #[serde(default)]
     default_is_valid_entry: bool,
-    #[serde(default)]
-    validation_regex: Option<String>,
     #[serde(default)]
     values: Option<Vec<String>>,
     #[serde(default)]
@@ -434,24 +427,6 @@ impl Config {
             .fields
             .into_iter()
             .map(|(name, raw_field)| {
-                if raw_field.validation_regex.is_some() && raw_field.values.is_some() {
-                    return Err(ConfigError::FieldValidation {
-                        field: name,
-                        message:
-                            "validation_regex and values are mutually exclusive; set at most one"
-                                .to_string(),
-                    });
-                }
-                if let Some(pattern) = &raw_field.validation_regex {
-                    if let Err(e) = regex::Regex::new(pattern) {
-                        return Err(ConfigError::FieldValidation {
-                            field: name,
-                            message: format!(
-                                "validation_regex '{pattern}' is not a valid regex: {e}"
-                            ),
-                        });
-                    }
-                }
                 if !raw_field.multiline
                     && raw_field
                         .default
@@ -472,7 +447,6 @@ impl Config {
                         label,
                         default: raw_field.default,
                         default_is_valid_entry: raw_field.default_is_valid_entry,
-                        validation_regex: raw_field.validation_regex,
                         values: raw_field.values,
                         multiline: raw_field.multiline,
                         help: raw_field.help,

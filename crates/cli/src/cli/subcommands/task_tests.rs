@@ -172,7 +172,6 @@ fn config_with_onboarding_form() -> Config {
             name: "first_name".to_string(),
             label: "First Name".to_string(),
             default: None,
-            validation_regex: None,
             values: None,
             multiline: false,
             help: None,

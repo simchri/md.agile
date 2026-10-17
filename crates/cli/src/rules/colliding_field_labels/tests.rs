@@ -12,7 +12,6 @@ fn field(label: &str) -> FieldConfig {
         name: label.to_lowercase(),
         label: label.to_string(),
         default: None,
-        validation_regex: None,
         values: None,
         multiline: false,
         help: None,

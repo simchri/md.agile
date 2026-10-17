@@ -6,7 +6,7 @@
 //! This only checks *presence* of a field line. Whether a present field is
 //! left unfilled (still the placeholder value -- see
 //! [`crate::rules::field_left_unfilled`], E026) or fails its
-//! regex/allowed-values validation (not yet implemented) are separate
+//! allowed-values validation ([`crate::rules::field_value_not_allowed`]) are separate
 //! checks.
 //!
 //! A label with a *malformed* field line (missing the space before its
