@@ -10,6 +10,7 @@
 
 mod branch_properties;
 mod empty_title;
+mod field_left_unfilled;
 mod incomplete_parent;
 mod invalid_box;
 mod invalid_milestone;
@@ -34,6 +35,7 @@ pub use branch_properties::{
     plain_branching_property, undefined_branch_outcome, unresolved_branch_property,
 };
 pub use empty_title::empty_title;
+pub use field_left_unfilled::field_left_unfilled;
 pub use incomplete_parent::incomplete_parent;
 pub use invalid_box::invalid_box;
 pub use invalid_milestone::invalid_milestone;
@@ -120,6 +122,11 @@ pub enum ErrorCode {
     /// value, e.g. `__Email:__john@example.com` instead of
     /// `__Email:__ john@example.com`
     MissingSpaceAfterFieldLabel,
+    /// E026: A present form field's value still equals its resolved
+    /// "unfilled placeholder" (the field's configured `default`, or the
+    /// generic `___` when it has none) -- i.e. the field line exists but
+    /// nobody has actually filled it out yet.
+    FieldLeftUnfilled,
 }
 
 impl ErrorCode {
@@ -152,6 +159,7 @@ impl ErrorCode {
             ErrorCode::PlainBranchingProperty => "E023",
             ErrorCode::MissingRequiredField => "E024",
             ErrorCode::MissingSpaceAfterFieldLabel => "E025",
+            ErrorCode::FieldLeftUnfilled => "E026",
         }
     }
 }
@@ -192,6 +200,7 @@ impl std::str::FromStr for ErrorCode {
             "E023" => ErrorCode::PlainBranchingProperty,
             "E024" => ErrorCode::MissingRequiredField,
             "E025" => ErrorCode::MissingSpaceAfterFieldLabel,
+            "E026" => ErrorCode::FieldLeftUnfilled,
             _ => return Err(()),
         })
     }
@@ -430,6 +439,9 @@ pub enum IssueData {
     /// Payload for E025 "Missing Space After Field Label": the field label
     /// that's missing its separating space before the value.
     MissingSpaceAfterFieldLabel { label: String },
+    /// Payload for E026 "Field Left Unfilled": labels of the present form
+    /// fields whose value still equals their resolved unfilled placeholder.
+    FieldLeftUnfilled { unfilled: Vec<String> },
 }
 
 /// The result of resolving "who is completing this task" for the E013
@@ -472,7 +484,7 @@ pub struct Issue {
 /// Runs every lint rule that doesn't need `Config` at all — i.e. everything
 /// except [`undefined_property`], [`undefined_assignment`],
 /// [`missing_required_subtasks`], [`missing_required_field`],
-/// [`unrequired_quoted_subtask`],
+/// [`field_left_unfilled`], [`unrequired_quoted_subtask`],
 /// [`neighbor_task_on_top_level`], [`neighbor_tasks`],
 /// [`undefined_branch_outcome`] and [`plain_branching_property`], which all
 /// look up property/user/group declarations.
@@ -507,6 +519,7 @@ pub fn check_all(items: &[FileItem], config: &Config) -> Vec<Issue> {
     issues.extend(plain_branching_property(items, config));
     issues.extend(missing_required_subtasks(items, config));
     issues.extend(missing_required_field(items, config));
+    issues.extend(field_left_unfilled(items, config));
     issues.extend(unrequired_quoted_subtask(items, config));
     issues.extend(neighbor_task_on_top_level(items, config));
     issues.extend(neighbor_tasks(items, config));
