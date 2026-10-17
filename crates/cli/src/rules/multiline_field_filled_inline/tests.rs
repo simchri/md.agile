@@ -79,6 +79,23 @@ fn flags_a_multiline_field_written_inline() {
 }
 
 #[test]
+fn flags_the_field_line_itself_not_the_task_line() {
+    let input = "\
+- [ ] new colleague: John #onboarding
+  __Bio:__ Grew up in Portland.
+";
+    let items = p(input);
+    let config = config_with_multiline_bio_field();
+    let issues = multiline_field_filled_inline(&items, &config);
+
+    assert_eq!(issues.len(), 1);
+    // Line 1 is the task; line 2 is the `__Bio:__ ...` field line -- the
+    // issue must be anchored there, not at the task that merely carries
+    // the property.
+    assert_eq!(issues[0].location.line, 2);
+}
+
+#[test]
 fn does_not_flag_a_multiline_field_written_properly_across_lines() {
     let input = "\
 - [ ] new colleague: John #onboarding

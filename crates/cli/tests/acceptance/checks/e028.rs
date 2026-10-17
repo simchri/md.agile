@@ -37,6 +37,9 @@ fn flags_a_multiline_field_written_inline() {
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(stdout.contains("E028"), "stdout: {stdout:?}");
     assert!(stdout.contains("Bio"), "stdout: {stdout:?}");
+    // The field line is line 2, not the task line (line 1) -- the issue
+    // must be anchored at the field itself.
+    assert!(stdout.contains(":2:"), "stdout: {stdout:?}");
 }
 
 #[test]

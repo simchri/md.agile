@@ -66,13 +66,13 @@ pub fn multiline_field_filled_inline(
                 }
 
                 issues.push(Issue {
-                    location: node.location().clone(),
+                    location: field_line.location.clone(),
                     code: ErrorCode::MultilineFieldFilledInline,
                     message: format!(
                         "Field \"{}\" is configured as multiline but was filled out inline",
                         field_config.label
                     ),
-                    column: node.indent() + 1,
+                    column: 1,
                     help: Some(
                         "Put the field's value on the line(s) below its label, not directly after it".to_string(),
                     ),
