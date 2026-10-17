@@ -489,3 +489,35 @@ fn lsp_hover_only_explains_special_markers_in_their_syntax_positions() {
         "expected no hover over the MDAGILE directive value, got: {directive_value}"
     );
 }
+
+#[test]
+fn lsp_hover_on_a_form_field_label_shows_its_help() {
+    // Arrange
+    let config = "\
+[Field.name]
+label = \"Name\"
+help = \"Use the person's legal name\"
+
+[Form.personal_info]
+fields = [\"name\"]
+
+[Properties.onboarding]
+form = \"personal_info\"
+";
+    let file_content = "\
+- [ ] new colleague #onboarding
+  __Name:__ ___
+";
+    let (mut session, file_uri) = start_project_session(config);
+    session.open_document(&file_uri, file_content);
+    session.read_notification("textDocument/publishDiagnostics");
+
+    // Act
+    let response = session.hover(&file_uri, 2, 1, 5);
+
+    // Assert
+    assert_eq!(
+        response["result"]["contents"]["value"],
+        "**Name**\n\nUse the person's legal name"
+    );
+}

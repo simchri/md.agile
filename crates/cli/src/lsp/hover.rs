@@ -49,6 +49,26 @@ pub(super) fn special_marker_hover(text: &str, line: u32, character: u32) -> Opt
     Some(markdown_hover(hover_text.to_string()))
 }
 
+/// Hover on a form field's label (`__Label:__`) shows its configured `help`.
+pub(super) fn field_hover(text: &str, line: u32, character: u32, config: &Config) -> Option<Hover> {
+    let (field_line, field_config) =
+        crate::lsp::completion::field_config_at_line(text, line, config)?;
+    let help = field_config.help?;
+    let line_text = text.lines().nth(line as usize)?;
+    let indent = line_text.len() - line_text.trim_start().len();
+    let label_end = indent + "__".len() + field_line.label.len() + ":__".len();
+    let utf16_len = |s: &str| s.encode_utf16().count() as u32;
+    let start = utf16_len(line_text.get(..indent)?);
+    let end = utf16_len(line_text.get(..label_end)?);
+    if character < start || character >= end {
+        return None;
+    }
+    Some(markdown_hover(format!(
+        "**{}**\n\n{help}",
+        field_config.label
+    )))
+}
+
 pub(super) fn property_hover(name: &str, property: &PropertyConfig) -> Option<Hover> {
     Some(Hover {
         contents: HoverContents::Markup(property_documentation(name, property)?),

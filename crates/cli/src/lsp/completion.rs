@@ -118,15 +118,15 @@ pub(super) fn assignment_completions(
     ))
 }
 
-/// Completes the value of a single-line form field (`__Label:__ value`) from
-/// its configured closed set of `values`. The edit replaces the whole current
-/// value. If several of the task's forms declare a field with the same label
-/// (an already-flagged collision), the first matching one wins.
-pub(super) fn field_value_completions(
+/// Finds the form field line at `line` (0-based) and the `[Field.X]` config
+/// its label resolves to via the forms of the owning task's properties. If
+/// several of the task's forms declare the same label (an already-flagged
+/// collision), the first matching one wins.
+pub(super) fn field_config_at_line(
     text: &str,
-    position: Position,
+    line: u32,
     config: &Config,
-) -> Option<CompletionResponse> {
+) -> Option<(crate::parser::FieldLine, crate::config::FieldConfig)> {
     let items = crate::parser::parse(text, std::path::PathBuf::new());
     let mut result = None;
     crate::rules::for_each_node(&items, |node| {
@@ -136,11 +136,11 @@ pub(super) fn field_value_completions(
         let Some(field_line) = node
             .fields()
             .iter()
-            .find(|f| !f.multiline && f.location.line == position.line as usize + 1)
+            .find(|f| f.location.line == line as usize + 1)
         else {
             return;
         };
-        let allowed = node.markers().iter().find_map(|marker| {
+        let field_config = node.markers().iter().find_map(|marker| {
             let crate::parser::Marker::Property(prop) = marker else {
                 return None;
             };
@@ -150,15 +150,28 @@ pub(super) fn field_value_completions(
             form.fields
                 .iter()
                 .filter_map(|name| config.fields.get(name))
-                .find(|f| f.label == field_line.label && !f.multiline)?
-                .values
-                .as_ref()
+                .find(|f| f.label == field_line.label)
         });
-        if let Some(allowed) = allowed {
-            result = Some((field_line, allowed));
+        if let Some(field_config) = field_config {
+            result = Some((field_line.clone(), field_config.clone()));
         }
     });
-    let (field_line, allowed) = result?;
+    result
+}
+
+/// Completes the value of a single-line form field (`__Label:__ value`) from
+/// its configured closed set of `values`. The edit replaces the whole current
+/// value.
+pub(super) fn field_value_completions(
+    text: &str,
+    position: Position,
+    config: &Config,
+) -> Option<CompletionResponse> {
+    let (field_line, field_config) = field_config_at_line(text, position.line, config)?;
+    if field_line.multiline || field_config.multiline {
+        return None;
+    }
+    let allowed = field_config.values?;
 
     let line = text.lines().nth(position.line as usize)?;
     let indent = line.len() - line.trim_start().len();

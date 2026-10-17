@@ -136,6 +136,8 @@ A minimal LSP server that offers real-time diagnostics as you edit, quickfix cod
 Hovering a special marker (`#OPT`, `#MILESTONE`, `#MDAGILE`) explains its built-in behavior; hovering a `#property` or `@assignment` shows its configured details.
 
 Completing a `#property` marker shows its configured brief, description and required subtasks in the selected suggestion's documentation, matching the property hover. Completing an `@assignment` marker suggests configured users and groups; selecting a suggestion shows its assignment hover information, including group members.
+Hovering a form field's label (`__Label:__`) shows the field's configured `help` text.
+
 Requesting completion (no automatic trigger) on the value of a form field that declares `values` suggests those values and replaces the current value.
 
 The language server uses open, unsaved `mdagile.toml` changes for diagnostics, navigation, hover, completion, and quick fixes; invalid configuration is reported and config-dependent actions are unavailable until it is fixed.

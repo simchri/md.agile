@@ -725,13 +725,17 @@ impl LanguageServer for Backend {
         } else {
             None
         };
-        if property_name.is_none() && assignment_name.is_none() {
-            return Ok(None);
-        }
-
         let (config, config_load_failed) = self.load_config(uri).await;
         if config_load_failed {
             return Ok(None);
+        }
+        if property_name.is_none() && assignment_name.is_none() {
+            return Ok(hover::field_hover(
+                &doc_text,
+                position.line,
+                position.character,
+                &config,
+            ));
         }
 
         let hover = match property_name {
