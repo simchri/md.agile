@@ -39,6 +39,8 @@ These validate `#property` and `@user`/`@group` markers against
 | E021 | Unresolved branch property | A task is marked done, but still carries a branching property (e.g. `#review:...`) in its pending form instead of a resolved outcome (e.g. `#review:passed`) — see [README.vision.md](../../README.vision.md) "Branch Properties". |
 | E022 | Undefined branch outcome | A task has a resolved branching property (e.g. `#review:passed`) whose outcome isn't declared as a `[Properties.X.outcome]` sub-table in `mdagile.toml` — see [README.vision.md](../../README.vision.md) "Branch Properties". Not reported when the property itself is undefined — see E008 instead. |
 | E023 | Plain branching property | A property that declares at least one branch (`[Properties.X.outcome]`) is used in its plain form (e.g. `#review`) instead of pending (`#review:...`) or resolved (`#review:passed`) — see [README.vision.md](../../README.vision.md) "Branch Properties". Not reported when the property itself is undefined — see E008 instead. |
+| E030 | Form validation failed | A form's `validation` script reported the form invalid. Anchored at the offending field line when the script names an existing field, otherwise at the task — see [form_validation_scripts.md](form_validation_scripts.md). Only run by `agile check`, and only for trusted scripts. |
+| E031 | Form validation script could not run | The form's `validation` script is untrusted (run `agile trust`, in CI `agile trust --yes`), missing, crashed, timed out, or printed invalid output — see [form_validation_scripts.md](form_validation_scripts.md). |
 
 In the language server, definition lookup and spelling-correction suggestions
 use the same declarations from the current config, including unsaved edits and

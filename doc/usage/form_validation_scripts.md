@@ -11,6 +11,12 @@ A script runs only after it was approved with `agile trust` (see README).
 Approval is per user and keyed by the script's project-relative path and
 content hash, so editing a script revokes it.
 
+## Checks
+
+`agile check` runs the script once per task carrying the form and reports
+E030 (form invalid) or E031 (script could not run, e.g. untrusted). In CI run
+`agile trust --yes` first. See [checks.md](checks.md).
+
 ## Execution
 
 - One process per task carrying the form (no batching).

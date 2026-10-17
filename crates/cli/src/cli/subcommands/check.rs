@@ -14,6 +14,7 @@ use std::path::Path;
 pub fn run(root: &Path, config: &Config, as_user: Option<&str>, base_ref: Option<&str>) {
     let items = parse_files(&find_task_files(root));
     let mut issues = checker::run(&items, config);
+    issues.extend(checker::check_form_scripts_default(&items, root, config));
     match checker::check_authorization(root, config, as_user, base_ref) {
         Ok(authorization_issues) => issues.extend(authorization_issues),
         Err(invalid_ref) => {

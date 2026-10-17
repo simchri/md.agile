@@ -10,6 +10,9 @@ use crate::parser::{self, FileItem};
 use crate::rules::{self, Issue, ResolvedIdentity};
 use std::path::Path;
 
+mod form_validation;
+pub use form_validation::{check_form_scripts, check_form_scripts_default};
+
 /// Runs all checker rules over `items` and returns the collected issues.
 ///
 /// Issues are returned in the order their producing rule emits them. An empty

@@ -149,6 +149,12 @@ pub enum ErrorCode {
     /// [`crate::config::FieldConfig::values`]) has an actual, filled-in
     /// value that isn't one of those allowed values.
     FieldValueNotAllowed,
+    /// E030: A form's configured validation script ran and reported the
+    /// form (or one of its fields) as invalid.
+    FormValidationFailed,
+    /// E031: A form's configured validation script could not be run
+    /// properly (not trusted, missing, crashed, timed out, bad output).
+    FormScriptFailed,
 }
 
 impl ErrorCode {
@@ -185,6 +191,8 @@ impl ErrorCode {
             ErrorCode::CollidingFieldLabels => "E027",
             ErrorCode::MultilineFieldFilledInline => "E028",
             ErrorCode::FieldValueNotAllowed => "E029",
+            ErrorCode::FormValidationFailed => "E030",
+            ErrorCode::FormScriptFailed => "E031",
         }
     }
 }
@@ -229,6 +237,8 @@ impl std::str::FromStr for ErrorCode {
             "E027" => ErrorCode::CollidingFieldLabels,
             "E028" => ErrorCode::MultilineFieldFilledInline,
             "E029" => ErrorCode::FieldValueNotAllowed,
+            "E030" => ErrorCode::FormValidationFailed,
+            "E031" => ErrorCode::FormScriptFailed,
             _ => return Err(()),
         })
     }
@@ -489,6 +499,15 @@ pub enum IssueData {
         value: String,
         allowed: Vec<String>,
     },
+    /// Payload for E030 "Form Validation Failed": the form, the offending
+    /// field label (if the script named one) and the script's message.
+    FormValidationFailed {
+        form: String,
+        field: Option<String>,
+        message: String,
+    },
+    /// Payload for E031 "Form Script Failed": the form and its script path.
+    FormScriptFailed { form: String, script: String },
 }
 
 /// The result of resolving "who is completing this task" for the E013
