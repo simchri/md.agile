@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, FieldConfig};
 use crate::rules::IssueData;
 use tower_lsp::lsp_types::*;
 
@@ -7,12 +7,22 @@ use tower_lsp::lsp_types::*;
 /// "append after the whole subtree" placement as [`super::missing_subtasks`]
 /// and [`super::missing_neighbor_tasks`]).
 ///
-/// Each inserted line is indented at `node_indent + 2` and formatted as
-/// `__Label:__ <value>`, where `<value>` is that field's configured
-/// `default` (looked up from `mdagile.toml` by matching label), falling back
-/// to the generic unfilled placeholder `___` when the field has no
-/// configured default or its config can't be found at all (e.g. `mdagile.toml`
-/// failed to load).
+/// A single-line field (`[Field.X]` with `multiline` unset or `false`) is
+/// inserted as one `__Label:__ <value>` line, where `<value>` is that
+/// field's configured `default` (looked up from `mdagile.toml` by matching
+/// label), falling back to the generic unfilled placeholder `___` when the
+/// field has no configured default or its config can't be found at all
+/// (e.g. `mdagile.toml` failed to load).
+///
+/// A multiline field (see [`crate::config::FieldConfig::multiline`]) is
+/// instead inserted using the multiline grammar -- consistent with
+/// [`crate::rules::multiline_field_filled_inline`] (E028), which rejects a
+/// multiline field written inline: a bare `__Label:__` opening line, the
+/// (possibly multi-line) default value each on its own indented line below
+/// it (or no content line at all when there's no configured default -- a
+/// blank multiline field is recognized as unfilled by
+/// [`crate::rules::field_left_unfilled`], E026, same as an inline field left
+/// at the generic `___` placeholder), and a closing `...` line.
 pub fn build(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Vec<CodeAction> {
     build_one(diagnostic, doc_text, uri).into_iter().collect()
 }
@@ -42,13 +52,7 @@ fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
 
     let insert_text: String = missing
         .iter()
-        .map(|label| {
-            let value = config
-                .as_ref()
-                .and_then(|c| default_for_label(c, label))
-                .unwrap_or_else(|| "___".to_string());
-            format!("\n{}__{}:__ {}", " ".repeat(field_indent), label, value)
-        })
+        .map(|label| format_field_insertion(config.as_ref(), label, field_indent))
         .collect::<Vec<_>>()
         .join("");
 
@@ -74,16 +78,33 @@ fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
     ))
 }
 
-/// Finds the configured `default` for the `[Field.X]` whose `label` matches
-/// `label` exactly (the same matching key the E024 check itself uses).
-/// Returns `None` both when no field has that label and when the matching
-/// field has no configured default (plain `___` placeholder).
-fn default_for_label(config: &Config, label: &str) -> Option<String> {
-    config
-        .fields
-        .values()
-        .find(|f| f.label == label)
-        .and_then(|f| f.default.clone())
+/// Builds the inserted text for one missing field (including its leading
+/// `\n`), in either the single-line or multiline grammar depending on
+/// `label`'s configured [`FieldConfig::multiline`].
+fn format_field_insertion(config: Option<&Config>, label: &str, field_indent: usize) -> String {
+    let field_config = config.and_then(|c| field_config_for_label(c, label));
+    let indent = " ".repeat(field_indent);
+    let default = field_config.and_then(|f| f.default.clone());
+
+    if field_config.is_some_and(|f| f.multiline) {
+        let mut block = format!("\n{indent}__{label}:__");
+        if let Some(default) = &default {
+            for line in default.lines() {
+                block.push_str(&format!("\n{indent}{line}"));
+            }
+        }
+        block.push_str(&format!("\n{indent}..."));
+        block
+    } else {
+        let value = default.unwrap_or_else(|| "___".to_string());
+        format!("\n{indent}__{label}:__ {value}")
+    }
+}
+
+/// Finds the `[Field.X]` whose `label` matches `label` exactly (the same
+/// matching key the E024/E026/E028 checks themselves use).
+fn field_config_for_label<'a>(config: &'a Config, label: &str) -> Option<&'a FieldConfig> {
+    config.fields.values().find(|f| f.label == label)
 }
 
 #[cfg(test)]

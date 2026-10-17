@@ -116,18 +116,7 @@ default = \"unknown@example.com\"
 }
 
 #[test]
-fn known_gap_default_value_containing_a_newline_breaks_the_inserted_single_line() {
-    // KNOWN LIMITATION (not fixed here -- flagged for a design decision):
-    // the quickfix always inserts `__Label:__ <value>` as one single-line
-    // field, regardless of the field's `multiline` flag or whether its
-    // configured `default` itself embeds a newline (via a TOML triple-quoted
-    // string). When the default contains '\n', the inserted text splits
-    // into two raw lines, the second of which has no `__Label:__` prefix
-    // and is therefore NOT re-parsed back as part of the same field --
-    // producing a structurally broken / silently-truncated field. A real
-    // fix would need to detect `field.multiline` (or a multi-line default)
-    // and emit the `__Label:__` / value lines / `...` multiline form
-    // instead.
+fn a_multiline_field_with_a_newline_containing_default_is_inserted_using_the_multiline_grammar() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = temp_dir.path();
     let toml = "\
@@ -147,10 +136,38 @@ line two\"\"\"
     let action = build_quickfix(&diag, doc, &uri).unwrap();
     let edits = get_edits(&action, &uri);
 
-    // This is the *current*, undesirable behavior: a single `TextEdit`
-    // whose `new_text` embeds a raw newline, producing an unparseable
-    // second line once applied (`line two` with no `__Bio:__` marker).
-    assert_eq!(edits[0].new_text, "\n  __Bio:__ line one\nline two");
+    // Opens the label on its own line, places each default line below it
+    // indented to match, and closes with `...` -- re-parsing this back
+    // recovers exactly the configured default as the field's value.
+    assert_eq!(
+        edits[0].new_text,
+        "\n  __Bio:__\n  line one\n  line two\n  ..."
+    );
+}
+
+#[test]
+fn a_multiline_field_with_no_default_is_inserted_blank() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+    let toml = "\
+[Field.bio]
+label = \"Bio\"
+multiline = true
+";
+    std::fs::write(project_dir.join("mdagile.toml"), toml).unwrap();
+    let uri = Url::from_file_path(project_dir.join("tasks.agile.md")).unwrap();
+    let doc = "\
+- [ ] #onboarding: add basket
+";
+    let diag = diag_e024(0, vec!["Bio"]);
+    let action = build_quickfix(&diag, doc, &uri).unwrap();
+    let edits = get_edits(&action, &uri);
+
+    // No configured default -- open and close the field with nothing in
+    // between, same as a plain blank multiline field (recognized as
+    // unfilled by E026, same as the generic `___` placeholder is for a
+    // single-line field).
+    assert_eq!(edits[0].new_text, "\n  __Bio:__\n  ...");
 }
 
 #[test]
@@ -197,6 +214,49 @@ default = \"unknown@example.com\"
     let edits = get_edits(&action, &uri);
 
     assert_eq!(edits[0].new_text, "\n  __Email:__ unknown@example.com");
+}
+
+#[test]
+fn inserted_multiline_field_round_trips_through_the_parser_as_the_configured_default() {
+    // Applying the quickfix's edit and re-parsing the result must recover
+    // exactly the configured default as the field's parsed value, with
+    // `multiline: true` -- i.e. the inserted text is genuinely valid
+    // multiline syntax, not just visually similar to it.
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+    let toml = "\
+[Field.bio]
+label = \"Bio\"
+multiline = true
+default = \"\"\"
+line one
+line two\"\"\"
+";
+    std::fs::write(project_dir.join("mdagile.toml"), toml).unwrap();
+    let uri = Url::from_file_path(project_dir.join("tasks.agile.md")).unwrap();
+    let doc = "\
+- [ ] #onboarding: add basket
+";
+    let diag = diag_e024(0, vec!["Bio"]);
+    let action = build_quickfix(&diag, doc, &uri).unwrap();
+    let edits = get_edits(&action, &uri);
+
+    // The edit always appends after the last existing line's content, so
+    // applying it is just string concatenation here.
+    let updated_doc = format!("{}{}", doc.trim_end_matches('\n'), edits[0].new_text);
+
+    let items = crate::parser::parse(&updated_doc, std::path::PathBuf::from("tasks.agile.md"));
+    let crate::parser::FileItem::Task(task) = &items[0] else {
+        panic!("expected a task");
+    };
+    assert_eq!(task.fields.len(), 1);
+    assert!(task.fields[0].multiline);
+    assert_eq!(task.fields[0].label, "Bio");
+    // The parser captures multiline content verbatim, including each
+    // line's indentation -- so the round-tripped value carries the same
+    // leading indentation the quickfix inserted, not the raw unindented
+    // `default` string from the TOML.
+    assert_eq!(task.fields[0].value, "  line one\n  line two");
 }
 
 // ── with existing children/fields: insert after last subtree line ──────────
