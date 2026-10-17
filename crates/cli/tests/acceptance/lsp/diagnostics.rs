@@ -107,3 +107,45 @@ fn ignores_property_marker_inside_backtick_code_span() {
         "expected no E008 for a marker inside a code span, got: {diagnostics:?}"
     );
 }
+
+#[test]
+fn e026_diagnostic_includes_the_field_s_configured_help_text() {
+    // A field's configured `help` hint (see `crate::config::FieldConfig::help`)
+    // is appended to the E026 diagnostic's message in the LSP, same as the
+    // generic "Fill in the field's value" fallback is when no hint is
+    // configured.
+    let config_toml = "\
+[Properties.onboarding]
+form = \"personal_info\"
+
+[Form.personal_info]
+fields = [\"first_name\"]
+
+[Field.first_name]
+label = \"First Name\"
+help = \"Use the person's legal first name\"
+";
+    let (mut session, uri) = start_project_session(config_toml);
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ ___
+";
+
+    session.open_document(&uri, file_content);
+
+    let notification = session.read_notification("textDocument/publishDiagnostics");
+    let diagnostics = notification["params"]["diagnostics"].as_array().unwrap();
+
+    let e026 = diagnostics
+        .iter()
+        .find(|d| d["code"].as_str() == Some("E026"))
+        .unwrap_or_else(|| panic!("expected an E026 diagnostic, got: {diagnostics:?}"));
+
+    assert!(
+        e026["message"]
+            .as_str()
+            .unwrap()
+            .contains("Use the person's legal first name"),
+        "expected the configured help text in the message, got: {e026:?}"
+    );
+}

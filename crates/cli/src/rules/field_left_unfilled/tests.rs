@@ -22,6 +22,7 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
+            help: None,
             default_is_valid_entry: false,
         },
     );
@@ -34,6 +35,7 @@ fn config_with_onboarding_form() -> Config {
             validation_regex: None,
             values: None,
             multiline: false,
+            help: None,
             default_is_valid_entry: false,
         },
     );
@@ -435,6 +437,7 @@ fn flags_a_multiline_field_whose_captured_content_is_empty() {
             validation_regex: None,
             values: None,
             multiline: true,
+            help: None,
             default_is_valid_entry: false,
         },
     );
@@ -481,5 +484,46 @@ fn flags_a_multiline_field_whose_captured_content_is_empty() {
         Some(IssueData::FieldLeftUnfilled {
             label: "Bio".to_string()
         })
+    );
+}
+
+#[test]
+fn uses_the_field_s_configured_help_text_when_set() {
+    // A field with a configured `help` hint uses that as the issue's help
+    // text instead of the generic "Fill in the field's value" fallback --
+    // this is what the LSP appends alongside the error message.
+    let mut config = config_with_onboarding_form();
+    config.fields.get_mut("first_name").unwrap().help =
+        Some("Use the person's legal first name".to_string());
+    let input = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ ___
+  __Gender:__ male
+";
+    let items = p(input);
+    let issues = field_left_unfilled(&items, &config);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].help,
+        Some("Use the person's legal first name".to_string())
+    );
+}
+
+#[test]
+fn falls_back_to_the_generic_help_text_when_no_help_is_configured() {
+    let input = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ ___
+  __Gender:__ male
+";
+    let items = p(input);
+    let config = config_with_onboarding_form();
+    let issues = field_left_unfilled(&items, &config);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].help,
+        Some("Fill in the field's value".to_string())
     );
 }

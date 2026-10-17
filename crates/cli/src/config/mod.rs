@@ -130,6 +130,11 @@ pub struct FieldConfig {
     /// `validation_regex` -- at most one of the two may be set.
     pub values: Option<Vec<String>>,
     pub multiline: bool,
+    /// A configurable hint shown alongside [`crate::rules::field_left_unfilled`]'s
+    /// (E026) error message in the LSP, explaining *what* to fill in or
+    /// *how* -- e.g. "Use the person's legal name". Falls back to a
+    /// generic "Fill in the field's value" when not configured.
+    pub help: Option<String>,
 }
 
 /// A `[Form.X]` entry (see README.vision.md "Forms & Fields"): a named,
@@ -311,6 +316,8 @@ struct RawFieldConfig {
     values: Option<Vec<String>>,
     #[serde(default)]
     multiline: bool,
+    #[serde(default)]
+    help: Option<String>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -468,6 +475,7 @@ impl Config {
                         validation_regex: raw_field.validation_regex,
                         values: raw_field.values,
                         multiline: raw_field.multiline,
+                        help: raw_field.help,
                     },
                 ))
             })

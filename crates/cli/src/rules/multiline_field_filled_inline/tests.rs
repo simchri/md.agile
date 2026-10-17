@@ -21,6 +21,7 @@ fn config_with_multiline_bio_field() -> Config {
             validation_regex: None,
             values: None,
             multiline: true,
+            help: None,
             default_is_valid_entry: false,
         },
     );
@@ -176,6 +177,7 @@ fn does_not_flag_a_single_line_configured_field_written_inline() {
             validation_regex: None,
             values: None,
             multiline: false,
+            help: None,
             default_is_valid_entry: false,
         },
     );

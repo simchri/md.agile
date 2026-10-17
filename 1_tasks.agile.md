@@ -1055,9 +1055,9 @@ users don't have to think about it. Design plan: see
   - [-] configuration option: Field is optional. If true, field may be empty
   - [x] lsp quickfix: insert missing fields
 
-- [ ] hints for unfilled fields. Configureable helptexts, that are displayed alongside the error message in the LSP
+- [x] hints for unfilled fields. Configureable helptexts, that are displayed alongside the error message in the LSP
 
-- [ ] proper multiline handling
+- [x] proper multiline handling
   - [x] multiline field content empty properly flagged
   - [x] multiline fields added via quickfix: The default value is placed on a new line, consistent with validation checks
   - [x] check - multiline fields: The remainder of the line must be empty, any content must be on a new line

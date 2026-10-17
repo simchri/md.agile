@@ -19,6 +19,12 @@
 //! at all after the label) is never a legitimate answer and is always
 //! flagged, with or without the flag.
 //!
+//! The issue's `help` text -- shown alongside the error message in the LSP
+//! -- uses the field's configured [`crate::config::FieldConfig::help`]
+//! hint when set (e.g. "Use the person's legal first name"), falling back
+//! to a generic "Fill in the field's value" when the field has no such
+//! hint configured.
+//!
 //! A field line that's entirely absent is [`crate::rules::missing_required_field`]'s
 //! concern (E024), not this rule's -- this only looks at fields that *are*
 //! present. Likewise a *malformed* field line (missing the space before its
@@ -120,7 +126,12 @@ pub(crate) fn check_node(markers: &[Marker], fields: &[FieldLine], config: &Conf
                 code: ErrorCode::FieldLeftUnfilled,
                 message: format!("Field \"{}\" left unfilled", field_config.label),
                 column: 1,
-                help: Some("Fill in the field's value".to_string()),
+                help: Some(
+                    field_config
+                        .help
+                        .clone()
+                        .unwrap_or_else(|| "Fill in the field's value".to_string()),
+                ),
                 data: Some(IssueData::FieldLeftUnfilled {
                     label: field_config.label.clone(),
                 }),
