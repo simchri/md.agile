@@ -1074,7 +1074,8 @@ users don't have to think about it. Design plan: see
   - [ ] `agile trust` command + trust store
     decided: store lives per-user (`~/.config/mdagile/trust.json`), not in the repo, so a cloned repo can not pre-trust itself. Key = project + script path + sha256(script content); editing the script revokes trust.
     decided: untrusted script in `agile check` is an error (non-zero exit), not a skip. The error must print clear, copy-pasteable instructions (exact `agile trust` command) incl. how to create the trust entry on a CI runner.
-    open: CI strategy. Trust file is plain JSON, so CI can create it non-interactively (e.g. `agile trust --yes`, or a `MDAGILE_TRUST_FILE` override). The checkout path differs per runner, so keying on the absolute project path breaks on CI -> consider keying on project-relative script path + content hash.
+    decided: CI strategy: `agile trust --yes` approves all pending scripts non-interactively; the untrusted-script error tells users to run it on the CI runner (before `agile check`).
+    open: the checkout path differs per runner, so keying on the absolute project path breaks on CI -> consider keying on project-relative script path + content hash.
   - [ ] define script interface (json schema)
     decided: scripts are invoked directly (must be executable, shebang) -- no interpreter-by-extension.
     convention: A successfully running script shall always return 0, but output some json indication validation passed / failed failure message and location (which field).
