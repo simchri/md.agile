@@ -1046,6 +1046,7 @@ users don't have to think about it. Design plan: see
     - [x] initial impl
     - [x] fire only, when task is marked done! Otherwise ignore (tasks can only be marked done, when all required fields are filled!)
     - [x] config option `default_is_valid_entry` (per `[Field.X]`): when `true`, the field's resolved default/`___` placeholder counts as a filled value and is never flagged. Defaults to `false`.
+  - [x] #bug field filled feature very unreliable. Empty fields sometimes considered filled
   - [ ] configuration option: Field is optional. If true, field may be empty
   - [ ] check: field fails regex/allowed values
   - [ ] multiline fields added via quickfix: The default value is placed on a new line

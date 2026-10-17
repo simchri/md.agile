@@ -81,6 +81,12 @@ pub(crate) fn check_node(
             continue;
         };
 
+        // Several `[Field.X]` entries may share one display `label` so that
+        // a single physical `__Label:__ value` line satisfies all of them
+        // (see `missing_required_field`'s label-aliasing support). Track
+        // already-reported labels so that aliasing doesn't surface the same
+        // unfilled line more than once.
+        let mut seen_labels = std::collections::HashSet::new();
         let unfilled: Vec<String> = form_config
             .fields
             .iter()
@@ -94,6 +100,7 @@ pub(crate) fn check_node(
                     .filter(|f| f.value == placeholder)
                     .map(|_| field_config.label.clone())
             })
+            .filter(|label| seen_labels.insert(label.clone()))
             .collect();
 
         if !unfilled.is_empty() {
