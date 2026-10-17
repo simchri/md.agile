@@ -209,7 +209,6 @@ label = "First Name"
 
 [Field.email]
 label = "Email"
-validation_regex = ""
 
 [Field.gender]
 label = "Gender"
@@ -264,8 +263,8 @@ Fully filled out, the form looks like this:
 ```
 
 - validation:
-  - first via regex, per field XOR match against allowed values.
-  - second via a user-defined validation script declared on the form (`validation` key above). The script runs once per task that carries the form (one process per task — no batching, to keep the implementation simple for script authors), and receives **only that form's own fields** as JSON on stdin — never the task's other properties/fields, since a form's validation is only ever concerned with its own data.
+  - individual fields match against allowed values.
+  - via a user-defined validation script declared on the form (`validation` key above). The script runs once per task that carries the form (one process per task — no batching, to keep the implementation simple for script authors), and receives **only that form's own fields** as JSON on stdin — never the task's other properties/fields, since a form's validation is only ever concerned with its own data.
 
 Running a validation script is a trust decision: the first time a project declares a `validation` script, `agile check`/the editor refuses to run it until the user approves it via `agile trust` (keyed by project + script path + script content hash — editing the script revokes trust and re-prompts). Once trusted:
   - `agile check` always runs it.

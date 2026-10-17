@@ -1065,8 +1065,9 @@ users don't have to think about it. Design plan: see
 - [x] basic validation (selectable values)
 - [ ] completion suggestion for selectable values (suggest any selectable value)
 
-- [ ] regex validation
-  - [ ] check: field fails regex/allowed values
+- [ ] remove regex validation
+  remove all implementation artifacts for regex validation.
+  Why? Functionally fully covered by scripts. Keep only scripts and value lists
 
 - [ ] advanced validation (script)
   - [ ] `agile trust` command + trust store
