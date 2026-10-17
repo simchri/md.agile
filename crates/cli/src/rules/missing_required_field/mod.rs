@@ -15,6 +15,10 @@
 //! "missing" here: the real problem is the missing space, not an absent
 //! field, and E025 already reports it with a more specific, actionable
 //! message. Reporting both would be redundant and confusing.
+//!
+//! A field with [`crate::config::FieldConfig::optional`] set is excluded
+//! entirely: it's never reported missing, whether or not its body line is
+//! present at all.
 
 use crate::config::Config;
 use crate::parser::Marker;
@@ -51,6 +55,7 @@ pub fn missing_required_field(items: &[crate::parser::FileItem], config: &Config
                 .fields
                 .iter()
                 .filter_map(|field_name| config.fields.get(field_name))
+                .filter(|field_config| !field_config.optional)
                 .filter(|field_config| !present_labels.contains(&field_config.label.as_str()))
                 .filter(|field_config| !malformed_labels.contains(&field_config.label.as_str()))
                 .map(|field_config| field_config.label.clone())

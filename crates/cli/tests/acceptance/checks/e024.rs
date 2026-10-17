@@ -192,3 +192,33 @@ fn two_properties_with_two_forms_both_fully_satisfied_is_clean() {
         String::from_utf8_lossy(&out.stdout)
     );
 }
+
+#[test]
+fn a_field_marked_optional_is_not_flagged_when_entirely_absent() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.first_name]
+label = \"First Name\"
+[Field.email]
+label = \"Email\"
+optional = true
+[Form.personal_info]
+fields = [\"first_name\", \"email\"]
+[Properties.onboarding]
+form = \"personal_info\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] new colleague: John #onboarding
+  __First Name:__ John
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}

@@ -616,6 +616,18 @@ fn field_without_optional_keys_has_sensible_defaults() {
     assert_eq!(field.values, None);
     assert!(!field.multiline);
     assert!(!field.default_is_valid_entry);
+    assert!(!field.optional);
+}
+
+#[test]
+fn field_with_optional_true_is_parsed() {
+    let input = "\
+[Field.middle_name]
+optional = true
+";
+    let config = Config::from_str(input).unwrap();
+    let field = config.fields.get("middle_name").unwrap();
+    assert!(field.optional);
 }
 
 #[test]

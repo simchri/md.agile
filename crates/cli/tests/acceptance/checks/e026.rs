@@ -234,3 +234,66 @@ form = \"personal_info\"
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("First Name"), "stderr: {stderr:?}");
 }
+
+#[test]
+fn an_optional_field_still_at_its_placeholder_is_not_flagged() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.first_name]
+label = \"First Name\"
+[Field.gender]
+label = \"Gender\"
+default = \"(don't specify)\"
+optional = true
+[Form.personal_info]
+fields = [\"first_name\", \"gender\"]
+[Properties.onboarding]
+form = \"personal_info\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ John
+  __Gender:__ (don't specify)
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[test]
+fn an_optional_field_left_entirely_blank_is_not_flagged() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.first_name]
+label = \"First Name\"
+[Field.gender]
+label = \"Gender\"
+optional = true
+[Form.personal_info]
+fields = [\"first_name\", \"gender\"]
+[Properties.onboarding]
+form = \"personal_info\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ John
+  __Gender:__ 
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}

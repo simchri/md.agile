@@ -19,6 +19,12 @@
 //! at all after the label) is never a legitimate answer and is always
 //! flagged, with or without the flag.
 //!
+//! A field with [`crate::config::FieldConfig::optional`] set is excluded
+//! from this check entirely -- unlike `default_is_valid_entry`, which only
+//! reclassifies the placeholder, `optional` suppresses the check outright:
+//! an optional field may be left blank or at its placeholder without being
+//! flagged.
+//!
 //! A field line that's entirely absent is [`crate::rules::missing_required_field`]'s
 //! concern (E024), not this rule's -- this only looks at fields that *are*
 //! present. Likewise a *malformed* field line (missing the space before its
@@ -96,6 +102,7 @@ pub(crate) fn check_node(
             .fields
             .iter()
             .filter_map(|field_name| config.fields.get(field_name))
+            .filter(|field_config| !field_config.optional)
             .filter_map(|field_config| {
                 let field_line = fields.iter().find(|f| f.label == field_config.label)?;
                 let placeholder = field_config.default.as_deref().unwrap_or("___");
