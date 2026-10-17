@@ -1048,16 +1048,22 @@ users don't have to think about it. Design plan: see
     - [x] config option `default_is_valid_entry` (per `[Field.X]`): when `true`, the field's resolved default/`___` placeholder counts as a filled value and is never flagged. Defaults to `false`.
   - [x] #bug field filled feature very unreliable. Empty fields sometimes considered filled
   - [x] acceptance tests (`crates/cli/tests/acceptance/checks/e024.rs`, `e025.rs`, `e026.rs`, plus `task/done.rs` completion-gating scenarios) for E024/E025/E026, which previously only had unit test coverage
+  - [x] disallow identical field "labels" within one form
+  - [x] disallow two properties with forms on the same task, if two fields their field labels collide (i.e. `#propertyA` and `#propertyB` both come with a form. In both forms there is a field with label `Name` --> collision. Disallow this via a check.
+  - [x] disallow identical field "ids" within one form
+    already satisfied via toml directly - can not declare the same key twice
   - [ ] configuration option: Field is optional. If true, field may be empty
-  - [ ] check: field fails regex/allowed values
-  - [ ] multiline fields added via quickfix: The default value is placed on a new line
-  - [ ] check - multiline fields: The remainder of the line must be empty, any content must be on a new line
   - [x] lsp quickfix: insert missing fields
 
+- [ ] proper multiline handling
+  - [ ] multiline field content empty properly flagged
+  - [ ] multiline fields added via quickfix: The default value is placed on a new line
+  - [ ] check - multiline fields: The remainder of the line must be empty, any content must be on a new line
 
 - [ ] advanced validation (selectable values)
 
 - [ ] regex validation
+  - [ ] check: field fails regex/allowed values
 
 - [ ] advanced validation (script)
   - [ ] `agile trust` command + trust store
