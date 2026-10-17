@@ -1,8 +1,8 @@
 //! E026 — flags a task/subtask whose property attaches a form (see
 //! README.vision.md "Forms & Fields") and *has* a matching `__Label:__
-//! value` line for one of that form's fields, but whose value still equals
-//! the field's resolved "unfilled placeholder" -- i.e. nobody has actually
-//! filled it out yet.
+//! value` line for one of that form's fields, but whose value is still
+//! blank, or still equals the field's resolved "unfilled placeholder" --
+//! i.e. nobody has actually filled it out yet.
 //!
 //! The resolved placeholder is the field's configured `default` (see
 //! [`crate::config::FieldConfig::default`]), or the generic `___` when it
@@ -11,10 +11,13 @@
 //! new field line. This mirrors that module's terminology: a field counts
 //! as "unfilled" whenever it still carries exactly what would have been
 //! auto-inserted, custom default included -- unless
-//! [`crate::config::FieldConfig::default_is_valid_entry`] opts the field out
-//! of this check entirely by treating its placeholder as a legitimate,
-//! deliberately chosen value (e.g. a default like `"(don't specify)"` that's
-//! itself one of the field's allowed `values`).
+//! [`crate::config::FieldConfig::default_is_valid_entry`] treats that
+//! placeholder as a legitimate, deliberately chosen value instead (e.g. a
+//! default like `"(don't specify)"` that's itself one of the field's
+//! allowed `values`). That flag only reclassifies the placeholder itself --
+//! it does *not* disable this check: a field left entirely blank (no value
+//! at all after the label) is never a legitimate answer and is always
+//! flagged, with or without the flag.
 //!
 //! A field line that's entirely absent is [`crate::rules::missing_required_field`]'s
 //! concern (E024), not this rule's -- this only looks at fields that *are*
@@ -91,14 +94,17 @@ pub(crate) fn check_node(
             .fields
             .iter()
             .filter_map(|field_name| config.fields.get(field_name))
-            .filter(|field_config| !field_config.default_is_valid_entry)
             .filter_map(|field_config| {
+                let field_line = fields.iter().find(|f| f.label == field_config.label)?;
                 let placeholder = field_config.default.as_deref().unwrap_or("___");
-                fields
-                    .iter()
-                    .find(|f| f.label == field_config.label)
-                    .filter(|f| f.value == placeholder)
-                    .map(|_| field_config.label.clone())
+                // A field left entirely blank is never a legitimate answer,
+                // regardless of `default_is_valid_entry` -- that flag only
+                // says the *placeholder itself* counts as a deliberately
+                // chosen value, not that the check is disabled outright.
+                let is_blank = field_line.value.trim().is_empty();
+                let still_at_placeholder =
+                    !field_config.default_is_valid_entry && field_line.value == placeholder;
+                (is_blank || still_at_placeholder).then(|| field_config.label.clone())
             })
             .filter(|label| seen_labels.insert(label.clone()))
             .collect();

@@ -113,7 +113,10 @@ fn does_not_flag_a_done_task_with_every_field_actually_filled_in() {
 }
 
 #[test]
-fn default_is_valid_entry_true_suppresses_the_check_for_that_field() {
+fn default_is_valid_entry_true_treats_the_placeholder_itself_as_filled() {
+    // The flag only reclassifies the resolved placeholder as a legitimate,
+    // deliberately chosen value -- it does not disable the check outright
+    // (see the blank-value test below).
     let dir = tempdir().unwrap();
     let config = "\
 [Field.first_name]
@@ -142,6 +145,59 @@ form = \"personal_info\"
         "stdout: {}",
         String::from_utf8_lossy(&out.stdout)
     );
+}
+
+#[test]
+fn default_is_valid_entry_true_still_flags_a_truly_blank_value() {
+    // `default_is_valid_entry` reclassifies the placeholder, not the check
+    // itself -- a field left entirely blank (no value at all after the
+    // label) is never a legitimate answer and must still be flagged.
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.first_name]
+label = \"First Name\"
+[Field.gender]
+label = \"Gender\"
+default = \"(don't specify)\"
+default_is_valid_entry = true
+[Form.personal_info]
+fields = [\"first_name\", \"gender\"]
+[Properties.onboarding]
+form = \"personal_info\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ John
+  __Gender:__ 
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E026"), "stdout: {stdout:?}");
+    assert!(stdout.contains("Gender"), "stdout: {stdout:?}");
+}
+
+#[test]
+fn a_truly_blank_value_is_flagged_even_without_default_is_valid_entry() {
+    let dir = tempdir().unwrap();
+    write_onboarding_config(dir.path());
+    let file_content = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ 
+  __Gender:__ male
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(stdout.contains("E026"), "stdout: {stdout:?}");
+    assert!(stdout.contains("First Name"), "stdout: {stdout:?}");
 }
 
 #[test]

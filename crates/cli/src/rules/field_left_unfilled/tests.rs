@@ -383,3 +383,56 @@ fn default_is_valid_entry_true_also_suppresses_the_plain_underscore_placeholder(
 
     assert!(issues.is_empty());
 }
+
+#[test]
+fn default_is_valid_entry_true_does_not_suppress_a_truly_blank_value() {
+    // `default_is_valid_entry` only means the *placeholder itself* (custom
+    // default, or plain `___`) counts as a deliberately chosen answer -- it
+    // does not disable the check altogether. A field left entirely blank
+    // (no value at all after the label) is never a legitimate answer and
+    // must still be flagged, even when the field opts in.
+    let mut config = config_with_onboarding_form();
+    config
+        .fields
+        .get_mut("gender")
+        .unwrap()
+        .default_is_valid_entry = true;
+    let input = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ John
+  __Gender:__ 
+";
+    let items = p(input);
+    let issues = field_left_unfilled(&items, &config);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::FieldLeftUnfilled {
+            unfilled: vec!["Gender".to_string()]
+        })
+    );
+}
+
+#[test]
+fn a_truly_blank_value_is_flagged_even_without_default_is_valid_entry() {
+    // Same blank-value detection applies in the default (opted-out) case
+    // too: a field whose value is blank, not the literal resolved
+    // placeholder text, must still be caught as unfilled.
+    let input = "\
+- [x] new colleague: John #onboarding
+  __First Name:__ 
+  __Gender:__ male
+";
+    let items = p(input);
+    let config = config_with_onboarding_form();
+    let issues = field_left_unfilled(&items, &config);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::FieldLeftUnfilled {
+            unfilled: vec!["First Name".to_string()]
+        })
+    );
+}

@@ -119,7 +119,9 @@ pub struct FieldConfig {
     /// chosen "filled out" value rather than "left unfilled" (see
     /// [`crate::rules::field_left_unfilled`], E026). Defaults to `false` --
     /// a field still at its placeholder is flagged as unfilled unless a
-    /// project explicitly opts in.
+    /// project explicitly opts in. This only reclassifies the placeholder
+    /// itself: the field is still flagged if its value is entirely blank,
+    /// regardless of this setting.
     pub default_is_valid_entry: bool,
     /// A regex the field's value must match. Mutually exclusive with
     /// `values` -- at most one of the two may be set.
