@@ -340,7 +340,10 @@ impl Backend {
                     checker::check_form_scripts(&items, &root, &config, &store, &Limits::default())
                 })
                 .await
-                .unwrap_or_default()
+                .unwrap_or_else(|e| {
+                    log::error!("form validation task failed: {e}");
+                    vec![]
+                })
             }
             _ => vec![],
         };

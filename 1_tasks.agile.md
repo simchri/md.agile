@@ -1099,7 +1099,7 @@ users don't have to think about it. Design plan: see
       old line numbers are shown on the new text.
       Fix: only store the result if the document text is still the text the scripts ran on.
       cancelled: very minor -- only affects slow scripts combined with very fast editing; the next edit or save corrects the display.
-    - [ ] LSP: don't swallow `spawn_blocking` join errors/panics (`unwrap_or_default`); log them
+    - [x] LSP: don't swallow `spawn_blocking` join errors/panics (`unwrap_or_default`); log them
       lsp/mod.rs, `run_form_scripts`: a panic or join error in the blocking task is silently turned into "no issues".
     - [ ] LSP: scripts run sequentially per task, so a save can delay diagnostics by minutes -- decide on a total time budget / parallelism / publishing partial results
       One process per task, run one after another, each with up to 10 s timeout.
