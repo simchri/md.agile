@@ -500,10 +500,10 @@ pub enum IssueData {
         allowed: Vec<String>,
     },
     /// Payload for E030 "Form Validation Failed": the form, the offending
-    /// field label (if the script named one) and the script's message.
+    /// field key (if the script named one) and the script's message.
     FormValidationFailed {
         form: String,
-        field: Option<String>,
+        field_key: Option<String>,
         message: String,
     },
     /// Payload for E031 "Form Script Failed": the form and its script path.

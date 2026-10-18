@@ -172,7 +172,7 @@ fn validation_failed(
         help: None,
         data: Some(IssueData::FormValidationFailed {
             form: form.to_string(),
-            field: error.field,
+            field_key: error.field,
             message: error.message,
         }),
     }

@@ -1134,7 +1134,7 @@ users don't have to think about it. Design plan: see
       It belongs in the CLI/LSP layer; the checker would only keep `check_form_scripts`.
     - [x] rename `RunError::Spawn` (also used for read/wait errors) to `Io` or split it
       form_script/mod.rs: `RunError::Spawn` is also used for read and wait errors, so its message "could not start script" is wrong for them.
-    - [ ] rename `IssueData::FormValidationFailed.field` to `field_key` (other variants carry labels)
+    - [x] rename `IssueData::FormValidationFailed.field` to `field_key` (other variants carry labels)
       rules/mod.rs: this variant holds a field key, while the other `IssueData` variants hold labels.
     - [ ] optional: `FieldKey` newtype for script input/output field keys
       `ScriptInput.form`, the script path and the field keys are plain `String`s. Passing a label where a key is expected compiles fine -- exactly the bug fixed in 3686efc.

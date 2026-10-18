@@ -93,7 +93,7 @@ echo '{\"valid\": false, \"errors\": [{\"field\": \"email\", \"message\": \"not 
         issues[0].data,
         Some(IssueData::FormValidationFailed {
             form: "personal_info".to_string(),
-            field: Some("email".to_string()),
+            field_key: Some("email".to_string()),
             message: "not an email".to_string(),
         })
     );
