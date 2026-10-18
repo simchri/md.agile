@@ -17,25 +17,13 @@ use crate::form_script::{
 };
 use crate::parser::{FileItem, Marker};
 use crate::rules::{ErrorCode, Issue, IssueData, NodeRef, for_each_node};
-use crate::trust::{TrustStore, user_store_path};
+use crate::trust::TrustStore;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-/// Like [`check_form_scripts`], using the current user's trust store (a
-/// missing or unreadable store means nothing is trusted).
-pub fn check_form_scripts_default(items: &[FileItem], root: &Path, config: &Config) -> Vec<Issue> {
-    if !config.forms.values().any(|f| f.validation.is_some()) {
-        return vec![];
-    }
-    let store = user_store_path()
-        .map(|path| TrustStore::load(&path))
-        .transpose()
-        .unwrap_or_else(|e| {
-            log::warn!("{e} — treating every form validation script as untrusted");
-            None
-        })
-        .unwrap_or_default();
-    check_form_scripts(items, root, config, &store, &Limits::default())
+/// Whether any form of the config has a validation script.
+pub fn uses_form_scripts(config: &Config) -> bool {
+    config.forms.values().any(|f| f.validation.is_some())
 }
 
 pub fn check_form_scripts(

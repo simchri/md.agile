@@ -1129,7 +1129,7 @@ users don't have to think about it. Design plan: see
     - [x] add `trust::fingerprint(root, script)` (resolve + read + hash is duplicated in `agile trust` and `run_script`)
       cli/subcommands/trust.rs and form_script/mod.rs both resolve a script, read it and hash it.
       Could also close the hash-then-execute gap (see bugs).
-    - [ ] move trust store loading (env/IO) out of the checker; callers pass the store in
+    - [x] move trust store loading (env/IO) out of the checker; callers pass the store in
       checker/form_validation.rs `check_form_scripts_default` reads environment variables and the trust store (I/O) inside the checker.
       It belongs in the CLI/LSP layer; the checker would only keep `check_form_scripts`.
     - [ ] rename `RunError::Spawn` (also used for read/wait errors) to `Io` or split it

@@ -35,8 +35,10 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use crate::{
     checker,
     config::{CONFIG_FILE_NAMES, Config},
+    form_script::Limits,
     parser,
     rules::{Issue, ResolvedIdentity},
+    trust,
 };
 
 mod completion;
@@ -331,10 +333,11 @@ impl Backend {
         let (config, config_load_failed, source, _) = self.load_config_with_source(&uri).await;
         let root = self.project_root(source.as_ref()).await;
         let issues = match (root, config_load_failed) {
-            (Some(root), false) => {
+            (Some(root), false) if checker::uses_form_scripts(&config) => {
                 let items = parser::parse(&text, path);
                 tokio::task::spawn_blocking(move || {
-                    checker::check_form_scripts_default(&items, &root, &config)
+                    let store = trust::load_user_store_or_empty();
+                    checker::check_form_scripts(&items, &root, &config, &store, &Limits::default())
                 })
                 .await
                 .unwrap_or_default()

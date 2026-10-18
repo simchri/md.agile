@@ -163,5 +163,18 @@ pub fn user_store_path() -> Option<PathBuf> {
     default_store_path(|name| std::env::var_os(name))
 }
 
+/// The current user's trust store. A missing or unreadable store means
+/// nothing is trusted.
+pub fn load_user_store_or_empty() -> TrustStore {
+    user_store_path()
+        .map(|path| TrustStore::load(&path))
+        .transpose()
+        .unwrap_or_else(|e| {
+            log::warn!("{e} — treating every form validation script as untrusted");
+            None
+        })
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests;

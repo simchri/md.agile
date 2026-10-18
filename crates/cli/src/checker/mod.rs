@@ -11,7 +11,7 @@ use crate::rules::{self, Issue, ResolvedIdentity};
 use std::path::Path;
 
 mod form_validation;
-pub use form_validation::{check_form_scripts, check_form_scripts_default};
+pub use form_validation::{check_form_scripts, uses_form_scripts};
 
 /// Runs all checker rules over `items` and returns the collected issues.
 ///
