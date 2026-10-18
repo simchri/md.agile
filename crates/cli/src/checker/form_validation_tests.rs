@@ -148,6 +148,59 @@ echo '{\"valid\": false, \"errors\": [{\"field\": \"email\", \"message\": \"requ
 }
 
 #[test]
+fn an_error_naming_a_key_unknown_to_the_form_falls_back_to_the_task_line() {
+    let script_content = "\
+#!/bin/sh
+echo '{\"valid\": false, \"errors\": [{\"field\": \"nickname\", \"message\": \"odd\"}]}'
+";
+    let (dir, store) = project(script_content);
+    let file_content = "\
+- [ ] new colleague #onboarding
+  __Name:__ John
+  __Email:__ john@example.com
+";
+
+    let issues = check_form_scripts(
+        &items(file_content),
+        dir.path(),
+        &config(),
+        &store,
+        &Limits::default(),
+    );
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].location.line, 1);
+    assert!(issues[0].message.contains("odd"));
+}
+
+#[test]
+fn subtasks_are_validated_with_their_own_fields_and_line() {
+    let script_content = "\
+#!/bin/sh
+echo '{\"valid\": false, \"errors\": [{\"field\": \"email\", \"message\": \"not an email\"}]}'
+";
+    let (dir, store) = project(script_content);
+    let file_content = "\
+- [ ] onboarding project
+  - [ ] new colleague #onboarding
+    __Name:__ John
+    __Email:__ john
+";
+
+    let issues = check_form_scripts(
+        &items(file_content),
+        dir.path(),
+        &config(),
+        &store,
+        &Limits::default(),
+    );
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].code, ErrorCode::FormValidationFailed);
+    assert_eq!(issues[0].location.line, 4);
+}
+
+#[test]
 fn an_invalid_verdict_without_errors_still_yields_one_issue() {
     let script_content = "\
 #!/bin/sh
