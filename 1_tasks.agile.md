@@ -1132,7 +1132,7 @@ users don't have to think about it. Design plan: see
     - [x] move trust store loading (env/IO) out of the checker; callers pass the store in
       checker/form_validation.rs `check_form_scripts_default` reads environment variables and the trust store (I/O) inside the checker.
       It belongs in the CLI/LSP layer; the checker would only keep `check_form_scripts`.
-    - [ ] rename `RunError::Spawn` (also used for read/wait errors) to `Io` or split it
+    - [x] rename `RunError::Spawn` (also used for read/wait errors) to `Io` or split it
       form_script/mod.rs: `RunError::Spawn` is also used for read and wait errors, so its message "could not start script" is wrong for them.
     - [ ] rename `IssueData::FormValidationFailed.field` to `field_key` (other variants carry labels)
       rules/mod.rs: this variant holds a field key, while the other `IssueData` variants hold labels.

@@ -72,7 +72,7 @@ impl Default for Limits {
 pub enum RunError {
     Path(ScriptPathError),
     Untrusted,
-    Spawn(std::io::Error),
+    Io(std::io::Error),
     NonZeroExit { code: Option<i32>, stderr: String },
     Timeout,
     OutputTooLarge,
@@ -84,7 +84,7 @@ impl std::fmt::Display for RunError {
         match self {
             RunError::Path(e) => write!(f, "invalid script path: {e}"),
             RunError::Untrusted => f.write_str("script is not trusted"),
-            RunError::Spawn(e) => write!(f, "could not start script: {e}"),
+            RunError::Io(e) => write!(f, "could not run script: {e}"),
             RunError::NonZeroExit { code, stderr } => {
                 match code {
                     Some(code) => write!(f, "script exited with status {code}")?,
@@ -128,7 +128,7 @@ pub fn run_script(
 ) -> Result<ScriptOutput, RunError> {
     let (path, hash) = fingerprint(root, script).map_err(|e| match e {
         FingerprintError::Path(e) => RunError::Path(e),
-        FingerprintError::Read(e) => RunError::Spawn(e),
+        FingerprintError::Read(e) => RunError::Io(e),
     })?;
     if !store.is_trusted(script, &hash) {
         return Err(RunError::Untrusted);
@@ -142,7 +142,7 @@ pub fn run_script(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(RunError::Spawn)?;
+        .map_err(RunError::Io)?;
 
     let payload = serde_json::to_vec(input).expect("script input is always serializable");
     let mut stdin = child.stdin.take().expect("stdin was piped");
@@ -161,7 +161,7 @@ pub fn run_script(
     let mut stdout: Option<Vec<u8>> = None;
     let status = loop {
         if let Ok(result) = stdout_rx.try_recv() {
-            let bytes = result.map_err(RunError::Spawn)?;
+            let bytes = result.map_err(RunError::Io)?;
             if bytes.len() > limits.max_output_bytes {
                 let _ = child.kill();
                 let _ = child.wait();
@@ -169,7 +169,7 @@ pub fn run_script(
             }
             stdout = Some(bytes);
         }
-        if let Some(status) = child.try_wait().map_err(RunError::Spawn)? {
+        if let Some(status) = child.try_wait().map_err(RunError::Io)? {
             break status;
         }
         if Instant::now() >= deadline {
@@ -186,7 +186,7 @@ pub fn run_script(
         None => stdout_rx
             .recv_timeout(remaining)
             .map_err(|_| RunError::Timeout)?
-            .map_err(RunError::Spawn)?,
+            .map_err(RunError::Io)?,
     };
     let stderr = stderr_rx
         .recv_timeout(Duration::from_millis(500))
