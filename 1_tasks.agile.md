@@ -1093,11 +1093,12 @@ users don't have to think about it. Design plan: see
 - [ ] review findings: form validation feature (review-recent-changes, commits fe34e71..3686efc)
   Findings of the review of the script validation feature (trust store, runner, E030/E031 check, LSP on save).
   - [ ] bugs
-    - [ ] LSP: discard script results if the document changed while the scripts ran (stale-result race in `run_form_scripts`); add a test
+    - [-] LSP: discard script results if the document changed while the scripts ran (stale-result race in `run_form_scripts`); add a test
       lsp/mod.rs, `run_form_scripts`: reads the text, runs the scripts (up to 10 s each) and only then writes the cache.
       If the user edits during the run, `did_change` clears the cache, then the late write puts the results back:
       old line numbers are shown on the new text.
       Fix: only store the result if the document text is still the text the scripts ran on.
+      cancelled: very minor -- only affects slow scripts combined with very fast editing; the next edit or save corrects the display.
     - [ ] LSP: don't swallow `spawn_blocking` join errors/panics (`unwrap_or_default`); log them
       lsp/mod.rs, `run_form_scripts`: a panic or join error in the blocking task is silently turned into "no issues".
     - [ ] LSP: scripts run sequentially per task, so a save can delay diagnostics by minutes -- decide on a total time budget / parallelism / publishing partial results
@@ -1141,8 +1142,9 @@ users don't have to think about it. Design plan: see
     - [ ] optional: split `form_script/mod.rs` into types and runner
       form_script/mod.rs (209 lines) mixes the JSON types, the error type and the process runner. Borderline.
   - [ ] tests
-    - [ ] cover subtask nodes, an unknown field key reported by a script, and the stale-result race
+    - [x] cover subtask nodes, an unknown field key reported by a script, and the stale-result race
       Current gaps in the unit/acceptance tests of the validation feature.
+      done: subtask nodes and unknown field key. The stale-result race test is dropped together with the cancelled race bug above.
       Also: acceptance tests e030.rs and the trust acceptance test repeat a lot of project setup (allowed by the project's independence rule, no action needed).
   - [ ] design decisions to settle
     - [ ] report one E031 per script per file instead of one per task
