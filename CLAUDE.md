@@ -115,6 +115,15 @@ fn it_works() { ... }
 
 Name the test file `<source_stem>_tests.rs` and place it alongside the source file.
 
+### One test, one outcome
+
+Each test must exercise one scenario and assert one behavioral outcome. Do not
+combine success and failure cases, branch outcomes, or independent validation
+rules in one test, including through scenario loops or sequential fixture
+changes. Give each case its own descriptively named test and independent setup.
+Multiple assertions are appropriate when they verify the same outcome (for
+example, a rejected command's diagnostic, exit code and unchanged file).
+
 ### Acceptance test conventions
 
 Learnings from refactoring the acceptance tests in `crates/cli/tests/acceptance/`:
@@ -214,4 +223,3 @@ Do not use these terms interchangeably.
 
 ## Known issues / gotchas
 ...
-

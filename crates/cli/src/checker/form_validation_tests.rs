@@ -41,7 +41,7 @@ fn items(file_content: &str) -> Vec<FileItem> {
 }
 
 #[test]
-fn branch_form_scripts_apply_only_to_selected_branches_and_keep_trust_checks() {
+fn pending_branch_checks_only_base_form_script_trust() {
     let config = Config::from_str(
         "\
 [Form.base]
@@ -64,39 +64,191 @@ form = \"rejection\"
     for name in ["base.sh", "approval.sh", "rejection.sh"] {
         fs::write(dir.path().join(name), "#!/bin/sh").unwrap();
     }
-    for (outcome, expected_forms) in [
-        ("...", vec!["base"]),
-        ("unknown", vec!["base"]),
-        ("passed", vec!["base", "approval"]),
-        ("failed", vec!["base", "rejection"]),
-    ] {
-        let file_content = format!(
-            "\
-- [ ] #review:{outcome}
-"
-        );
+    let file_content = "\
+- [ ] #review:...
+";
 
-        let issues = check_form_scripts(
-            &items(&file_content),
-            dir.path(),
-            &config,
-            &store,
-            &Limits::default(),
-        );
+    let issues = check_form_scripts(
+        &items(file_content),
+        dir.path(),
+        &config,
+        &store,
+        &Limits::default(),
+    );
 
-        let forms: Vec<_> = issues
-            .iter()
-            .map(|issue| {
-                assert_eq!(issue.code, ErrorCode::FormScriptFailed);
-                assert!(issue.message.contains("not trusted"), "{issue:?}");
-                let Some(IssueData::FormScriptFailed { form, .. }) = &issue.data else {
-                    panic!("expected form script failure");
-                };
-                form.as_str()
-            })
-            .collect();
-        assert_eq!(forms, expected_forms, "{outcome}");
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(issues[0].code, ErrorCode::FormScriptFailed);
+    assert!(issues[0].message.contains("not trusted"), "{issues:?}");
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::FormScriptFailed {
+            form: "base".to_string(),
+            script: "base.sh".to_string(),
+        })
+    );
+}
+
+#[test]
+fn unknown_branch_checks_only_base_form_script_trust() {
+    let config = Config::from_str(
+        "\
+[Form.base]
+validation = \"base.sh\"
+[Form.approval]
+validation = \"approval.sh\"
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+",
+    )
+    .unwrap();
+    let dir = tempdir().unwrap();
+    let store = TrustStore::default();
+    fs::write(dir.path().join("base.sh"), "#!/bin/sh").unwrap();
+    fs::write(dir.path().join("approval.sh"), "#!/bin/sh").unwrap();
+    let file_content = "\
+- [ ] #review:unknown
+";
+
+    let issues = check_form_scripts(
+        &items(file_content),
+        dir.path(),
+        &config,
+        &store,
+        &Limits::default(),
+    );
+
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(issues[0].code, ErrorCode::FormScriptFailed);
+    assert!(issues[0].message.contains("not trusted"), "{issues:?}");
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::FormScriptFailed {
+            form: "base".to_string(),
+            script: "base.sh".to_string(),
+        })
+    );
+}
+
+#[test]
+fn passed_branch_checks_base_and_approval_form_script_trust() {
+    let config = Config::from_str(
+        "\
+[Form.base]
+validation = \"base.sh\"
+[Form.approval]
+validation = \"approval.sh\"
+[Form.rejection]
+validation = \"rejection.sh\"
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+[Properties.review.failed]
+form = \"rejection\"
+",
+    )
+    .unwrap();
+    let dir = tempdir().unwrap();
+    let store = TrustStore::default();
+    for name in ["base.sh", "approval.sh", "rejection.sh"] {
+        fs::write(dir.path().join(name), "#!/bin/sh").unwrap();
     }
+    let file_content = "\
+- [ ] #review:passed
+";
+
+    let issues = check_form_scripts(
+        &items(file_content),
+        dir.path(),
+        &config,
+        &store,
+        &Limits::default(),
+    );
+
+    assert_eq!(issues.len(), 2, "{issues:?}");
+    assert!(
+        issues
+            .iter()
+            .all(|issue| issue.code == ErrorCode::FormScriptFailed
+                && issue.message.contains("not trusted")),
+        "{issues:?}"
+    );
+    let data: Vec<_> = issues.iter().map(|issue| issue.data.clone()).collect();
+    assert_eq!(
+        data,
+        vec![
+            Some(IssueData::FormScriptFailed {
+                form: "base".to_string(),
+                script: "base.sh".to_string()
+            }),
+            Some(IssueData::FormScriptFailed {
+                form: "approval".to_string(),
+                script: "approval.sh".to_string()
+            }),
+        ]
+    );
+}
+
+#[test]
+fn failed_branch_checks_base_and_rejection_form_script_trust() {
+    let config = Config::from_str(
+        "\
+[Form.base]
+validation = \"base.sh\"
+[Form.approval]
+validation = \"approval.sh\"
+[Form.rejection]
+validation = \"rejection.sh\"
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+[Properties.review.failed]
+form = \"rejection\"
+",
+    )
+    .unwrap();
+    let dir = tempdir().unwrap();
+    let store = TrustStore::default();
+    for name in ["base.sh", "approval.sh", "rejection.sh"] {
+        fs::write(dir.path().join(name), "#!/bin/sh").unwrap();
+    }
+    let file_content = "\
+- [ ] #review:failed
+";
+
+    let issues = check_form_scripts(
+        &items(file_content),
+        dir.path(),
+        &config,
+        &store,
+        &Limits::default(),
+    );
+
+    assert_eq!(issues.len(), 2, "{issues:?}");
+    assert!(
+        issues
+            .iter()
+            .all(|issue| issue.code == ErrorCode::FormScriptFailed
+                && issue.message.contains("not trusted")),
+        "{issues:?}"
+    );
+    let data: Vec<_> = issues.iter().map(|issue| issue.data.clone()).collect();
+    assert_eq!(
+        data,
+        vec![
+            Some(IssueData::FormScriptFailed {
+                form: "base".to_string(),
+                script: "base.sh".to_string()
+            }),
+            Some(IssueData::FormScriptFailed {
+                form: "rejection".to_string(),
+                script: "rejection.sh".to_string()
+            }),
+        ]
+    );
 }
 
 #[test]

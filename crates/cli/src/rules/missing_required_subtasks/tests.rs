@@ -1,6 +1,7 @@
 use super::*;
 use crate::config::{Config, PropertyConfig};
 use crate::parser::{FileItem, parse};
+use crate::rules::required_title::matches_required_title;
 use std::path::PathBuf;
 
 fn p(input: &str) -> Vec<FileItem> {
@@ -60,108 +61,217 @@ fn config_with_cancellable_subtasks(entries: &[(&str, &[&str], &[bool])]) -> Con
 // ── no-issue cases ────────────────────────────────────────────────────────────
 
 #[test]
-fn pending_required_markers_match_resolved_outcomes_without_relaxing_other_text() {
-    let cases = [
-        ("check #review:...", "check #review:passed", true),
-        ("check #review:...", "check #review:unknown", true),
-        ("check #review:...", "check #review:...", true),
-        ("check #review:passed", "check #review:failed", false),
-        ("check #review:passed", "check #review:...", false),
-        ("check #review:...", "check #approval:passed", false),
-        ("check #review:...", "check #review", false),
-        ("check #review:...", "changed #review:passed", false),
-        ("check #review:...", "check  #review:passed", false),
-        (
-            "1. check @alice #review:...",
-            "2. check @alice #review:passed",
-            false,
-        ),
-        (
-            "check @alice #review:...",
-            "check @bob #review:passed",
-            false,
-        ),
-        (
-            "check #review:... @alice",
-            "check @alice #review:passed",
-            false,
-        ),
-        ("check #review:...!", "check #review:passed!", false),
-        ("check `#review:...`", "check `#review:passed`", false),
-        ("check '#review:...'", "check '#review:passed'", false),
-        (r"check \#review:...", r"check \#review:passed", false),
-        ("check #review:...", "check `#review:passed`", false),
-        ("check #review:...", r"check \#review:passed", false),
-        (
-            "check #review:... #approval:...",
-            "check #review:passed #approval:yes",
-            true,
-        ),
-        (
-            "check #review:... #approval:...",
-            "check #review:passed #other:yes",
-            false,
-        ),
-        (
-            "check #review:... #review:...",
-            "check #review:passed #review:failed",
-            true,
-        ),
-        (
-            "révision #review:... fin",
-            "révision #review:passed fin",
-            true,
-        ),
-        (
-            "check #review:... done",
-            "check #review:passed changed",
-            false,
-        ),
-    ];
-
-    for (required, actual, matches) in cases {
-        let config = config_with_subtasks(&[("feature", &[required])]);
-        let file_content = format!(
-            "\
-- [ ] #feature
-  - [ ] \"{actual}\"
-"
-        );
-
-        let issues = missing_required_subtasks(&p(&file_content), &config);
-        let quoted_issues = crate::rules::unrequired_quoted_subtask(&p(&file_content), &config);
-
-        assert_eq!(issues.is_empty(), matches, "{required:?} vs {actual:?}");
-        assert_eq!(
-            quoted_issues.is_empty(),
-            matches,
-            "{required:?} vs {actual:?}"
-        );
-    }
+fn required_title_accepts_a_resolved_pending_marker() {
+    assert!(matches_required_title(
+        "check #review:...",
+        "check #review:passed"
+    ));
 }
 
 #[test]
-fn cancellation_of_a_resolved_required_subtask_uses_the_configured_permission() {
+fn required_title_accepts_an_unknown_outcome_for_identity_matching() {
+    assert!(matches_required_title(
+        "check #review:...",
+        "check #review:unknown"
+    ));
+}
+
+#[test]
+fn required_title_accepts_an_unchanged_pending_marker() {
+    assert!(matches_required_title(
+        "check #review:...",
+        "check #review:..."
+    ));
+}
+
+#[test]
+fn required_title_rejects_a_different_explicit_outcome() {
+    assert!(!matches_required_title(
+        "check #review:passed",
+        "check #review:failed"
+    ));
+}
+
+#[test]
+fn required_title_rejects_pending_in_place_of_an_explicit_outcome() {
+    assert!(!matches_required_title(
+        "check #review:passed",
+        "check #review:..."
+    ));
+}
+
+#[test]
+fn required_title_rejects_a_different_property() {
+    assert!(!matches_required_title(
+        "check #review:...",
+        "check #approval:passed"
+    ));
+}
+
+#[test]
+fn required_title_rejects_a_plain_property_in_place_of_pending() {
+    assert!(!matches_required_title(
+        "check #review:...",
+        "check #review"
+    ));
+}
+
+#[test]
+fn required_title_rejects_changed_leading_text() {
+    assert!(!matches_required_title(
+        "check #review:...",
+        "changed #review:passed"
+    ));
+}
+
+#[test]
+fn required_title_rejects_changed_whitespace() {
+    assert!(!matches_required_title(
+        "check #review:...",
+        "check  #review:passed"
+    ));
+}
+
+#[test]
+fn required_title_rejects_changed_order_numbers() {
+    assert!(!matches_required_title(
+        "1. check @alice #review:...",
+        "2. check @alice #review:passed",
+    ));
+}
+
+#[test]
+fn required_title_rejects_changed_assignments() {
+    assert!(!matches_required_title(
+        "check @alice #review:...",
+        "check @bob #review:passed",
+    ));
+}
+
+#[test]
+fn required_title_rejects_changed_marker_order() {
+    assert!(!matches_required_title(
+        "check #review:... @alice",
+        "check @alice #review:passed",
+    ));
+}
+
+#[test]
+fn required_title_does_not_treat_punctuated_pending_text_as_a_placeholder() {
+    assert!(!matches_required_title(
+        "check #review:...!",
+        "check #review:passed!"
+    ));
+}
+
+#[test]
+fn required_title_keeps_code_span_markers_literal() {
+    assert!(!matches_required_title(
+        "check `#review:...`",
+        "check `#review:passed`"
+    ));
+}
+
+#[test]
+fn required_title_keeps_tick_wrapped_markers_literal() {
+    assert!(!matches_required_title(
+        "check '#review:...'",
+        "check '#review:passed'"
+    ));
+}
+
+#[test]
+fn required_title_keeps_escaped_markers_literal() {
+    assert!(!matches_required_title(
+        r"check \#review:...",
+        r"check \#review:passed"
+    ));
+}
+
+#[test]
+fn required_title_rejects_code_span_text_in_place_of_a_marker() {
+    assert!(!matches_required_title(
+        "check #review:...",
+        "check `#review:passed`"
+    ));
+}
+
+#[test]
+fn required_title_rejects_escaped_text_in_place_of_a_marker() {
+    assert!(!matches_required_title(
+        "check #review:...",
+        r"check \#review:passed"
+    ));
+}
+
+#[test]
+fn required_title_accepts_multiple_resolved_markers() {
+    assert!(matches_required_title(
+        "check #review:... #approval:...",
+        "check #review:passed #approval:yes",
+    ));
+}
+
+#[test]
+fn required_title_rejects_a_changed_second_property() {
+    assert!(!matches_required_title(
+        "check #review:... #approval:...",
+        "check #review:passed #other:yes",
+    ));
+}
+
+#[test]
+fn required_title_accepts_repeated_markers_with_distinct_outcomes() {
+    assert!(matches_required_title(
+        "check #review:... #review:...",
+        "check #review:passed #review:failed",
+    ));
+}
+
+#[test]
+fn required_title_accepts_resolved_markers_surrounded_by_unicode_text() {
+    assert!(matches_required_title(
+        "révision #review:... fin",
+        "révision #review:passed fin"
+    ));
+}
+
+#[test]
+fn required_title_rejects_changed_trailing_text() {
+    assert!(!matches_required_title(
+        "check #review:... done",
+        "check #review:passed changed"
+    ));
+}
+
+#[test]
+fn cancellation_of_a_resolved_required_subtask_is_rejected_when_disallowed() {
     let file_content = "\
 - [ ] #feature
   - [-] \"check #review:passed\"
 ";
-    for allowed in [false, true] {
-        let config =
-            config_with_cancellable_subtasks(&[("feature", &["check #review:..."], &[allowed])]);
+    let config = config_with_cancellable_subtasks(&[("feature", &["check #review:..."], &[false])]);
 
-        let issues = missing_required_subtasks(&p(file_content), &config);
+    let issues = missing_required_subtasks(&p(file_content), &config);
 
-        if allowed {
-            assert!(issues.is_empty(), "{issues:?}");
-        } else {
-            assert_eq!(issues.len(), 1, "{issues:?}");
-            assert_eq!(
-                issues[0].code,
-                ErrorCode::CancelledRequiredSubtaskNotAllowed
-            );
-        }
-    }
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(
+        issues[0].code,
+        ErrorCode::CancelledRequiredSubtaskNotAllowed
+    );
+}
+
+#[test]
+fn cancellation_of_a_resolved_required_subtask_is_accepted_when_allowed() {
+    let file_content = "\
+- [ ] #feature
+  - [-] \"check #review:passed\"
+";
+    let config = config_with_cancellable_subtasks(&[("feature", &["check #review:..."], &[true])]);
+
+    let issues = missing_required_subtasks(&p(file_content), &config);
+
+    assert!(issues.is_empty(), "{issues:?}");
 }
 
 #[test]

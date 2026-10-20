@@ -2,7 +2,7 @@ use super::*;
 use crate::config::{FieldConfig, FormConfig};
 
 #[test]
-fn branch_form_fields_offer_values_and_help_only_when_active() {
+fn active_branch_form_field_offers_allowed_values() {
     let config = Config::from_str(
         "\
 [Field.answer]
@@ -25,13 +25,55 @@ form = \"details\"
     let result = field_value_completions(file_content, at(1, 15), &config);
 
     assert_eq!(labels_and_edits(result).len(), 2);
+}
+
+#[test]
+fn active_branch_form_field_resolves_its_help() {
+    let config = Config::from_str(
+        "\
+[Field.answer]
+label = \"Answer\"
+help = \"Choose an answer\"
+[Form.details]
+fields = [\"answer\"]
+[Properties.review]
+[Properties.review.passed]
+form = \"details\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:passed
+  __Answer:__ ___
+";
+
     let (_, field) = field_config_at_line(file_content, 1, &config).unwrap();
+
     assert_eq!(field.help.as_deref(), Some("Choose an answer"));
+}
+
+#[test]
+fn pending_branch_does_not_resolve_inactive_form_fields() {
+    let config = Config::from_str(
+        "\
+[Field.answer]
+label = \"Answer\"
+[Form.details]
+fields = [\"answer\"]
+[Properties.review]
+[Properties.review.passed]
+form = \"details\"
+",
+    )
+    .unwrap();
     let file_content = "\
 - [ ] #review:...
   __Answer:__ ___
 ";
-    assert!(field_config_at_line(file_content, 1, &config).is_none());
+
+    let field = field_config_at_line(file_content, 1, &config);
+
+    assert!(field.is_none());
 }
 
 fn config_with_gender(values: Option<Vec<&str>>, multiline: bool) -> Config {

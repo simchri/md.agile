@@ -1023,6 +1023,8 @@ users don't have to think about it. Design plan: see
 
 - [x] Split branch-form task completion acceptance coverage into independent rejection and success tests, each with its own setup.
 
+- [x] Apply one test, one outcome to the recently added branch-form and required-title matching tests: separate scenario loops, sequential cases and independent validation outcomes into named tests, and document the rule in CLAUDE.md.
+
 - [ ] Branch props and neighbor tasks doc
   - [ ] README.md
 

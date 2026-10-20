@@ -8,7 +8,7 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
-fn switching_branches_changes_required_forms_without_removing_existing_answers() {
+fn pending_branch_requires_only_base_form_answers() {
     let dir = tempdir().unwrap();
     let config = "\
 [Field.base]
@@ -31,7 +31,7 @@ form = \"approval\"
 form = \"rejection\"
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
-    let mut file_content = "\
+    let file_content = "\
 - [ ] #review:...
   __Base:__ base answer
 ";
@@ -44,8 +44,33 @@ form = \"rejection\"
         "{}",
         String::from_utf8_lossy(&out.stdout)
     );
+}
 
-    file_content = "\
+#[test]
+fn selected_branch_missing_its_form_answer_reports_e024_and_preserves_previous_answers() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.base]
+label = \"Base\"
+[Field.approval]
+label = \"Approval\"
+[Field.rejection]
+label = \"Rejection\"
+[Form.base]
+fields = [\"base\"]
+[Form.approval]
+fields = [\"approval\"]
+[Form.rejection]
+fields = [\"rejection\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+[Properties.review.failed]
+form = \"rejection\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
 - [ ] #review:failed
   __Base:__ base answer
   __Approval:__ previous approval
@@ -63,8 +88,33 @@ form = \"rejection\"
         fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
         file_content
     );
+}
 
-    file_content = "\
+#[test]
+fn selected_branch_accepts_filled_forms_with_previous_branch_answers_present() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.base]
+label = \"Base\"
+[Field.approval]
+label = \"Approval\"
+[Field.rejection]
+label = \"Rejection\"
+[Form.base]
+fields = [\"base\"]
+[Form.approval]
+fields = [\"approval\"]
+[Form.rejection]
+fields = [\"rejection\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+[Properties.review.failed]
+form = \"rejection\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
 - [ ] #review:failed
   __Base:__ base answer
   __Approval:__ previous approval

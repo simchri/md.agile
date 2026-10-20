@@ -7,7 +7,7 @@ fn p(input: &str) -> Vec<FileItem> {
 }
 
 #[test]
-fn branch_forms_activate_additively_and_only_for_the_selected_outcome() {
+fn pending_branch_requires_only_base_form_fields() {
     let config = crate::config::Config::from_str(
         "\
 [Field.base]
@@ -31,45 +31,205 @@ form = \"rejection\"
 ",
     )
     .unwrap();
-    for (outcome, expected) in [
-        ("...", vec!["Base"]),
-        ("unknown", vec!["Base"]),
-        ("passed", vec!["Base", "Approval"]),
-        ("failed", vec!["Base", "Rejection"]),
-    ] {
-        let file_content = format!(
-            "\
-- [ ] #review:{outcome}
-"
-        );
+    let file_content = "\
+- [ ] #review:...
+";
 
-        let issues = missing_required_field(&p(&file_content), &config);
-        let missing: Vec<&str> = issues
-            .iter()
-            .flat_map(|issue| match &issue.data {
-                Some(IssueData::MissingRequiredField { missing }) => {
-                    missing.iter().map(String::as_str).collect()
-                }
-                _ => vec![],
-            })
-            .collect();
+    let issues = missing_required_field(&p(file_content), &config);
 
-        assert_eq!(missing, expected, "{outcome}");
-    }
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::MissingRequiredField {
+            missing: vec!["Base".to_string()],
+        })
+    );
 }
 
 #[test]
-fn branch_form_fields_use_all_field_validation_rules() {
+fn unknown_branch_requires_only_base_form_fields() {
+    let config = crate::config::Config::from_str(
+        "\
+[Field.base]
+label = \"Base\"
+[Field.approval]
+label = \"Approval\"
+[Form.base]
+fields = [\"base\"]
+[Form.approval]
+fields = [\"approval\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:unknown
+";
+
+    let issues = missing_required_field(&p(file_content), &config);
+
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(
+        issues[0].data,
+        Some(IssueData::MissingRequiredField {
+            missing: vec!["Base".to_string()],
+        })
+    );
+}
+
+#[test]
+fn passed_branch_requires_base_and_approval_form_fields() {
+    let config = crate::config::Config::from_str(
+        "\
+[Field.base]
+label = \"Base\"
+[Field.approval]
+label = \"Approval\"
+[Field.rejection]
+label = \"Rejection\"
+[Form.base]
+fields = [\"base\"]
+[Form.approval]
+fields = [\"approval\"]
+[Form.rejection]
+fields = [\"rejection\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+[Properties.review.failed]
+form = \"rejection\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:passed
+";
+
+    let issues = missing_required_field(&p(file_content), &config);
+
+    let missing: Vec<_> = issues.iter().map(|issue| issue.data.clone()).collect();
+    assert_eq!(
+        missing,
+        vec![
+            Some(IssueData::MissingRequiredField {
+                missing: vec!["Base".to_string()]
+            }),
+            Some(IssueData::MissingRequiredField {
+                missing: vec!["Approval".to_string()]
+            }),
+        ]
+    );
+}
+
+#[test]
+fn failed_branch_requires_base_and_rejection_form_fields() {
+    let config = crate::config::Config::from_str(
+        "\
+[Field.base]
+label = \"Base\"
+[Field.approval]
+label = \"Approval\"
+[Field.rejection]
+label = \"Rejection\"
+[Form.base]
+fields = [\"base\"]
+[Form.approval]
+fields = [\"approval\"]
+[Form.rejection]
+fields = [\"rejection\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+[Properties.review.failed]
+form = \"rejection\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:failed
+";
+
+    let issues = missing_required_field(&p(file_content), &config);
+
+    let missing: Vec<_> = issues.iter().map(|issue| issue.data.clone()).collect();
+    assert_eq!(
+        missing,
+        vec![
+            Some(IssueData::MissingRequiredField {
+                missing: vec!["Base".to_string()]
+            }),
+            Some(IssueData::MissingRequiredField {
+                missing: vec!["Rejection".to_string()]
+            }),
+        ]
+    );
+}
+
+#[test]
+fn branch_form_rejects_a_value_outside_its_allowed_values() {
     let config = crate::config::Config::from_str(
         "\
 [Field.answer]
 label = \"Answer\"
 values = [\"yes\"]
+[Form.details]
+fields = [\"answer\"]
+[Properties.review]
+[Properties.review.passed]
+form = \"details\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:passed
+  __Answer:__ no
+";
+
+    let issues = check_all(&p(file_content), &config);
+
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(issues[0].code, ErrorCode::FieldValueNotAllowed);
+}
+
+#[test]
+fn branch_form_rejects_a_multiline_field_written_inline() {
+    let config = crate::config::Config::from_str(
+        "\
 [Field.bio]
 label = \"Bio\"
 multiline = true
 [Form.details]
-fields = [\"answer\", \"bio\"]
+fields = [\"bio\"]
+[Properties.review]
+[Properties.review.passed]
+form = \"details\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:passed
+  __Bio:__ filled inline
+";
+
+    let issues = check_all(&p(file_content), &config);
+
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(issues[0].code, ErrorCode::MultilineFieldFilledInline);
+}
+
+#[test]
+fn branch_form_rejects_a_done_task_with_an_unfilled_field() {
+    let config = crate::config::Config::from_str(
+        "\
+[Field.answer]
+label = \"Answer\"
+[Form.details]
+fields = [\"answer\"]
 [Properties.review]
 [Properties.review.passed]
 form = \"details\"
@@ -78,26 +238,17 @@ form = \"details\"
     .unwrap();
     let file_content = "\
 - [x] #review:passed
-  __Answer:__ no
-  __Bio:__ ___
+  __Answer:__ ___
 ";
 
     let issues = check_all(&p(file_content), &config);
 
-    let codes: Vec<_> = issues.iter().map(|issue| issue.code).collect();
-    assert!(
-        codes.contains(&ErrorCode::FieldValueNotAllowed),
-        "{issues:?}"
-    );
-    assert!(
-        codes.contains(&ErrorCode::MultilineFieldFilledInline),
-        "{issues:?}"
-    );
-    assert!(codes.contains(&ErrorCode::FieldLeftUnfilled), "{issues:?}");
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(issues[0].code, ErrorCode::FieldLeftUnfilled);
 }
 
 #[test]
-fn branch_forms_deduplicate_identical_forms_and_detect_base_branch_collisions() {
+fn branch_forms_deduplicate_identical_form_requirements() {
     let config = crate::config::Config::from_str(
         "\
 [Field.name]
@@ -126,12 +277,59 @@ form = \"base\"
     let issues = missing_required_field(&p(file_content), &config);
 
     assert_eq!(issues.len(), 1, "{issues:?}");
-    assert!(colliding_field_labels(&p(file_content), &config).is_empty());
+}
 
+#[test]
+fn identical_base_and_branch_forms_do_not_collide() {
+    let config = crate::config::Config::from_str(
+        "\
+[Field.name]
+label = \"Name\"
+[Form.base]
+fields = [\"name\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.same]
+form = \"base\"
+[Properties.shared]
+form = \"base\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:same #shared #review:same
+";
+
+    let issues = colliding_field_labels(&p(file_content), &config);
+
+    assert!(issues.is_empty(), "{issues:?}");
+}
+
+#[test]
+fn distinct_base_and_branch_forms_with_the_same_label_collide() {
+    let config = crate::config::Config::from_str(
+        "\
+[Field.name]
+label = \"Name\"
+[Field.other_name]
+label = \"Name\"
+[Form.base]
+fields = [\"name\"]
+[Form.other]
+fields = [\"other_name\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.different]
+form = \"other\"
+",
+    )
+    .unwrap();
     let file_content = "\
 - [ ] #review:different
 ";
+
     let issues = colliding_field_labels(&p(file_content), &config);
+
     assert_eq!(issues.len(), 1, "{issues:?}");
     assert_eq!(issues[0].code, ErrorCode::CollidingFieldLabels);
 }

@@ -34,7 +34,7 @@ fn get_edits(action: &CodeAction, uri: &Url) -> Vec<TextEdit> {
 // ── basic shape (no config on disk) ─────────────────────────────────────────
 
 #[test]
-fn branch_form_quickfix_uses_only_active_fields_and_deduplicates_insertions() {
+fn branch_form_quickfix_uses_only_active_field_defaults_and_multiline_settings() {
     let temp_dir = TempDir::new().unwrap();
     let config = "\
 [Field.base]
@@ -65,7 +65,7 @@ form = \"inactive\"
     let file_content = "\
 - [ ] #review:passed
 ";
-    let diagnostic = diag_e024(0, vec!["Base", "Details", "Details"]);
+    let diagnostic = diag_e024(0, vec!["Base", "Details"]);
 
     let action = build_quickfix(&diagnostic, file_content, &uri).unwrap();
 
@@ -74,6 +74,35 @@ form = \"inactive\"
 {newline}  __Base:__ base default
   __Details:__
   active default",
+        newline = '\n'
+    );
+    assert_eq!(get_edits(&action, &uri)[0].new_text, expected);
+}
+
+#[test]
+fn branch_form_quickfix_inserts_a_repeated_missing_label_once() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = "\
+[Field.details]
+label = \"Details\"
+[Form.details]
+fields = [\"details\"]
+[Properties.review]
+[Properties.review.passed]
+form = \"details\"
+";
+    std::fs::write(temp_dir.path().join("mdagile.toml"), config).unwrap();
+    let uri = Url::from_file_path(temp_dir.path().join("tasks.agile.md")).unwrap();
+    let file_content = "\
+- [ ] #review:passed
+";
+    let diagnostic = diag_e024(0, vec!["Details", "Details"]);
+
+    let action = build_quickfix(&diagnostic, file_content, &uri).unwrap();
+
+    let expected = format!(
+        "\
+{newline}  __Details:__ ___",
         newline = '\n'
     );
     assert_eq!(get_edits(&action, &uri)[0].new_text, expected);
