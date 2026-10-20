@@ -1021,6 +1021,8 @@ users don't have to think about it. Design plan: see
 
 - [x] Support additional forms on resolved branch properties: a branch's optional `form` adds to the base form, with shared active-form resolution, deduplication, field checks, collision detection, validation scripts, editor completion/hover/quickfixes, completion blocking, tests and configuration documentation.
 
+- [x] Split branch-form task completion acceptance coverage into independent rejection and success tests, each with its own setup.
+
 - [ ] Branch props and neighbor tasks doc
   - [ ] README.md
 

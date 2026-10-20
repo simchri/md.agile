@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
-fn task_done_requires_base_and_selected_branch_form_answers() {
+fn task_done_refuses_an_unfilled_selected_branch_form_answer() {
     let dir = tempdir().unwrap();
     let config = "\
 [Field.base]
@@ -20,7 +20,7 @@ form = \"base\"
 form = \"branch\"
 ";
     fs::write(dir.path().join("mdagile.toml"), config).unwrap();
-    let mut file_content = "\
+    let file_content = "\
 - [ ] #review:passed
   __Base:__ done
   __Branch:__ ___
@@ -36,8 +36,27 @@ form = \"branch\"
         fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
         file_content
     );
+}
 
-    file_content = "\
+#[test]
+fn task_done_accepts_filled_base_and_selected_branch_form_answers() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.base]
+label = \"Base\"
+[Field.branch]
+label = \"Branch\"
+[Form.base]
+fields = [\"base\"]
+[Form.branch]
+fields = [\"branch\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"branch\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
 - [ ] #review:passed
   __Base:__ done
   __Branch:__ done
