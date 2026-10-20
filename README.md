@@ -423,18 +423,99 @@ If you want an AND connection instead, create subtasks for each person!
 
 Neighbor tasks define mandatory subtasks at the same subtask-level. (Unlike mandatory sub-tasks, which define required tasks on the next lower sub-task level).
 A property that requires neighbor tasks can not be set at the top level.
-
 ```toml
 [Properties.ui_change]
 neighbortasks = ["inform UI/UX"]
 ```
-
 ```md
 - [ ] de-clutter UI 
   - [ ] Move options into a sub-menu #ui_change
   - [ ] "inform UI/UX"
 ```
 
+## Forms & Fields
+
+Forms are a structured and repeatable way to require information on tasks. Forms are a collection of _fields_ and attached to _#properties_.
+
+The intention of forms is to give structure to the information recorded on tasks. They allow you to build workflows, where specific pieces of information need to be provided. E.g. During onboarding of a new employee a sysadmin may have to collect some personal details and record them on the task. You can define _fields_ `name`, `email` etc. and collect them in the _form_ `personal_info`. This form is made a part of all `onboarding` tasks:  
+
+```toml
+[Field.first_name]
+label = "First Name"
+
+[Field.email]
+label = "Email"
+
+[Field.gender]
+label = "Gender"
+default = "(don't specify)"
+values = ["male", "female", "(don't specify)"]
+
+[Field.bio]
+label = "Personal Biography"
+multiline = true
+
+[Form.personal_info]
+fields = ["first_name", "email" , "gender", "bio"]
+validation = "validate_personal_info.sh"
+
+[Properties.onboarding]
+form = "personal_info"
+```
+Default value for any field unless specified explicitly is `___`. 
+
+```md
+- [ ] new colleague: John #onboarding 
+```
+before this can be marked complete, the fields required by the form must exist, be filled out and pass validation (more on validation further below).
+Missing form fields can be added via a quick fix action.
+
+```md
+- [ ] new colleague: John #onboarding 
+  __First Name:__ ___
+  __Email:__ ___
+  __Gender:__ (don't specify)
+  __Bio:__
+  ___
+```
+The field value is strictly everything after the `<label>: ` (after label, colon and space) until the end of the line. A label is always bolded with the markdown syntax `__bold__`.
+
+A multiline form field captures everything after the label line until the next task or explicit closing marker `...`. This allows to add normal task body content after a multiline field. You can add `...` on a new line inside a form using escape syntax: `\...`
+
+Fully filled out, the form looks like this:
+
+```md
+- [ ] new colleague: John #onboarding 
+  This task is about collecting the info about a new user.
+  __First Name:__ John
+  I can freely add notes in between fields
+  __Email:__ john.doe@gmail.com
+  __Gender:__ male
+  __Bio:__
+  John doe is an outstanding character.
+  He is well known for his many appearances in sample forms.
+  ...
+  More notes on the task can go here. This sentence is not part of any field.
+```
+
+## Form Validation
+Individual fields match against allowed values, if specified. Fields configured like this can also be filled via autocomplete in the editor (language server).
+```toml
+[Field.gender]
+...
+values = ["male", "female", "(don't specify)"]
+```
+Additionally, one fully user defined validation script can be declared per form. 
+```toml
+[Form.personal_info]
+fields = ["first_name", "email" , "gender", "bio"]
+validation = "validation_scripts/personal_info.sh"
+```
+Paths are relative to the project root. The script runs once per task that carries the form and receives that form's fields as JSON on stdin. More details and an example for a minimal validation script can be found in [form_validation_scripts.md](doc/usage/form_validation_scripts.md).
+
+Running a validation script is a trust decision: The first time a project declares a `validation` script, `agile check`/the editor refuses to run it until the user approves it via `agile trust`. Changes to the script revokes trust and re-approval is necessary.
+
+Execution is deliberately locked down: the script is invoked directly (no shell), its JSON input arrives on stdin (never interpolated into a command line or argument), its path must resolve inside the project (no absolute paths or `..` traversal), it runs with a minimal environment (no inherited secrets), and it's subject to a timeout and an output-size cap — a hung or runaway script is killed and reported as a validation error rather than blocking the check/editor indefinitely.
 
 ### Branch Properties
 
