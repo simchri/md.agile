@@ -1,5 +1,5 @@
-//! E027 — flags a task/subtask on which two *distinct* properties each
-//! attach a `[Form.X]` (see README.vision.md "Forms & Fields"), when those
+//! E027 — flags a task/subtask on which two distinct forms are active
+//! (see README.vision.md "Forms & Fields"), when those
 //! two forms declare a field with the same display label.
 //!
 //! A single `__Label:__ value` body line can only ever record one answer,
@@ -16,33 +16,24 @@
 //! this rule at all.
 
 use crate::config::Config;
-use crate::parser::Marker;
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
 
 pub fn colliding_field_labels(items: &[crate::parser::FileItem], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
     for_each_node(items, |node| {
         // label -> (form name, property name) for every field declared by
-        // every form attached to this node.
+        // every distinct form active on this node.
         let mut owners: Vec<(&str, &str, &str)> = Vec::new();
-        for marker in node.markers() {
-            let Marker::Property(prop) = marker else {
-                continue;
-            };
-            let Some(prop_config) = config.properties.get(&prop.name) else {
-                continue;
-            };
-            let Some(form_name) = &prop_config.form else {
-                continue;
-            };
-            let Some(form_config) = config.forms.get(form_name) else {
-                continue;
-            };
+        for form in config.active_forms(node.markers()) {
+            let form_name = form.name;
+            let form_config = form.config;
             for field_name in &form_config.fields {
                 let Some(field_config) = config.fields.get(field_name) else {
                     continue;
                 };
-                owners.push((field_config.label.as_str(), form_name.as_str(), &prop.name));
+                for property in &form.properties {
+                    owners.push((field_config.label.as_str(), form_name, property));
+                }
             }
         }
 
@@ -77,7 +68,7 @@ pub fn colliding_field_labels(items: &[crate::parser::FileItem], config: &Config
                 location: node.location().clone(),
                 code: ErrorCode::CollidingFieldLabels,
                 message: format!(
-                    "Colliding field label \"{label}\": properties {} each attach a form declaring a field with this label",
+                    "Colliding field label \"{label}\": properties {} attach distinct forms declaring a field with this label",
                     properties
                         .iter()
                         .map(|p| format!("\"{p}\""))

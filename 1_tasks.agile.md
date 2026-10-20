@@ -1019,6 +1019,8 @@ users don't have to think about it. Design plan: see
 
 - [x] Match resolved branch properties against pending markers in required subtask and neighbor task titles, including cancellation permissions, without changing other title text.
 
+- [x] Support additional forms on resolved branch properties: a branch's optional `form` adds to the base form, with shared active-form resolution, deduplication, field checks, collision detection, validation scripts, editor completion/hover/quickfixes, completion blocking, tests and configuration documentation.
+
 - [ ] Branch props and neighbor tasks doc
   - [ ] README.md
 

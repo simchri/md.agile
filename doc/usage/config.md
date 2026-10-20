@@ -39,7 +39,7 @@ Only the following top-level tables are valid; anything else is a parse error.
 | Table | Keys |
 |-------|------|
 | `[Properties.X]` | `brief`, `description`, `subtasks`, `subtasks_allow_cancel`, `neighbortasks`, `form`, plus `[Properties.X.branch_name]` sub-tables |
-| `[Properties.X.branch_name]` | `subtasks`, `subtasks_allow_cancel`, `neighbortasks` |
+| `[Properties.X.branch_name]` | `subtasks`, `subtasks_allow_cancel`, `neighbortasks`, `form` |
 | `[Users.X]` | `git_emails`, `git_names` |
 | `[Groups.X]` | `brief`, `description`, `members` |
 | `[Field.X]` | `label`, `default`, `default_is_valid_entry`, `values`, `multiline`, `help` |
@@ -69,7 +69,8 @@ on a task is [E008](checks.md).
   tasks — see [E020](checks.md).
 - `form` — optional name of a `[Form.X]` this property's marker renders and
   validates against. It must refer to a defined `[Form.X]`, otherwise it is a
-  config validation error.
+  config validation error. For branching properties this base form stays
+  active both while pending and after resolving an outcome.
 
 ### `[Properties.X.branch_name]`
 
@@ -83,9 +84,45 @@ marked done while still pending, and [E022](checks.md) reports a resolved
 branch that isn't declared here.
 
 Each `[Properties.X.branch_name]` sub-table accepts the same `subtasks`,
-`subtasks_allow_cancel`, and `neighbortasks` keys as `[Properties.X]` itself.
+`subtasks_allow_cancel`, `neighbortasks`, and `form` keys as `[Properties.X]` itself.
 Once a property resolves to a given branch, that branch's requirements apply
 *in addition to* the base property's own requirements.
+
+The optional branch `form` activates an additional `[Form.X]` only for that
+selected outcome; it does not replace the base form. Either attachment may
+be omitted. For example:
+
+```toml
+[Properties.review]
+form = "review_details"
+[Properties.review.passed]
+form = "approval_details"
+[Properties.review.failed]
+form = "rejection_details"
+
+[Form.review_details]
+fields = ["summary"]
+[Form.approval_details]
+fields = ["approved_by"]
+[Form.rejection_details]
+fields = ["reason"]
+[Field.summary]
+[Field.approved_by]
+[Field.reason]
+```
+
+`#review:...` requires only `review_details`; `#review:passed` requires both
+`review_details` and `approval_details`. An unknown outcome keeps the base
+form active and reports E022. Changing outcomes changes which fields are
+required and validated, but does not remove existing answers.
+
+Forms are collected in marker order, base before branch, and each distinct
+form is processed once per task/subtask, even if multiple properties or both
+base and branch reference it. Distinct active forms must have distinct field
+labels (E027), including forms contributed by the same property's base and
+branch. Inactive branches do not cause label collisions. Each active form's
+validation script runs once with only that form's fields, using the usual
+trust and execution rules.
 
 ## `[Users.X]`
 
@@ -169,7 +206,9 @@ checks — in these cases:
   `subtasks_allow_cancel` pair within `[Properties.X.branch_name]`.
 - **Invalid fields/forms** — a `[Field.X]` with a multiline `default` but
   without `multiline = true`, a `[Form.X]` listing an unknown or
-  duplicate field, a `[Properties.X]` `form` naming an undefined form.
+  duplicate field, a `[Properties.X]` or `[Properties.X.branch_name]` `form`
+  naming an undefined form. Branch reference errors identify the owning
+  property and branch.
 - **Duplicate identity** — the same `git_emails`/`git_names` value listed on
   more than one `[Users.X]` entry.
 

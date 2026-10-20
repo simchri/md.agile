@@ -34,6 +34,52 @@ fn get_edits(action: &CodeAction, uri: &Url) -> Vec<TextEdit> {
 // ── basic shape (no config on disk) ─────────────────────────────────────────
 
 #[test]
+fn branch_form_quickfix_uses_only_active_fields_and_deduplicates_insertions() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = "\
+[Field.base]
+label = \"Base\"
+default = \"base default\"
+[Field.active]
+label = \"Details\"
+default = \"active default\"
+multiline = true
+[Field.inactive]
+label = \"Details\"
+default = \"inactive default\"
+[Form.base]
+fields = [\"base\"]
+[Form.active]
+fields = [\"active\"]
+[Form.inactive]
+fields = [\"inactive\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"active\"
+[Properties.review.failed]
+form = \"inactive\"
+";
+    std::fs::write(temp_dir.path().join("mdagile.toml"), config).unwrap();
+    let uri = Url::from_file_path(temp_dir.path().join("tasks.agile.md")).unwrap();
+    let file_content = "\
+- [ ] #review:passed
+";
+    let diagnostic = diag_e024(0, vec!["Base", "Details", "Details"]);
+
+    let action = build_quickfix(&diagnostic, file_content, &uri).unwrap();
+
+    let expected = format!(
+        "\
+{newline}  __Base:__ base default
+  __Details:__
+  active default",
+        newline = '\n'
+    );
+    assert_eq!(get_edits(&action, &uri)[0].new_text, expected);
+}
+
+#[test]
 fn produces_a_quickfix_action() {
     let uri: Url = "file:///tmp/example.agile.md".parse().unwrap();
     let doc = "\

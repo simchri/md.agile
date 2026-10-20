@@ -3,6 +3,57 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
+fn task_done_requires_base_and_selected_branch_form_answers() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.base]
+label = \"Base\"
+[Field.branch]
+label = \"Branch\"
+[Form.base]
+fields = [\"base\"]
+[Form.branch]
+fields = [\"branch\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"branch\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let mut file_content = "\
+- [ ] #review:passed
+  __Base:__ done
+  __Branch:__ ___
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "1"]);
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!out.status.success(), "{stdout}");
+    assert!(stdout.contains("E026"), "{stdout}");
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        file_content
+    );
+
+    file_content = "\
+- [ ] #review:passed
+  __Base:__ done
+  __Branch:__ done
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "1"]);
+
+    assert!(
+        out.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[test]
 fn task_done_accepts_a_resolved_required_subtask() {
     let dir = tempdir().unwrap();
     let config = "\

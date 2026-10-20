@@ -9,8 +9,8 @@ use tower_lsp::lsp_types::*;
 ///
 /// A single-line field (`[Field.X]` with `multiline` unset or `false`) is
 /// inserted as one `__Label:__ <value>` line, where `<value>` is that
-/// field's configured `default` (looked up from `mdagile.toml` by matching
-/// label), falling back to the generic unfilled placeholder `___` when the
+/// field's configured `default` (looked up by label within the task's active
+/// forms), falling back to the generic unfilled placeholder `___` when the
 /// field has no configured default or its config can't be found at all
 /// (e.g. `mdagile.toml` failed to load).
 ///
@@ -44,6 +44,23 @@ fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
     let config = super::read_toml(uri).and_then(|(_, text)| Config::from_str(&text).ok());
 
     let node_line = diagnostic.range.start.line;
+    let mut active_fields = None;
+    if let Some(config) = &config {
+        let items = crate::parser::parse(doc_text, Default::default());
+        crate::rules::for_each_node(&items, |node| {
+            if node.location().line == node_line as usize + 1 {
+                let forms = config.active_forms(node.markers());
+                if !forms.is_empty() {
+                    active_fields = Some(
+                        forms
+                            .iter()
+                            .flat_map(|form| form.config.fields.iter().cloned())
+                            .collect::<Vec<_>>(),
+                    );
+                }
+            }
+        });
+    }
     let lines: Vec<&str> = doc_text.lines().collect();
     let node_line_text = lines.get(node_line as usize)?;
     let node_indent = node_line_text.chars().take_while(|c| *c == ' ').count();
@@ -53,9 +70,22 @@ fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
     let last_line_text = lines.get(last_line as usize)?;
     let last_line_len = last_line_text.len() as u32;
 
+    let mut seen = std::collections::HashSet::new();
     let insert_text: String = missing
         .iter()
-        .map(|label| format_field_insertion(config.as_ref(), label, field_indent))
+        .filter(|label| seen.insert(label.as_str()))
+        .map(|label| {
+            let field = config.as_ref().and_then(|config| {
+                if let Some(keys) = &active_fields {
+                    keys.iter()
+                        .filter_map(|key| config.fields.get(key))
+                        .find(|field| field.label == *label)
+                } else {
+                    field_config_for_label(config, label)
+                }
+            });
+            format_field_insertion(field, label, field_indent)
+        })
         .collect::<Vec<_>>()
         .join("");
 
@@ -84,8 +114,11 @@ fn build_one(diagnostic: &Diagnostic, doc_text: &str, uri: &Url) -> Option<CodeA
 /// Builds the inserted text for one missing field (including its leading
 /// `\n`), in either the single-line or multiline grammar depending on
 /// `label`'s configured [`FieldConfig::multiline`].
-fn format_field_insertion(config: Option<&Config>, label: &str, field_indent: usize) -> String {
-    let field_config = config.and_then(|c| field_config_for_label(c, label));
+fn format_field_insertion(
+    field_config: Option<&FieldConfig>,
+    label: &str,
+    field_indent: usize,
+) -> String {
     let indent = " ".repeat(field_indent);
     let default = field_config.and_then(|f| f.default.clone());
 

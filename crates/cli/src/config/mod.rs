@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+mod active_forms;
+
 /// The two file names mdagile recognizes as its config file, in the order
 /// they're preferred when only one is present. Exactly one of these is
 /// expected per project directory; both present at once is a
@@ -85,16 +87,19 @@ pub struct PropertyConfig {
     /// The `[Form.X]` this property's marker renders/validates against (see
     /// README.vision.md "Forms & Fields"), or `None` for an ordinary property
     /// with no form attached. Resolution always goes through this key on the
-    /// property itself -- there is no separate `#form_name` marker path.
+    /// property or its selected branch -- there is no separate `#form_name`
+    /// marker path.
     pub form: Option<String>,
 }
 
 /// Outcome-specific requirements for one branch/outcome of a Branch Property
 /// (see README.vision.md "Branch Properties"). These are *additional* to the
-/// owning `[Properties.X]`'s own `subtasks`/`neighbortasks` — both apply once
+/// owning `[Properties.X]`'s own requirements and form -- both apply once
 /// the property marker is resolved to this branch (e.g. `#review:passed`).
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct BranchConfig {
+    /// An additional form activated only when this branch is selected.
+    pub form: Option<String>,
     pub subtasks: Vec<String>,
     /// Parallel array to `subtasks`, same semantics as
     /// [`PropertyConfig::subtasks_allow_cancel`].
@@ -281,13 +286,33 @@ struct RawPropertyConfig {
     neighbortasks: Vec<String>,
     #[serde(default)]
     form: Option<String>,
-    #[serde(flatten)]
+    #[serde(flatten, deserialize_with = "deserialize_branches")]
     branches: HashMap<String, RawBranchConfig>,
+}
+
+fn deserialize_branches<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<String, RawBranchConfig>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let tables = <HashMap<String, toml::Table> as serde::Deserialize>::deserialize(deserializer)?;
+    tables
+        .into_iter()
+        .map(|(name, table)| {
+            table
+                .try_into()
+                .map(|branch| (name, branch))
+                .map_err(serde::de::Error::custom)
+        })
+        .collect()
 }
 
 #[derive(serde::Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct RawBranchConfig {
+    #[serde(default)]
+    form: Option<String>,
     #[serde(default)]
     subtasks: Vec<String>,
     #[serde(default)]
@@ -538,6 +563,16 @@ impl Config {
                     .branches
                     .into_iter()
                     .map(|(branch, raw_branch)| {
+                        if let Some(form) = &raw_branch.form {
+                            if !forms.contains_key(form.as_str()) {
+                                return Err(ConfigError::PropertyValidation {
+                                    property: name.clone(),
+                                    message: format!(
+                                        "branch '{branch}': form '{form}' is not a defined '[Form.{form}]' entry"
+                                    ),
+                                });
+                            }
+                        }
                         if !raw_branch.subtasks_allow_cancel.is_empty()
                             && raw_branch.subtasks_allow_cancel.len() != raw_branch.subtasks.len()
                         {
@@ -553,6 +588,7 @@ impl Config {
                         Ok((
                             branch,
                             BranchConfig {
+                                form: raw_branch.form,
                                 subtasks: raw_branch.subtasks,
                                 subtasks_allow_cancel: raw_branch.subtasks_allow_cancel,
                                 neighbortasks: raw_branch.neighbortasks,

@@ -41,6 +41,130 @@ fn items(file_content: &str) -> Vec<FileItem> {
 }
 
 #[test]
+fn branch_form_scripts_apply_only_to_selected_branches_and_keep_trust_checks() {
+    let config = Config::from_str(
+        "\
+[Form.base]
+validation = \"base.sh\"
+[Form.approval]
+validation = \"approval.sh\"
+[Form.rejection]
+validation = \"rejection.sh\"
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+[Properties.review.failed]
+form = \"rejection\"
+",
+    )
+    .unwrap();
+    let dir = tempdir().unwrap();
+    let store = TrustStore::default();
+    for name in ["base.sh", "approval.sh", "rejection.sh"] {
+        fs::write(dir.path().join(name), "#!/bin/sh").unwrap();
+    }
+    for (outcome, expected_forms) in [
+        ("...", vec!["base"]),
+        ("unknown", vec!["base"]),
+        ("passed", vec!["base", "approval"]),
+        ("failed", vec!["base", "rejection"]),
+    ] {
+        let file_content = format!(
+            "\
+- [ ] #review:{outcome}
+"
+        );
+
+        let issues = check_form_scripts(
+            &items(&file_content),
+            dir.path(),
+            &config,
+            &store,
+            &Limits::default(),
+        );
+
+        let forms: Vec<_> = issues
+            .iter()
+            .map(|issue| {
+                assert_eq!(issue.code, ErrorCode::FormScriptFailed);
+                assert!(issue.message.contains("not trusted"), "{issue:?}");
+                let Some(IssueData::FormScriptFailed { form, .. }) = &issue.data else {
+                    panic!("expected form script failure");
+                };
+                form.as_str()
+            })
+            .collect();
+        assert_eq!(forms, expected_forms, "{outcome}");
+    }
+}
+
+#[test]
+fn branch_form_scripts_run_once_per_active_form_with_isolated_inputs() {
+    let config = Config::from_str(
+        "\
+[Field.base]
+label = \"Base\"
+[Field.branch]
+label = \"Branch\"
+[Form.base]
+fields = [\"base\"]
+validation = \"validate.sh\"
+[Form.branch]
+fields = [\"branch\"]
+validation = \"validate.sh\"
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"branch\"
+[Properties.review.failed]
+form = \"branch\"
+[Properties.shared]
+form = \"branch\"
+",
+    )
+    .unwrap();
+    let script_content = "\
+#!/bin/sh
+cat >> inputs.jsonl
+printf '\\n' >> inputs.jsonl
+echo '{\"valid\": true}'
+";
+    let (dir, store) = project(script_content);
+    let file_content = "\
+- [ ] #review:passed #shared #review:passed
+  __Base:__ base answer
+  __Branch:__ branch answer
+";
+
+    let issues = check_form_scripts(
+        &items(file_content),
+        dir.path(),
+        &config,
+        &store,
+        &Limits::default(),
+    );
+
+    assert!(issues.is_empty(), "{issues:?}");
+    let inputs = fs::read_to_string(dir.path().join("inputs.jsonl")).unwrap();
+    let inputs: Vec<serde_json::Value> = inputs
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(inputs.len(), 2);
+    assert_eq!(inputs[0]["form"], "base");
+    assert_eq!(
+        inputs[0]["fields"],
+        serde_json::json!({"base": "base answer"})
+    );
+    assert_eq!(inputs[1]["form"], "branch");
+    assert_eq!(
+        inputs[1]["fields"],
+        serde_json::json!({"branch": "branch answer"})
+    );
+}
+
+#[test]
 fn a_valid_form_yields_no_issues() {
     let script_content = "\
 #!/bin/sh

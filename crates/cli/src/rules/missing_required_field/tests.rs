@@ -151,12 +151,7 @@ fn no_issue_when_form_reference_is_undefined() {
 }
 
 #[test]
-fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property() {
-    // Assumption worth flagging: issues are computed per *marker*, not
-    // bundled across the whole node. A node tagged with two different
-    // properties that each carry a form produces two separate `Issue`s
-    // (each bundling that property's own missing fields), not one combined
-    // issue for the node.
+fn a_node_with_two_properties_sharing_a_form_gets_one_missing_fields_issue() {
     let mut config = config_with_onboarding_form();
     config.properties.insert(
         "relocation".to_string(),
@@ -177,7 +172,7 @@ fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property() {
     let items = p(input);
     let issues = missing_required_field(&items, &config);
 
-    assert_eq!(issues.len(), 2);
+    assert_eq!(issues.len(), 1);
     for issue in &issues {
         assert_eq!(
             issue.data,

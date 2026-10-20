@@ -857,6 +857,26 @@ fields = [\"first_name\", \"last_name\"]
 // ── `form` key on [Properties.X] ─────────────────────────────────────────────
 
 #[test]
+fn branch_form_reference_is_validated_with_branch_context() {
+    let config = "\
+[Properties.review]
+[Properties.review.passed]
+form = \"missing\"
+";
+
+    let result = Config::from_str(config);
+
+    match result {
+        Err(ConfigError::PropertyValidation { property, message }) => {
+            assert_eq!(property, "review");
+            assert!(message.contains("passed"), "{message}");
+            assert!(message.contains("missing"), "{message}");
+        }
+        other => panic!("expected branch form validation error, got {other:?}"),
+    }
+}
+
+#[test]
 fn property_without_form_key_has_none() {
     let config = Config::from_str("[Properties.bug]\n").unwrap();
     let prop = config.properties.get("bug").unwrap();

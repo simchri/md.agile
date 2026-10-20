@@ -1,6 +1,34 @@
 use super::*;
 
 #[test]
+fn branch_form_field_hover_shows_active_field_help() {
+    let config = Config::from_str(
+        "\
+[Field.answer]
+label = \"Answer\"
+help = \"Explain the approval\"
+[Form.details]
+fields = [\"answer\"]
+[Properties.review]
+[Properties.review.passed]
+form = \"details\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:passed
+  __Answer:__ yes
+";
+
+    let hover = field_hover(file_content, 1, 5, &config).unwrap();
+
+    let HoverContents::Markup(content) = hover.contents else {
+        panic!("expected markdown hover");
+    };
+    assert!(content.value.contains("Explain the approval"));
+}
+
+#[test]
 fn finds_opt_on_deeply_nested_subtask_without_matching_another_line() {
     let file_content = "\
 - [ ] root

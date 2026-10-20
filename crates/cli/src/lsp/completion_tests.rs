@@ -1,6 +1,39 @@
 use super::*;
 use crate::config::{FieldConfig, FormConfig};
 
+#[test]
+fn branch_form_fields_offer_values_and_help_only_when_active() {
+    let config = Config::from_str(
+        "\
+[Field.answer]
+label = \"Answer\"
+values = [\"yes\", \"no\"]
+help = \"Choose an answer\"
+[Form.details]
+fields = [\"answer\"]
+[Properties.review]
+[Properties.review.passed]
+form = \"details\"
+",
+    )
+    .unwrap();
+    let file_content = "\
+- [ ] #review:passed
+  __Answer:__ ___
+";
+
+    let result = field_value_completions(file_content, at(1, 15), &config);
+
+    assert_eq!(labels_and_edits(result).len(), 2);
+    let (_, field) = field_config_at_line(file_content, 1, &config).unwrap();
+    assert_eq!(field.help.as_deref(), Some("Choose an answer"));
+    let file_content = "\
+- [ ] #review:...
+  __Answer:__ ___
+";
+    assert!(field_config_at_line(file_content, 1, &config).is_none());
+}
+
 fn config_with_gender(values: Option<Vec<&str>>, multiline: bool) -> Config {
     let mut config = Config::default();
     config.fields.insert(

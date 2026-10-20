@@ -483,8 +483,8 @@ pub enum IssueData {
     /// placeholder.
     FieldLeftUnfilled { label: String },
     /// Payload for E027 "Colliding Field Labels": the shared display label,
-    /// and the names of the two (or more) properties on the node whose
-    /// attached forms each declare a field with that label.
+    /// and the names of the properties contributing distinct active forms
+    /// with that label (possibly one property's base and selected branch).
     CollidingFieldLabels {
         label: String,
         properties: Vec<String>,

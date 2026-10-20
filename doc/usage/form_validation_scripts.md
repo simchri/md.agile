@@ -18,6 +18,11 @@ E030 (form invalid) or E031 (script could not run, e.g. untrusted). In CI run
 `agile trust --yes` first. The language server runs scripts only on save; results disappear on the next
 edit. See [checks.md](checks.md).
 
+For resolved branch properties, both the base form and the selected branch's
+additional form are active. Each distinct active form runs once per task or
+subtask, including when several markers reference it. Each invocation receives
+only that form's own fields; pending or unselected branch forms do not run.
+
 ## Execution
 
 - One process per task carrying the form (no batching).

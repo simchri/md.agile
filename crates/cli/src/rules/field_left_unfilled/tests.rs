@@ -224,7 +224,7 @@ fn field_present_on_subtask_is_checked_independently_of_its_parent() {
 }
 
 #[test]
-fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property_per_field() {
+fn a_node_with_two_properties_sharing_a_form_gets_one_issue_per_field() {
     let mut config = config_with_onboarding_form();
     config.properties.insert(
         "relocation".to_string(),
@@ -247,7 +247,7 @@ fn a_node_with_two_form_carrying_properties_gets_one_issue_per_property_per_fiel
     let items = p(input);
     let issues = field_left_unfilled(&items, &config);
 
-    assert_eq!(issues.len(), 2);
+    assert_eq!(issues.len(), 1);
     for issue in &issues {
         assert_eq!(
             issue.data,

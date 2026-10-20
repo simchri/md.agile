@@ -140,14 +140,9 @@ pub(super) fn field_config_at_line(
         else {
             return;
         };
-        let field_config = node.markers().iter().find_map(|marker| {
-            let crate::parser::Marker::Property(prop) = marker else {
-                return None;
-            };
-            let form = config
-                .forms
-                .get(config.properties.get(&prop.name)?.form.as_ref()?)?;
-            form.fields
+        let field_config = config.active_forms(node.markers()).iter().find_map(|form| {
+            form.config
+                .fields
                 .iter()
                 .filter_map(|name| config.fields.get(name))
                 .find(|f| f.label == field_line.label)

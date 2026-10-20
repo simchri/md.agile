@@ -22,25 +22,13 @@
 //! has no parsed value at all, so it can't be checked here either.
 
 use crate::config::Config;
-use crate::parser::Marker;
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
 
 pub fn field_value_not_allowed(items: &[crate::parser::FileItem], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
     for_each_node(items, |node| {
-        for marker in node.markers() {
-            let Marker::Property(prop) = marker else {
-                continue;
-            };
-            let Some(prop_config) = config.properties.get(&prop.name) else {
-                continue;
-            };
-            let Some(form_name) = &prop_config.form else {
-                continue;
-            };
-            let Some(form_config) = config.forms.get(form_name) else {
-                continue;
-            };
+        for form in config.active_forms(node.markers()) {
+            let form_config = form.config;
 
             for field_name in &form_config.fields {
                 let Some(field_config) = config.fields.get(field_name) else {

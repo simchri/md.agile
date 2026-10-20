@@ -73,21 +73,8 @@ pub fn field_left_unfilled(items: &[crate::parser::FileItem], config: &Config) -
 /// logic or running the full rule over an entire project.
 pub(crate) fn check_node(markers: &[Marker], fields: &[FieldLine], config: &Config) -> Vec<Issue> {
     let mut issues = Vec::new();
-    for marker in markers {
-        let Marker::Property(prop) = marker else {
-            continue;
-        };
-        let Some(prop_config) = config.properties.get(&prop.name) else {
-            continue;
-        };
-        let Some(form_name) = &prop_config.form else {
-            continue;
-        };
-        let Some(form_config) = config.forms.get(form_name) else {
-            // Undefined form reference is a separate config-validation
-            // check's concern -- not reported here.
-            continue;
-        };
+    for form in config.active_forms(markers) {
+        let form_config = form.config;
 
         // Field labels are guaranteed unique within a single form (two
         // `[Field.X]` entries resolving to the same label inside one

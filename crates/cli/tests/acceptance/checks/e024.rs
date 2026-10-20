@@ -7,6 +7,80 @@ use crate::helpers::run_check;
 use std::fs;
 use tempfile::tempdir;
 
+#[test]
+fn switching_branches_changes_required_forms_without_removing_existing_answers() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Field.base]
+label = \"Base\"
+[Field.approval]
+label = \"Approval\"
+[Field.rejection]
+label = \"Rejection\"
+[Form.base]
+fields = [\"base\"]
+[Form.approval]
+fields = [\"approval\"]
+[Form.rejection]
+fields = [\"rejection\"]
+[Properties.review]
+form = \"base\"
+[Properties.review.passed]
+form = \"approval\"
+[Properties.review.failed]
+form = \"rejection\"
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let mut file_content = "\
+- [ ] #review:...
+  __Base:__ base answer
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+
+    file_content = "\
+- [ ] #review:failed
+  __Base:__ base answer
+  __Approval:__ previous approval
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(stdout.matches("error[").count(), 1, "{stdout}");
+    assert!(stdout.contains("E024"), "{stdout}");
+    assert!(stdout.contains("Rejection"), "{stdout}");
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        file_content
+    );
+
+    file_content = "\
+- [ ] #review:failed
+  __Base:__ base answer
+  __Approval:__ previous approval
+  __Rejection:__ rejection answer
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
 fn write_onboarding_config(dir: &std::path::Path) {
     let config = "\
 [Field.first_name]

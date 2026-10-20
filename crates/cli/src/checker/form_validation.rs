@@ -15,10 +15,10 @@ use crate::config::{Config, FormConfig};
 use crate::form_script::{
     Limits, RunError, ScriptError, ScriptInput, ScriptOutput, TaskInfo, run_script,
 };
-use crate::parser::{FileItem, Marker};
+use crate::parser::FileItem;
 use crate::rules::{ErrorCode, Issue, IssueData, NodeRef, for_each_node};
 use crate::trust::TrustStore;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Whether any form of the config has a validation script.
@@ -35,27 +35,12 @@ pub fn check_form_scripts(
 ) -> Vec<Issue> {
     let mut issues = Vec::new();
     for_each_node(items, |node| {
-        let mut seen = BTreeSet::new();
-        for marker in node.markers() {
-            let Marker::Property(prop) = marker else {
-                continue;
-            };
-            let Some(form_name) = config
-                .properties
-                .get(&prop.name)
-                .and_then(|p| p.form.as_ref())
-            else {
-                continue;
-            };
-            let Some(form) = config.forms.get(form_name) else {
-                continue;
-            };
+        for active in config.active_forms(node.markers()) {
+            let form_name = active.name;
+            let form = active.config;
             let Some(script) = &form.validation else {
                 continue;
             };
-            if !seen.insert(form_name.clone()) {
-                continue;
-            }
 
             let form_fields = form_fields(form, config);
             let input = build_script_input(node, form_name, &form_fields);
