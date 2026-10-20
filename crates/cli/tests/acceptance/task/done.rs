@@ -3,6 +3,40 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
+fn task_done_accepts_a_resolved_required_subtask() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.feature]
+subtasks = [\"check #review:...\"]
+[Properties.review]
+[Properties.review.passed]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] #feature
+  - [x] \"check #review:passed\"
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "1"]);
+
+    assert!(
+        out.status.success(),
+        "stdout: {}, stderr: {}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let expected = "\
+- [x] #feature
+  - [x] \"check #review:passed\"
+";
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        expected
+    );
+}
+
+#[test]
 fn task_done_marks_top_level_task_complete_in_place() {
     let dir = tempdir().unwrap();
     let content = "\

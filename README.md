@@ -532,6 +532,8 @@ neighbortasks = ["create follow up task for fixes"]
 
 A Branching Workflow property is written in its incomplete form (e.g., `#review:...`) while the task is still in progress. When the task is marked as done, this property must be updated to one of its defined outcome states (e.g., `#review:passed`, `#review:failed`). Each outcome can have its own constraints, such as mandatory subtasks or neighbor tasks.
 
+When a configured `subtasks` or `neighbortasks` title contains a pending property marker, such as `"check #review:..."`, the quoted task satisfies that requirement with either the pending marker or a resolved outcome (`"check #review:passed"` or `"check #review:failed"`). All other text, whitespace, numbering, assignments and marker order must match exactly. An explicitly configured outcome still requires that exact outcome; escaped markers and markers inside code spans or single-tick wraps remain literal text. An unknown outcome matches the requirement's identity but is still reported as E022 (Undefined Branch Outcome). Cancellation permission continues to come from the matching configured `subtasks_allow_cancel` entry; if multiple requirements match, any permitting entry allows cancellation.
+
 While task in progress:
 ```md
 - [ ] build something

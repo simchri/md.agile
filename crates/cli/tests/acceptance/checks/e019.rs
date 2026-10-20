@@ -3,6 +3,33 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
+fn resolved_branch_satisfies_a_pending_required_neighbor() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.feature]
+neighbortasks = [\"check #review:...\"]
+[Properties.review]
+[Properties.review.passed]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] parent
+  - [ ] implement #feature
+  - [ ] \"check #review:passed\"
+";
+    fs::write(dir.path().join("a.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    assert!(
+        out.status.success(),
+        "stdout: {}, stderr: {}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
 fn flags_missing_neighbor_task() {
     let dir = tempdir().unwrap();
     let config = "\

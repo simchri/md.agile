@@ -26,6 +26,7 @@ mod neighbor_task_on_top_level;
 mod neighbor_tasks;
 mod next_task;
 mod orphaned_subtask;
+mod required_title;
 mod unauthorized_completion;
 mod undefined_assignment;
 mod undefined_property;

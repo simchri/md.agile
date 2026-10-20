@@ -96,3 +96,84 @@ subtasks = [\"test\"]
     let stdout = String::from_utf8(out.stdout).unwrap();
     assert!(!stdout.contains("E010"), "stdout: {stdout:?}");
 }
+
+#[test]
+fn pending_branch_in_required_subtask_satisfies_problem_requirement() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.problem]
+subtasks = [\"check #is_duplicate:...\"]
+[Properties.is_duplicate]
+[Properties.is_duplicate.yes]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] #problem
+  - [ ] \"check #is_duplicate:...\"
+";
+    fs::write(dir.path().join("a.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!stdout.contains("error[E010]"), "stdout: {stdout}");
+    assert!(
+        out.status.success(),
+        "stdout: {stdout}, stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn resolved_yes_branch_in_required_subtask_satisfies_problem_requirement() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.problem]
+subtasks = [\"check #is_duplicate:...\"]
+[Properties.is_duplicate]
+[Properties.is_duplicate.yes]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] #problem
+  - [ ] \"check #is_duplicate:yes\"
+";
+    fs::write(dir.path().join("a.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!stdout.contains("error[E010]"), "stdout: {stdout}");
+    assert!(
+        out.status.success(),
+        "stdout: {stdout}, stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn resolved_no_branch_in_required_subtask_satisfies_problem_requirement() {
+    let dir = tempdir().unwrap();
+    let config = "\
+[Properties.problem]
+subtasks = [\"check #is_duplicate:...\"]
+[Properties.is_duplicate]
+[Properties.is_duplicate.no]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] #problem
+  - [ ] \"check #is_duplicate:no\"
+";
+    fs::write(dir.path().join("a.agile.md"), file_content).unwrap();
+
+    let out = run_check(dir.path());
+
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert!(!stdout.contains("error[E010]"), "stdout: {stdout}");
+    assert!(
+        out.status.success(),
+        "stdout: {stdout}, stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}

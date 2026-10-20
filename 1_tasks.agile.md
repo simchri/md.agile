@@ -1017,6 +1017,8 @@ users don't have to think about it. Design plan: see
   - [x] add the completed forms of branch properties to autocomplete proposals
   - [x] Quickfixes for this error situation: `Task marked done while branch property #review:... still unresolved` -- allow selecting any of the completed forms as a quickfix
 
+- [x] Match resolved branch properties against pending markers in required subtask and neighbor task titles, including cancellation permissions, without changing other title text.
+
 - [ ] Branch props and neighbor tasks doc
   - [ ] README.md
 

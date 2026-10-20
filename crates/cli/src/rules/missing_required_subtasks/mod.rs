@@ -3,6 +3,7 @@
 
 use crate::config::Config;
 use crate::parser::{FileItem, Marker, PropertyForm, Status, Subtask, SubtaskKind};
+use crate::rules::required_title::matches_required_title;
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node};
 use std::collections::HashMap;
 
@@ -84,7 +85,7 @@ pub(crate) fn check_node(
         return vec![];
     }
 
-    // Collect all PropertyRequired direct children, keyed by their raw_title.
+    // Collect all PropertyRequired direct children.
     let present: Vec<&Subtask> = children
         .iter()
         .filter(|c| c.kind == SubtaskKind::PropertyRequired)
@@ -98,9 +99,13 @@ pub(crate) fn check_node(
         let Some(title) = child.raw_title.as_deref() else {
             continue;
         };
+        let matched: Vec<&String> = required
+            .iter()
+            .filter(|r| matches_required_title(r, title))
+            .collect();
         if child.status == Status::Cancelled
-            && required.iter().any(|r| r == title)
-            && !allow_cancel.get(title).copied().unwrap_or(false)
+            && !matched.is_empty()
+            && !matched.iter().any(|r| allow_cancel[*r])
         {
             issues.push(Issue {
                 location: child.location.clone(),
@@ -126,7 +131,11 @@ pub(crate) fn check_node(
 
     let missing: Vec<String> = required
         .iter()
-        .filter(|r| !present_titles.contains(&r.as_str()))
+        .filter(|r| {
+            !present_titles
+                .iter()
+                .any(|title| matches_required_title(r, title))
+        })
         .cloned()
         .collect();
 

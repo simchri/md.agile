@@ -933,7 +933,7 @@ fn shift_marker_column(marker: Marker, offset: usize) -> Marker {
 /// need marker-free text (e.g. fuzzy title-similarity matching in
 /// `eta`/`lifecycle_cache`) are expected to strip markers themselves if
 /// needed.
-fn parse_markers(title: &str) -> (Vec<Marker>, String) {
+pub(crate) fn parse_markers(title: &str) -> (Vec<Marker>, String) {
     let mut markers = Vec::new();
     let bytes = title.as_bytes();
     let len = bytes.len();

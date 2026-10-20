@@ -60,6 +60,111 @@ fn config_with_cancellable_subtasks(entries: &[(&str, &[&str], &[bool])]) -> Con
 // ── no-issue cases ────────────────────────────────────────────────────────────
 
 #[test]
+fn pending_required_markers_match_resolved_outcomes_without_relaxing_other_text() {
+    let cases = [
+        ("check #review:...", "check #review:passed", true),
+        ("check #review:...", "check #review:unknown", true),
+        ("check #review:...", "check #review:...", true),
+        ("check #review:passed", "check #review:failed", false),
+        ("check #review:passed", "check #review:...", false),
+        ("check #review:...", "check #approval:passed", false),
+        ("check #review:...", "check #review", false),
+        ("check #review:...", "changed #review:passed", false),
+        ("check #review:...", "check  #review:passed", false),
+        (
+            "1. check @alice #review:...",
+            "2. check @alice #review:passed",
+            false,
+        ),
+        (
+            "check @alice #review:...",
+            "check @bob #review:passed",
+            false,
+        ),
+        (
+            "check #review:... @alice",
+            "check @alice #review:passed",
+            false,
+        ),
+        ("check #review:...!", "check #review:passed!", false),
+        ("check `#review:...`", "check `#review:passed`", false),
+        ("check '#review:...'", "check '#review:passed'", false),
+        (r"check \#review:...", r"check \#review:passed", false),
+        ("check #review:...", "check `#review:passed`", false),
+        ("check #review:...", r"check \#review:passed", false),
+        (
+            "check #review:... #approval:...",
+            "check #review:passed #approval:yes",
+            true,
+        ),
+        (
+            "check #review:... #approval:...",
+            "check #review:passed #other:yes",
+            false,
+        ),
+        (
+            "check #review:... #review:...",
+            "check #review:passed #review:failed",
+            true,
+        ),
+        (
+            "révision #review:... fin",
+            "révision #review:passed fin",
+            true,
+        ),
+        (
+            "check #review:... done",
+            "check #review:passed changed",
+            false,
+        ),
+    ];
+
+    for (required, actual, matches) in cases {
+        let config = config_with_subtasks(&[("feature", &[required])]);
+        let file_content = format!(
+            "\
+- [ ] #feature
+  - [ ] \"{actual}\"
+"
+        );
+
+        let issues = missing_required_subtasks(&p(&file_content), &config);
+        let quoted_issues = crate::rules::unrequired_quoted_subtask(&p(&file_content), &config);
+
+        assert_eq!(issues.is_empty(), matches, "{required:?} vs {actual:?}");
+        assert_eq!(
+            quoted_issues.is_empty(),
+            matches,
+            "{required:?} vs {actual:?}"
+        );
+    }
+}
+
+#[test]
+fn cancellation_of_a_resolved_required_subtask_uses_the_configured_permission() {
+    let file_content = "\
+- [ ] #feature
+  - [-] \"check #review:passed\"
+";
+    for allowed in [false, true] {
+        let config =
+            config_with_cancellable_subtasks(&[("feature", &["check #review:..."], &[allowed])]);
+
+        let issues = missing_required_subtasks(&p(file_content), &config);
+
+        if allowed {
+            assert!(issues.is_empty(), "{issues:?}");
+        } else {
+            assert_eq!(issues.len(), 1, "{issues:?}");
+            assert_eq!(
+                issues[0].code,
+                ErrorCode::CancelledRequiredSubtaskNotAllowed
+            );
+        }
+    }
+}
+
+#[test]
 fn no_issues_when_property_has_no_subtasks() {
     let input = "\
 - [ ] #feature: add basket

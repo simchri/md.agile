@@ -14,6 +14,7 @@
 use crate::config::Config;
 use crate::parser::{FileItem, Location, Marker, Subtask, SubtaskKind, Task};
 use crate::rules::branch_properties::merge_property_and_branch_strings;
+use crate::rules::required_title::matches_required_title;
 use crate::rules::{ErrorCode, Issue, IssueData};
 
 pub fn neighbor_tasks(items: &[FileItem], config: &Config) -> Vec<Issue> {
@@ -72,7 +73,11 @@ fn check_required(
 
     let missing: Vec<String> = required
         .into_iter()
-        .filter(|r| !sibling_titles.contains(&r.as_str()))
+        .filter(|r| {
+            !sibling_titles
+                .iter()
+                .any(|title| matches_required_title(r, title))
+        })
         .collect();
 
     if missing.is_empty() {

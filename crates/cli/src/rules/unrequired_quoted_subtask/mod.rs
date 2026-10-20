@@ -11,6 +11,7 @@
 use crate::config::Config;
 use crate::parser::{FileItem, Marker, SubtaskKind, TASK_LINE_PREFIX_LEN};
 use crate::rules::branch_properties::merge_property_and_branch_strings;
+use crate::rules::required_title::matches_required_title;
 use crate::rules::{ErrorCode, Issue, IssueData, for_each_node, neighbor_tasks};
 
 pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Issue> {
@@ -28,7 +29,7 @@ pub fn unrequired_quoted_subtask(items: &[FileItem], config: &Config) -> Vec<Iss
                 .filter(|c| c.kind == SubtaskKind::PropertyRequired)
                 .filter_map(|c| {
                     let title = c.raw_title.as_deref()?;
-                    if required.iter().any(|r| r == title) {
+                    if required.iter().any(|r| matches_required_title(r, title)) {
                         return None;
                     }
                     Some(Issue {
