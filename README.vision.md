@@ -174,28 +174,6 @@ Subtasks required by a property used in **short form** are also counted, even if
 
 ...
 
-## Neighbor Tasks
-
-Neighbor Tasks are tasks that must be present on the same level as the task with the property. Neighbor Tasks are mainly useful in combination with Branch Properties.
-
-You define Neighbor Tasks with the `neighbortasks` key:
-
-**mdagile.toml:**
-```toml
-[Properties.frontend-implementation]
-neighbortasks = ["do the back end implementation also!"]
-```
-
-**tasks.agile.md:**
-```md
-- [ ] let's build a feature and
-  - [ ] ..first do the #frontend-implementation
-  - [ ] "do the back end implementation also!"
-```
-
-Neighbor tasks can themselves have their own properties and subtasks. This mechanism helps ensure that important follow-up steps are not forgotten and are tracked explicitly in your workflow. You can also use this to couple certain properties together.
-
-**Properties with Neighbor Tasks can not be set at the top level (only on subtask level 1 and lower).** Neighbor tasks at the top level don't make sense, because the feature would only be usable exactly once for the entire project.
 
 ## Forms & Fields
 
