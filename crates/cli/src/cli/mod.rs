@@ -227,13 +227,14 @@ pub enum TaskAction {
     /// every task is complete or cancelled.
     #[command(visible_alias = "show")]
     Next {
-        /// A plain count (e.g. `3`) to show the next N incomplete top-level
-        /// tasks, or a dotted address (e.g. `1.2`, `2.1.4`) to show one
-        /// specific (sub)task by position: the first number selects the Nth
-        /// still-incomplete top-level task (in priority order); each
-        /// subsequent number selects the Nth direct child of the
-        /// previously-selected node (in document order, any status).
-        /// Omit to show just the single next task.
+        /// A plain count (e.g. `3`) to show only the Nth still-incomplete
+        /// top-level task (in priority order) — not tasks 1 through N — or
+        /// a dotted address (e.g. `1.2`, `2.1.4`) to show one specific
+        /// (sub)task by position: the first number selects the Nth
+        /// still-incomplete top-level task; each subsequent number selects
+        /// the Nth direct child of the previously-selected node (in
+        /// document order, any status). Omit to show just the single next
+        /// task.
         address: Option<String>,
 
         /// Only show task(s) that are unassigned (open to anyone) or
