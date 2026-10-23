@@ -20,6 +20,7 @@
 
 ## Priority
 
+- Eligibility: Whether a Task or Subtask is one a given identity may select or work on, as resolved by `--mine`/`--as` (an explicit assignment `@marker` to a different identity makes a node ineligible). A node broken down into Subtasks is eligible for an identity if at least one of its actionable (Todo, not `#OPT`-only-remaining) Subtasks is itself eligible, or, once no actionable descendant work remains, if there's nothing left to delegate. `agile task next --mine`/`--as` and `agile task list --mine`/`--as` only consider eligible Tasks.
 - Offset: Distance of task to highest prio task, given current context. Used with e.g. `agile task next`: This command normally shows the next highest prio elligible task. With an offset provided, the next N-1 such tasks are skipped and the Nth task shown.
 - Address: Special offset, ignoring elligibility.
 
