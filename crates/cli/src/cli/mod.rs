@@ -221,27 +221,26 @@ pub enum Command {
 pub enum TaskAction {
     /// Show the next highest-priority incomplete task(s)
     ///
-    /// With no arguments, returns the first incomplete ([ ]) top-level task
-    /// across all task files in priority order, including its full subtask
-    /// tree. Skips done ([x]) and cancelled ([-]) tasks. Prints nothing if
-    /// every task is complete or cancelled.
+    /// With no arguments, returns the top-level task with Rank 1 — the first
+    /// incomplete ([ ]) one in document order — including its full subtask
+    /// tree. Skips done ([x]) and cancelled ([-]) tasks (they have no
+    /// Rank). Prints nothing if every task is complete or cancelled.
     #[command(visible_alias = "show")]
     Next {
-        /// A plain count (e.g. `3`) to show only the Nth still-incomplete
-        /// top-level task (in priority order) — not tasks 1 through N — or
-        /// a dotted address (e.g. `1.2`, `2.1.4`) to show one specific
-        /// (sub)task by position: the first number selects the Nth
-        /// still-incomplete top-level task; each subsequent number selects
-        /// the Nth direct child of the previously-selected node (in
-        /// document order, any status). Omit to show just the single next
-        /// task.
+        /// An Offset (plain count, e.g. `3`) to show only the Nth matching
+        /// task — the task with Rank 3 by default, or (combined with
+        /// `--mine`/`--as`) the 3rd Eligible task — not tasks 1 through 3.
+        /// Or an Address (dotted, e.g. `1.2`, `2.1.4`) to show one specific
+        /// (sub)task by position, ignoring Eligibility: the first number is
+        /// a top-level task's Rank; each subsequent number selects the Nth
+        /// direct child of the previously-selected node (in document order,
+        /// any status). Omit to show just the single next task.
         address: Option<String>,
 
-        /// Only show task(s) that are unassigned (open to anyone) or
-        /// assigned to me, directly or via a group — the same eligibility
-        /// rule as the E013 assignment/completion check. Can be combined
-        /// with a plain count (e.g. `next 3 --mine`), but not with a
-        /// dotted address.
+        /// Only consider Eligible task(s) — unassigned (open to anyone) or
+        /// assigned to me, directly or via a group — the same rule as the
+        /// E013 assignment/completion check. Can be combined with an Offset
+        /// (e.g. `next 3 --mine`), but not with a (dotted) Address.
         #[arg(long)]
         mine: bool,
 
@@ -285,30 +284,31 @@ pub enum TaskAction {
 
     /// Mark the (sub)task at ADDRESS done
     ///
-    /// ADDRESS uses the same scheme as `agile task next`'s dotted address:
-    /// e.g. `2` for the 2nd still-incomplete top-level task, or `1.3` for
-    /// its 3rd direct child. Refuses (printing the violated rule instead of
-    /// writing the file) if marking the node done would leave it with
-    /// incomplete required children, missing required subtasks, a
-    /// disallowed cancelled required subtask, or would be an unauthorized
-    /// completion of a task assigned to someone else (E013). Only reads/
-    /// writes the one file the addressed task lives in — it doesn't
-    /// re-validate the rest of the project.
+    /// ADDRESS uses the same Rank/Address scheme as `agile task next`'s
+    /// dotted address: e.g. `2` for the top-level task with Rank 2, or
+    /// `1.3` for its 3rd direct child (ignoring Eligibility, like any
+    /// Address). Refuses (printing the violated rule instead of writing the
+    /// file) if marking the node done would leave it with incomplete
+    /// required children, missing required subtasks, a disallowed
+    /// cancelled required subtask, or would be an unauthorized completion
+    /// of a task assigned to someone else (E013). Only reads/writes the one
+    /// file the addressed task lives in — it doesn't re-validate the rest
+    /// of the project.
     ///
-    /// With no ADDRESS at all, marks the next eligible (sub)task done — the
+    /// With no ADDRESS at all, marks the next Eligible (sub)task done — the
     /// same one `agile task next` (with the same `--mine`/`--as`, if given)
     /// would have shown. Unlike `agile task next`, which prints nothing and
-    /// exits 0 when nothing eligible is left, finding no eligible task here
-    /// is an error (there's nothing to mark done, so it can't succeed).
+    /// exits 0 when no task is Eligible, finding none here is an error
+    /// (there's nothing to mark done, so it can't succeed).
     Done {
-        /// Dotted address, e.g. `2` or `1.3`. Omit to mark the next eligible
-        /// task done (see `agile task next`).
+        /// Address, e.g. `2` or `1.3`. Omit to mark the next Eligible task
+        /// done (see `agile task next`).
         address: Option<String>,
 
-        /// Only consider unassigned tasks, or ones assigned to me directly
-        /// or via a group — the same eligibility rule as `agile task next
-        /// --mine`. Only valid with no ADDRESS (a given address already
-        /// names one exact task regardless of assignment).
+        /// Only consider Eligible tasks — unassigned, or assigned to me
+        /// directly or via a group — the same rule as `agile task next
+        /// --mine`. Only valid with no ADDRESS (a given Address already
+        /// names one exact task, ignoring Eligibility).
         #[arg(long)]
         mine: bool,
 
@@ -317,7 +317,7 @@ pub enum TaskAction {
         /// (combined with an explicit ADDRESS) just override the identity
         /// used for the E013 assignment/completion check on that one task.
         /// With no ADDRESS, `--as` alone implies `--mine`, selecting and
-        /// completing that user's next eligible task. A key that doesn't
+        /// completing that user's next Eligible task. A key that doesn't
         /// match any configured user is always treated as unauthorized for
         /// assigned tasks (never silently skipped).
         #[arg(long, value_name = "USER")]
@@ -343,13 +343,13 @@ pub enum TaskAction {
     /// List tasks in priority order
     ///
     /// Without arguments, prints every incomplete (`[ ]`) top-level task
-    /// from all *.agile.md files in priority order, each with its full
-    /// subtask tree. Each task is shown with its status marker ([ ] todo,
-    /// [x] done, [-] cancelled) and subtasks indented by two spaces per
-    /// level.
+    /// from all *.agile.md files in Rank order, each with its full subtask
+    /// tree. Each task is shown with its status marker ([ ] todo, [x] done,
+    /// [-] cancelled) and subtasks indented by two spaces per level.
     List {
         /// A 1-based, inclusive range over the top-level tasks that would
-        /// otherwise be shown (respecting `--all`/`--mine`), e.g. `2:4`
+        /// otherwise be shown (respecting `--all`/`--mine`) — a plain
+        /// position in that shown list, not a Rank/Address. E.g. `2:4`
         /// shows the 2nd through 4th such tasks (each with its own
         /// subtree). Takes precedence over `--next`/`--last` if given.
         range: Option<String>,
@@ -366,8 +366,8 @@ pub enum TaskAction {
         #[arg(short = 'a', long)]
         all: bool,
 
-        /// Only list top-level tasks that are unassigned or assigned to me
-        /// (directly or via a group) — same eligibility rule as the E013
+        /// Only list Eligible top-level tasks — unassigned, or assigned to
+        /// me directly or via a group — the same rule as the E013
         /// assignment/completion check and `agile task next --mine`.
         #[arg(long)]
         mine: bool,
