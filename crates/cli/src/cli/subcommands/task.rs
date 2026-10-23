@@ -3,7 +3,8 @@
 use crate::checker;
 use crate::cli::common::{
     find_task_files, parse_file, render_subtask_as_root_highlighting_next_leaf,
-    render_subtask_as_root_highlighting_previous_leaf, render_task_highlighting_next_leaf,
+    render_subtask_as_root_highlighting_previous_leaf, render_subtask_as_root_plain,
+    render_task_as_root_plain, render_task_highlighting_next_leaf,
     render_task_highlighting_previous_leaf,
 };
 use crate::config::Config;
@@ -78,7 +79,9 @@ pub fn run_next(
         None
     };
 
-    print_resolved_address(root, config, parts, identity.as_ref(), full, no_markup);
+    print_resolved_address(root, config, parts, identity.as_ref(), |resolved, rank| {
+        render_resolved(resolved, full, identity.as_ref(), config, no_markup, rank)
+    });
 }
 
 /// `agile task show [ADDRESS]` entry point.
@@ -97,15 +100,12 @@ pub fn run_next(
 /// Unlike `agile task next`, `show` always ignores Eligibility entirely —
 /// there is no `--mine`/`--as` — so it always resolves the same ADDRESS to
 /// the same (sub)task regardless of assignment, exactly like `agile task
-/// done`/`undone`.
+/// done`/`undone`. It also has no concept of a "next" line to highlight —
+/// nothing is bolded or marked, so there is no `--no-markup` flag either.
 ///
 /// `full` additionally prints each (sub)task's body lines alongside its
 /// title line.
-///
-/// `no_markup` disables ANSI bold/color escapes entirely: the concrete next
-/// actionable line is instead marked by appending `" <=="` to it. Useful
-/// for scripting/piping output where ANSI escapes would be unwanted noise.
-pub fn run_show(root: &Path, config: &Config, address: Option<&str>, full: bool, no_markup: bool) {
+pub fn run_show(root: &Path, config: &Config, address: Option<&str>, full: bool) {
     let parts = match address.map(parse_address) {
         None => None,
         Some(Some(parts)) => Some(parts),
@@ -118,21 +118,23 @@ pub fn run_show(root: &Path, config: &Config, address: Option<&str>, full: bool,
         }
     };
 
-    print_resolved_address(root, config, parts, None, full, no_markup);
+    print_resolved_address(root, config, parts, None, |resolved, rank| {
+        render_resolved_plain(resolved, full, rank)
+    });
 }
 
 /// Shared resolve-and-print tail for [`run_next`] and [`run_show`]: resolves
 /// `parts` (defaulting to `[1]`, i.e. Rank 1, if `None`) against `identity`
-/// and prints the result, or — only when `parts` was explicitly given —
-/// exits nonzero on failure. An implicit default-to-Rank-1 resolution that
-/// finds nothing is not an error: it just prints nothing.
+/// and prints the result of calling `render` with the resolved address and
+/// its displayed rank, or — only when `parts` was explicitly given — exits
+/// nonzero on failure. An implicit default-to-Rank-1 resolution that finds
+/// nothing is not an error: it just prints nothing.
 fn print_resolved_address(
     root: &Path,
     config: &Config,
     parts: Option<Vec<usize>>,
     identity: Option<&ResolvedIdentity>,
-    full: bool,
-    no_markup: bool,
+    render: impl FnOnce(&ResolvedAddress, &str) -> String,
 ) {
     let explicit_address = parts.is_some();
     let resolve_parts = parts.unwrap_or_else(|| vec![1]);
@@ -146,17 +148,7 @@ fn print_resolved_address(
     ) {
         Ok(resolved) => {
             let displayed_rank = resolved.rank_address(&resolve_parts[1..]);
-            print!(
-                "{}",
-                render_resolved(
-                    &resolved,
-                    full,
-                    identity,
-                    config,
-                    no_markup,
-                    &displayed_rank,
-                )
-            )
+            print!("{}", render(&resolved, &displayed_rank))
         }
         Err(e) => {
             if explicit_address {
@@ -821,6 +813,18 @@ fn render_resolved(
             root_number,
             &mut out,
         ),
+    }
+    out
+}
+
+/// Same as [`render_resolved`], but for `agile task show` — never
+/// highlights/marks any line (there is no "next" concept, no `--mine`, and
+/// no `--no-markup` for `show`: it always ignores Eligibility).
+fn render_resolved_plain(resolved: &ResolvedAddress, full: bool, root_number: &str) -> String {
+    let mut out = String::new();
+    match resolved.node_ref() {
+        NodeRef::Task(task) => render_task_as_root_plain(task, full, root_number, &mut out),
+        NodeRef::Subtask(sub) => render_subtask_as_root_plain(sub, full, root_number, &mut out),
     }
     out
 }

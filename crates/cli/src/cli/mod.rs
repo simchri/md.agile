@@ -262,7 +262,9 @@ pub enum TaskAction {
     ///
     /// With no arguments, returns the top-level task with Rank 1 — the first
     /// incomplete task in document order, including full subtask
-    /// tree. Prints nothing if there are no open tasks.
+    /// tree. Prints nothing if there are no open tasks. Always ignores
+    /// Eligibility, so there is no `--mine`/`--as` and no highlighted
+    /// "next" line to mark.
     ///
     Show {
         /// Rank of task to show (plain number, e.g. `3`) Alternatively, an Address (dotted,
@@ -273,11 +275,6 @@ pub enum TaskAction {
         /// Also show each (sub)task's body text alongside its title
         #[arg(long)]
         full: bool,
-
-        /// Disable ANSI bold/color output. The addressed line is instead
-        /// marked by appending " <==" to it in plain text.
-        #[arg(long)]
-        no_markup: bool,
     },
 
     /// Show the last completed (sub-) task by priority
@@ -464,14 +461,9 @@ pub fn run() {
             );
         }
         Some(Command::Task {
-            action:
-                TaskAction::Show {
-                    address,
-                    full,
-                    no_markup,
-                },
+            action: TaskAction::Show { address, full },
         }) => {
-            subcommands::task::run_show(root, &config, address.as_deref(), full, no_markup);
+            subcommands::task::run_show(root, &config, address.as_deref(), full);
         }
         Some(Command::Task {
             action:

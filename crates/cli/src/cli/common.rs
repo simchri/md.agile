@@ -288,6 +288,65 @@ fn collect_node_positions<'a>(
     }
 }
 
+/// Renders a top-level task as the root of its own numbered subtree, with no
+/// highlighting of any kind — used by `agile task show`, which always
+/// ignores Eligibility and has no concept of a "next" line to mark.
+/// Numbering and `include_body` behave exactly like
+/// [`render_task_highlighting_next_leaf`], minus the highlighting.
+pub(crate) fn render_task_as_root_plain(
+    task: &parser::Task,
+    include_body: bool,
+    root_number: &str,
+    out: &mut String,
+) {
+    let mut nodes = Vec::new();
+    collect_node_positions(
+        NodeRef::Task(task),
+        &task.children,
+        root_number,
+        0,
+        &mut nodes,
+    );
+    write_plain_lines(&nodes, include_body, out);
+}
+
+/// Same as [`render_task_as_root_plain`], but for a subtask addressed
+/// directly as its own root (mirrors
+/// [`render_subtask_as_root_highlighting_next_leaf`]).
+pub(crate) fn render_subtask_as_root_plain(
+    sub: &parser::Subtask,
+    include_body: bool,
+    root_number: &str,
+    out: &mut String,
+) {
+    let mut nodes = Vec::new();
+    collect_node_positions(
+        NodeRef::Subtask(sub),
+        &sub.children,
+        root_number,
+        0,
+        &mut nodes,
+    );
+    write_plain_lines(&nodes, include_body, out);
+}
+
+/// Shared tail for [`render_task_as_root_plain`]/[`render_subtask_as_root_plain`]:
+/// turns already-collected `(NodeRef, dotted number, depth)` positions into
+/// unhighlighted `[<status>] <title>` lines.
+fn write_plain_lines(nodes: &[(NodeRef, String, usize)], include_body: bool, out: &mut String) {
+    let mut lines = Vec::new();
+    for (node, number, depth) in nodes {
+        lines.push(TreeLine::Numbered(
+            number.clone(),
+            node_line_content_plain(*node, true, *depth, false),
+        ));
+        if include_body {
+            collect_body_lines(node.body(), &mut lines);
+        }
+    }
+    write_aligned_lines(&lines, out);
+}
+
 /// Builds one `[<status>] <title>` line (indented by `depth * 2` spaces) for
 /// `agile task previous`'s rendering, marking it via `highlight` (decided by
 /// the caller — see [`render_task_highlighting_previous_leaf`]) instead of

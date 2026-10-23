@@ -172,7 +172,10 @@ fn task_show_out_of_range_address_exits_nonzero() {
 }
 
 #[test]
-fn task_show_highlights_the_next_actionable_leaf_within_a_dotted_addressed_subtree() {
+fn task_show_never_highlights_any_line_within_a_dotted_addressed_subtree() {
+    // Unlike `next`/`previous`, `show` has no "next" concept to highlight at
+    // all: the addressed subtree is printed as plain `[<status>] <title>`
+    // lines, with no bold/ANSI markup and no `" <=="` marker on any line.
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] parent task
@@ -182,16 +185,32 @@ fn task_show_highlights_the_next_actionable_leaf_within_a_dotted_addressed_subtr
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
-    let out = run_agile(dir.path(), &["task", "show", "1.1", "--no-markup"]);
+    let out = run_agile(dir.path(), &["task", "show", "1.1"]);
 
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let stdout = String::from_utf8(out.stdout).unwrap();
     let expected = "\
 1.1   [ ] addressed subtask
 1.1.1   [x] already done grandchild
-1.1.2   [ ] next leaf <==
+1.1.2   [ ] next leaf
 ";
     assert_eq!(stdout, expected);
+}
+
+#[test]
+fn task_show_rejects_the_no_markup_flag() {
+    // `show` has no highlighting at all, so `--no-markup` (which only makes
+    // sense where there's a highlighted line to mark in plain text instead)
+    // is not a recognized flag either.
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] a task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "show", "--no-markup"]);
+
+    assert!(!out.status.success());
 }
 
 #[test]
