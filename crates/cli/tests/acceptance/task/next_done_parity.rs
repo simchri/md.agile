@@ -167,3 +167,165 @@ fn task_done_mine_without_git_identity_errors() {
         file_content
     );
 }
+
+#[test]
+fn mine_skips_sibling_assigned_to_someone_else_next_and_done_target_the_same_nested_leaf() {
+    let dir = tempdir().unwrap();
+    init_repo(dir.path(), "alice@example.com", "Alice");
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] parent task
+  - [ ] leaf assigned to bob @bob
+  - [ ] leaf eligible for alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let next_stdout = stdout_of(dir.path(), &["task", "next", "--mine", "--no-markup"]);
+    let next_expected = "\
+1   [ ] parent task
+1.1   [ ] leaf assigned to bob @bob
+1.2   [ ] leaf eligible for alice <==
+";
+    assert_eq!(next_stdout, next_expected);
+
+    let out = run_agile(dir.path(), &["task", "done", "--mine"]);
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+
+    let expected = "\
+- [ ] parent task
+  - [ ] leaf assigned to bob @bob
+  - [x] leaf eligible for alice
+";
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        expected,
+        "`task done --mine` must flip exactly the leaf `task next --mine` highlighted"
+    );
+}
+
+#[test]
+fn mine_no_eligible_leaf_next_prints_nothing_and_done_errors_without_writing() {
+    // Mirrors `mine_marks_nothing_when_no_leaf_eligible_for_identity` in
+    // next_eligibility.rs, extended to check `done --mine`'s side of the
+    // same asymmetry documented for the plain no-address case: `next`
+    // silently prints nothing when nothing is eligible, but `done` must
+    // error instead of silently no-op-succeeding.
+    let dir = tempdir().unwrap();
+    init_repo(dir.path(), "alice@example.com", "Alice");
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] parent task
+  - [ ] leaf assigned to bob @bob
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let next_stdout = stdout_of(dir.path(), &["task", "next", "--mine", "--no-markup"]);
+    assert!(next_stdout.is_empty(), "stdout: {next_stdout:?}");
+
+    let out = run_agile(dir.path(), &["task", "done", "--mine"]);
+    assert!(!out.status.success());
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        file_content,
+        "file must be untouched when nothing is eligible"
+    );
+}
+
+#[test]
+fn mine_order_blocked_leaf_next_prints_nothing_and_done_errors_without_writing() {
+    // Mirrors
+    // `mine_skips_ordered_leaf_eligible_for_identity_but_blocked_by_incomplete_lower_order_sibling_assigned_to_someone_else`
+    // in next_eligibility.rs: alice is nominally assigned "2. second step",
+    // but bob's still-incomplete "1. first step" blocks it, so there is
+    // nothing alice can actually do yet. `done --mine` must agree and
+    // error rather than completing the blocked step out of order.
+    let dir = tempdir().unwrap();
+    init_repo(dir.path(), "alice@example.com", "Alice");
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] parent task
+  - [ ] 1. first step @bob
+  - [ ] 2. second step @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let next_stdout = stdout_of(dir.path(), &["task", "next", "--mine", "--no-markup"]);
+    assert!(next_stdout.is_empty(), "stdout: {next_stdout:?}");
+
+    let out = run_agile(dir.path(), &["task", "done", "--mine"]);
+    assert!(!out.status.success());
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        file_content,
+        "file must be untouched: alice's step is still order-blocked"
+    );
+}
+
+#[test]
+fn mine_order_unblocked_leaf_next_and_done_target_the_same_leaf() {
+    // Same setup as
+    // `mine_order_blocked_leaf_next_prints_nothing_and_done_errors_without_writing`,
+    // but bob's "1. first step" is already done, so alice's "2. second
+    // step" is actually actionable for both commands.
+    let dir = tempdir().unwrap();
+    init_repo(dir.path(), "alice@example.com", "Alice");
+
+    let config = "\
+[Users.alice]
+git_emails = [\"alice@example.com\"]
+
+[Users.bob]
+git_emails = [\"bob@example.com\"]
+";
+    fs::write(dir.path().join("mdagile.toml"), config).unwrap();
+    let file_content = "\
+- [ ] parent task
+  - [x] 1. first step @bob
+  - [ ] 2. second step @alice
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let next_stdout = stdout_of(dir.path(), &["task", "next", "--mine", "--no-markup"]);
+    assert!(
+        next_stdout.contains("[ ] 2. second step @alice <=="),
+        "stdout: {next_stdout:?}"
+    );
+
+    let out = run_agile(dir.path(), &["task", "done", "--mine"]);
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+
+    let expected = "\
+- [ ] parent task
+  - [x] 1. first step @bob
+  - [x] 2. second step @alice
+";
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        expected,
+        "`task done --mine` must flip exactly the leaf `task next --mine` highlighted"
+    );
+}
