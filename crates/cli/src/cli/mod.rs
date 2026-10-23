@@ -293,22 +293,16 @@ pub enum TaskAction {
 
     /// Mark the (sub)task at ADDRESS done
     ///
-    /// ADDRESS uses the same Rank/Address scheme as `agile task next`'s
-    /// dotted address: e.g. `2` for the top-level task with Rank 2, or
-    /// `1.3` for its 3rd direct child (ignoring Eligibility, like any
-    /// Address). Refuses (printing the violated rule instead of writing the
-    /// file) if marking the node done would leave it with incomplete
-    /// required children, missing required subtasks, a disallowed
-    /// cancelled required subtask, or would be an unauthorized completion
-    /// of a task assigned to someone else (E013). Only reads/writes the one
-    /// file the addressed task lives in — it doesn't re-validate the rest
-    /// of the project.
+    /// ADDRESS uses the same Rank/Address scheme as output by `agile task next` or `agile task show`.
     ///
     /// With no ADDRESS at all, marks the next Eligible (sub)task done — the
     /// same one `agile task next` (with the same `--mine`/`--as`, if given)
-    /// would have shown. Unlike `agile task next`, which prints nothing and
-    /// exits 0 when no task is Eligible, finding none here is an error
-    /// (there's nothing to mark done, so it can't succeed).
+    /// would have shown.
+
+    /// Command fails, if
+    /// - marking the task done would cause a new validation error (e.g. if task is assigned to someone else).
+    /// - there is no task to mark done at the provided ADDRESS (or default, implied address "1")
+    ///
     Done {
         /// Address, e.g. `2` or `1.3`. Omit to mark the next Eligible task
         /// done (see `agile task next`).
