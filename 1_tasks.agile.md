@@ -1170,29 +1170,43 @@ users don't have to think about it. Design plan: see
 agile task next :
 
 1. No address: prints the first "actionable" Todo leaf in document order (a Todo task with no unresolved children, or whose children are all resolved) — unconditionally, regardless of assignment. Nothing eligible: prints nothing, exits 0 (silent no-op).
-2.  --mine  /  --as <user> : filters that same selection to leaves eligible for the given identity — skips tasks assigned to someone else, and skips an otherwise-eligible leaf if order-blocked by an incomplete lower-order sibling assigned to someone else. Requires a resolvable identity (errors if none can be determined).
-3.  next <N> : shows only the Nth top-level task — not tasks 1 through N.
-4.  next <N> --mine : selects the Nth eligible task (ranked among eligible-only), but reports/resolves its true absolute rank (so  done <that number>  without  --mine  hits the same task).
-5. Dotted address ( next 1.1 ): descends into that subtask as its own root; cannot combine with  --mine  (rejected).
-6. Invalid/malformed address: exits non-zero.
+   Tested: `task_next_prints_first_active_task`, `task_next_includes_subtree_of_next_task`, `task_next_empty_project_exits_zero_with_no_output`, and in `next_eligibility.rs`: `marks_the_only_todo_leaf`, `marks_first_todo_leaf_in_document_order`, `skips_non_leaf_todo_nodes`, `marks_a_todo_node_whose_children_are_all_resolved_even_though_it_has_children`, `marks_nothing_when_no_todo_leaf_exists`.
+2.  --mine  /  --as <user> : filters that same selection to leaves eligible for the given identity — skips tasks assigned to someone else, and skips an otherwise-eligible leaf if order-blocked by an incomplete lower-order sibling assigned to someone else.
+   Tested (`next_eligibility.rs`): `mine_skips_leaf_assigned_to_someone_else`, `mine_marks_nothing_when_no_leaf_eligible_for_identity`, `mine_skips_ordered_leaf_eligible_for_identity_but_blocked_by_incomplete_lower_order_sibling_assigned_to_someone_else`, `mine_marks_ordered_leaf_once_blocking_lower_order_sibling_is_done`, `as_gini_marks_leaf_assigned_to_gini`, `as_alice_skips_leaf_assigned_to_gini`.
+   Gap: "requires a resolvable identity, errors if none can be determined" is NOT directly tested for `next` itself — only `list` (`task_list_mine_without_git_identity_errors`) and now `done` (`task_done_mine_without_git_identity_errors`, in `next_done_parity.rs`) have this acceptance test. Behavior is inferred from the shared `resolve_cli_identity` code path, not verified by an AC test for `next`.
+3.  next <N>  (plain count): shows only the Nth still-incomplete top-level task — not tasks 1 through N.
+   Tested: `task_next_with_plain_number_shows_only_that_task_not_all_up_to_it`.
+4.  next <N> --mine : selects the Nth eligible task (ranked among eligible-only), but reports/resolves its true absolute rank (so  done <that number>  without  --mine  hits the same task).
+   Tested: `task_next_mine_with_plain_number_selects_nth_eligible_task_only`, `task_next_mine_prints_the_rank_not_the_eligible_only_position` (the latter also cross-checks against `task done <rank>`).
+5. Dotted address ( next 1.1 ,  2.1.4 , ...): descends into direct children (any status) to arbitrary depth, printed as its own root with its own subtree. Cannot combine with  --mine / --as  (rejected).
+   Tested: `task_next_with_dotted_address_shows_specific_subtask_as_its_own_root`, `task_next_with_deeper_dotted_address_descends_multiple_levels`, `task_next_mine_with_dotted_address_is_rejected`.
+6. Invalid/malformed address: exits non-zero — covers both out-of-range numeric (e.g.  1.99 ) and non-numeric (e.g.  abc ) addresses.
+   Tested: `task_next_invalid_address_exits_nonzero`, `task_next_malformed_address_exits_nonzero`.
 
- agile task done :
+agile task done :
 
-1. No address: marks the next eligible task done — same selection  task next  would show. Unlike  next , if nothing is eligible this is an error (non-zero exit, file untouched), not a silent no-op.
-2.  --mine  /  --as <user> : marks that identity's next eligible task done, skipping tasks assigned to others.
-3. next <N> : Explicit address (e.g. 2): marks exactly that node, refusing (printing the violated rule, no write) if it has incomplete required children, missing required subtasks, a disallowed cancelled required subtask, or would be an unauthorized completion (E013).
-4.  next <N> --mine : rejected (error, file untouched).
-5. Dotted address ( next 1.1 ): ??
-6. Only reads/writes the one file the addressed task lives in.
+1. No address: marks the next eligible (sub)task done — the same one  task next  would show. Unlike  next , if nothing is eligible this is an error (non-zero exit, file untouched), not a silent no-op.
+   Tested: `task_done_with_no_address_marks_the_first_incomplete_top_level_task`, `task_done_with_no_address_marks_the_nested_next_actionable_subtask_not_the_parent`, `task_done_with_no_address_and_no_eligible_task_is_an_error`.
+   Cross-checked directly against `next` (`next_done_parity.rs`): `plain_no_address_next_and_done_target_the_same_top_level_task`, `plain_no_address_next_and_done_target_the_same_nested_subtask`.
+2.  --mine  /  --as <user>  (no address): marks that identity's next eligible task done, skipping tasks assigned to others — including an order-blocked task nominally assigned to the identity (errors instead of completing it out of order). Requires a resolvable identity (errors if none can be determined).
+   Tested: `task_done_mine_marks_the_next_eligible_task_assigned_to_me`, `task_done_as_someone_marks_that_persons_next_eligible_task`, `task_done_mine_without_git_identity_errors`.
+   Cross-checked directly against `next --mine` (`next_done_parity.rs`): `mine_no_address_next_and_done_target_the_same_eligible_task`, `mine_skips_sibling_assigned_to_someone_else_next_and_done_target_the_same_nested_leaf`, `mine_no_eligible_leaf_next_prints_nothing_and_done_errors_without_writing`, `mine_order_blocked_leaf_next_prints_nothing_and_done_errors_without_writing`, `mine_order_unblocked_leaf_next_and_done_target_the_same_leaf`.
+3.  done <N>  (explicit numeric address): marks exactly that node, refusing (printing the violated rule, no write) if it has incomplete required children (E004), missing required subtasks (E010), a disallowed cancelled required subtask (E012), is already done/not a todo task, or would be an unauthorized completion of a task assigned to someone else (E013).
+   Tested: `task_done_marks_top_level_task_complete_in_place`, `task_done_refuses_when_a_required_child_is_incomplete`, `task_done_refuses_when_a_required_subtask_is_missing`, `task_done_refuses_when_a_branch_property_is_still_unresolved`, `task_done_refuses_when_a_required_field_is_left_unfilled`, `task_done_allows_completion_once_the_required_field_is_actually_filled_in`, `task_done_on_already_done_task_exits_nonzero`, `task_done_refuses_to_complete_a_task_assigned_to_someone_else`, `task_done_allows_completion_by_the_assigned_user`, `task_done_as_flag_overrides_the_local_git_identity`, `task_done_allows_completing_an_unassigned_task_outside_a_git_repo`.
+4.  done <N> --mine  (explicit address combined with  --mine ): rejected (error, file untouched).
+   Tested: `task_done_mine_cannot_be_combined_with_an_explicit_address` — only with a plain numeric address ( 1 ), not a dotted one.
+   Gap: whether a dotted address (e.g.  done 1.2 --mine ) is rejected the same way is not directly tested.
+5. Dotted address ( done 1.2 ): descends into that subtask as its own root and applies the exact same completion-rule checks as point 3.
+   Tested: `task_done_marks_specific_subtask_via_dotted_address`.
+6. Invalid address: exits non-zero.
+   Tested: `task_done_invalid_address_exits_nonzero` — only covers out-of-range numeric (e.g.  5  on a 1-task file).
+   Gap: no done-specific test for a malformed/non-numeric address (like  next 's  abc  case).
+7. Only reads/writes the one file the addressed task lives in — doesn't re-validate the rest of the project. (Implementation detail, not separately asserted by any single acceptance test; implied by the "efficient, no whole-project scan" design note elsewhere in this file.)
 
 Parallelism :
 
-1. tests missing
-- [x] add AC tests
-
-2. 
-
-3.  
+1. [x] Cross-command AC tests added in `next_done_parity.rs`: no-address parity (plain top-level, nested subtask, and `--mine` incl. order-blocking) — `next`/`done` agree wherever both succeed, and `done` correctly errors instead of silently no-op'ing wherever `next` would print nothing.
+2. Remaining gaps (see inline notes above): no `next`-side "no identity" AC test; no `done`-side malformed-address AC test; no `done`-side "`--mine` + dotted address" rejection AC test.
 
 
 ## GUI 2.0
