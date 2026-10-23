@@ -4,6 +4,8 @@ mod done;
 mod list;
 #[path = "task/next.rs"]
 mod next;
+#[path = "task/next_done_parity.rs"]
+mod next_done_parity;
 #[path = "task/next_eligibility.rs"]
 mod next_eligibility;
 #[path = "task/previous.rs"]
