@@ -18,6 +18,11 @@
 - Task Body: Free-text lines immediately following a Task (before the next blank line).
 - Other Content: Any text that is not part of a Task or Subtask, such as free-form notes, comments, or descriptions. Not associated with any Task.
 
+## Priority
+
+- Offset: Distance of task to highest prio task, given current context. Used with e.g. `agile task next`: This command normally shows the next highest prio elligible task. With an offset provided, the next N-1 such tasks are skipped and the Nth task shown.
+- Address: Special offset, ignoring elligibility.
+
 ## Markers
 
 - Marker: Word prefixed by a "#" or "@", e.g. user defined properties are identified with markers `#my_property`.
