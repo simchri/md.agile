@@ -258,24 +258,15 @@ pub enum TaskAction {
         no_markup: bool,
     },
 
-    /// Show the task at a given Rank or Address, ignoring Eligibility
+    /// Show the task at a given Rank (Address)
     ///
     /// With no arguments, returns the top-level task with Rank 1 — the first
-    /// incomplete ([ ]) one in document order — including its full subtask
-    /// tree. Prints nothing if no task has Rank 1 (every task is complete or
-    /// cancelled).
+    /// incomplete task in document order, including full subtask
+    /// tree. Prints nothing if there are no open tasks.
     ///
-    /// Unlike `agile task next`, there is no `--mine`/`--as`: `show` always
-    /// resolves the same ADDRESS to the same (sub)task regardless of
-    /// assignment, exactly like `agile task done`/`undone`.
     Show {
-        /// A Rank (plain number, e.g. `3`) to show only the top-level task
-        /// with that Rank — not tasks 1 through 3. Or an Address (dotted,
-        /// e.g. `1.2`, `2.1.4`) to show one specific (sub)task by position:
-        /// the first number is a top-level task's Rank; each subsequent
-        /// number selects the Nth direct child of the previously-selected
-        /// node (in document order, any status). Omit to show just the
-        /// Rank-1 task.
+        /// Rank of task to show (plain number, e.g. `3`) Alternatively, an Address (dotted,
+        /// e.g. `1.2`, `2.1.4`) to show one specific subtask.
         #[arg(value_name = "ADDRESS")]
         address: Option<String>,
 
