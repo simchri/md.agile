@@ -87,38 +87,6 @@ fn tasks_alias_works_for_next() {
 }
 
 #[test]
-fn show_alias_works_bare_and_with_a_dotted_address() {
-    let dir = tempdir().unwrap();
-    let content = "\
-- [ ] first task
-  - [ ] subtask one
-  - [ ] subtask two
-- [ ] second task
-";
-    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
-
-    let bare = run_agile(dir.path(), &["task", "show"]);
-    assert!(bare.status.success());
-    let bare_stdout = String::from_utf8(bare.stdout).unwrap();
-    assert!(
-        bare_stdout.contains("[ ] first task"),
-        "stdout: {bare_stdout:?}"
-    );
-
-    let addressed = run_agile(dir.path(), &["task", "show", "1.2"]);
-    assert!(addressed.status.success());
-    let addressed_stdout = String::from_utf8(addressed.stdout).unwrap();
-    assert!(
-        addressed_stdout.contains("[ ] subtask two"),
-        "stdout: {addressed_stdout:?}"
-    );
-    assert!(
-        !addressed_stdout.contains("subtask one"),
-        "stdout: {addressed_stdout:?}"
-    );
-}
-
-#[test]
 fn task_next_with_plain_number_shows_only_that_task_not_all_up_to_it() {
     let dir = tempdir().unwrap();
     let content = "\
@@ -145,58 +113,31 @@ fn task_next_with_plain_number_shows_only_that_task_not_all_up_to_it() {
 }
 
 #[test]
-fn task_next_with_dotted_address_shows_specific_subtask_as_its_own_root() {
+fn task_next_rejects_a_dotted_offset() {
+    // `next` only ever addresses a top-level task directly via a plain
+    // OFFSET; descending into a specific (sub)task is `agile task show`'s
+    // job — a dotted OFFSET is rejected here regardless of `--mine`.
     let dir = tempdir().unwrap();
-    let content = "\
+    let file_content = "\
 - [ ] parent task
   - [ ] subtask one
-    - [ ] grandchild
-  - [ ] subtask two
 ";
-    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
-    let out = run_agile(dir.path(), &["task", "next", "1.2"]);
+    let out = run_agile(dir.path(), &["task", "next", "1.1"]);
 
-    assert!(out.status.success());
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(
-        stdout.contains("[ ] subtask two"),
-        "should show subtask two as root: {stdout:?}"
-    );
-    assert!(
-        !stdout.contains("parent task") && !stdout.contains("subtask one"),
-        "should not show unrelated nodes: {stdout:?}"
-    );
+    assert!(!out.status.success());
 }
 
 #[test]
-fn task_next_with_deeper_dotted_address_descends_multiple_levels() {
-    let dir = tempdir().unwrap();
-    let content = "\
-- [ ] parent task
-  - [ ] subtask one
-    - [ ] grandchild a
-    - [ ] grandchild b
-";
-    fs::write(dir.path().join("tasks.agile.md"), content).unwrap();
-
-    let out = run_agile(dir.path(), &["task", "next", "1.1.2"]);
-
-    assert!(out.status.success());
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    assert!(stdout.contains("[ ] grandchild b"), "stdout: {stdout:?}");
-    assert!(!stdout.contains("grandchild a"), "stdout: {stdout:?}");
-}
-
-#[test]
-fn task_next_invalid_address_exits_nonzero() {
+fn task_next_out_of_range_offset_exits_nonzero() {
     let dir = tempdir().unwrap();
     let file_content = "\
 - [ ] a task
 ";
     fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
 
-    let out = run_agile(dir.path(), &["task", "next", "1.99"]);
+    let out = run_agile(dir.path(), &["task", "next", "99"]);
 
     assert!(!out.status.success());
 }
@@ -297,20 +238,6 @@ git_emails = [\"bob@example.com\"]
         stdout.contains("alice's task"),
         "`done 3` should mark the exact same task `next 2 --mine` printed, stdout: {stdout:?}"
     );
-}
-
-#[test]
-fn task_next_mine_with_dotted_address_is_rejected() {
-    let dir = tempdir().unwrap();
-    git(dir.path(), &["init", "-q"]);
-    let file_content = "\
-- [ ] a task
-";
-    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-
-    let out = run_agile(dir.path(), &["task", "next", "1.1", "--mine"]);
-
-    assert!(!out.status.success());
 }
 
 #[test]

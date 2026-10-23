@@ -35,28 +35,41 @@ Status markers used below (always at the start of the bullet):
       (`rules::is_eligible_for`) as `agile task next --mine`
     - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
       of the git identity from `git config user.email`/`user.name`
-  - done: `next [ADDRESS]` (alias: `show`)
-    - Prints exactly one (sub)task, resolved by `ADDRESS` using the exact
-      same address-resolution logic as `done <ADDRESS>` (same function).
-      With no `ADDRESS`, defaults to address `1` — but unlike an explicit
-      address, no match here (e.g. every task done/cancelled) is not an
-      error, it just prints nothing.
+  - done: `next [OFFSET]`
+    - Prints exactly one top-level task, resolved by a plain, non-negative
+      `OFFSET` (no dotted address — that's `show`'s job). With no `OFFSET`,
+      defaults to offset `1` — but unlike an explicit offset, no match here
+      (e.g. every task done/cancelled) is not an error, it just prints
+      nothing.
     - done: plain number (e.g. `next 3`) — prints only the 3rd matching
       top-level task, not tasks 1 through 3
-    - done: dotted address (e.g. `next 1.2`, `next 2.1.4`) — prints the one
+    - done: `--mine` — restricts the top-level tasks counted by `OFFSET` to
+      unassigned tasks or tasks assigned to me (directly or via a group),
+      same eligibility rule as E013
+    - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
+      of the git identity from `git config user.email`/`user.name`
+    - done: `--full` — also prints each rendered (sub)task's body lines
+      indented beneath it (omitted by default)
+    - done: the printed subtree always bolds the first `Todo` *leaf* (a
+      node with no children) in document order — the concrete next
+      actionable task, even when nested under already-done
+      siblings/ancestors
+  - done: `show [ADDRESS]`
+    - Prints exactly one (sub)task, resolved by `ADDRESS` using the exact
+      same address-resolution logic as `done <ADDRESS>` (same function),
+      always ignoring eligibility — no `--mine`/`--as` at all. With no
+      `ADDRESS`, defaults to address `1` — but unlike an explicit address,
+      no match here (e.g. every task done/cancelled) is not an error, it
+      just prints nothing.
+    - done: plain number (e.g. `show 3`) — prints only the top-level task
+      with that Rank, not tasks 1 through 3
+    - done: dotted address (e.g. `show 1.2`, `show 2.1.4`) — prints the one
       (sub)task at that position (plus its own subtree) as its own root.
-      `I` (first segment) is 1-based, counting only still-incomplete
-      top-level tasks in priority order; each following segment is 1-based
+      The first segment is 1-based, counting only still-incomplete
+      top-level tasks in document order; each following segment is 1-based
       and counts direct children (any status) of the previously-resolved
       node, in document order, to arbitrary depth — so nested subtasks can
       be addressed directly too
-    - done: `--mine` — restricts the top-level tasks counted by the
-      address's first segment to unassigned tasks or tasks assigned to me
-      (directly or via a group), same eligibility rule as E013. Only valid
-      with no address or a plain number, not a dotted address (a dotted
-      address already names one exact task regardless of assignment)
-    - done: `--as <USER>` — resolve `--mine` as this `[Users.X]` key instead
-      of the git identity from `git config user.email`/`user.name`
     - done: `--full` — also prints each rendered (sub)task's body lines
       indented beneath it (omitted by default)
     - done: the printed subtree always bolds the first `Todo` *leaf* (a

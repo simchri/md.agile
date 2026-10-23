@@ -10,5 +10,7 @@ mod next_done_parity;
 mod next_eligibility;
 #[path = "task/previous.rs"]
 mod previous;
+#[path = "task/show.rs"]
+mod show;
 #[path = "task/undone.rs"]
 mod undone;

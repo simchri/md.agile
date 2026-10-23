@@ -12,30 +12,24 @@ use crate::parser::{FileItem, Status, Subtask};
 use crate::rules::{self, Issue, NodeRef, ResolvedIdentity};
 use std::path::{Path, PathBuf};
 
-/// `agile task next [ADDRESS]` entry point.
+/// `agile task next [OFFSET]` entry point.
 ///
-/// `ADDRESS` uses exactly the same resolution as `agile task done`'s
-/// address (see [`resolve_address`]): a plain number (e.g. `3`) selects the
-/// 3rd matching top-level task and prints *only* that one task — it does
-/// not print tasks 1 through 3. A dotted address (e.g. `1.2`, `2.1.4`)
-/// descends into direct children (any status) from there, to arbitrary
-/// depth, and prints that one (sub)task as its own root, subtree included.
-/// With no address at all, this defaults to address `1` (the single next
-/// incomplete top-level task) — but unlike an explicit address, finding no
+/// `OFFSET` is a plain, non-negative count (e.g. `3`): it selects the 3rd
+/// matching top-level task and prints *only* that one task — it does not
+/// print tasks 1 through 3. Unlike `agile task show`, a dotted address
+/// (e.g. `1.2`) is rejected here: `next` only ever addresses a top-level
+/// task directly (drilling into a specific (sub)task is `show`'s job).
+/// With no `OFFSET` at all, this defaults to offset `1` (the single next
+/// incomplete top-level task) — but unlike an explicit offset, finding no
 /// match here is not an error: it just prints nothing (there may simply be
 /// no incomplete tasks left).
 ///
-/// `mine` restricts the top-level tasks counted by the address's first
-/// segment to ones that are unassigned or assigned to the resolved identity
-/// (`as_user`, or the git identity if `as_user` is `None`) — see
-/// [`rules::is_eligible_for`]. `mine` is only valid with no address or a
-/// plain number — combining it with a dotted address is a hard error, since
-/// a dotted address already names one exact node regardless of assignment.
-/// `as_user` implies `mine` even if `mine` itself is `false`, so `--as alice`
-/// alone (without `--mine`) still filters by alice's eligibility.
+/// `mine` restricts the top-level tasks counted by `OFFSET` to ones that
+/// are unassigned or assigned to the resolved identity (`as_user`, or the
+/// git identity if `as_user` is `None`) — see [`rules::is_eligible_for`].
+/// `as_user` implies `mine` even if `mine` itself is `false`, so `--as
+/// alice` alone (without `--mine`) still filters by alice's eligibility.
 ///
-/// `full` additionally prints each (sub)task's body lines alongside its
-/// title line.
 /// `full` additionally prints each (sub)task's body lines alongside its
 /// title line.
 ///
@@ -45,7 +39,7 @@ use std::path::{Path, PathBuf};
 pub fn run_next(
     root: &Path,
     config: &Config,
-    address: Option<&str>,
+    offset: Option<&str>,
     mine: bool,
     as_user: Option<&str>,
     full: bool,
@@ -53,23 +47,21 @@ pub fn run_next(
 ) {
     let mine = mine || as_user.is_some();
 
-    let parts = match address.map(parse_address) {
+    let parts = match offset.map(parse_address) {
         None => None,
         Some(Some(parts)) => Some(parts),
         Some(None) => {
             log::error!(
-                "invalid task address {:?} — expected a number or dotted address like `1.2`",
-                address.unwrap()
+                "invalid offset {:?} — expected a plain, non-negative number",
+                offset.unwrap()
             );
             std::process::exit(1);
         }
     };
 
-    let dotted = matches!(&parts, Some(p) if p.len() > 1);
-
-    if mine && dotted {
+    if matches!(&parts, Some(p) if p.len() > 1) {
         log::error!(
-            "`--mine` cannot be combined with a dotted address (a dotted address already names one exact task)"
+            "`agile task next` only accepts a plain OFFSET, not a dotted address — use `agile task show` to address a specific (sub)task directly"
         );
         std::process::exit(1);
     }
@@ -86,6 +78,62 @@ pub fn run_next(
         None
     };
 
+    print_resolved_address(root, config, parts, identity.as_ref(), full, no_markup);
+}
+
+/// `agile task show [ADDRESS]` entry point.
+///
+/// `ADDRESS` uses exactly the same resolution as `agile task done`'s
+/// address (see [`resolve_address`]): a plain number (e.g. `3`) is a Rank,
+/// selecting the top-level task with that Rank and printing *only* that one
+/// task — it does not print tasks 1 through 3. A dotted address (e.g.
+/// `1.2`, `2.1.4`) descends into direct children (any status) from there,
+/// to arbitrary depth, and prints that one (sub)task as its own root,
+/// subtree included. With no address at all, this defaults to Rank `1` (the
+/// first incomplete top-level task) — but unlike an explicit address,
+/// finding no match here is not an error: it just prints nothing (there may
+/// simply be no incomplete tasks left).
+///
+/// Unlike `agile task next`, `show` always ignores Eligibility entirely —
+/// there is no `--mine`/`--as` — so it always resolves the same ADDRESS to
+/// the same (sub)task regardless of assignment, exactly like `agile task
+/// done`/`undone`.
+///
+/// `full` additionally prints each (sub)task's body lines alongside its
+/// title line.
+///
+/// `no_markup` disables ANSI bold/color escapes entirely: the concrete next
+/// actionable line is instead marked by appending `" <=="` to it. Useful
+/// for scripting/piping output where ANSI escapes would be unwanted noise.
+pub fn run_show(root: &Path, config: &Config, address: Option<&str>, full: bool, no_markup: bool) {
+    let parts = match address.map(parse_address) {
+        None => None,
+        Some(Some(parts)) => Some(parts),
+        Some(None) => {
+            log::error!(
+                "invalid task address {:?} — expected a number or dotted address like `1.2`",
+                address.unwrap()
+            );
+            std::process::exit(1);
+        }
+    };
+
+    print_resolved_address(root, config, parts, None, full, no_markup);
+}
+
+/// Shared resolve-and-print tail for [`run_next`] and [`run_show`]: resolves
+/// `parts` (defaulting to `[1]`, i.e. Rank 1, if `None`) against `identity`
+/// and prints the result, or — only when `parts` was explicitly given —
+/// exits nonzero on failure. An implicit default-to-Rank-1 resolution that
+/// finds nothing is not an error: it just prints nothing.
+fn print_resolved_address(
+    root: &Path,
+    config: &Config,
+    parts: Option<Vec<usize>>,
+    identity: Option<&ResolvedIdentity>,
+    full: bool,
+    no_markup: bool,
+) {
     let explicit_address = parts.is_some();
     let resolve_parts = parts.unwrap_or_else(|| vec![1]);
 
@@ -93,7 +141,7 @@ pub fn run_next(
         root,
         &resolve_parts,
         config,
-        identity.as_ref(),
+        identity,
         TopLevelFilter::Status(Status::Todo),
     ) {
         Ok(resolved) => {
@@ -103,7 +151,7 @@ pub fn run_next(
                 render_resolved(
                     &resolved,
                     full,
-                    identity.as_ref(),
+                    identity,
                     config,
                     no_markup,
                     &displayed_rank,

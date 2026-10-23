@@ -225,23 +225,20 @@ pub enum TaskAction {
     /// incomplete ([ ]) one in document order — including its full subtask
     /// tree. Skips done ([x]) and cancelled ([-]) tasks (they have no
     /// Rank). Prints nothing if every task is complete or cancelled.
-    #[command(visible_alias = "show")]
     Next {
         /// An Offset (plain count, e.g. `3`) to show only the Nth matching
         /// task — the task with Rank 3 by default, or (combined with
         /// `--mine`/`--as`) the 3rd Eligible task — not tasks 1 through 3.
-        /// Or an Address (dotted, e.g. `1.2`, `2.1.4`) to show one specific
-        /// (sub)task by position, ignoring Eligibility: the first number is
-        /// a top-level task's Rank; each subsequent number selects the Nth
-        /// direct child of the previously-selected node (in document order,
-        /// any status). Omit to show just the single next task.
+        /// Omit to show just the single next task. To address a specific
+        /// (sub)task directly (a dotted address, ignoring Eligibility), use
+        /// `agile task show` instead.
         #[arg(value_name = "OFFSET")]
         address: Option<String>,
 
         /// Only consider Eligible task(s) — unassigned (open to anyone) or
         /// assigned to me, directly or via a group — the same rule as the
         /// E013 assignment/completion check. Can be combined with an Offset
-        /// (e.g. `next 3 --mine`), but not with a (dotted) Address.
+        /// (e.g. `next 3 --mine`).
         #[arg(long)]
         mine: bool,
 
@@ -257,6 +254,37 @@ pub enum TaskAction {
 
         /// Disable ANSI bold/color output. The concrete next actionable
         /// line is instead marked by appending " <==" to it in plain text.
+        #[arg(long)]
+        no_markup: bool,
+    },
+
+    /// Show the task at a given Rank or Address, ignoring Eligibility
+    ///
+    /// With no arguments, returns the top-level task with Rank 1 — the first
+    /// incomplete ([ ]) one in document order — including its full subtask
+    /// tree. Prints nothing if no task has Rank 1 (every task is complete or
+    /// cancelled).
+    ///
+    /// Unlike `agile task next`, there is no `--mine`/`--as`: `show` always
+    /// resolves the same ADDRESS to the same (sub)task regardless of
+    /// assignment, exactly like `agile task done`/`undone`.
+    Show {
+        /// A Rank (plain number, e.g. `3`) to show only the top-level task
+        /// with that Rank — not tasks 1 through 3. Or an Address (dotted,
+        /// e.g. `1.2`, `2.1.4`) to show one specific (sub)task by position:
+        /// the first number is a top-level task's Rank; each subsequent
+        /// number selects the Nth direct child of the previously-selected
+        /// node (in document order, any status). Omit to show just the
+        /// Rank-1 task.
+        #[arg(value_name = "ADDRESS")]
+        address: Option<String>,
+
+        /// Also show each (sub)task's body text alongside its title
+        #[arg(long)]
+        full: bool,
+
+        /// Disable ANSI bold/color output. The addressed line is instead
+        /// marked by appending " <==" to it in plain text.
         #[arg(long)]
         no_markup: bool,
     },
@@ -443,6 +471,16 @@ pub fn run() {
                 full,
                 no_markup,
             );
+        }
+        Some(Command::Task {
+            action:
+                TaskAction::Show {
+                    address,
+                    full,
+                    no_markup,
+                },
+        }) => {
+            subcommands::task::run_show(root, &config, address.as_deref(), full, no_markup);
         }
         Some(Command::Task {
             action:

@@ -199,30 +199,6 @@ fn marks_nothing_when_no_todo_leaf_exists() {
 }
 
 #[test]
-fn marks_within_dotted_addressed_subtask_subtree() {
-    // Arrange
-    let dir = tempdir().unwrap();
-    let file_content = "\
-- [ ] parent task
-  - [ ] addressed subtask
-    - [x] already done grandchild
-    - [ ] next leaf
-";
-    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
-
-    // Act
-    let stdout = stdout_of(dir.path(), &["task", "next", "1.1", "--no-markup"]);
-
-    // Assert
-    let expected = "\
-1.1   [ ] addressed subtask
-1.1.1   [x] already done grandchild
-1.1.2   [ ] next leaf <==
-";
-    assert_eq!(stdout, expected);
-}
-
-#[test]
 fn includes_body_when_full_flag_given() {
     // Arrange
     let dir = tempdir().unwrap();
