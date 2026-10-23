@@ -1205,14 +1205,13 @@ Tests for agile task done (numbering matches the behavior list above):
 4. `task_done_mine_cannot_be_combined_with_an_explicit_address` — only with a plain numeric address ( 1 ), not a dotted one.
    Gap: whether a dotted address (e.g.  done 1.2 --mine ) is rejected the same way is not directly tested.
 5. `task_done_marks_specific_subtask_via_dotted_address`.
-6. `task_done_invalid_address_exits_nonzero` — only covers out-of-range numeric (e.g.  5  on a 1-task file).
-   Gap: no done-specific test for a malformed/non-numeric address (like  next 's  abc  case).
+6. `task_done_invalid_address_exits_nonzero` (out-of-range numeric, e.g.  5  on a 1-task file), `task_done_malformed_address_exits_nonzero` (non-numeric, e.g.  abc ).
 7. No dedicated test; see point 7 note above.
 
 Parallelism :
 
 1. [x] Cross-command AC tests added in `next_done_parity.rs`: no-address parity (plain top-level, nested subtask, and `--mine` incl. order-blocking) — `next`/`done` agree wherever both succeed, and `done` correctly errors instead of silently no-op'ing wherever `next` would print nothing.
-2. Remaining gaps (see inline notes above): no `done`-side malformed-address AC test; no `done`-side "`--mine` + dotted address" rejection AC test.
+2. Remaining gaps (see inline notes above): no `done`-side "`--mine` + dotted address" rejection AC test.
 
 
 ## GUI 2.0

@@ -281,6 +281,19 @@ fn task_done_invalid_address_exits_nonzero() {
 }
 
 #[test]
+fn task_done_malformed_address_exits_nonzero() {
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] a task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "abc"]);
+
+    assert!(!out.status.success());
+}
+
+#[test]
 fn task_done_on_already_done_task_exits_nonzero() {
     let dir = tempdir().unwrap();
     let content = "\
