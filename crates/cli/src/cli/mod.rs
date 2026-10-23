@@ -296,7 +296,9 @@ pub enum TaskAction {
     ///
     /// With no ADDRESS at all, marks the next eligible (sub)task done — the
     /// same one `agile task next` (with the same `--mine`/`--as`, if given)
-    /// would have shown.
+    /// would have shown. Unlike `agile task next`, which prints nothing and
+    /// exits 0 when nothing eligible is left, finding no eligible task here
+    /// is an error (there's nothing to mark done, so it can't succeed).
     Done {
         /// Dotted address, e.g. `2` or `1.3`. Omit to mark the next eligible
         /// task done (see `agile task next`).

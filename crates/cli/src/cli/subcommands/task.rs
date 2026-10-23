@@ -207,6 +207,9 @@ pub fn run_previous(
 /// --mine`/`--as`): it resolves to the single next eligible top-level task
 /// and marks *that* one done, instead of requiring the caller to look it up
 /// with `next` first and pass its rank back in as an explicit address.
+/// Unlike `agile task next` in this no-address case, finding no eligible
+/// task is an error here (exits 1) rather than a silent no-op success,
+/// since there would be nothing to actually mark done.
 /// `mine` is a hard error when combined with an explicit `address`, since an
 /// explicit address already names one exact task regardless of assignment.
 ///
@@ -561,7 +564,8 @@ pub(crate) enum TopLevelFilter {
 /// If `eligible_for` is `Some`, top-level candidates are further restricted
 /// to ones [`rules::is_eligible_for`] that identity (unassigned, or assigned
 /// to them directly or via a group) — this is what backs
-/// `agile task next N --mine`. `agile task done`/`agile task undone` never
+/// `agile task next N --mine` and `agile task done --mine` (no address).
+/// `agile task done` with an explicit address and `agile task undone` never
 /// pass an identity, since an address there always names one exact task
 /// regardless of who it's assigned to.
 ///
