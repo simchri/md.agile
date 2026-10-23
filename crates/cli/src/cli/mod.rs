@@ -219,7 +219,7 @@ pub enum Command {
 
 #[derive(Subcommand)]
 pub enum TaskAction {
-    /// Show the next highest-priority incomplete task(s)
+    /// Show the next highest-priority incomplete task
     ///
     /// With no arguments, returns the top-level task with Rank 1 — the first
     /// incomplete ([ ]) one in document order — including its full subtask
@@ -235,6 +235,7 @@ pub enum TaskAction {
         /// a top-level task's Rank; each subsequent number selects the Nth
         /// direct child of the previously-selected node (in document order,
         /// any status). Omit to show just the single next task.
+        #[arg(value_name = "OFFSET")]
         address: Option<String>,
 
         /// Only consider Eligible task(s) — unassigned (open to anyone) or
