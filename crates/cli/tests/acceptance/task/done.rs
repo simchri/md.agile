@@ -572,6 +572,26 @@ fn task_done_mine_cannot_be_combined_with_an_explicit_address() {
 }
 
 #[test]
+fn task_done_mine_with_dotted_address_is_rejected() {
+    let dir = tempdir().unwrap();
+    git(dir.path(), &["init", "-q"]);
+    let file_content = "\
+- [ ] a task
+  - [ ] a subtask
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "done", "1.1", "--mine"]);
+
+    assert!(!out.status.success());
+    // file must be untouched
+    assert_eq!(
+        fs::read_to_string(dir.path().join("tasks.agile.md")).unwrap(),
+        file_content
+    );
+}
+
+#[test]
 fn task_done_with_no_address_and_no_eligible_task_is_an_error() {
     let dir = tempdir().unwrap();
     let file_content = "\

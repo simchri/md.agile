@@ -1202,8 +1202,7 @@ Tests for agile task done (numbering matches the behavior list above):
 2. `task_done_mine_marks_the_next_eligible_task_assigned_to_me`, `task_done_as_someone_marks_that_persons_next_eligible_task`, `task_done_mine_without_git_identity_errors`.
    Cross-checked directly against `next --mine` (`next_done_parity.rs`): `mine_no_address_next_and_done_target_the_same_eligible_task`, `mine_skips_sibling_assigned_to_someone_else_next_and_done_target_the_same_nested_leaf`, `mine_no_eligible_leaf_next_prints_nothing_and_done_errors_without_writing`, `mine_order_blocked_leaf_next_prints_nothing_and_done_errors_without_writing`, `mine_order_unblocked_leaf_next_and_done_target_the_same_leaf`.
 3. `task_done_marks_top_level_task_complete_in_place`, `task_done_refuses_when_a_required_child_is_incomplete`, `task_done_refuses_when_a_required_subtask_is_missing`, `task_done_refuses_when_a_branch_property_is_still_unresolved`, `task_done_refuses_when_a_required_field_is_left_unfilled`, `task_done_allows_completion_once_the_required_field_is_actually_filled_in`, `task_done_on_already_done_task_exits_nonzero`, `task_done_refuses_to_complete_a_task_assigned_to_someone_else`, `task_done_allows_completion_by_the_assigned_user`, `task_done_as_flag_overrides_the_local_git_identity`, `task_done_allows_completing_an_unassigned_task_outside_a_git_repo`.
-4. `task_done_mine_cannot_be_combined_with_an_explicit_address` — only with a plain numeric address ( 1 ), not a dotted one.
-   Gap: whether a dotted address (e.g.  done 1.2 --mine ) is rejected the same way is not directly tested.
+4. `task_done_mine_cannot_be_combined_with_an_explicit_address` (plain numeric address, e.g.  1 ), `task_done_mine_with_dotted_address_is_rejected` (dotted address, e.g.  1.1 ).
 5. `task_done_marks_specific_subtask_via_dotted_address`.
 6. `task_done_invalid_address_exits_nonzero` (out-of-range numeric, e.g.  5  on a 1-task file), `task_done_malformed_address_exits_nonzero` (non-numeric, e.g.  abc ).
 7. No dedicated test; see point 7 note above.
@@ -1211,7 +1210,7 @@ Tests for agile task done (numbering matches the behavior list above):
 Parallelism :
 
 1. [x] Cross-command AC tests added in `next_done_parity.rs`: no-address parity (plain top-level, nested subtask, and `--mine` incl. order-blocking) — `next`/`done` agree wherever both succeed, and `done` correctly errors instead of silently no-op'ing wherever `next` would print nothing.
-2. Remaining gaps (see inline notes above): no `done`-side "`--mine` + dotted address" rejection AC test.
+2. All identified gaps closed: `done`-side malformed-address AC test and `done`-side "`--mine` + dotted address" rejection AC test both added (see inline notes above).
 
 
 ## GUI 2.0
