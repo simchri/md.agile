@@ -343,6 +343,24 @@ git_emails = [\"bob@example.com\"]
 }
 
 #[test]
+fn task_next_mine_without_git_identity_errors() {
+    // Parity with `task_list_mine_without_git_identity_errors` (list.rs) and
+    // `task_done_mine_without_git_identity_errors` (next_done_parity.rs):
+    // `--mine` cannot filter by identity without one, so it hard-fails
+    // rather than silently falling back to unconditional "first Todo leaf"
+    // behavior, even though that task is itself unassigned.
+    let dir = tempdir().unwrap();
+    let file_content = "\
+- [ ] a task
+";
+    fs::write(dir.path().join("tasks.agile.md"), file_content).unwrap();
+
+    let out = run_agile(dir.path(), &["task", "next", "--mine"]);
+
+    assert!(!out.status.success());
+}
+
+#[test]
 fn task_next_as_without_mine_still_filters_by_the_named_identity() {
     let dir = tempdir().unwrap();
     git(dir.path(), &["init", "-q"]);

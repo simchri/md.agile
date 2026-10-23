@@ -1189,8 +1189,7 @@ agile task done :
 Tests for agile task next (numbering matches the behavior list above):
 
 1. `task_next_prints_first_active_task`, `task_next_includes_subtree_of_next_task`, `task_next_empty_project_exits_zero_with_no_output`, and in `next_eligibility.rs`: `marks_the_only_todo_leaf`, `marks_first_todo_leaf_in_document_order`, `skips_non_leaf_todo_nodes`, `marks_a_todo_node_whose_children_are_all_resolved_even_though_it_has_children`, `marks_nothing_when_no_todo_leaf_exists`.
-2. (`next_eligibility.rs`): `mine_skips_leaf_assigned_to_someone_else`, `mine_marks_nothing_when_no_leaf_eligible_for_identity`, `mine_skips_ordered_leaf_eligible_for_identity_but_blocked_by_incomplete_lower_order_sibling_assigned_to_someone_else`, `mine_marks_ordered_leaf_once_blocking_lower_order_sibling_is_done`, `as_gini_marks_leaf_assigned_to_gini`, `as_alice_skips_leaf_assigned_to_gini`.
-   Gap: "requires a resolvable identity, errors if none can be determined" is NOT directly tested for `next` itself — only `list` (`task_list_mine_without_git_identity_errors`) and `done` (`task_done_mine_without_git_identity_errors`, in `next_done_parity.rs`) have this acceptance test. Behavior is inferred from the shared `resolve_cli_identity` code path, not verified by an AC test for `next`.
+2. (`next_eligibility.rs`): `mine_skips_leaf_assigned_to_someone_else`, `mine_marks_nothing_when_no_leaf_eligible_for_identity`, `mine_skips_ordered_leaf_eligible_for_identity_but_blocked_by_incomplete_lower_order_sibling_assigned_to_someone_else`, `mine_marks_ordered_leaf_once_blocking_lower_order_sibling_is_done`, `as_gini_marks_leaf_assigned_to_gini`, `as_alice_skips_leaf_assigned_to_gini`. `task_next_mine_without_git_identity_errors` (next.rs).
 3. `task_next_with_plain_number_shows_only_that_task_not_all_up_to_it`.
 4. `task_next_mine_with_plain_number_selects_nth_eligible_task_only`, `task_next_mine_prints_the_rank_not_the_eligible_only_position` (the latter also cross-checks against `task done <rank>`).
 5. `task_next_with_dotted_address_shows_specific_subtask_as_its_own_root`, `task_next_with_deeper_dotted_address_descends_multiple_levels`, `task_next_mine_with_dotted_address_is_rejected`.
@@ -1213,7 +1212,7 @@ Tests for agile task done (numbering matches the behavior list above):
 Parallelism :
 
 1. [x] Cross-command AC tests added in `next_done_parity.rs`: no-address parity (plain top-level, nested subtask, and `--mine` incl. order-blocking) — `next`/`done` agree wherever both succeed, and `done` correctly errors instead of silently no-op'ing wherever `next` would print nothing.
-2. Remaining gaps (see inline notes above): no `next`-side "no identity" AC test; no `done`-side malformed-address AC test; no `done`-side "`--mine` + dotted address" rejection AC test.
+2. Remaining gaps (see inline notes above): no `done`-side malformed-address AC test; no `done`-side "`--mine` + dotted address" rejection AC test.
 
 
 ## GUI 2.0
