@@ -221,17 +221,11 @@ pub enum Command {
 pub enum TaskAction {
     /// Show the next highest-priority incomplete task
     ///
-    /// With no arguments, returns the top-level task with Rank 1 — the first
-    /// incomplete ([ ]) one in document order — including its full subtask
-    /// tree. Skips done ([x]) and cancelled ([-]) tasks (they have no
-    /// Rank). Prints nothing if every task is complete or cancelled.
+    /// With no arguments, print the task with Rank 1 and subtask tree to the terminal. Highlight the next elligible subtask.
+    /// Prints nothing if there is no open task.
     Next {
-        /// An Offset (plain count, e.g. `3`) to show only the Nth matching
-        /// task — the task with Rank 3 by default, or (combined with
-        /// `--mine`/`--as`) the 3rd Eligible task — not tasks 1 through 3.
-        /// Omit to show just the single next task. To address a specific
-        /// (sub)task directly (a dotted address, ignoring Eligibility), use
-        /// `agile task show` instead.
+        /// Rank Offset (full integer, e.g. `3`). 
+        /// Instead of showing the highest priority task, ignore the first N-1 tasks, show only the Nth task, or Nth elligible task, if combined with --mine / --as.
         #[arg(value_name = "OFFSET")]
         address: Option<String>,
 
