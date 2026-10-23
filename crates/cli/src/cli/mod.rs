@@ -262,9 +262,7 @@ pub enum TaskAction {
     ///
     /// With no arguments, returns the top-level task with Rank 1 — the first
     /// incomplete task in document order, including full subtask
-    /// tree. Prints nothing if there are no open tasks. Always ignores
-    /// Eligibility, so there is no `--mine`/`--as` and no highlighted
-    /// "next" line to mark.
+    /// tree. 
     ///
     Show {
         /// Rank of task to show (plain number, e.g. `3`) Alternatively, an Address (dotted,
