@@ -1171,7 +1171,7 @@ agile task next :
 
 1. No address: prints the first "actionable" Todo leaf in document order (a Todo task with no unresolved children, or whose children are all resolved) — unconditionally, regardless of assignment. Nothing eligible: prints nothing, exits 0 (silent no-op).
 2.  --mine  /  --as <user> : filters that same selection to leaves eligible for the given identity — skips tasks assigned to someone else, and skips an otherwise-eligible leaf if order-blocked by an incomplete lower-order sibling assigned to someone else. Requires a resolvable identity (errors if none can be determined).
-4.  next <N>  (plain number): shows only the Nth top-level task — not tasks 1 through N.
+3.  next <N> : shows only the Nth top-level task — not tasks 1 through N.
 4.  next <N> --mine : selects the Nth eligible task (ranked among eligible-only), but reports/resolves its true absolute rank (so  done <that number>  without  --mine  hits the same task).
 5. Dotted address ( next 1.1 ): descends into that subtask as its own root; cannot combine with  --mine  (rejected).
 6. Invalid/malformed address: exits non-zero.
@@ -1180,13 +1180,19 @@ agile task next :
 
 1. No address: marks the next eligible task done — same selection  task next  would show. Unlike  next , if nothing is eligible this is an error (non-zero exit, file untouched), not a silent no-op.
 2.  --mine  /  --as <user> : marks that identity's next eligible task done, skipping tasks assigned to others.
-3.  --mine  + an explicit address: rejected (error, file untouched).
-4. Explicit address (e.g.  2 ,  1.3 ): marks exactly that node, refusing (printing the violated rule, no write) if it has incomplete required children, missing required subtasks, a disallowed cancelled required subtask, or would be an unauthorized completion (E013).
-5. Only reads/writes the one file the addressed task lives in.
+3. next <N> : Explicit address (e.g. 2): marks exactly that node, refusing (printing the violated rule, no write) if it has incomplete required children, missing required subtasks, a disallowed cancelled required subtask, or would be an unauthorized completion (E013).
+4.  next <N> --mine : rejected (error, file untouched).
+5. Dotted address ( next 1.1 ): ??
+6. Only reads/writes the one file the addressed task lives in.
 
 Parallelism :
 
-1. OK
+1. tests missing
+- [x] add AC tests
+
+2. 
+
+3.  
 
 
 ## GUI 2.0
